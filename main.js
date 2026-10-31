@@ -1,6 +1,7 @@
 // Sunspots — first playable test scene (three.js web prototype)
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 const Q = new URLSearchParams(location.search);
@@ -132,7 +133,7 @@ function puddleMesh(radius, color) {
     const r = radius * (1 + 0.18 * Math.sin(a * 3 + radius) + 0.1 * Math.sin(a * 7 + 1.3));
     i ? s.lineTo(Math.cos(a) * r, Math.sin(a) * r) : s.moveTo(Math.cos(a) * r, Math.sin(a) * r);
   }
-  const m = new THREE.Mesh(new THREE.ShapeGeometry(s), new THREE.MeshStandardMaterial({ color, roughness: .55, map: FELT, polygonOffset: true, polygonOffsetFactor: -2 }));
+  const m = new THREE.Mesh(new THREE.ShapeGeometry(s), new THREE.MeshPhysicalMaterial({ color, roughness: 1, map: FELT, bumpMap: FELT_BUMP, bumpScale: 0.8, sheen: 0.8, sheenRoughness: 0.9, sheenColor: new THREE.Color('#ffc8d8'), polygonOffset: true, polygonOffsetFactor: -2 }));
   m.rotation.x = -Math.PI / 2; m.position.y = 0.02; m.scale.setScalar(0.001); m.receiveShadow = true;
   return m;
 }
@@ -140,7 +141,8 @@ function puddleMesh(radius, color) {
 // building (same formula as MELT_VERT at the top edge) and grows with the melt.
 const DRIP_MAX = 320;
 const dripGeo = (() => { const pts = [[0, 0.03], [1.0, 0.02], [0.92, -0.12], [0.76, -0.36], [0.7, -0.6], [0.8, -0.78], [0.78, -0.9], [0.6, -0.99], [0.32, -1.04], [0, -1.05]].map(([x, y]) => new THREE.Vector2(x, y)); const g = new THREE.LatheGeometry(pts, 12); g.computeVertexNormals(); return g; })();
-const dripMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.42, metalness: 0, map: FELT, emissive: '#ff4a6a', emissiveIntensity: 0.08 });
+// FUZZY MELT: drips are flocked felt (velvet sheen + felt bump), never glossy goo
+const dripMat = new THREE.MeshPhysicalMaterial({ color: '#ffffff', roughness: 1, metalness: 0, map: FELT, bumpMap: FELT_BUMP, bumpScale: 0.9, sheen: 1, sheenRoughness: 0.85, sheenColor: new THREE.Color('#ffc2d6'), emissive: '#ff4a6a', emissiveIntensity: 0.05 });
 const dripMesh = new THREE.InstancedMesh(dripGeo, dripMat, DRIP_MAX); dripMesh.count = 0; dripMesh.castShadow = true; dripMesh.frustumCulled = false;
 dripMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(dripMesh);
 const dripList = []; // {entry, lx, ly, lz, ang, w, len, ph}
@@ -401,8 +403,9 @@ function placeSun() {
 // ---------------------------------------------------------------- loading GLBs
 const manager = new THREE.LoadingManager();
 const bar = document.querySelector('#bar i');
-manager.onProgress = (_u, a, b) => { bar.style.width = (a / b * 100) + '%'; };
+manager.onProgress = (_u, a, b) => { bar.style.width = (a / b * 100) + '%'; window.__title?.progress(a / b); };
 const loader = new GLTFLoader(manager);
+loader.setMeshoptDecoder(MeshoptDecoder);
 const load = (u) => new Promise((res, rej) => loader.load(u, res, undefined, rej));
 
 function normalize(obj, height) {
@@ -545,7 +548,20 @@ const tmpV = new THREE.Vector3(), camTarget = new THREE.Vector3(), sunScreen = n
 const irisOff = new THREE.Vector2();
 camera.position.set(0, 4, 14);
 const col = new THREE.Color();
+// adaptive resolution: hold ~60 fps on phones by stepping the pixel ratio down (and back up) with frame time
+const DPR_MAX = Math.min(window.devicePixelRatio || 1, SHOT ? 1 : 2), DPR_MIN = Math.min(DPR_MAX, 1);
+let dpr = DPR_MAX, ftAvg = 16.7, ftLast = performance.now(), dprHold = 0;
+function adaptDPR() {
+  const now = performance.now(), ft = Math.min(100, now - ftLast); ftLast = now;
+  ftAvg += (ft - ftAvg) * 0.05; if (SHOT || document.hidden || --dprHold > 0) return;
+  let nd = dpr;
+  if (ftAvg > 18.5 && dpr > DPR_MIN) nd = Math.max(DPR_MIN, dpr - 0.25);
+  else if (ftAvg < 14 && dpr < DPR_MAX) nd = Math.min(DPR_MAX, dpr + 0.25);
+  if (nd !== dpr) { dpr = nd; renderer.setPixelRatio(dpr); renderer.setSize(window.innerWidth, window.innerHeight, false); dprHold = 90; }
+}
 function frame() {
+  if (window.__titleUp) { clock.getDelta(); ftLast = performance.now(); requestAnimationFrame(frame); return; } // title screen owns the GPU
+  adaptDPR();
   const dt = Math.min(clock.getDelta(), 0.05); const t = clock.elapsedTime; G.uTime.value = t;
 
   // wild transition (~2s)
@@ -664,6 +680,8 @@ function frame() {
 
 loadAll().then(() => {
   const ld = document.getElementById('load'); ld.style.opacity = 0; setTimeout(() => ld.remove(), 900);
+  renderer.compile(scene, camera); // warm shaders while the title screen is up
+  window.__title?.ready();
   window.__ready = true;
 }).catch(e => { document.getElementById('err').style.display = 'block'; document.getElementById('err').textContent = 'Load error: ' + e.message; console.error(e); });
 requestAnimationFrame(frame);
