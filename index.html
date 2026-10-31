@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><link rel="icon" href="data:,">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1c4fb8">
+<title>Sunspots — test scene 01</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#1c4fb8;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;font-family:"Futura","Avenir Next",Avenir,"Trebuchet MS",sans-serif}
+  #c{position:fixed;inset:0;width:100%;height:100%;display:block}
+  #grain{position:fixed;inset:-50%;width:200%;height:200%;pointer-events:none;opacity:.13;mix-blend-mode:overlay;animation:grain .5s steps(4) infinite}
+  @keyframes grain{0%{transform:translate(0,0)}25%{transform:translate(-3%,2%)}50%{transform:translate(2%,-3%)}75%{transform:translate(-1%,3%)}100%{transform:translate(3%,-1%)}}
+  #vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,rgba(0,0,0,0) 55%,rgba(30,10,20,.38) 100%)}
+  #wildBtn{position:fixed;top:calc(env(safe-area-inset-top) + 14px);right:calc(env(safe-area-inset-right) + 14px);z-index:5;
+    border:0;border-radius:999px;padding:12px 18px;font-size:15px;letter-spacing:.12em;font-weight:700;color:#2a1a10;background:#e9a62c;
+    box-shadow:0 4px 0 #9b5c16,0 8px 18px rgba(0,0,0,.25);-webkit-tap-highlight-color:transparent}
+  #wildBtn.on{background:#ff3fa4;color:#2a0630;box-shadow:0 4px 0 #8a1660,0 0 24px #ff3fa4}
+  #wildBtn:active{transform:translateY(3px);box-shadow:0 1px 0 #9b5c16}
+  #title{position:fixed;top:calc(env(safe-area-inset-top) + 18px);left:calc(env(safe-area-inset-left) + 16px);z-index:4;color:#f6e7c8;font-size:13px;letter-spacing:.3em;opacity:.8;pointer-events:none;text-shadow:0 1px 0 rgba(0,0,0,.3)}
+  #hint{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 16px);left:0;right:0;text-align:center;color:#fbe9d0;font-size:12px;letter-spacing:.15em;opacity:.75;pointer-events:none;transition:opacity 1s}
+  .joy{position:fixed;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;background:rgba(255,240,220,.18);border:2px solid rgba(255,240,220,.45);pointer-events:none;display:none;z-index:6}
+  .knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(255,240,220,.7);box-shadow:0 2px 8px rgba(0,0,0,.25)}
+  #load{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#1c4fb8;color:#f2c14e;letter-spacing:.35em;font-size:14px;transition:opacity .8s}
+  #load .disc{width:120px;height:120px;border-radius:50%;background:#e0a128;margin-bottom:24px;position:relative;overflow:hidden}
+  #load .disc:after{content:"";position:absolute;left:30px;right:30px;top:52px;height:4px;border-radius:4px;background:#3a2410}
+  #bar{width:160px;height:3px;background:rgba(255,255,255,.2);margin-top:14px}#bar i{display:block;height:100%;width:0;background:#f2c14e}
+  #err{position:fixed;left:10px;right:10px;bottom:60px;color:#fff;background:rgba(120,0,0,.7);font:12px monospace;padding:8px;display:none;z-index:20;white-space:pre-wrap}
+</style>
+<script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/addons/"}}</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="grain"></div>
+<div id="vig"></div>
+<div id="title">SUNSPOTS · TEST 01</div>
+<button id="wildBtn" aria-label="Toggle Wild Mode">WILD</button>
+<div id="hint">DRAG TO WALK · PUSH FAR TO RUN · DRAG THE SKY TO LOOK</div>
+<div class="joy" id="joy"><div class="knob" id="knob"></div></div>
+<div id="load"><div class="disc"></div>SUNSPOTS<div id="bar"><i></i></div></div>
+<div id="err"></div>
+<script>window.addEventListener('error',e=>{const d=document.getElementById('err');d.style.display='block';d.textContent+=String(e.message)+'\n'});</script>
+<script type="module" src="./main.js"></script>
+</body>
+</html>
