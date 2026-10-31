@@ -253,11 +253,14 @@ const TOWN = [
 ];
 const WAX = { adobe: '#ff7c78', diner: '#ff8378', fountain: '#ff8a7c', shelter: '#ff7a76', lamp: '#ff7480', payphone: '#ff867a', cactus: '#d0507e' };
 const TINT = { adobe: '#ff7a6c', diner: '#ff8270', fountain: '#ff8672', shelter: '#ff786c', lamp: '#ff7078', payphone: '#ff8070', cactus: '#a02a5a' };
+const PEACH = new THREE.Color('#ffae62');
 function feltify(root) {
   root.traverse(o => {
     if (!o.isMesh) return;
     const m0 = o.material;
-    const m = feltMat(m0.color.clone(), { emissive: m0.emissive.clone(), map: m0.map || FELT, bumpScale: 0.22 });
+    const c0 = m0.color.clone();
+    if (/felt_(wall|trim|roof|stone|basin|frame|body|post|sign|base|seat)/.test(m0.name || '')) c0.lerp(PEACH, 0.5); // peach, not terracotta (approved town image)
+    const m = feltMat(c0, { emissive: m0.emissive.clone(), map: m0.map || FELT, bumpScale: 0.22 });
     if (m0.map) { m.map.colorSpace = THREE.SRGBColorSpace; }
     o.material = m; o.castShadow = o.receiveShadow = true;
   });
@@ -345,7 +348,7 @@ const shadowTex = canvasTex(256, 128, (g) => { g.setTransform(2, 0, 0, 1, 0, 0);
 const underShadow = L(new THREE.Mesh(new THREE.PlaneGeometry(1.05, 0.42), sunMat('#ffffff', { map: shadowTex, transparent: true, opacity: .55 })), 13); underShadow.position.set(0, EY - 0.1, 0);
 const eyeWhite = L(new THREE.Mesh(almond, sunMat('#efe2c8', { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp })), 14); eyeWhite.position.y = EY;
 const clipped = (c, o = {}) => sunMat(c, { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.EqualStencilFunc, stencilZPass: THREE.KeepStencilOp, stencilFail: THREE.KeepStencilOp, ...o });
-const iris = new THREE.Group(); iris.position.y = EY; L(iris, 15);
+const iris = new THREE.Group(); iris.position.y = EY; iris.renderOrder = 10; sun.add(iris); // group order = sun's (10) so iris kids (15-17) sort between eye-white (14) and lid (18)
 const irisTex = canvasTex(256, 256, (g) => { const gr = g.createRadialGradient(128, 128, 30, 128, 128, 128); gr.addColorStop(0, '#9aa07a'); gr.addColorStop(.75, '#6c7556'); gr.addColorStop(1, '#3e432f'); g.fillStyle = gr; g.fillRect(0, 0, 256, 256); for (let i = 0; i < 90; i++) { const a = Math.random() * 6.28; g.strokeStyle = `rgba(40,45,25,${Math.random() * .4})`; g.beginPath(); g.moveTo(128 + Math.cos(a) * 40, 128 + Math.sin(a) * 40); g.lineTo(128 + Math.cos(a) * 124, 128 + Math.sin(a) * 124); g.stroke(); } });
 const irisM = new THREE.Mesh(new THREE.CircleGeometry(0.12, 48), clipped('#ffffff', { map: irisTex })); irisM.renderOrder = 15; iris.add(irisM);
 const pupil = new THREE.Mesh(new THREE.CircleGeometry(0.05, 32), clipped('#16120e')); pupil.renderOrder = 16; iris.add(pupil);
@@ -354,7 +357,7 @@ const glint = new THREE.Mesh(new THREE.CircleGeometry(0.016, 16), clipped('#fffa
 const LID_N = 32;
 const lidGeo = new THREE.BufferGeometry();
 { const pos = new Float32Array((LID_N + 1) * 2 * 3); const idx = []; for (let i = 0; i < LID_N; i++) { const a = i * 2, b = a + 1, c = a + 2, d = a + 3; idx.push(a, c, b, b, c, d); } lidGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); lidGeo.setIndex(idx); }
-const lidMat = clipped('#d9961f');
+const lidMat = clipped('#d9961f', { stencilZPass: THREE.IncrementStencilOp }); // lid marks covered samples (1->2): iris/pupil can only draw where eye-white is visible AND uncovered
 const lid = L(new THREE.Mesh(lidGeo, lidMat), 18); lid.position.y = EY; lid.frustumCulled = false;
 const lashGeo = new THREE.BufferGeometry();
 { const pos = new Float32Array((LID_N + 1) * 2 * 3); const idx = []; for (let i = 0; i < LID_N; i++) { const a = i * 2, b = a + 1, c = a + 2, d = a + 3; idx.push(a, c, b, b, c, d); } lashGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); lashGeo.setIndex(idx); }
@@ -367,8 +370,9 @@ for (let i = 0; i < 9; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0
 // brow: tapered thick arc
 { const N = 30, pos = [], idx = []; for (let i = 0; i <= N; i++) { const t = i / N, x = -0.46 + t * 0.92; const y = EY + 0.27 + 0.07 * (1 - ((x + 0.04) / 0.48) ** 2); const th = 0.012 + 0.028 * Math.sin(Math.PI * Math.pow(t, 0.8)); pos.push(x, y + th, 0, x, y - th, 0); if (i < N) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } } const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); L(new THREE.Mesh(g, sunMat('#3a2412')), 19); }
 let lidClose = 0; // 0 open .. 1 closed
+const LIDQ = new URLSearchParams(location.search).has('lid') ? +new URLSearchParams(location.search).get('lid') : null;
 function updateLid(c) {
-  const s = lerp(EH_T + 0.006, -EH_B * 1.04, c);
+  const s = lerp(EH_T + 0.006, -EH_B * 1.12, c);
   const p = lidGeo.attributes.position.array, q = lashGeo.attributes.position.array;
   const th = lerp(0.010, 0.013, c);
   for (let i = 0; i <= LID_N; i++) {
@@ -379,16 +383,25 @@ function updateLid(c) {
     q.set([x, yb + tt, 0, x, yb - tt * 0.6, 0], i * 6);
   }
   lidGeo.attributes.position.needsUpdate = true; lashGeo.attributes.position.needsUpdate = true;
-  iris.visible = c < 0.98;
+  iris.visible = c < 0.95; // belt and braces: fully hidden near/at closed (blink peak and Wild)
   for (const m of lashes) { const x = m.userData.x, k = 1 - (x / EW) ** 2; m.position.set(x * 1.0, EY + s * k - 0.03, 0); m.rotation.z = x * 1.2; m.visible = c > 0.85; }
 }
 updateLid(0);
 // clouds overlapping the sun (soft dark felt puffs)
 const cloudTex = canvasTex(512, 256, (g, w, h) => { g.filter = 'blur(14px)'; g.fillStyle = '#fff'; const puffs = [[150, 150, 70], [230, 115, 85], [320, 135, 70], [390, 160, 50], [100, 170, 45], [250, 175, 90]]; for (const [x, y, r] of puffs) { g.beginPath(); g.arc(x, y, r * .8, 0, 7); g.fill(); } g.filter = 'none'; g.globalCompositeOperation = 'destination-out'; g.fillRect(0, 205, w, h); });
+const cloudDripTex = canvasTex(256, 256, (g, w, h) => { // gentle fuzzy felt drips hanging from a cloud's flat bottom
+  g.fillStyle = '#fff'; g.filter = 'blur(9px)'; g.fillRect(10, 0, w - 20, 26);
+  const dr = [[44, .30, 15], [92, .55, 18], [140, .22, 14], [176, .45, 16], [214, .28, 13]];
+  for (const [x, l, r] of dr) { const L = 20 + l * (h - 70); g.beginPath(); g.moveTo(x - r, 0); g.lineTo(x - r * 0.75, L); g.arc(x, L, r * 0.95, Math.PI, 0, true); g.lineTo(x + r, 0); g.fill(); }
+  g.filter = 'none'; g.globalCompositeOperation = 'destination-out';
+  for (let i = 0; i < 2600; i++) { g.fillStyle = `rgba(0,0,0,${Math.random() * .35})`; g.fillRect(Math.random() * w, Math.random() * h, 1.5, 2.5); } // fibre fuzz
+});
 const clouds = [];
 for (const [x, y, s, o] of [[-1.05, 0.05, 0.85, .85], [1.08, -0.12, 0.95, .85], [0.55, 0.7, 0.5, .8], [-1.75, -0.42, 0.55, .6]]) {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(1.6 * s, 0.8 * s), sunMat(PAL.cloud[0].clone(), { map: cloudTex, transparent: true, opacity: o }));
   m.position.set(x, y, 0); m.userData.base = [x, y]; L(m, 20); clouds.push(m);
+  const d = new THREE.Mesh(new THREE.PlaneGeometry(0.95 * s, 0.38 * s).translate(0, -0.19 * s, 0), sunMat(PAL.cloud[1].clone(), { map: cloudDripTex, transparent: true, opacity: 0 }));
+  d.position.set(0, -0.225 * s, 0); d.renderOrder = 20; m.add(d); m.userData.drip = d; m.userData.o = o;
 }
 sun.scale.setScalar(SUN_R);
 function placeSun() {
@@ -573,14 +586,19 @@ function frame() {
   scene.background.lerpColors(PAL.sky[0], PAL.sky[1], w);
   scene.fog.color.lerpColors(PAL.fog[0], PAL.fog[1], w);
   groundMat.color.lerpColors(PAL.ground[0], PAL.ground[1], w);
-  hemi.color.lerpColors(PAL.hemiSky[0], PAL.hemiSky[1], w); hemi.groundColor.copy(groundMat.color).lerp(col.set('#f0b080'), 0.35 * (1 - w));
+  hemi.color.lerpColors(PAL.hemiSky[0], PAL.hemiSky[1], w); hemi.groundColor.copy(groundMat.color).lerp(col.set('#f6c4a2'), 0.6 * (1 - w));
   key.color.lerpColors(PAL.key[0], PAL.key[1], w); key.intensity = lerp(2.3, 1.6, w);
   discMat.color.lerpColors(PAL.sun[0], PAL.sun[1], w);
   lidMat.color.copy(discMat.color).multiplyScalar(0.9);
   halo.material.color.set('#ffcf6a').lerp(col.set('#ff7a3a'), w); halo.material.opacity = lerp(0.18, 0.75, w); halo.scale.setScalar(lerp(1, 1.25, w));
   spots.material.opacity = w * 0.9;
   for (const d of drips) { const L2 = d.userData.len * smooth(clamp(wild * 1.3 - 0.3, 0, 1)); d.scale.set(1, Math.max(0.001, L2), 1); d.position.y = d.userData.yEdge - L2 * 0.5 + 0.02; d.visible = L2 > 0.005; }
-  for (const c of clouds) { c.material.color.lerpColors(PAL.cloud[0], PAL.cloud[1], w); c.position.x = c.userData.base[0] + Math.sin(t * 0.05 + c.userData.base[1] * 3) * 0.06; }
+  for (const c of clouds) {
+    c.material.color.lerpColors(PAL.cloud[0], PAL.cloud[1], w); c.position.x = c.userData.base[0] + Math.sin(t * 0.05 + c.userData.base[1] * 3) * 0.06;
+    const dg = smooth(clamp(wild * 1.4 - 0.4, 0, 1)), dd = c.userData.drip; // drips sag down slowly after the colour shift
+    dd.visible = dg > 0.01; dd.material.opacity = c.userData.o * dg; dd.material.color.copy(c.material.color);
+    dd.scale.y = Math.max(0.01, dg * (1 + 0.05 * Math.sin(t * 0.9 + c.userData.base[0] * 4)));
+  }
   // neon
   const nOn = smooth(clamp((wild - 0.35) / 0.65, 0, 1));
   const flick = nOn > 0 && nOn < 1 ? (Math.sin(t * 60) > 0.2 ? 1 : 0.35) : 1;
@@ -678,6 +696,7 @@ function frame() {
     if (blinkT < 0) { nextBlink -= dt; if (nextBlink <= 0) { blinkT = 0; nextBlink = 2.5 + Math.random() * 5.5; if (Math.random() < .2) nextBlink = 0.7; } }
     if (blinkT >= 0) { blinkT += dt; const b = blinkCurve(blinkT); if (b < 0) { blinkT = -1; lc = 0; } else lc = b; }
   }
+  if (LIDQ !== null) lc = LIDQ;
   if (lc !== lidClose) { lidClose = lc; updateLid(lc); }
   // pupil tracking: look from the sun's face toward the wolf on screen
   if (wolfReady) {
