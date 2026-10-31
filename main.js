@@ -3,9 +3,12 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { createLevel, LAYOUT } from './level.js';
+import { createCockpit } from './cockpit.js';
 
 const Q = new URLSearchParams(location.search);
 const SHOT = Q.has('shot');
+const MAP = Q.get('map'); // QA: ?map=town|route -> top-down orthographic layout render
 const QCAM = Q.get('cam') ? Q.get('cam').split(',').map(Number) : null; // QA: ?cam=x,y,z,tx,ty,tz
 const lerp = THREE.MathUtils.lerp, clamp = THREE.MathUtils.clamp;
 const smooth = t => t * t * (3 - 2 * t);
@@ -24,7 +27,7 @@ const PAL = {
 
 // ---------------------------------------------------------------- renderer
 const canvas = document.getElementById('c');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, stencil: true, powerPreference: 'high-performance', preserveDrawingBuffer: SHOT });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, stencil: true, powerPreference: 'high-performance', preserveDrawingBuffer: SHOT }); renderer.localClippingEnabled = true;
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, SHOT ? 1 : 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -250,6 +253,8 @@ const TOWN = [
   ['diner', 2, -12, 0, 0, 6.2], ['fountain', 0, -3, 0, 2.9, 3.4], ['bus_shelter', -8, -4.5, 0.35, 1.7, 2.3], ['lamp', 9, -1, 0, 0.45, 1.0],
   ['payphone', 6.6, -3.5, -0.35, 0.5, 0.9], ['cactus_tall', -11.5, -7.6, 0.4, 0.55, 1.3], ['cactus_small', 4.6, -2.5, -0.5, 0.4, 0.75],
   ['cactus_mid', 15.5, -7.5, 1.2, 0.45, 1.0], ['cactus_tall', -21, -16, 2.1, 0.55, 1.3], ['cactus_mid', 8.5, -19, 0.3, 0.45, 1.0],
+  // Level 1: the Wolf's house (small peach adobe, south edge, door faces town) + a cactus by the gate
+  ['adobe_small', -10, 28, Math.PI, 2.0, 2.4], ['cactus_small', -5.2, 23.4, 0.8, 0.4, 0.75], ['cactus_mid', -26, 15, 0.4, 0.45, 1.0], ['adobe_b', 30, -6, -0.7, 2.5, 3.0],
 ];
 const WAX = { adobe: '#ff7c78', diner: '#ff8378', fountain: '#ff8a7c', shelter: '#ff7a76', lamp: '#ff7480', payphone: '#ff867a', cactus: '#d0507e' };
 const TINT = { adobe: '#ff7a6c', diner: '#ff8270', fountain: '#ff8672', shelter: '#ff786c', lamp: '#ff7078', payphone: '#ff8070', cactus: '#a02a5a' };
@@ -283,20 +288,24 @@ function placeTown(models) {
 // Distant cacti: one instanced felt saguaro (cactus_far.glb) scattered to the horizon
 function placeFarCacti(gltf) {
   let geo; gltf.scene.traverse(o => { if (o.isMesh && !geo) geo = o.geometry; });
-  const N = 110;
+  const N = 300;
   const u = meltUniforms(geo, '#7a2f5a', 1.3);
   const mat = patchMelt(feltMat('#58773a'), u);
   const inst = new THREE.InstancedMesh(geo, mat, N); inst.castShadow = true; inst.customDepthMaterial = depthMatFor(u);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sv = new THREE.Vector3();
   let i = 0;
-  while (i < N) {
-    const r = 30 + Math.pow(rnd(), 1.3) * 330, a = rnd() * Math.PI * 2;
-    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+  const M = level.MAIN; let tries = 0;
+  while (i < N && tries++ < 5000) {
+    let x, z;
+    if (i < 110) { const r = 30 + Math.pow(rnd(), 1.3) * 330, a = rnd() * Math.PI * 2; x = Math.cos(a) * r; z = Math.sin(a) * r; }
+    else { const k = Math.floor(rnd() * M.s.length), side = rnd() < 0.5 ? -1 : 1, off = 14 + Math.pow(rnd(), 1.4) * 170; const a = M.s[Math.max(0, k - 1)], b = M.s[Math.min(M.s.length - 1, k + 1)]; const tl = Math.hypot(b.x - a.x, b.z - a.z) || 1; x = M.s[k].x - (b.z - a.z) / tl * off * side; z = M.s[k].z + (b.x - a.x) / tl * off * side; }
+    const rd = level.distToRoad(x, z); if (rd < 10 || Math.hypot(x - 2, z - 6) < 34) continue;
+    const r = rd;
     q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rnd() * 6.28);
     const s = 0.75 + rnd() * 0.8;
     m4.compose(new THREE.Vector3(x, 0, z), q, sv.set(s, s * (0.8 + rnd() * 0.45), s));
     inst.setMatrixAt(i++, m4);
-    if (r < 40) colliders.push({ x, z, r: 0.6 * s });
+    if (r < 45) colliders.push({ x, z, r: 0.6 * s });
   }
   scene.add(inst);
   meltables.push({ root: inst, meshes: [{ mesh: inst, u }], delay: 0.15, puddle: null, drips: [] });
@@ -443,8 +452,41 @@ function prop(gltf, { h, x, z, ry = 0, tint = '#ff8a8a', puddle = 1, collide = 0
   return holder;
 }
 
-let wolf, mixer, actWalk, actRun, wolfReady = false;
-const wolfState = { pos: new THREE.Vector3(0, 0, 6), yaw: Math.PI, speed: 0 };
+let wolf, mixer, actWalk, actRun, wolfReady = false, wolfBaseScale = 1;
+const wolfState = { pos: new THREE.Vector3(LAYOUT.wolfStart[0], 0, LAYOUT.wolfStart[1]), yaw: LAYOUT.wolfStart[2], speed: 0 };
+// ---------------------------------------------------------------- level 1: Last Minute Snacks (roads, car, store, townsfolk, HUD)
+const level = createLevel({ scene, colliders, feltMat, rbox, makeMeltable, feltify: (r) => feltify(r), rnd, clamp, lerp, smooth, FELT,
+  onEnterCar: () => { if (actWalk) { actWalk.setEffectiveWeight(0); actRun.setEffectiveWeight(0); } wolfState.speed = 0; snapCam = true; },
+  onReset: () => { wolfState.pos.set(LAYOUT.wolfStart[0], 0, LAYOUT.wolfStart[1]); wolfState.yaw = LAYOUT.wolfStart[2]; wolfState.speed = 0; camYawTarget = camYaw = 0; snapCam = true; } });
+let snapCam = false;
+// first person: the moth driver's cockpit (default while driving) + the Wolf's own eyes on foot (eye button, hold 0.5 s / V)
+const cockpit = createCockpit(level, { feltMat, rbox, clamp, lerp, rnd: Math.random }); level.cockpit = cockpit;
+if (Q.has('chase')) cockpit.chase = true;
+if (Q.has('look')) cockpit.holdLook = [(+Q.get('look') || 0) * Math.PI / 180, (+Q.get('lookp') || 0) * Math.PI / 180];
+if (Q.get('prank')) cockpit.forceAct = Q.get('prank');
+const FP = { on: Q.has('fp') ? 1 : 0, k: Q.has('fp') ? 1 : 0, pitch: Q.has('fpp') ? +Q.get('fpp') * Math.PI / 180 : 0, tpPos: new THREE.Vector3(0, 4, 14), tpQ: new THREE.Quaternion(), fpPos: new THREE.Vector3(), fpQ: new THREE.Quaternion(), e: new THREE.Euler(0, 0, 0, 'YXZ'), bob: 0 };
+// FP arms: mustard sweater sleeves + grey furry paws at the bottom edges while walking; crossed arms when idle (look down)
+const SWEATER = '#d39a2e', PAW = '#8f8b86';
+const fpArms = new THREE.Group(), fpCross = new THREE.Group(); scene.add(fpArms, fpCross); fpArms.visible = fpCross.visible = false;
+function sleeve(len, r) { const g = new THREE.Group(); const sl = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.92, r, len, 14), feltMat(SWEATER)); sl.rotation.x = Math.PI / 2; sl.position.z = -len / 2; g.add(sl);
+  const cuff = new THREE.Mesh(new THREE.TorusGeometry(r * 0.9, r * 0.22, 8, 16), feltMat('#b98326')); cuff.position.z = -len; g.add(cuff);
+  const paw = new THREE.Mesh(new THREE.SphereGeometry(r * 1.05, 16, 12), feltMat(PAW, { bumpScale: 1.4 })); paw.scale.set(1, 0.8, 1.25); paw.position.z = -len - r * 0.9; g.add(paw);
+  for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.SphereGeometry(r * 0.32, 10, 8), feltMat(PAW, { bumpScale: 1.4 })); f.position.set((i - 1.5) * r * 0.5, r * 0.12, -len - r * 2.0); g.add(f); }
+  g.traverse(o => { if (o.isMesh) { o.castShadow = false; o.renderOrder = 5; } }); return g; }
+const fpL = sleeve(0.55, 0.085), fpR = sleeve(0.55, 0.085); fpArms.add(fpL, fpR);
+{ const a = sleeve(0.5, 0.09), b = sleeve(0.5, 0.09); a.position.set(-0.24, 0.0, 0.02); a.rotation.set(0, -1.32, 0.15); b.position.set(0.24, 0.05, -0.02); b.rotation.set(0, 1.32, -0.15); fpCross.add(a, b); }
+const eyeBtn = document.getElementById('eyeBtn'), eyeRing = eyeBtn.querySelector('.ring'), fpFx = document.getElementById('fpFx'), hazeT = document.getElementById('hazeT');
+function setWolfGhost(on) { for (const m of wolf.userData.mats || []) { m.colorWrite = !on; m.depthWrite = !on; } }
+function toggleFP() { FP.on = FP.on ? 0 : 1; eyeBtn.classList.toggle('fp', !!FP.on); try { navigator.vibrate && navigator.vibrate(12); } catch (_) {} }
+{ let holdT = null, raf = 0; const RING = 163.4;
+  const fill = (x) => eyeRing.style.strokeDashoffset = RING * (1 - x);
+  const step = () => { if (holdT === null) return; const x = Math.min(1, (performance.now() - holdT) / 500); fill(x);
+    if (x >= 1) { holdT = null; toggleFP(); setTimeout(() => fill(0), 160); return; } raf = requestAnimationFrame(step); };
+  eyeBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); try { eyeBtn.setPointerCapture(e.pointerId); } catch (_) {} holdT = performance.now(); cancelAnimationFrame(raf); raf = requestAnimationFrame(step); });
+  const up = e => { e.preventDefault(); e.stopPropagation(); if (holdT !== null) { holdT = null; cancelAnimationFrame(raf); fill(0); eyeBtn.classList.remove('wig'); void eyeBtn.offsetWidth; eyeBtn.classList.add('wig'); } };
+  eyeBtn.addEventListener('pointerup', up); eyeBtn.addEventListener('pointercancel', up); eyeBtn.addEventListener('contextmenu', e => e.preventDefault());
+  eyeBtn.addEventListener('animationend', () => eyeBtn.classList.remove('wig')); }
+if (FP.on) eyeBtn.classList.add('fp');
 
 async function loadAll() {
   const M = './models/';
@@ -453,7 +495,8 @@ async function loadAll() {
     'wolf.glb', 'wolf_run_anim.glb', 'busstop_bench.glb', 'mainst_hydrant.glb', 'mainst_car.glb',
     'mines_lantern.glb', 'busstop_rain_cloud.glb', ...TOWN_MODELS.map(n => 'town/' + n + '.glb')].map(f => load(M + f)));
   const town = Object.fromEntries(TOWN_MODELS.map((n, i) => [n, townG[i]]));
-  placeTown(town); placeFarCacti(town.cactus_far);
+  placeTown(town); placeFarCacti(town.cactus_far); level.placeRoadCacti(town);
+  const castP = level.loadCast(load, normalize);
   if (neonSpec) { // hot-pink neon: ring around the ball sign + strip along the roof lip
     const [rx, ry, rz, rr] = neonSpec.ring, [sx, sy, sz, sl] = neonSpec.strip;
     neonRing.position.set(neonSpec.x + rx, ry, neonSpec.z + rz); neonRing.scale.setScalar(rr / 1.32);
@@ -465,8 +508,8 @@ async function loadAll() {
 
   // dressing: Meshy characters/props standing about the square
   prop(bench, { h: 1.15, x: -4.6, z: -4.2, ry: 0.15, collide: 1.0, puddle: 1.3 });
-  prop(hydrant, { h: 1.1, x: 3.2, z: 3.2, ry: -0.6, collide: 0.45, puddle: 0.8 });
-  prop(car, { h: 1.7, x: 13, z: 2.5, ry: -1.9, collide: 1.7, puddle: 2.2 });
+  void hydrant; // the static hydrant is replaced by the rigged mainst_hydrant_spin townsperson (level.js)
+  level.setBootCar(car.scene, normalize); // the boot car is the rideshare: parked at the pickup, drivable, walks on its boots
   prop(lantern, { h: 1.0, x: 8.3, z: 0.4, ry: -0.8, collide: 0.4, puddle: 0.7 });
   const rc = prop(rain, { h: 2.6, x: -10.6, z: -2.6, ry: 0.6, collide: 0.5, puddle: 1.0 });
 
@@ -475,6 +518,7 @@ async function loadAll() {
   const wm = normalize(w.scene, 1.75);
   wm.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; o.material.roughness = 1; o.material.metalness = 0; } });
   wolf.add(wm); scene.add(wolf);
+  wolf.userData.mats = []; wm.traverse(o => { if (o.isMesh) [].concat(o.material).forEach(m => wolf.userData.mats.push(m)); });
   mixer = new THREE.AnimationMixer(wm);
   // Meshy's auto-rig tears the mesh when the arm/spine/hip-twist channels play (the model is
   // sculpted arms-crossed, the clips swing the arms). Keep only the leg chain + vertical hip bob;
@@ -499,19 +543,21 @@ async function loadAll() {
   // idle head glance: only the Head bone (not in any clip) gets a small yaw/tilt on top of its bind pose
   const hb = wm.getObjectByName('Head');
   if (hb) wolf.userData.head = { bone: hb, bind: hb.quaternion.clone(), q: new THREE.Quaternion(), e: new THREE.Euler(), yaw: 0, tilt: 0 };
+  await castP;
   wolfReady = true;
 }
 
 // ---------------------------------------------------------------- input: floating joystick + sky drag to orbit + keyboard
 const joy = document.getElementById('joy'), knob = document.getElementById('knob');
-const input = { x: 0, y: 0 }; let joyId = null, joyO = { x: 0, y: 0 }, lookId = null, lookLast = 0;
+const input = { x: 0, y: 0 }; let joyId = null, joyO = { x: 0, y: 0 }, lookId = null, lookLast = 0, lookLastY = 0;
 const DEBUG = {};
 let camYaw = 0, camYawTarget = 0, manualLookT = 0;
 const R = 52;
 canvas.addEventListener('pointerdown', e => {
+  if (level.mode !== 'walk') return;
   const portrait = innerHeight > innerWidth;
   const isLook = portrait ? e.clientY < innerHeight * 0.38 : e.clientX > innerWidth * 0.6;
-  if (isLook && lookId === null) { lookId = e.pointerId; lookLast = e.clientX; canvas.setPointerCapture(e.pointerId); return; }
+  if (isLook && lookId === null) { lookId = e.pointerId; lookLast = e.clientX; lookLastY = e.clientY; canvas.setPointerCapture(e.pointerId); return; }
   if (joyId !== null) return;
   joyId = e.pointerId; joyO = { x: e.clientX, y: e.clientY };
   joy.style.left = e.clientX + 'px'; joy.style.top = e.clientY + 'px'; joy.style.display = 'block'; knob.style.transform = '';
@@ -524,12 +570,13 @@ canvas.addEventListener('pointermove', e => {
     if (l > R) { dx *= R / l; dy *= R / l; }
     knob.style.transform = `translate(${dx}px,${dy}px)`; input.x = dx / R; input.y = dy / R;
   } else if (e.pointerId === lookId) {
-    camYawTarget -= (e.clientX - lookLast) * 0.008; lookLast = e.clientX; manualLookT = 2.5;
+    camYawTarget -= (e.clientX - lookLast) * (FP.on ? 0.006 : 0.008); lookLast = e.clientX; manualLookT = 2.5;
+    if (FP.on) FP.pitch = clamp(FP.pitch - (e.clientY - lookLastY) * 0.005, -1.15, 0.6); lookLastY = e.clientY;
   }
 });
 const endPtr = e => { if (e.pointerId === joyId) { joyId = null; input.x = input.y = 0; joy.style.display = 'none'; } if (e.pointerId === lookId) lookId = null; };
 canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointercancel', endPtr);
-const keys = {}; addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyM') toggleWild(); }); addEventListener('keyup', e => keys[e.code] = false);
+const keys = {}; addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyM') toggleWild(); if (e.code === 'KeyV' && !e.repeat && level.mode === 'walk') toggleFP(); }); addEventListener('keyup', e => keys[e.code] = false);
 
 // ---------------------------------------------------------------- wild mode
 let wild = Q.has('wild') ? 1 : 0, wildTarget = wild;
@@ -550,7 +597,7 @@ function blinkCurve(t) { // slow heavy lid: 0.38s down, 0.14 hold, 0.55s up
 // ---------------------------------------------------------------- resize
 function resize() {
   const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false);
-  camera.aspect = w / h; camera.fov = w < h ? 62 : 50; camera.updateProjectionMatrix();
+  camera.aspect = w / h; camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize); resize();
 
@@ -560,6 +607,7 @@ addEventListener('resize', resize); resize();
 
 // ---------------------------------------------------------------- loop
 const clock = new THREE.Clock();
+let mapCam = null;
 const tmpV = new THREE.Vector3(), camTarget = new THREE.Vector3(), sunScreen = new THREE.Vector3(), wolfScreen = new THREE.Vector3();
 const irisOff = new THREE.Vector2();
 camera.position.set(0, 4, 14);
@@ -616,8 +664,17 @@ function frame() {
   }
   updateDrips(t);
 
+  // level (clock, car, townsfolk, obstacles)
+  level.update(dt, t, { wolfPos: wolfState.pos, keys, wild: w, titleUp: !!window.__titleUp || !wolfReady || !!MAP });
+  // wolf riding shotgun
+  if (wolfReady && level.inCar) {
+    level.car.root.updateMatrixWorld(true); cockpit.wolfRig.matrixWorld.decompose(wolf.position, wolf.quaternion, tmpV); wolf.scale.setScalar(wolfBaseScale * level.seatScale); wolfState.pos.copy(wolf.position).setY(0);
+    const hd0 = wolf.userData.head; if (hd0) { hd0.e.set(cockpit.wolfHeadTilt || 0, cockpit.wolfHeadYaw || 0, 0); hd0.q.setFromEuler(hd0.e); hd0.bone.quaternion.copy(hd0.bind).multiply(hd0.q); }
+    const body = wolf.userData.body; body.rotation.set(0, 0, Math.sin(t * 7) * 0.01 * clamp(level.car.v / 10, 0, 1)); body.position.x = 0; mixer.update(dt);
+  }
+  cockpit.wolfH = 1.75 * wolfBaseScale * level.seatScale; cockpit.update(dt, t);
   // wolf movement
-  if (wolfReady) {
+  if (wolfReady && level.mode === 'walk') {
     let ix = input.x, iy = input.y;
     if (keys.KeyW || keys.ArrowUp) iy = -1; if (keys.KeyS || keys.ArrowDown) iy = 1; if (keys.KeyA || keys.ArrowLeft) ix = -1; if (keys.KeyD || keys.ArrowRight) ix = 1;
     if (keys.ShiftLeft) { ix *= 1; iy *= 1; } else if (!input.x && !input.y && (ix || iy)) { const l = Math.hypot(ix, iy); ix *= 0.6 / l; iy *= 0.6 / l; }
@@ -634,8 +691,9 @@ function frame() {
     const p = wolfState.pos;
     p.x += Math.sin(wolfState.yaw) * wolfState.speed * dt; p.z += Math.cos(wolfState.yaw) * wolfState.speed * dt;
     for (const c of colliders) { const dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz), r = c.r + 0.45; if (d < r && d > 1e-4) { p.x = c.x + dx / d * r; p.z = c.z + dz / d * r; } }
-    const pr = Math.hypot(p.x, p.z); if (pr > 300) { p.x *= 300 / pr; p.z *= 300 / pr; }
-    wolf.position.copy(p); wolf.rotation.y = wolfState.yaw;
+    { const [cx, cz] = LAYOUT.townCenter, R0 = LAYOUT.walkRadius, dx = p.x - cx, dz = p.z - cz, pr = Math.hypot(dx, dz); // invisible boundary: town on foot, the desert is for driving
+      if (pr > R0) { p.x = cx + dx * R0 / pr; p.z = cz + dz * R0 / pr; if (!level.edgeWalkSaid) { level.toast('Too far to walk. Catch the ride.', 2.4); level.edgeWalkSaid = true; } } else if (pr < R0 - 6) level.edgeWalkSaid = false; }
+    wolf.position.copy(p); wolf.rotation.set(0, wolfState.yaw, 0); wolf.scale.setScalar(wolfBaseScale);
     // anim blend
     const sp = wolfState.speed;
     // one shared gait phase drives both clips so walk<->run blends stay in step; weight 0 = clean bind pose (idle)
@@ -670,16 +728,56 @@ function frame() {
     }
     // camera auto-follows behind travel direction unless the player recently dragged the sky
     manualLookT -= dt;
-    if (manualLookT <= 0 && sp > 1) { let d = (wolfState.yaw + Math.PI) - camYawTarget; d = Math.atan2(Math.sin(d), Math.cos(d)); camYawTarget += d * (1 - Math.exp(-dt * 0.8)); }
+    if (manualLookT <= 0 && sp > 1 && !FP.on) { let d = (wolfState.yaw + Math.PI) - camYawTarget; d = Math.atan2(Math.sin(d), Math.cos(d)); camYawTarget += d * (1 - Math.exp(-dt * 0.8)); }
   }
   camYaw += (camYawTarget - camYaw) * (1 - Math.exp(-dt * 6));
   const portrait = innerHeight > innerWidth;
   const dist = portrait ? 10.5 : 9.5, hgt = portrait ? 4.2 : 3.3;
   const wp = wolfReady ? wolf.position : wolfState.pos;
-  tmpV.set(wp.x + Math.sin(camYaw) * dist, hgt, wp.z + Math.cos(camYaw) * dist);
-  camera.position.lerp(tmpV, 1 - Math.exp(-dt * 5));
-  camTarget.set(wp.x, portrait ? 2.6 : 2.75, wp.z);
-  camera.lookAt(camTarget);
+  let wantFov = portrait ? 62 : 50, wantNear = 0.1;
+  const fpDrive = level.inCar && !cockpit.chase;
+  if (level.inCar) {
+    if (fpDrive) { cockpit.camera(camera); wantFov = portrait ? 76 : 62; wantNear = 0.03; snapCam = false; }
+    else { level.chaseCam(camera, dt, portrait, snapCam); snapCam = false; }
+    if (Q.has('carside')) { const c = level.car, sd = +Q.get('carside') || 7; camera.position.set(c.pos.x + Math.cos(c.yaw) * sd + Math.sin(c.yaw) * 1.5, 1.5, c.pos.z - Math.sin(c.yaw) * sd + Math.cos(c.yaw) * 1.5); camera.lookAt(c.pos.x, 1.0, c.pos.z); } }
+  else {
+    tmpV.set(wp.x + Math.sin(camYaw) * dist, hgt, wp.z + Math.cos(camYaw) * dist);
+    if (snapCam) { FP.tpPos.copy(tmpV); } else FP.tpPos.lerp(tmpV, 1 - Math.exp(-dt * 5));
+    camTarget.set(wp.x, portrait ? 2.6 : 2.75, wp.z);
+    camera.position.copy(FP.tpPos); camera.lookAt(camTarget); FP.tpQ.copy(camera.quaternion);
+    // the Wolf's eyes: quick smooth blend (~0.35 s), free look, gentle walk bob (a bit more in Wild)
+    FP.k = clamp(FP.k + (FP.on ? 1 : -1) * dt / 0.35, 0, 1); if (snapCam) FP.k = FP.on; snapCam = false;
+    const e = smooth(FP.k);
+    if (e > 0 && wolfReady) {
+      const move = clamp(wolfState.speed / 1.4, 0, 1), ph = wolf.userData.phase || 0, wb = 1 + w * 0.8;
+      const hb = wolf.userData.head?.bone; if (hb) { wolf.updateMatrixWorld(true); hb.getWorldPosition(FP.fpPos); FP.fpPos.y = Math.max(FP.fpPos.y + 0.12, 1.2); } else FP.fpPos.set(wp.x, 1.62, wp.z);
+      FP.fpPos.x = wp.x - Math.sin(camYaw) * 0.14; FP.fpPos.z = wp.z - Math.cos(camYaw) * 0.14;      // eyes sit just in front of the head, centred over the body
+      FP.fpPos.y += Math.sin(ph * Math.PI * 4) * 0.028 * move * wb + (w ? Math.sin(t * 1.3) * 0.02 * w : 0);
+      FP.e.set(FP.pitch + Math.sin(ph * Math.PI * 4 + 0.6) * 0.012 * move * wb, camYaw, Math.sin(ph * Math.PI * 2) * 0.012 * move * wb + Math.sin(t * 0.9) * 0.025 * w);
+      FP.fpQ.setFromEuler(FP.e);
+      camera.position.lerpVectors(FP.tpPos, FP.fpPos, e); camera.quaternion.slerpQuaternions(FP.tpQ, FP.fpQ, e);
+      wantFov = lerp(wantFov, portrait ? 74 : 64, e); wantNear = lerp(0.1, 0.03, e);
+    }
+    // sleeves + paws ride the camera; crossed arms hang off the body (only seen when looking down while idle)
+    const showArms = e > 0.85 && wolfReady;
+    fpArms.visible = fpCross.visible = showArms;
+    if (showArms) {
+      const move = clamp(wolfState.speed / 1.4, 0, 1), ph = (wolf.userData.phase || 0) * Math.PI * 2, idle = 1 - move;
+      fpArms.position.copy(camera.position); fpArms.quaternion.copy(camera.quaternion);
+      const sw = Math.sin(ph) * 0.07 * move, dn = idle * 0.45;
+      fpL.position.set(-0.3, -0.4 - dn + Math.abs(Math.sin(ph)) * 0.015 * move, -0.05 + sw); fpL.rotation.set(0.38 + sw * 0.8, -0.18, 0.1);
+      fpR.position.set(0.3, -0.4 - dn + Math.abs(Math.cos(ph)) * 0.015 * move, -0.05 - sw); fpR.rotation.set(0.38 - sw * 0.8, 0.18, -0.1);
+      fpCross.position.set(FP.fpPos.x - Math.sin(camYaw) * 0.32, FP.fpPos.y - 0.58, FP.fpPos.z - Math.cos(camYaw) * 0.32); fpCross.rotation.set(0, camYaw, 0);
+      fpCross.scale.setScalar(idle > 0.3 ? 0.62 : 0.001);
+    }
+    // the Wolf model hides in first person but still casts his shadow (colour/depth writes off; the shadow pass ignores those)
+    const hideWolf = e > 0.6; if (wolfReady && hideWolf !== !!FP.hidden) { FP.hidden = hideWolf; setWolfGhost(hideWolf); }
+    // Wild first person: warm pink vignette with wobbly fuzzy-melt edges
+    const fx = e * w; fpFx.style.opacity = fx.toFixed(3);
+    if (fx > 0.01 && ((t * 12) | 0) !== FP.hz) { FP.hz = (t * 12) | 0; hazeT.setAttribute('baseFrequency', `${(0.011 + 0.003 * Math.sin(t * 1.7)).toFixed(4)} ${(0.018 + 0.004 * Math.cos(t * 1.3)).toFixed(4)}`); hazeT.setAttribute('seed', String(3 + (FP.hz % 7))); }
+  }
+  if (level.inCar) { fpArms.visible = fpCross.visible = false; fpFx.style.opacity = 0; if (FP.hidden) { FP.hidden = false; setWolfGhost(false); } }
+  if (camera.fov !== wantFov || camera.near !== wantNear) { camera.fov = wantFov; camera.near = wantNear; camera.updateProjectionMatrix(); }
   const cc = DEBUG.closeCam; // screenshot/QA hook: close-up orbit relative to the wolf's facing
   if (cc && wolfReady) { const a = wolfState.yaw + (cc.yaw || 0); camera.position.set(wp.x + Math.sin(a) * cc.dist, cc.h, wp.z + Math.cos(a) * cc.dist); camTarget.set(wp.x, cc.ty, wp.z); camera.lookAt(camTarget); }
   if (QCAM) { camera.position.set(QCAM[0], QCAM[1], QCAM[2]); camTarget.set(QCAM[3], QCAM[4], QCAM[5]); camera.lookAt(camTarget); }
@@ -710,6 +808,15 @@ function frame() {
     pupil.scale.setScalar(lerp(1, 0.8, w));
   }
 
+  if (MAP) { // top-down layout render for the level map
+    if (!mapCam) { const town = MAP === 'town', asp = innerWidth / innerHeight; const [cx, cz, hz] = town ? [4, 6, 34] : [62, -495, 560]; const hx = hz * asp;
+      mapCam = new THREE.OrthographicCamera(-hx, hx, hz, -hz, 1, 3000); mapCam.position.set(cx, 1000, cz); mapCam.up.set(0, 0, -1); mapCam.lookAt(cx, 0, cz);
+      window.__mapView = { cx, cz, hx, hz }; sun.visible = false; scene.fog.near = 1e5; scene.fog.far = 2e5; for (const m of level.spotMarkers) m.visible = true;
+      document.body.classList.add('map'); const sc2 = key.shadow.camera; sc2.left = sc2.bottom = town ? -40 : -40; sc2.right = sc2.top = 40; sc2.updateProjectionMatrix(); }
+    key.position.set(window.__mapView.cx, 0, window.__mapView.cz).add(KEY_OFFSET); key.target.position.set(window.__mapView.cx, 0, window.__mapView.cz);
+    renderer.render(scene, mapCam); requestAnimationFrame(frame); return;
+  }
+  cockpit.renderMirror(renderer, scene);
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
@@ -718,7 +825,12 @@ loadAll().then(() => {
   const ld = document.getElementById('load'); ld.style.opacity = 0; setTimeout(() => ld.remove(), 900);
   renderer.compile(scene, camera); // warm shaders while the title screen is up
   window.__title?.ready();
+  // QA hooks: ?drive  ?at=<metres along road>  ?short  ?end=win|lose
+  if (Q.has('walk')) { input.y = -(+Q.get('walk') || 0.6); }  // QA: hold the joystick forward
+  if (Q.has('drive') || Q.has('at')) { level.enterCar(); if (Q.has('at')) level.teleportCar(+Q.get('at') || 0, Q.has('short') ? level.SHORT : level.MAIN); }
+  if (Q.get('end')) setTimeout(() => level.forceEnd(Q.get('end') === 'win'), 300);
+  if (Q.has('gas')) keys.ArrowUp = true;
   window.__ready = true;
 }).catch(e => { document.getElementById('err').style.display = 'block'; document.getElementById('err').textContent = 'Load error: ' + e.message; console.error(e); });
 requestAnimationFrame(frame);
-window.__sunspots = { DEBUG, toggleWild, input, keys, get wild() { return wild; }, scene, camera };
+window.__sunspots = { DEBUG, toggleWild, toggleFP, FP, cockpit, input, keys, get wild() { return wild; }, scene, camera, level, wolfState };

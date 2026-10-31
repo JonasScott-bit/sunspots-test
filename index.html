@@ -29,6 +29,11 @@
   #err{position:fixed;left:10px;right:10px;bottom:60px;color:#fff;background:rgba(120,0,0,.7);font:12px monospace;padding:8px;display:none;z-index:20;white-space:pre-wrap}
   #titleScr{position:fixed;inset:0;z-index:12;background:#2b5e86;transition:opacity .7s ease;touch-action:none}
   #titleScr canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #titleScr.video{background:#2b5e86 url(./title/title_poster.jpg) center/cover no-repeat}
+  #titleScr.video canvas,#titleScr.video .thaze{display:none}
+  #titleScr .tvid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block;pointer-events:none;background:transparent}
+  #titleScr.video .tgrain{opacity:.07}
+  @media (orientation:landscape){#titleScr.video .tfoot{bottom:calc(env(safe-area-inset-bottom) + 3%)}}
   #titleScr .tw{position:absolute;pointer-events:none;filter:drop-shadow(0 6px 10px rgba(30,20,60,.35))}
   #titleScr .tgrain{position:absolute;inset:-50%;width:200%;height:200%;pointer-events:none;opacity:.16;mix-blend-mode:overlay;animation:grain .5s steps(4) infinite;
     background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
@@ -41,19 +46,68 @@
   #titleScr.ready .ttap{opacity:1;animation:tpulse 1.6s ease-in-out .6s infinite}
   @keyframes tpulse{0%,100%{opacity:1}50%{opacity:.45}}
   #titleScr.out{opacity:0;pointer-events:none}
+  /* level 1 HUD */
+  #hud{position:fixed;top:calc(env(safe-area-inset-top) + 42px);left:calc(env(safe-area-inset-left) + 14px);max-width:44%;z-index:4;display:flex;flex-direction:column;align-items:flex-start;pointer-events:none;color:#fbe9d0;text-shadow:0 2px 0 rgba(60,20,10,.35)}
+  #clk{font-size:21px;font-weight:700;letter-spacing:.06em;background:rgba(43,30,60,.42);padding:3px 10px 1px;border-radius:10px;font-variant-numeric:tabular-nums}
+  #clk.late{color:#ffd0e6;background:rgba(160,30,90,.55);animation:tpulse 1s ease-in-out infinite}
+  #clkSub{font-size:9px;letter-spacing:.22em;opacity:.85;margin-top:4px}
+  #obj{font-size:11px;letter-spacing:.05em;line-height:1.35;margin-top:6px;opacity:.9}
+  #dist{font-size:11px;letter-spacing:.2em;margin-top:2px;opacity:.75}
+  body.map #hud,body.map #title,body.map #wildBtn,body.map #hint,body.map #vig,body.map #grain{display:none}
+  #getIn{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 64px);transform:translateX(-50%);z-index:7;display:none;border:0;border-radius:999px;padding:16px 30px;font:700 18px Futura,Avenir,sans-serif;letter-spacing:.2em;color:#24331f;background:#9fd6b8;box-shadow:0 5px 0 #4f8a6c,0 10px 24px rgba(0,0,0,.25);animation:tpulse 1.4s ease-in-out infinite}
+  #drive{display:none}
+  body.driving #drive{display:block} body.driving #hint{display:none}
+  .dbtn{position:fixed;z-index:7;width:78px;height:78px;border-radius:50%;border:0;background:rgba(255,240,220,.28);color:#fff3dc;font:700 26px Futura,Avenir,sans-serif;box-shadow:inset 0 0 0 2px rgba(255,240,220,.55);-webkit-tap-highlight-color:transparent;touch-action:none}
+  .dbtn.on{background:rgba(255,240,220,.6);color:#3a2418}
+  #bL{left:calc(env(safe-area-inset-left) + 16px);bottom:calc(env(safe-area-inset-bottom) + 28px)}
+  #bR{left:calc(env(safe-area-inset-left) + 104px);bottom:calc(env(safe-area-inset-bottom) + 28px)}
+  #bGas{right:calc(env(safe-area-inset-right) + 16px);bottom:calc(env(safe-area-inset-bottom) + 28px);width:84px;height:110px;border-radius:26px;font-size:15px;letter-spacing:.12em;background:rgba(159,214,184,.45)}
+  #bBrake{right:calc(env(safe-area-inset-right) + 112px);bottom:calc(env(safe-area-inset-bottom) + 28px);width:74px;height:74px;font-size:13px;letter-spacing:.1em;background:rgba(255,150,150,.35)}
+  #bTilt{right:calc(env(safe-area-inset-right) + 16px);bottom:calc(env(safe-area-inset-bottom) + 150px);width:56px;height:34px;border-radius:12px;font-size:11px;letter-spacing:.15em}
+  #bVol{left:calc(env(safe-area-inset-left) + 16px);bottom:calc(env(safe-area-inset-bottom) + 118px);width:96px;height:34px;border-radius:12px;font-size:10px;letter-spacing:.12em}
+  #toast{position:fixed;left:0;right:0;top:44%;text-align:center;z-index:6;color:#fff3dc;font-size:15px;letter-spacing:.12em;pointer-events:none;opacity:0;transition:opacity .5s;text-shadow:0 2px 6px rgba(40,10,30,.6)}
+  #endScr{position:fixed;inset:0;z-index:9;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 30px;color:#fff3dc;background:rgba(43,30,70,.55);backdrop-filter:blur(2px)}
+  body.ended #endScr{display:flex} body.ended #drive,body.ended #getIn{display:none!important}
+  body.won #endScr{background:rgba(40,110,90,.5)} body.lost #endScr{background:rgba(120,30,70,.55)}
+  #endTitle{font-size:38px;font-weight:700;letter-spacing:.16em;text-shadow:0 3px 0 rgba(60,20,10,.4)}
+  #endSub{font-size:14px;letter-spacing:.06em;margin:14px 0 26px;max-width:320px;line-height:1.5;opacity:.92}
+  #retry{border:0;border-radius:999px;padding:14px 28px;font:700 16px Futura,Avenir,sans-serif;letter-spacing:.2em;color:#2a1a10;background:#e9a62c;box-shadow:0 4px 0 #9b5c16}
+  /* first-person eye toggle: press-and-hold 0.5 s (ring fills), quick tap only wiggles */
+  #eyeBtn{position:fixed;z-index:7;width:58px;height:58px;border:0;padding:0;border-radius:50%;background:rgba(43,30,60,.38);color:#fff3dc;touch-action:none;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+    right:calc(env(safe-area-inset-right) + 14px);top:calc(38% - 70px)}
+  @media (orientation:landscape){#eyeBtn{top:auto;bottom:calc(env(safe-area-inset-bottom) + 22px);right:calc(env(safe-area-inset-right) + 22px)}}
+  #eyeBtn svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  #eyeBtn .ring{fill:none;stroke:#f6b23a;stroke-width:4;stroke-linecap:round;stroke-dasharray:163.4;stroke-dashoffset:163.4;transform:rotate(-90deg);transform-origin:50% 50%}
+  #eyeBtn .track{fill:none;stroke:rgba(255,240,220,.28);stroke-width:4}
+  #eyeBtn.fp{background:rgba(246,178,58,.5)}
+  #eyeBtn.wig{animation:wig .32s ease-in-out}
+  @keyframes wig{0%,100%{transform:rotate(0)}25%{transform:rotate(-11deg)}75%{transform:rotate(9deg)}}
+  body.driving #eyeBtn,body.ended #eyeBtn,body.map #eyeBtn{display:none}
+  #fpFx{position:fixed;inset:-4%;z-index:3;pointer-events:none;opacity:0;filter:url(#haze);
+    background:radial-gradient(ellipse at 50% 50%,rgba(255,120,170,0) 46%,rgba(255,110,170,.22) 68%,rgba(255,80,150,.55) 100%)}
 </style>
 <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/addons/"}}</script>
+<link rel="preload" href="./title/title_poster.jpg" as="image">
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="grain"></div>
 <div id="vig"></div>
-<div id="title">SUNSPOTS · TEST 01</div>
+<div id="title">LAST MINUTE SNACKS</div>
 <button id="wildBtn" aria-label="Toggle Wild Mode">WILD</button>
+<button id="eyeBtn" aria-label="Hold to switch first-person view"><svg viewBox="0 0 58 58"><circle class="track" cx="29" cy="29" r="26"/><circle class="ring" cx="29" cy="29" r="26"/>
+  <path d="M14 29c4-6 9-9 15-9s11 3 15 9c-4 6-9 9-15 9s-11-3-15-9z" fill="none" stroke="#fff3dc" stroke-width="2.6" stroke-linejoin="round"/><circle cx="29" cy="29" r="4.6" fill="#fff3dc"/></svg></button>
+<div id="fpFx"></div>
+<svg width="0" height="0" style="position:absolute"><filter id="haze" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence id="hazeT" type="fractalNoise" baseFrequency="0.012 0.02" numOctaves="2" seed="3"/><feDisplacementMap in="SourceGraphic" scale="38" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
 <div id="hint">DRAG TO WALK · PUSH FAR TO RUN · DRAG THE SKY TO LOOK</div>
+<div id="hud"><div id="clk">1:57:30 PM</div><div id="clkSub">STORE CLOSES 2:00 PM</div><div id="obj"></div><div id="dist"></div></div>
+<button id="getIn">GET IN</button>
+<div id="drive"><button class="dbtn" id="bL">◀</button><button class="dbtn" id="bR">▶</button><button class="dbtn" id="bBrake">BRAKE</button><button class="dbtn" id="bGas">GAS</button><button class="dbtn" id="bTilt">TILT</button><button class="dbtn" id="bVol">RADIO VOL</button></div>
+<div id="toast"></div>
+<div id="endScr"><div id="endTitle"></div><div id="endSub"></div><button id="retry">TRY AGAIN</button></div>
 <div class="joy" id="joy"><div class="knob" id="knob"></div></div>
 <div id="load"><div class="disc"></div>SUNSPOTS<div id="bar"><i></i></div></div>
-<div id="titleScr"><canvas></canvas><img class="tw" src="./title/wordmark.webp" alt="sunspots"><div class="thaze"></div><div class="tgrain"></div><div class="tfoot"><div class="tbar"><i></i></div><div class="ttap">TAP TO START</div></div></div>
+<div id="titleScr" class="video"><canvas></canvas><img class="tw" src="./title/wordmark.webp" alt="sunspots"><div class="thaze"></div><div class="tgrain"></div><div class="tfoot"><div class="tbar"><i></i></div><div class="ttap">TAP TO START</div></div></div>
 <div id="err"></div>
 <script>window.addEventListener('error',e=>{const d=document.getElementById('err');d.style.display='block';d.textContent+=String(e.message)+'\n'});</script>
 <script type="module" src="./title.js"></script>
