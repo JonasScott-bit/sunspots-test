@@ -27,25 +27,69 @@
   #load .disc:after{content:"";position:absolute;left:30px;right:30px;top:52px;height:4px;border-radius:4px;background:#3a2410}
   #bar{width:160px;height:3px;background:rgba(255,255,255,.2);margin-top:14px}#bar i{display:block;height:100%;width:0;background:#f2c14e}
   #err{position:fixed;left:10px;right:10px;bottom:60px;color:#fff;background:rgba(120,0,0,.7);font:12px monospace;padding:8px;display:none;z-index:20;white-space:pre-wrap}
-  #titleScr{position:fixed;inset:0;z-index:12;background:#2b5e86;transition:opacity .7s ease;touch-action:none}
+  /* ---- v9 launch: EES intro + trippy title menu (title.js) ---- */
+  #intro{position:fixed;inset:0;z-index:15;background:#000;transition:opacity .6s ease;touch-action:manipulation;cursor:pointer}
+  #intro video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;pointer-events:none}
+  #intro .ihint{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 18px);text-align:center;color:#f6e7c8;font-size:11px;letter-spacing:.35em;opacity:0;transition:opacity 1s;pointer-events:none}
+  #intro .ihint.show{opacity:.62}
+  #intro .itap{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:16px 30px;border-radius:999px;background:rgba(0,0,0,.55);color:#f6e7c8;font-weight:700;letter-spacing:.3em;font-size:16px;display:none;animation:tpulse 1.6s ease-in-out infinite}
+  #intro.blocked .itap{display:block} #intro.blocked .ihint{display:none}
+  #intro.out{opacity:0;pointer-events:none}
+  body.intro #sndBtn{display:none}
+  #titleScr{position:fixed;inset:0;z-index:12;background:#000 center/cover no-repeat;touch-action:none;opacity:0;transition:opacity .9s ease}
+  #titleScr.on{opacity:1} #titleScr.gl{background-image:none!important;background-color:#000}
+  #titleScr.melting{background:transparent!important;transition:none}
+  #titleScr.static{background-color:#000} #titleScr.static canvas{display:none}
   #titleScr canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-  #titleScr.video{background:#2b5e86 url(./title/title_poster.jpg) center/cover no-repeat}
-  #titleScr.video canvas,#titleScr.video .thaze{display:none}
-  #titleScr .tvid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block;pointer-events:none;background:transparent}
-  #titleScr.video .tgrain{opacity:.07}
-  @media (orientation:landscape){#titleScr.video .tfoot{bottom:calc(env(safe-area-inset-bottom) + 3%)}}
-  #titleScr .tw{position:absolute;pointer-events:none;filter:drop-shadow(0 6px 10px rgba(30,20,60,.35))}
-  #titleScr .tgrain{position:absolute;inset:-50%;width:200%;height:200%;pointer-events:none;opacity:.16;mix-blend-mode:overlay;animation:grain .5s steps(4) infinite;
-    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
-  #titleScr .thaze{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,rgba(255,220,170,.10) 0%,rgba(0,0,0,0) 55%,rgba(40,15,30,.34) 100%);mix-blend-mode:normal}
-  #titleScr .tfoot{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 6%);display:flex;flex-direction:column;align-items:center;pointer-events:none}
-  #titleScr .tbar{width:150px;height:4px;border-radius:4px;background:rgba(255,240,220,.35);overflow:hidden;transition:opacity .4s}
-  #titleScr .tbar i{display:block;height:100%;width:0;background:#f6b23a;transition:width .2s}
-  #titleScr .ttap{margin-top:-4px;padding:12px 26px 12px 32px;border-radius:999px;background:rgba(43,94,134,.55);color:#fff3dc;font-weight:700;font-size:18px;letter-spacing:.32em;text-shadow:0 2px 0 rgba(120,50,10,.55),0 0 14px rgba(255,150,60,.45);opacity:0;transition:opacity .6s}
-  #titleScr.ready .tbar{opacity:0}
-  #titleScr.ready .ttap{opacity:1;animation:tpulse 1.6s ease-in-out .6s infinite}
-  @keyframes tpulse{0%,100%{opacity:1}50%{opacity:.45}}
-  #titleScr.out{opacity:0;pointer-events:none}
+  #titleScr.out{display:none}
+  /* felt buttons: flocked colour + fibre noise, inner stitch, soft fuzzy drop */
+  .felt{position:relative;border:0;margin:0;padding:0;font:700 17px Futura,"Avenir Next",Avenir,"Trebuchet MS",sans-serif;letter-spacing:.2em;color:#fbf0d9;border-radius:22px;
+    background-color:var(--c);background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='3'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23f)'/></svg>"),radial-gradient(ellipse at 50% 20%,rgba(255,255,255,.22),rgba(0,0,0,0) 65%);
+    background-blend-mode:soft-light,normal;box-shadow:0 5px 0 var(--d),0 9px 16px rgba(30,10,40,.35),inset 0 0 0 1px rgba(255,255,255,.12),inset 0 -6px 12px rgba(0,0,0,.14);
+    text-shadow:0 2px 0 rgba(60,20,10,.28);-webkit-tap-highlight-color:transparent;touch-action:manipulation;cursor:pointer;transition:transform .12s,box-shadow .12s,filter .3s}
+  .felt:before{content:"";position:absolute;inset:6px;border-radius:16px;border:2px dashed rgba(255,246,225,.55);pointer-events:none}
+  .felt:active{transform:translateY(4px) scale(.98);box-shadow:0 1px 0 var(--d),0 3px 8px rgba(30,10,40,.3)}
+  .felt.mustard{--c:#e9a62c;--d:#9b5c16;color:#20307a;text-shadow:0 1px 0 rgba(255,240,200,.45)} .felt.mustard:before{border-color:rgba(32,48,122,.4)}
+  .felt.coral{--c:#ec6f55;--d:#93352a} .felt.cobalt{--c:#2c53c4;--d:#162a73} .felt.cream{--c:#f6e7c8;--d:#b69a6a;color:#20307a;text-shadow:none} .felt.cream:before{border-color:rgba(32,48,122,.35)}
+  #titleScr .menu{position:absolute;display:flex;flex-direction:column;align-items:center;gap:12px;transition:opacity .5s,transform .5s,filter .5s}
+  #titleScr .menu .row{display:flex;gap:12px;width:100%}
+  #titleScr .bPlay{width:100%;height:78px;font-size:28px;letter-spacing:.32em;padding-left:.32em;border-radius:28px;animation:breath 2.976s ease-in-out infinite}
+  #titleScr .bPlay:before{border-radius:21px}
+  #titleScr .bSet,#titleScr .bCred{flex:1;height:58px;font-size:15px}
+  @keyframes breath{0%,100%{transform:scale(1)}50%{transform:scale(1.035)}}
+  #titleScr.port .menu{left:50%;transform:translateX(-50%);width:min(78vw,330px);bottom:calc(env(safe-area-inset-bottom) + max(22px,4.5vh))}
+  #titleScr.land .menu{left:calc(env(safe-area-inset-left) + max(18px,3vw));width:min(26vw,230px);top:50%;transform:translateY(-38%)}
+  #titleScr.land .menu .row{flex-direction:column} #titleScr.land .bPlay{height:72px;font-size:25px} #titleScr.land .bSet,#titleScr.land .bCred{flex:none;height:50px}
+  #titleScr .playfill{position:absolute;left:10px;bottom:9px;height:4px;width:0;border-radius:4px;background:#20307a;opacity:0;transition:width .2s,opacity .3s}
+  #titleScr.waiting .playfill{opacity:.7} #titleScr.waiting .bPlay{animation:tpulse 1s ease-in-out infinite}
+  #titleScr .snd{position:absolute;left:50%;top:calc(env(safe-area-inset-top) + 12px);transform:translateX(-50%);padding:7px 16px;border-radius:999px;background:rgba(32,30,70,.42);color:#fbf0d9;font-size:11px;letter-spacing:.25em;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .6s}
+  #titleScr .snd.show{opacity:1;animation:tpulse 2s ease-in-out infinite}
+  #titleScr.paneled .menu,#titleScr.melting .menu{opacity:0;pointer-events:none;filter:blur(6px)}
+  #titleScr.melting .menu{transform:translate(-50%,60px)} #titleScr.land.melting .menu{transform:translateY(-20%)}
+  #titleScr.melting .snd{display:none}
+  #titleScr .panel{position:absolute;left:50%;top:50%;width:min(86vw,380px);max-height:calc(100% - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 28px);overflow:hidden;box-sizing:border-box;
+    transform:translate(-50%,-46%) scale(.96);opacity:0;pointer-events:none;transition:opacity .35s,transform .35s;padding:22px 22px 18px;border-radius:26px;color:#20307a;display:flex;flex-direction:column;gap:12px;
+    background:#f6e7c8 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='3'/><feColorMatrix values='0 0 0 0 .5  0 0 0 0 .35  0 0 0 0 .2  0 0 0 .18 0'/></filter><rect width='100%' height='100%' filter='url(%23f)'/></svg>");
+    box-shadow:0 7px 0 #b69a6a,0 16px 40px rgba(20,10,40,.45);outline:2px dashed rgba(32,48,122,.28);outline-offset:-9px}
+  #titleScr .panel.open{opacity:1;pointer-events:auto;transform:translate(-50%,-50%)}
+  #titleScr .panel h2{margin:0;font-size:20px;letter-spacing:.3em;text-align:center;color:#ec6f55}
+  #titleScr .panel label{display:grid;grid-template-columns:auto 1fr 3.2em;align-items:center;gap:12px;font-size:12px;letter-spacing:.18em;font-weight:700}
+  #titleScr .panel output{font-size:12px;text-align:right;font-variant-numeric:tabular-nums}
+  #titleScr input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:14px;border-radius:8px;background:linear-gradient(90deg,#e9a62c var(--v,100%),rgba(32,48,122,.18) var(--v,100%));outline:none;margin:14px 0}
+  #titleScr input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:34px;height:34px;border-radius:50%;background:#2c53c4;box-shadow:0 3px 0 #162a73,inset 0 0 0 3px rgba(255,246,225,.5)}
+  #titleScr input[type=range]::-moz-range-thumb{width:34px;height:34px;border:0;border-radius:50%;background:#2c53c4;box-shadow:0 3px 0 #162a73}
+  #titleScr .modes{display:grid;grid-template-columns:auto repeat(4,1fr);gap:6px;align-items:center;font-size:12px;letter-spacing:.18em;font-weight:700}
+  #titleScr .modes span{margin-right:6px}
+  #titleScr .modes button{height:40px;border:0;border-radius:12px;background:rgba(32,48,122,.12);color:#20307a;font:700 11px Futura,"Avenir Next",Avenir,"Trebuchet MS",sans-serif;letter-spacing:.08em;touch-action:manipulation;cursor:pointer}
+  #titleScr .modes button.on{background:#2c53c4;color:#fbf0d9;box-shadow:0 3px 0 #162a73}
+  #titleScr .note{font-size:12px;line-height:1.45;letter-spacing:.02em;background:rgba(32,48,122,.08);padding:10px 12px;border-radius:14px}
+  #titleScr .bBack{height:52px;width:100%;flex:none}
+  #titleScr .scroll{position:relative;height:min(52vh,300px);overflow:hidden;-webkit-mask-image:linear-gradient(#0000,#000 18%,#000 82%,#0000);mask-image:linear-gradient(#0000,#000 18%,#000 82%,#0000)}
+  #titleScr .roll{position:absolute;left:0;right:0;top:0;text-align:center;animation:roll 14s linear infinite}
+  #titleScr .roll p{margin:0 0 26px;font-size:14px;letter-spacing:.14em;line-height:1.5} #titleScr .roll small{display:block;font-size:10px;letter-spacing:.3em;opacity:.65}
+  #titleScr .roll .big{font-size:30px;letter-spacing:.3em;color:#e9a62c;text-shadow:0 2px 0 #9b5c16;font-weight:700}
+  @keyframes roll{from{transform:translateY(min(52vh,300px))}to{transform:translateY(-100%)}}
+  @media (orientation:landscape) and (max-height:500px){#titleScr .panel{padding:14px 18px 12px;gap:6px;width:min(70vw,460px)} #titleScr .panel h2{font-size:16px} #titleScr input[type=range]{margin:8px 0} #titleScr .scroll{height:52vh} #titleScr .bBack{height:46px}}
   /* level 1 HUD */
   #hud{position:fixed;top:calc(env(safe-area-inset-top) + 42px);left:calc(env(safe-area-inset-left) + 14px);max-width:44%;z-index:4;display:flex;flex-direction:column;align-items:flex-start;pointer-events:none;color:#fbe9d0;text-shadow:0 2px 0 rgba(60,20,10,.35)}
   #clk{font-size:21px;font-weight:700;letter-spacing:.06em;background:rgba(43,30,60,.42);padding:3px 10px 1px;border-radius:10px;font-variant-numeric:tabular-nums}
@@ -69,7 +113,13 @@
   /* sound on/off (remembered). Also on the title screen, where tapping it doesn't start the game */
   #sndBtn{position:fixed;z-index:13;top:calc(env(safe-area-inset-top) + 7px);left:calc(env(safe-area-inset-left) + 14px);width:32px;height:32px;border:0;padding:0;border-radius:50%;background:rgba(43,30,60,.38);color:#fff3dc;-webkit-tap-highlight-color:transparent;touch-action:manipulation;cursor:pointer}
   #sndBtn svg{position:absolute;left:6px;top:6px;width:20px;height:20px}
-  #sndBtn .x{display:none} #sndBtn.off .x{display:inline} #sndBtn.off .w{display:none} #sndBtn.off{background:rgba(120,30,70,.45)}
+  #sndBtn .x,#sndBtn .n{display:none} #sndBtn.off .x{display:inline} #sndBtn.off .w{display:none} #sndBtn.off{background:rgba(120,30,70,.45)}
+  /* v9 sound mode: all = speaker+waves+note badge, sound = speaker+waves, music = note, off = speaker+x */
+  #sndBtn[data-mode=music] .sp,#sndBtn[data-mode=music] .w{display:none} #sndBtn[data-mode=music] .n{display:inline}
+  #sndBtn[data-mode=all]:after{content:"\266A";position:absolute;right:-3px;top:-5px;font-size:12px;line-height:1;color:#e9a62c;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+  #sndToast{position:fixed;z-index:13;top:calc(env(safe-area-inset-top) + 12px);left:calc(env(safe-area-inset-left) + 54px);padding:4px 10px;border-radius:999px;background:rgba(43,30,60,.5);color:#fff3dc;font-size:10px;letter-spacing:.2em;opacity:0;pointer-events:none;white-space:nowrap}
+  #sndToast.show{animation:toast 1.4s ease forwards} @keyframes toast{0%{opacity:0;transform:translateX(-6px)}12%,70%{opacity:1;transform:none}100%{opacity:0}}
+  body.intro #sndToast,body.map #sndToast{display:none}
   body.map #sndBtn{display:none}
   #toast{position:fixed;left:0;right:0;top:44%;text-align:center;z-index:6;color:#fff3dc;font-size:15px;letter-spacing:.12em;pointer-events:none;opacity:0;transition:opacity .5s;text-shadow:0 2px 6px rgba(40,10,30,.6)}
   #endScr{position:fixed;inset:0;z-index:9;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 30px;color:#fff3dc;background:rgba(43,30,70,.55);backdrop-filter:blur(2px)}
@@ -119,7 +169,7 @@
   body.ended #bubbles{display:none}
 </style>
 <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/addons/"}}</script>
-<link rel="preload" href="./title/title_poster.jpg" as="image">
+<link rel="preload" href="./intro/ees_poster.jpg" as="image">
 </head>
 <body>
 <canvas id="c"></canvas>
@@ -143,8 +193,21 @@
 <div id="endScr"><div id="endTitle"></div><div id="endSub"></div><button id="retry">TRY AGAIN</button></div>
 <div class="joy" id="joy"><div class="knob" id="knob"></div></div>
 <div id="load"><div class="disc"></div>SUNSPOTS<div id="bar"><i></i></div></div>
-<button id="sndBtn" aria-label="Sound on"><svg viewBox="0 0 22 22" fill="none" stroke="#fff3dc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h4l5-4v14l-5-4H3z" fill="#fff3dc"/><g class="w"><path d="M15 8.2a4 4 0 0 1 0 5.6"/><path d="M17.6 5.6a7.6 7.6 0 0 1 0 10.8"/></g><g class="x"><path d="M15 8l5 6M20 8l-5 6"/></g></svg></button>
-<div id="titleScr" class="video"><canvas></canvas><img class="tw" src="./title/wordmark.webp" alt="sunspots"><div class="thaze"></div><div class="tgrain"></div><div class="tfoot"><div class="tbar"><i></i></div><div class="ttap">TAP TO START</div></div></div>
+<button id="sndBtn" aria-label="Sound on"><svg viewBox="0 0 22 22" fill="none" stroke="#fff3dc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path class="sp" d="M3 8h4l5-4v14l-5-4H3z" fill="#fff3dc"/><g class="w"><path d="M15 8.2a4 4 0 0 1 0 5.6"/><path d="M17.6 5.6a7.6 7.6 0 0 1 0 10.8"/></g><g class="x"><path d="M15 8l5 6M20 8l-5 6"/></g><g class="n"><path d="M8 16V5l9-2v11"/><circle cx="6" cy="16" r="2.4" fill="#fff3dc"/><circle cx="15" cy="14" r="2.4" fill="#fff3dc"/></g></svg></button><div id="sndToast"></div>
+<div id="titleScr"><canvas></canvas>
+  <div class="snd">&#9834; TAP ANYWHERE FOR SOUND</div>
+  <div class="menu"><button class="felt mustard bPlay">PLAY<i class="playfill"></i></button><div class="row"><button class="felt coral bSet">SETTINGS</button><button class="felt cobalt bCred">CREDITS</button></div></div>
+  <div class="panel" data-p="settings"><h2>SETTINGS</h2>
+    <div class="modes" role="radiogroup" aria-label="Sound mode"><span>SOUND</span><button data-m="off">OFF</button><button data-m="sound">SFX</button><button data-m="music">MUSIC</button><button data-m="all">ALL</button></div>
+    <label>MUSIC<input id="volMusic" type="range" min="0" max="100" step="1" value="100"><output>100%</output></label>
+    <label>SFX<input id="volSfx" type="range" min="0" max="100" step="1" value="100"><output>100%</output></label>
+    <div class="note"><b>CAMERA</b> &middot; In the car you see through the moth driver's eyes. Tap the eye button to swap to the chase view. On foot, hold the eye button to look through the Wolf's eyes. Drag the sky to look around.</div>
+    <button class="felt cream bBack">BACK</button></div>
+  <div class="panel" data-p="credits"><h2>CREDITS</h2>
+    <div class="scroll"><div class="roll"><p class="big">SUNSPOTS</p><p><small>A GAME BY</small>Ethereal Entertainment Systems</p><p><small>CREATED BY</small>Jonas Scott</p><p><small>MUSIC</small>Music made with Suno</p><p><small>THANK YOU FOR PLAYING</small>&#9728;</p></div></div>
+    <button class="felt cream bBack">BACK</button></div>
+</div>
+<div id="intro"><video muted autoplay playsinline webkit-playsinline preload="auto" disablepictureinpicture disableremoteplayback poster="./intro/ees_poster.jpg"><source src="./intro/ees_intro.mp4" type='video/mp4; codecs="avc1.640028"'><source src="./intro/ees_intro.webm" type='video/webm; codecs="vp9"'></video><div class="itap">TAP TO PLAY</div><div class="ihint">TAP TO SKIP</div></div>
 <div id="err"></div>
 <script>window.addEventListener('error',e=>{const d=document.getElementById('err');d.style.display='block';d.textContent+=String(e.message)+'\n'});</script>
 <script type="module" src="./title.js"></script>

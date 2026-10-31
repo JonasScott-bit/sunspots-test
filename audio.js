@@ -38,15 +38,21 @@ const SET = {
   tension: ['tension_stage1', 'tension_stage2', 'tension_stage3'],
 };
 
+const MODES = ['off', 'sound', 'music', 'all'];
 const saved = (() => { try { return JSON.parse(localStorage.getItem(LS)) || {}; } catch (_) { return {}; } })();
 const A = {
-  fmt: Q.get('afmt') || (canOgg ? 'ogg' : 'm4a'), ios: IOS, muted: Q.has('mute') ? true : !!saved.muted,
+  fmt: Q.get('afmt') || (canOgg ? 'ogg' : 'm4a'), ios: IOS,
+  // v9 sound mode: 'all' (default) | 'music' (music + voice lines) | 'sound' (SFX + voice lines) | 'off' (silence). Old saved mute -> 'off'.
+  mode: Q.has('mute') ? 'off' : (MODES.includes(saved.mode) ? saved.mode : (saved.muted ? 'off' : 'all')),
   radioLvl: Number.isInteger(saved.radioLvl) ? clamp(saved.radioLvl, 0, RADIO_LV.length - 1) : 0,
+  musicVol: Number.isFinite(saved.musicVol) ? clamp(saved.musicVol, 0, 1) : 1, sfxVol: Number.isFinite(saved.sfxVol) ? clamp(saved.sfxVol, 0, 1) : 1,   // v9 SETTINGS sliders
   ctx: null, state: 'boot', buf: {}, loading: {}, trim: {}, bytes: 0, files: {}, log: [], counts: {}, errors: [],
   lastMoth: [], castT: 0, castVoice: null, barkT: 30, idleT: 0, huffT: 10, howlT: -99, hornT: 0, lastFoot: null, hopPeak: 0,
 };
 window.__audio = A;
-const save = () => { try { localStorage.setItem(LS, JSON.stringify({ muted: A.muted, radioLvl: A.radioLvl })); } catch (_) {} };
+A.muted = A.mode === 'off';   // kept for older callers
+A.modes = MODES;
+const save = () => { try { localStorage.setItem(LS, JSON.stringify({ mode: A.mode, muted: A.muted, radioLvl: A.radioLvl, musicVol: A.musicVol, sfxVol: A.sfxVol })); } catch (_) {} };
 function note(ev, o) { const e = { t: +performance.now().toFixed(0), ev, ...(o || {}) }; A.log.push(e); if (A.log.length > 600) A.log.splice(0, 100); return e; }
 
 // ---------------------------------------------------------------- context + graph
@@ -61,7 +67,14 @@ function mk() {
   N.lim.connect(ctx.destination);
   N.an = ctx.createAnalyser(); N.an.fftSize = 2048; N.lim.connect(N.an);
   N.master = g(A.muted ? 0 : 1, N.lim);
-  BUS.music = g(0.5, N.master); BUS.radio = g(0.85, N.master); BUS.sfx = g(0.8, N.master); BUS.amb = g(0.13, N.master); BUS.vox = g(0.85, N.master); BUS.ui = g(0.35, N.master);
+  // v9 mode gates: music group (music + radio) runs through the voice ducker; SFX group = sfx / amb / vox (barks, grunts) / ui;
+  // the voice bus (vo_* character lines) sits outside both groups so it plays in every mode but Off.
+  N.gMusic = g(modeOn('music'), N.master); N.gSfx = g(modeOn('sfx'), N.master);
+  N.duck = g(1, N.gMusic);
+  BUS.music = g(0.5, N.duck); BUS.radio = g(0.85, N.duck);
+  BUS.sfx = g(0.8, N.gSfx); BUS.amb = g(0.13, N.gSfx); BUS.vox = g(0.85, N.gSfx); BUS.ui = g(0.35, N.gSfx);
+  BUS.voice = g(0.95, N.master);
+  applyVol(true);
   N.title = g(0, BUS.music); N.town = g(0, BUS.music); N.sun = g(1, N.town); N.wild = g(0, N.town);
   N.tens = g(0, BUS.music); N.t = [g(0, N.tens), g(0, N.tens), g(0, N.tens)]; N.sting = g(1, BUS.music);
   N.amb = g(0, BUS.amb);
@@ -162,15 +175,70 @@ function unlock() {
 }
 for (const ev of ['pointerdown', 'touchend', 'keydown']) addEventListener(ev, unlock, { capture: true, passive: true });
 document.addEventListener('visibilitychange', () => { if (!ctx) return; if (document.hidden) ctx.suspend().catch(() => {}); else if (primed) ctx.resume().catch(() => {}); });
-A.setMuted = (m) => { A.muted = !!m; save(); if (N.master) { const n = ctx.currentTime; N.master.gain.cancelScheduledValues(n); N.master.gain.setTargetAtTime(A.muted ? 0 : 1, n, 0.03); } syncBtn(); note('mute', { muted: A.muted }); };
+function modeOn(grp) { const m = A.mode; return m === 'all' || (grp === 'music' ? m === 'music' : m === 'sound') ? 1 : 0; }
+const ramp = (gp, v, tc = 0.03) => { const n = ctx.currentTime; gp.cancelScheduledValues(n); gp.setTargetAtTime(v, n, tc); };
+const modeFns = [];
+A.onMode = (fn) => { modeFns.push(fn); fn(A.mode); };
+A.setMode = (m) => {
+  if (!MODES.includes(m)) return A.mode;
+  A.mode = m; A.muted = m === 'off'; save();
+  if (N.master) { ramp(N.master.gain, A.muted ? 0 : 1); ramp(N.gMusic.gain, modeOn('music')); ramp(N.gSfx.gain, modeOn('sfx')); }
+  syncBtn(); note('mode', { mode: m }); for (const f of modeFns) { try { f(m); } catch (_) {} }
+  return m;
+};
+A.cycleMode = () => A.setMode(MODES[(MODES.indexOf(A.mode) + 1) % MODES.length]);
+A.setMuted = (m) => A.setMode(m ? 'off' : 'all');
+// v9 voice lines (vo_* files, not wired yet): voice bus + sidechain-style music duck, ~9 dB down over 150 ms, back over 400 ms
+const DUCK = Math.pow(10, -9 / 20); let voices = 0;
+function duck(on) {
+  if (!N.duck) return; const gp = N.duck.gain, n = ctx.currentTime;
+  gp.cancelScheduledValues(n); gp.setValueAtTime(gp.value, n); gp.linearRampToValueAtTime(on ? DUCK : 1, n + (on ? 0.15 : 0.4));
+}
+A.playVoice = (name, o = {}) => {
+  if (A.mode === 'off' || !ctx) return Promise.resolve(null);
+  const go = () => {
+    if (A.mode === 'off') return null;
+    const h = play(name, { bus: 'voice', gain: o.gain ?? 1, pan: o.pan, when: o.when });
+    if (!h) return null;
+    voices++; duck(true); A.voice = h;
+    h.src.addEventListener('ended', () => { voices = Math.max(0, voices - 1); if (!voices) duck(false); if (A.voice === h) A.voice = null; });
+    return h;
+  };
+  if (A.buf[name]) return Promise.resolve(go());
+  return load(name).then(go, () => { note('miss', { name, voice: true }); return null; });
+};
+// v9 intro sting ('Ethereal Arrival', 8.6 s) - started by title.js in step with the EES intro video; music group (mode Music/All)
+A.startIntro = (videoT = 0) => {
+  const b = A.buf.intro_ethereal_arrival;
+  if (!running() || !b || A.introH || !modeOn('music')) { if (!b && ctx) load('intro_ethereal_arrival').catch(() => {}); return false; }
+  const off = Math.max(0, videoT + 0.03 + (ctx.outputLatency || ctx.baseLatency || 0));
+  if (off > b.duration - 0.3) return false;
+  A.introH = play('intro_ethereal_arrival', { bus: 'music', gain: 1.0, offset: off, when: ctx.currentTime + 0.03 });
+  if (A.introH) { A.introH.src.addEventListener('ended', () => { A.introH = null; }); note('intro_sting', { off: +off.toFixed(3) }); }
+  return !!A.introH;
+};
+A.stopIntro = (f = 0.45) => { if (A.introH) { A.introH.stop(f); A.introH = null; } };
+A.whenRunning = () => (!ctx ? Promise.reject(new Error('no audio')) : running() ? Promise.resolve() : ctx.resume());
+A.musicAudible = () => !!ctx && modeOn('music') === 1;
+A.duckLevel = () => (N.duck ? N.duck.gain.value : 1);
+// v9 SETTINGS: MUSIC scales the music + radio buses, SFX scales sfx / ambience / voices / UI (remembered with mute)
+const BUS_BASE = { music: 0.5, radio: 0.85, sfx: 0.8, amb: 0.13, vox: 0.85, ui: 0.35 };   // voice bus is not on a slider (plays in every mode but Off)
+function applyVol(now) {
+  if (!ctx) return; const n = ctx.currentTime;
+  for (const k in BUS_BASE) { const v = BUS_BASE[k] * ((k === 'music' || k === 'radio') ? A.musicVol : A.sfxVol); const gp = BUS[k].gain;
+    if (now) gp.value = v; else { gp.cancelScheduledValues(n); gp.setTargetAtTime(v, n, 0.04); } }
+}
+A.setVolumes = (o = {}) => { if (o.music != null) A.musicVol = clamp(+o.music, 0, 1); if (o.sfx != null) A.sfxVol = clamp(+o.sfx, 0, 1); applyVol(false); save(); note('vol', { music: A.musicVol, sfx: A.sfxVol }); };
 let btn = null;
-function syncBtn() { if (!btn) return; btn.classList.toggle('off', A.muted); btn.setAttribute('aria-label', A.muted ? 'Sound off' : 'Sound on'); btn.title = A.muted ? 'Sound off' : 'Sound on'; }
+const MODE_TXT = { off: 'SOUND OFF', sound: 'SFX ONLY', music: 'MUSIC ONLY', all: 'ALL SOUND' };
+A.modeText = (m = A.mode) => MODE_TXT[m];
+function syncBtn() { if (!btn) return; btn.dataset.mode = A.mode; btn.classList.toggle('off', A.muted); btn.setAttribute('aria-label', 'Sound: ' + MODE_TXT[A.mode] + ' (tap to change)'); btn.title = MODE_TXT[A.mode]; }
 
 // ---------------------------------------------------------------- title music
 function kick() {   // (re)start whatever the current state wants, once the context runs and buffers exist
-  if (!running()) return;
+  if (!running() || window.__introUp) return;   // v9: Mind Meld waits for the menu (the EES intro is silent)
   if (A.state === 'title' && !A.titleSrc && A.buf.music_title_loop_pro_mind_meld) {
-    const n = ctx.currentTime + 0.05; A.titleSrc = loopSrc('music_title_loop_pro_mind_meld', N.title, n, 0);
+    const n = ctx.currentTime + 0.05; A.titleSrc = loopSrc('music_title_loop_pro_mind_meld', N.title, n, 0); A.titleT0 = n;
     N.title.gain.setValueAtTime(0, n); N.title.gain.linearRampToValueAtTime(1, n + 1.2); note('title_music', { on: 1 });
   }
 }
@@ -376,12 +444,14 @@ A.graph = () => ({ ctx: ctx && { state: ctx.state, sampleRate: ctx.sampleRate, b
   radio: A.radio && { track: RADIO[A.radio.i], pos: +(ctx.currentTime - A.radio.t0).toFixed(2) },
   t0: A.t0, tensT0: A.tensT0, loaded: Object.keys(A.buf), kb: +(A.bytes / 1024).toFixed(0), errors: A.errors });
 A.rms = () => { if (!N.an) return null; const d = new Float32Array(N.an.fftSize); N.an.getFloatTimeDomainData(d); let s = 0; for (const x of d) s += x * x; return +(10 * Math.log10(s / d.length + 1e-12)).toFixed(1); };
+A.kick = () => kick(); A.unlock = unlock; A.running = () => !!running();
 A.load = load; A.SOUNDS = SOUNDS; A.BASE = BASE; A.smoothSeam = smoothSeam; A.N = N; A.BUS = BUS; A.play = play;
 
 // ---------------------------------------------------------------- boot: graph now, title music fetch in the background
 mk();
 if (ctx) {
   if (!window.__titleUp) A.state = 'title';   // (title skipped: leaves on the first update)
+  if (!/[?&]intro=0/.test(location.search)) load('intro_ethereal_arrival').catch(() => {});   // v9: the intro sting is the first thing we can play
   load('music_title_loop_pro_mind_meld').then(kick).catch(() => {}).then(() => loadSet(['sfx_ui_tick', 'sfx_ui_confirm']));
   if (ctx.state === 'running') primed = true;
 }
@@ -391,6 +461,7 @@ function initBtn() {
   if (btn) return; btn = document.getElementById('sndBtn'); if (!btn) return; syncBtn();
   const stop = e => { e.stopPropagation(); };
   btn.addEventListener('pointerdown', stop); btn.addEventListener('pointerup', stop);
-  btn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); unlock(); A.setMuted(!A.muted); if (!A.muted) play('sfx_ui_confirm', { bus: 'ui' }); });
+  btn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); unlock(); A.cycleMode(); if (A.mode !== 'off') play('sfx_ui_confirm', { bus: 'ui' });
+    const t = document.getElementById('sndToast'); if (t) { t.textContent = MODE_TXT[A.mode]; t.classList.remove('show'); void t.offsetWidth; t.classList.add('show'); } });
 }
 export const audio = A;
