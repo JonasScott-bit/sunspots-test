@@ -120,7 +120,7 @@ GTA-style in-world scenes. Drive into a zone, the bars come in, the scene plays 
 
 **v7 rough edges**: store_win runs about 22 s, a little over the 20 s target. The arrival close-up on the moth is tight and clips the car body. The roadside art is small and barely readable from first person (it reads in the chase view). The Wolf's exit from the car is a short slide, not a climb. Audio arrived in v8. Hold-to-skip is tested with keys and in headless, not on a real phone. There may be a one-frame head flash when the scene blends back to first person. Before a drive-in scene there's a 90 s late grace so the lose scene can be reached in the car.
 
-## v8: audio (Oct 31 2026, night)
+## v8: audio (Oct 31 2026, late afternoon)
 Scott's audio is wired in. Everything lives in **`public/audio.js`** (one Web Audio graph, exposed as `window.__audio` for debugging). The sounds are in `public/audio/` as `.ogg` and `.m4a` (60 sounds × 2 formats, 44.1 kHz), and `public/audio/manifest.js` holds the durations, loop points, BPM and per-format trim. `tools/audio_prep.py` copies the needed files from `/workspace/sunspots/audio/web` and rebuilds the manifest.
 
 **Engine**
