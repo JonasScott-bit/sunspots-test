@@ -440,17 +440,33 @@ async function loadAll() {
   wm.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; o.material.roughness = 1; o.material.metalness = 0; } });
   wolf.add(wm); scene.add(wolf);
   mixer = new THREE.AnimationMixer(wm);
-  const walkClip = w.animations[0];
-  const runClip = wRun.animations[0];
-  // strip root translation so the wolf walks in place (we move him in code)
-  actWalk = mixer.clipAction(walkClip); actRun = mixer.clipAction(runClip);
+  // Meshy's auto-rig tears the mesh when the arm/spine/hip-twist channels play (the model is
+  // sculpted arms-crossed, the clips swing the arms). Keep only the leg chain + vertical hip bob;
+  // the upper body stays in the clean bind pose and gets procedural sway instead.
+  const legClip = (clip) => {
+    const tracks = [];
+    for (const tr of clip.tracks) {
+      const [bone, prop] = tr.name.split('.');
+      if (prop === 'scale') continue;
+      if (bone === 'Hips' && prop === 'position') {
+        const b = wm.getObjectByName('Hips'), t2 = tr.clone();
+        for (let i = 0; i < t2.values.length; i += 3) { t2.values[i] = b.position.x; t2.values[i + 2] = b.position.z; t2.values[i + 1] = b.position.y + (t2.values[i + 1] - b.position.y) * 0.8; }
+        tracks.push(t2); continue;
+      }
+      if (prop === 'quaternion' && /(UpLeg|Leg|Foot|ToeBase)$/.test(bone)) tracks.push(tr.clone());
+    }
+    return new THREE.AnimationClip(clip.name + '_legs', clip.duration, tracks);
+  };
+  actWalk = mixer.clipAction(legClip(w.animations[0])); actRun = mixer.clipAction(legClip(wRun.animations[0]));
   actWalk.play(); actRun.play(); actWalk.setEffectiveWeight(0); actRun.setEffectiveWeight(0);
+  wolf.userData.body = wm; wolf.userData.sy = wm.scale.y; wolf.userData.phase = 0;
   wolfReady = true;
 }
 
 // ---------------------------------------------------------------- input: floating joystick + sky drag to orbit + keyboard
 const joy = document.getElementById('joy'), knob = document.getElementById('knob');
 const input = { x: 0, y: 0 }; let joyId = null, joyO = { x: 0, y: 0 }, lookId = null, lookLast = 0;
+const DEBUG = {};
 let camYaw = 0, camYawTarget = 0, manualLookT = 0;
 const R = 52;
 canvas.addEventListener('pointerdown', e => {
@@ -565,14 +581,21 @@ function frame() {
     wolf.position.copy(p); wolf.rotation.y = wolfState.yaw;
     // anim blend
     const sp = wolfState.speed;
-    const wWalk = clamp(sp / 1.2, 0, 1) * (1 - clamp((sp - 3.2) / 2.5, 0, 1)), wRun = clamp((sp - 3.2) / 2.5, 0, 1);
-    actWalk.setEffectiveWeight(wWalk); actRun.setEffectiveWeight(wRun);
-    actWalk.timeScale = clamp(sp / 2.2, 0.5, 1.4); actRun.timeScale = clamp(sp / 7, 0.7, 1.2);
-    // idle: hold first frame pose (walk weight 0 -> bind pose) with gentle breathing
-    const idle = 1 - clamp(sp / 0.6, 0, 1);
-    if (idle > 0.5) { actWalk.setEffectiveWeight(Math.max(wWalk, 1)); actWalk.timeScale = 0; }
-    wolf.children[0].scale.y = wolf.children[0].userData.sy ??= wolf.children[0].scale.y;
-    wolf.children[0].scale.y = wolf.children[0].userData.sy * (1 + idle * 0.012 * Math.sin(t * 2.2));
+    // one shared gait phase drives both clips so walk<->run blends stay in step; weight 0 = clean bind pose (idle)
+    const move = clamp(sp / 1.4, 0, 1), runK = smooth(clamp((sp - 3.4) / 2.6, 0, 1));
+    const cadence = lerp(0.95, 1.55, runK) * clamp(sp / 2.4, 0.45, 1.25); // gait cycles per second
+    wolf.userData.phase = (wolf.userData.phase + dt * cadence * move) % 1;
+    const ph = wolf.userData.phase;
+    actWalk.setEffectiveWeight(move * (1 - runK)); actRun.setEffectiveWeight(move * runK);
+    actWalk.time = ph * actWalk.getClip().duration; actRun.time = ph * actRun.getClip().duration;
+    actWalk.timeScale = actRun.timeScale = 0;
+    // procedural upper body: forward lean with speed, sway with the stride, lean into turns, idle breathing + slow weight shift
+    const body = wolf.userData.body, idle = 1 - move;
+    wolf.userData.turn = lerp(wolf.userData.turn || 0, clamp((wolfState.yaw - (wolf.userData.lastYaw ?? wolfState.yaw)) / Math.max(dt, 1e-3), -3, 3), 1 - Math.exp(-dt * 6));
+    wolf.userData.lastYaw = wolfState.yaw;
+    body.rotation.x = lerp(0, 0.16, runK) * move + 0.04 * move;
+    body.rotation.z = Math.sin(ph * Math.PI * 2) * 0.035 * move - wolf.userData.turn * 0.04 * move + idle * Math.sin(t * 0.7) * 0.012;
+    body.scale.y = wolf.userData.sy * (1 + idle * 0.012 * Math.sin(t * 2.1));
     mixer.update(dt);
     // camera auto-follows behind travel direction unless the player recently dragged the sky
     manualLookT -= dt;
@@ -586,6 +609,8 @@ function frame() {
   camera.position.lerp(tmpV, 1 - Math.exp(-dt * 5));
   camTarget.set(wp.x, portrait ? 2.6 : 2.75, wp.z);
   camera.lookAt(camTarget);
+  const cc = DEBUG.closeCam; // screenshot/QA hook: close-up orbit relative to the wolf's facing
+  if (cc && wolfReady) { const a = wolfState.yaw + (cc.yaw || 0); camera.position.set(wp.x + Math.sin(a) * cc.dist, cc.h, wp.z + Math.cos(a) * cc.dist); camTarget.set(wp.x, cc.ty, wp.z); camera.lookAt(camTarget); }
   camera.updateMatrixWorld();
   key.position.copy(wp).add(KEY_OFFSET); key.target.position.copy(wp);
 
@@ -621,4 +646,4 @@ loadAll().then(() => {
   window.__ready = true;
 }).catch(e => { document.getElementById('err').style.display = 'block'; document.getElementById('err').textContent = 'Load error: ' + e.message; console.error(e); });
 requestAnimationFrame(frame);
-window.__sunspots = { toggleWild, input, keys, get wild() { return wild; }, scene, camera };
+window.__sunspots = { DEBUG, toggleWild, input, keys, get wild() { return wild; }, scene, camera };
