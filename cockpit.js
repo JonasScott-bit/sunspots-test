@@ -176,6 +176,7 @@ export function createCockpit(L, H) {
         else if (m.act !== 'innocent' && m.actT > m.nextAct) { m.act = pickAct(m); m.actT = 0; m.nextAct = 2 + rnd() * 2.5; }
       }
       if (CK.forceAct && !watched) m.act = CK.forceAct;
+      if (m.act !== (m.act0 || 'innocent')) { const from = m.act0 || 'innocent'; m.act0 = m.act; CK.onCast?.(m, from, m.act); }   // audio: snickers / hush
       const P = POSE[m.act], k = 1 - Math.exp(-dt * (m.fast ? 22 : 6)), p = m.p;
       for (const key of ['lean', 'yaw', 'tilt', 'mouth', 'tongue', 'shake', 'fing', 'note', 'look']) p[key] = lerp(p[key], P[key], k);
       for (const key of ['armL', 'armR']) { p[key][0] = lerp(p[key][0], P[key][0], k); p[key][1] = lerp(p[key][1], P[key][1], k); }

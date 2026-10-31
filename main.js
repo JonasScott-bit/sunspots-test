@@ -7,7 +7,8 @@ import { createLevel, LAYOUT } from './level.js';
 import { createCockpit } from './cockpit.js';
 import { createMoth } from './moth.js';
 import { createDirector } from './scenes.js';
-window.__SUNSPOTS_VERSION = 'v7';
+import { audio } from './audio.js';
+window.__SUNSPOTS_VERSION = 'v8';
 
 const Q = new URLSearchParams(location.search);
 const SHOT = Q.has('shot');
@@ -516,7 +517,7 @@ const fpL = sleeve(0.55, 0.085), fpR = sleeve(0.55, 0.085); fpArms.add(fpL, fpR)
 { const a = sleeve(0.5, 0.09), b = sleeve(0.5, 0.09); a.position.set(-0.24, 0.0, 0.02); a.rotation.set(0, -1.32, 0.15); b.position.set(0.24, 0.05, -0.02); b.rotation.set(0, 1.32, -0.15); fpCross.add(a, b); }
 const eyeBtn = document.getElementById('eyeBtn'), eyeRing = eyeBtn.querySelector('.ring'), fpFx = document.getElementById('fpFx'), hazeT = document.getElementById('hazeT');
 function setWolfGhost(on) { for (const m of wolf.userData.mats || []) { m.colorWrite = !on; m.depthWrite = !on; } }
-function toggleFP() { if (level.inCar) { cockpit.setChase(!cockpit.chase); eyeBtn.classList.toggle('fp', !cockpit.chase); } else { FP.on = FP.on ? 0 : 1; eyeBtn.classList.toggle('fp', !!FP.on); } try { navigator.vibrate && navigator.vibrate(12); } catch (_) {} }
+function toggleFP() { audio.ui('confirm'); if (level.inCar) { cockpit.setChase(!cockpit.chase); eyeBtn.classList.toggle('fp', !cockpit.chase); } else { FP.on = FP.on ? 0 : 1; eyeBtn.classList.toggle('fp', !!FP.on); } try { navigator.vibrate && navigator.vibrate(12); } catch (_) {} }
 { let holdT = null, raf = 0; const RING = 163.4;
   const fill = (x) => eyeRing.style.strokeDashoffset = RING * (1 - x);
   const step = () => { if (holdT === null) return; const x = Math.min(1, (performance.now() - holdT) / 500); fill(x);
@@ -585,6 +586,7 @@ async function loadAll() {
   wolf.userData.body = wm; wolf.userData.sy = wm.scale.y; wolf.userData.phase = 0;
   // idle head glance: only the Head bone (not in any clip) gets a small yaw/tilt on top of its bind pose
   const hb = wm.getObjectByName('Head');
+  wolf.userData.feet = ['LeftFoot', 'RightFoot'].map(n => wm.getObjectByName(n)).filter(Boolean);
   if (hb) wolf.userData.head = { bone: hb, bind: hb.quaternion.clone(), q: new THREE.Quaternion(), e: new THREE.Euler(), yaw: 0, tilt: 0 };
   await castP;
   wolfReady = true;
@@ -624,7 +626,7 @@ const keys = {}; addEventListener('keydown', e => { keys[e.code] = true; if (e.c
 // ---------------------------------------------------------------- wild mode
 let wild = Q.has('wild') ? 1 : 0, wildTarget = wild;
 const wildBtn = document.getElementById('wildBtn');
-function toggleWild() { wildTarget = wildTarget ? 0 : 1; wildBtn.classList.toggle('on', !!wildTarget); wildBtn.textContent = wildTarget ? 'SUNSHINE' : 'WILD'; }
+function toggleWild() { wildTarget = wildTarget ? 0 : 1; audio.wild(!!wildTarget); wildBtn.classList.toggle('on', !!wildTarget); wildBtn.textContent = wildTarget ? 'SUNSHINE' : 'WILD'; }
 wildBtn.addEventListener('click', toggleWild);
 if (wild) { wildBtn.classList.add('on'); wildBtn.textContent = 'SUNSHINE'; }
 
@@ -710,6 +712,7 @@ function frame() {
   // level (clock, car, townsfolk, obstacles)
   director?.update(dt, t, { wolfPos: wolfState.pos, titleUp: !!window.__titleUp || !wolfReady || !!MAP });   // scenes: triggers + timeline
   level.update(dt, t, { wolfPos: wolfState.pos, keys, wild: w, titleUp: !!window.__titleUp || !wolfReady || !!MAP });
+  wolfFootsteps(); audio.update(dt);
   // wolf riding shotgun
   if (wolfReady && level.inCar && !puppet.on) {
     level.car.root.updateMatrixWorld(true); cockpit.wolfRig.matrixWorld.decompose(wolf.position, wolf.quaternion, tmpV); wolf.scale.setScalar(wolfBaseScale * level.seatScale); wolfState.pos.copy(wolf.position).setY(0);
@@ -896,7 +899,7 @@ loadAll().then(() => {
   // motion scenes (scenes.js). ?scenes=0 turns them off (old instant arrival / 2:00 lose)
   if (Q.get('scenes') !== '0') {
     director = createDirector({ scene, camera, L: level, CK: cockpit, load: (u) => load(u), normalize, feltMat, rbox, colliders, puppet,
-      getWolf: () => wolf, getMoth: () => moth,
+      getWolf: () => wolf, getMoth: () => moth, playCue: (n) => audio.playCue(n), onSay: (who, blocking, dur) => audio.say(who, blocking, dur), onSkip: () => audio.ui('confirm'),
       onFreeze: () => { for (const k in keys) keys[k] = false; input.x = input.y = 0; joyId = null; lookId = null; joy.style.display = 'none';
         const c = level.ctl; c.left = c.right = c.gas = c.brake = false; c.tilt = null; document.querySelectorAll('#drive .on, #drive .down').forEach(b => b.classList.remove('on', 'down')); } });
     puppet.base = wolfBaseScale; window.__director = director;
@@ -924,4 +927,32 @@ function autopilot() { if (!DEBUG.autopilot || level.mode !== 'drive' || level.f
   const r = level.atDist(level.MAIN, level.MAIN.cum[nr.road === level.MAIN ? nr.i : 0] + 14); const want = Math.atan2(r.x - c.pos.x, r.z - c.pos.z);
   const d = Math.atan2(Math.sin(want - c.yaw), Math.cos(want - c.yaw)); level.ctl.left = d > 0.04; level.ctl.right = d < -0.04; level.ctl.gas = c.v < 13; }
 setInterval(autopilot, 50);
+// ---------------------------------------------------------------- audio (audio.js): hooks
+audio.attach({ L: level, CK: cockpit, getDirector: () => director, getWild: () => wild, wolfState });
+cockpit.onCast = (m, from, to) => audio.cast(m, from, to);
+// UI: a tick on button presses, a confirm on toggles (TILT; the eye/skip rings confirm when they complete; WILD has its sting)
+addEventListener('pointerdown', e => { const b = e.target.closest?.('.dbtn,#getIn,#retry,#eyeBtn,#skipBtn'); if (!b || b.id === 'bHorn') return;
+  if (b.id === 'bTilt') audio.ui('confirm'); else audio.ui('tick', /^(bL|bR|bGas|bBrake)$/.test(b.id)); }, { capture: true, passive: true });
+// Wolf footsteps on foot: the gait is one shared phase (0-1) driving the walk/run clips, so each foot plant happens at a
+// fixed phase. Those phases are measured once from the walk clip's foot bones (heel strike per foot), then a step plays
+// whenever the phase crosses one - frame-rate independent, same for the player walk and scene puppeting.
+const _fv = new THREE.Vector3();
+function calibrateFeet() {
+  const f = wolf.userData.feet, wm = wolf.userData.body; if (!f?.length) return [0, 0.5];
+  const prof = [], wW = actWalk.getEffectiveWeight(), wR = actRun.getEffectiveWeight(), tW = actWalk.time, tR = actRun.time, N = 64, best = f.map(() => [1e9, 0]);
+  actWalk.setEffectiveWeight(1); actRun.setEffectiveWeight(0);
+  for (let k = 0; k < N; k++) { actWalk.time = k / N * actWalk.getClip().duration; mixer.update(0); wm.updateMatrixWorld(true);
+    f.forEach((b, i) => { b.getWorldPosition(_fv); const y = _fv.y; (prof[i] ||= []).push(y); if (y < best[i][0]) best[i] = [y, k / N]; }); }
+  wolf.userData.footProfile = prof.map(r => r.map(y => +(y - Math.min(...r)).toFixed(3)));
+  actWalk.setEffectiveWeight(wW); actRun.setEffectiveWeight(wR); actWalk.time = tW; actRun.time = tR; mixer.update(0);
+  // contact = the phase where the foot first comes down to within 8% of its lowest point (heel strike), not the lowest point itself
+  return wolf.userData.footProfile.map((r, i) => { const th = Math.max(...r) * 0.08; for (let k = 0; k < N; k++) if (r[k] < th && r[(k + N - 1) % N] >= th) return k / N; return best[i][1]; });
+}
+function wolfFootsteps() {
+  if (!wolfReady || !wolf || level.inCar || window.__titleUp) return;
+  const u = wolf.userData; if (!u.plants) u.plants = calibrateFeet();
+  const ph = u.phase || 0, p0 = u.lastPh ?? ph; u.lastPh = ph;
+  const sp = puppet.on ? puppet.speed : wolfState.speed, d = ((ph - p0) % 1 + 1) % 1; if (sp < 0.3 || d === 0 || d > 0.5) return;
+  for (const q of u.plants) if (((q - p0) % 1 + 1) % 1 > 0 && ((q - p0) % 1 + 1) % 1 <= d) { u.steps = (u.steps || 0) + 1; audio.step(Math.abs(sp)); }
+}
 window.__sunspots = { puppet, get director() { return director; }, DEBUG, toggleWild, toggleFP, FP, cockpit, input, keys, get wild() { return wild; }, scene, camera, level, wolfState };

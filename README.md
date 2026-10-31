@@ -1,7 +1,7 @@
 # Sunspots — Test Scene 01 (mobile web prototype)
 
 Run locally: `cd public && python3 -m http.server 8810`, then open http://localhost:8810/ (any static host works, no build step).
-Query flags: `?wild=1` start in Wild Mode · `?shot=1` screenshot mode. Keys: WASD/arrows move (Shift=run), M toggles Wild.
+Query flags: `?wild=1` start in Wild Mode · `?shot=1` screenshot mode · `?mute` / `?afmt=m4a` audio. Keys: WASD/arrows move (Shift=run), M toggles Wild, H horn (in the car).
 
 ## Controls
 - Floating joystick: touch & drag anywhere on the lower screen. Push past ~75% to run (walk→run cross-fade by speed).
@@ -118,7 +118,59 @@ GTA-style in-world scenes. Drive into a zone, the bars come in, the scene plays 
 
 **Audio cues** (fired as `window` event `sunspots:audio` `{cue}`; list + descriptions in `CUES` in scenes.js): mus_store_arrive, sfx_boots_stop, sfx_car_door_open, sfx_car_door_close, amb_radio_outside, sfx_store_door_bell, sfx_store_door_shut, sfx_sign_flip, sfx_lock_clunk, sfx_clock_tock, sfx_chip_bag, mus_win_tag, mus_lose_tag, sfx_wheel_spin, amb_gallery_hush, optional VO per line.
 
-**v7 rough edges**: store_win runs about 22 s, a little over the 20 s target. The arrival close-up on the moth is tight and clips the car body. The roadside art is small and barely readable from first person (it reads in the chase view). The Wolf's exit from the car is a short slide, not a climb. There's no audio yet; cues are events only. Hold-to-skip is tested with keys and in headless, not on a real phone. There may be a one-frame head flash when the scene blends back to first person. Before a drive-in scene there's a 90 s late grace so the lose scene can be reached in the car.
+**v7 rough edges**: store_win runs about 22 s, a little over the 20 s target. The arrival close-up on the moth is tight and clips the car body. The roadside art is small and barely readable from first person (it reads in the chase view). The Wolf's exit from the car is a short slide, not a climb. Audio arrived in v8. Hold-to-skip is tested with keys and in headless, not on a real phone. There may be a one-frame head flash when the scene blends back to first person. Before a drive-in scene there's a 90 s late grace so the lose scene can be reached in the car.
+
+## v8: audio (Oct 31 2026, night)
+Scott's audio is wired in. Everything lives in **`public/audio.js`** (one Web Audio graph, exposed as `window.__audio` for debugging). The sounds are in `public/audio/` as `.ogg` and `.m4a` (60 sounds × 2 formats, 44.1 kHz), and `public/audio/manifest.js` holds the durations, loop points, BPM and per-format trim. `tools/audio_prep.py` copies the needed files from `/workspace/sunspots/audio/web` and rebuilds the manifest.
+
+**Engine**
+- **Format and unlock**: `.ogg` by default. On iOS, or if the browser can't decode Vorbis, it uses `.m4a`, and a failed ogg decode also falls back to m4a. `?afmt=m4a|ogg` forces a format. The first tap or key resumes the AudioContext, plays a silent buffer and sets `navigator.audioSession.type = 'playback'` (so the iOS ringer switch doesn't mute it). Audio suspends when the tab is hidden.
+- **Mute**: the speaker button at the top left (next to the wordmark) mutes everything. The setting and the RADIO VOL level are saved in `localStorage['sunspots.audio']`. `?mute` starts muted.
+- **Lazy loading**: the title needs only Mind Meld (**896 KB ogg / 983 KB m4a**) and never waits on anything else. Leaving the title loads the town set, then core (UI/wolf/car SFX). Getting in the car loads the car set (stings, store cue, voices) and the radio tracks, one ahead. Tension loads when 140 s are left.
+- **Graph**: master → compressor (soft limiter) → out. Buses: music 0.5, radio 0.85, sfx 0.8, ambience 0.13, voices 0.85, UI 0.35. The manifest's per-format trim is undone at playback, so ogg and m4a play at the same level.
+- **Loops**: AudioBufferSourceNode with `loopStart`/`loopEnd` set from the manifest (sample-accurate, not `duration`).
+
+**How each sound is used**
+| sound | where / how |
+|---|---|
+| `music_title_loop_pro_mind_meld` | Title screen. Loops at loopEnd 47.63 s and fades in over 1.2 s after the first tap. When you leave the title it fades out over 3.2 s while the town fades in, then the buffer is freed. |
+| `music_town_sunshine_loop` / `music_town_wild_loop` | Both start at the same `t0` and loop at 38.4 s (100 BPM, 16 bars), so they always share a playhead. The Wild toggle does an equal-power (cos/sin) crossfade that follows the 2 s Wild melt. The town ducks under the radio in the car (0.18 in first person, 0.3 in the chase view), to 0.4 in blocking scenes, and to 0 under the store cue and stings. |
+| `sting_wild_switch` | On each Wild toggle (both directions), scheduled on the next half-beat of the town grid. |
+| `tension_stage1`–`3` | Start at the town's current playhead offset (beat-locked). Each stage fades in from the next bar line over 2 bars at 110 / 60 / 25 s left. Stage 1's loop-seam dip is smoothed (see rough edges); `?tfix=0` turns that off. |
+| `sting_win` / `sting_lose` | When the WIN/LOSE card goes up (`finish`, or the scene's `mus_win_tag`/`mus_lose_tag`). They play once. Music drops to 0, then the town comes back at 0.3 after 5 s. |
+| `cue_store_arrival` | The scene cue `mus_store_arrive` at the start of `store_win`. Town and tension drop out while it plays. |
+| `radio_brass` / `radio_bells` / `radio_tango` | The moth's car radio. One-shots in sequence with hard cuts (the next is scheduled sample-accurately at the end of the current one), starting on a random track part-way in. Chain: highpass 340 Hz → bandpass 1.3 kHz → light tanh saturation → lowpass (4.2 kHz in first person; 950 Hz in the chase view = heard from outside the car). RADIO VOL cycles 100% → 86% → 74% → 100%, never off ("That is the lowest it goes."). |
+| `sfx_car_idle_loop` / `sfx_car_rev_loop` | Run all game long, gated by distance to the car (loud inside, fainter near it, silent far away). Idle gain falls and rev gain rises with speed; playback rate goes 0.92→1.42 (idle) and 0.72→1.32 (rev). |
+| `sfx_car_boot_thud_l` / `_r` | One per footfall of the boot-waddle (same phase as the vertex-shader legs), alternating L/R and panned. Plus a 5-thud slowdown for the scene cue `sfx_boots_stop`. |
+| `sfx_car_bump_01`–`03` | Collisions ("bonk"), cattle guards (a 4-hit rattle), tumbleweeds, landing from a hop, and the end of `sfx_boots_stop`. |
+| `sfx_car_horn` | New HORN button in the drive controls (and the H key). 0.4 s cooldown; sometimes the moth answers. |
+| `sfx_car_door_open` / `_shut` | Getting in the car (open, shut 0.65 s later, plus a wolf grunt). The scene cues `sfx_car_door_open`/`_close`. Also a pitched-down stand-in for `sfx_store_door_shut`. |
+| `sfx_wolf_step_01`–`05` | Wolf footsteps on foot (player walk and scene puppeting). Each foot's heel-strike phase is measured once from the walk clip's foot bones, then a step fires whenever the shared gait phase crosses it, so it doesn't depend on frame rate. Gain rises with speed. |
+| `sfx_wolf_huff` | When he's been idle 7 s (then every 12–20 s), when "late", and sometimes as the Wolf's cast reaction in the car. |
+| `sfx_wolf_howl` | 0.9 s after switching Wild ON (10 s cooldown). |
+| `vox_wolf_grunt_01`–`03` | Getting in the car, and the Wolf's scene lines. |
+| `sfx_town_ambience_loop` | Low bed (bus 0.13), starts at a random offset. Quieter in the car and away from the town centre. |
+| `sfx_ui_tick` / `sfx_ui_confirm` | Tick on button presses (softer on drive controls). Confirm on toggles: eye / first person (including when the hold ring completes), tilt, mute, SKIP hold. |
+| `vox_moth_01`–`15` | Moth barks: on each moth scene line (not tied to the subtitle text), when you get in, every 25–45 s while driving, sometimes after a bonk or a horn. Never repeats one of the last 5. |
+| `vox_cast_snicker/whisper/mumble_*` | In the car: when a back-seat cast member starts acting up behind the moth's back, they snicker or whisper (lowpassed at 2.2 kHz in the chase view). When he looks back, any cast voice cuts dead, sometimes with a stifled half-snicker. Mumbles: non-moth scene lines (clerk, squid, farmhand, crow, ram), stopped at the line's end. |
+
+**Scene cues** (`sunspots:audio` / `CUES` in scenes.js): `mus_store_arrive` → cue_store_arrival; `sfx_boots_stop` → thud slowdown; `sfx_car_door_open`/`_close` → doors; `sfx_store_door_shut` → door-shut stand-in; `mus_win_tag`/`mus_lose_tag` → stings; `amb_radio_outside` → handled by the radio duck/muffle. Silent no-ops (no matching file): `sfx_store_door_bell`, `sfx_sign_flip`, `sfx_lock_clunk`, `sfx_clock_tock`, `sfx_chip_bag`, `sfx_wheel_spin`, `amb_gallery_hush`.
+
+**Download size**: title 0.9 MB (ogg) / 1.0 MB (m4a). The full set is 6.6 MB ogg / 11.2 MB m4a. A typical session (title → town → car → tension → card) fetches 59 files: about **5.7 MB ogg** (desktop/Android) or **9.8 MB m4a** (iOS). The repo carries both formats (17.8 MB).
+
+**Debug**: `__audio.graph()` (state, gains, filters, playing sources), `__audio.rms()` (master dBFS), `__audio.log`. Probes in `tools/`: `audio_offline.mjs` (decode/loop seams/radio spectrum in OfflineAudioContext), `audio_radiochain.mjs`, `audio_bars.mjs`, `audio_live.mjs <base> [&afmt=m4a]` (drives the game headless and logs the graph), `sceneprobe.mjs` (now also prints the audio log).
+
+**v8 rough edges**
+- Nothing here was listened to. Levels are set from measurements (RMS, gains), so the mix balance needs a pass by ear on a phone.
+- The tension stage 1 "dip" is a phrase-end breath: the same -4 dB drop over the last 800 ms appears at the end of bars 4, 8 and 12, not just at the loop seam. As asked, the seam is smoothed (the last 0.8 s replaced by the same 0.8 s from one bar earlier, 80 ms equal-power join), but the other three breaths remain. Stages 2 and 3 have similar breaths every 2 bars. `?tfix=0` gives the raw loop.
+- The m4a idle and ambience loops have a slightly bigger sample step at the loop seam than the ogg versions (0.05 vs 0.018 and 0.045 vs 0.021), so a faint tick is possible on iOS.
+- In the car with the radio up, master RMS is around -11 to -13 dBFS. The compressor catches peaks, but the radio may still feel loud next to the title.
+- Wolf steps use the walk clip's heel-strike phases for the run blend too. Run plants may land a little off.
+- No store door bell, sign flip, lock clunk, clock tock, chip bag or wheel spin in the set (those cues stay silent). The store door shut is a pitched car door.
+- The horn is a plain button (HORN, above the steering pad) and the H key, without any special art.
+- Not tested on a real iPhone: the iOS ringer-switch handling (`audioSession`) and the unlock path are written to spec but unverified.
+
+**Verified (headless Chrome + OfflineAudioContext, Oct 31 2026)**: every loop decodes to exactly loopEnd × 44100 samples in both formats (Mind Meld m4a is one sample short, harmless), and seams are at or below the typical sample step. All 51 one-shots decode in both formats with matching durations. Radio chain: small-signal response 80 Hz -40 dB, 300 Hz -4 dB, 1.3 kHz +8 dB, 8 kHz -7 dB; 3rd harmonic -47 dB at amplitude 0.1, -21 dB at 0.5. Live run (ogg and m4a): town loops start at the same t0 at offset 0; sun² + wild² = 1; wild sting on the half-beat; tension sources share the town t0 (drift 0) and their ramps start exactly on a bar line; the RADIO VOL gains never reach 0 and are remembered; chase-view radio muffle is 950 Hz; engine rates and gains track speed; boot thuds match the waddle footfalls; wolf steps 8 in 3.8 gait cycles; the win sting and the town return after 5 s; mute gives -120 dBFS. Scene probes for `store_win`/`store_lose`: arrival cue, boots-stop thuds, doors, moth/cast barks and the lose sting all fire, and the unmatched cues log `cue_silent`. **Not verified**: how it actually sounds, iOS Safari / real phones, the Bluetooth/latency feel, and long sessions (memory over many radio tracks is only checked by the drop-old logic).
 
 ## Hosting / deploy
 Live: https://jonasscott-bit.github.io/sunspots-test/ (repo JonasScott-bit/sunspots-test). From the prototype folder, `bash tools/deploy.sh "message"` copies `public/` (minus `lab/`) into the pages repo, pushes, and waits for the Pages build. Then `node tools/livecheck.mjs <url> out.png` checks for console errors.

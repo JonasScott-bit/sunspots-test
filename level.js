@@ -1,7 +1,7 @@
 // Level 1 — "Last Minute Snacks". The convenience store closes at 2:00 PM. Walk to the pickup spot, ride out.
 // Layout data + road + driving + townsfolk + HUD. main.js owns the renderer, wolf and Wild Mode; this owns the level.
 import * as THREE from 'three';
-import { radio } from './radio.js';
+import { audio } from './audio.js';
 
 // ------------------------------------------------------------------ layout (metres; -z = north, toward the sun)
 export const LAYOUT = {
@@ -351,17 +351,18 @@ export function createLevel(C) {
     addEventListener('deviceorientation', ev => { if (ctl.tilt === null) return; const land = innerWidth > innerHeight; const v = land ? (ev.beta || 0) * (screen.orientation?.angle === 270 || window.orientation === -90 ? -1 : 1) : (ev.gamma || 0); ctl.tilt = clamp(v / 25, -1, 1); });
   });
   hud.getIn?.addEventListener('click', () => L.enterCar());
-  // the radio: procedurally generated "wild foreign music" (radio.js). Audio may only start after a user gesture.
-  for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, () => radio.unlock(), { passive: true });
-  $('bVol')?.addEventListener('click', (e) => { e.preventDefault(); toast('nope.', 1.6); }); // the volume knob does nothing
+  // the moth's radio (audio.js): the knob cycles loud / still loud / "lowest" and never reaches off
+  $('bVol')?.addEventListener('click', (e) => { e.preventDefault(); toast(audio.cycleRadio(), 1.8); });
+  $('bHorn')?.addEventListener('pointerdown', (e) => { e.preventDefault(); audio.horn(); });
+  addEventListener('keydown', (e) => { if (e.code === 'KeyH' && !e.repeat && L.inCar && !L.frozen) audio.horn(); });
   L.radioVol = 0;
   $('retry')?.addEventListener('click', () => L.reset());
 
   // -------------------------------------------------------------- state machine
-  L.enterCar = () => { if (L.mode !== 'walk' || L.ended) return; L.mode = 'drive'; L.inCar = true; document.body.classList.add('driving'); hud.getIn.style.display = 'none'; toast('The driver nods once. You steer.', 3.5); C.onEnterCar?.(); };
-  L.reset = () => { L.frozen = false; L.sceneCar = false; L.car.sceneDriven = false; L.radioOverride = null; L.lateSaid = false; L.mode = 'walk'; L.inCar = false; L.left = START_LEFT; L.ended = false; L.started = false; document.body.classList.remove('driving', 'ended', 'won', 'lost'); placeCar(); for (const g of L.guards) g.hit = false; L.forkSaid = false; C.onReset?.(); };
+  L.enterCar = () => { if (L.mode !== 'walk' || L.ended) return; L.mode = 'drive'; L.inCar = true; document.body.classList.add('driving'); hud.getIn.style.display = 'none'; toast('The driver nods once. You steer.', 3.5); audio.ev('enterCar'); C.onEnterCar?.(); };
+  L.reset = () => { L.frozen = false; L.sceneCar = false; L.car.sceneDriven = false; L.radioOverride = null; L.lateSaid = false; L.mode = 'walk'; L.inCar = false; L.left = START_LEFT; L.ended = false; L.started = false; document.body.classList.remove('driving', 'ended', 'won', 'lost'); placeCar(); for (const g of L.guards) g.hit = false; L.forkSaid = false; audio.ev('reset'); C.onReset?.(); };
   function finish(won) {
-    if (L.ended) return; L.ended = true; L.mode = won ? 'won' : 'lost'; document.body.classList.add('ended', won ? 'won' : 'lost');
+    if (L.ended) return; L.ended = true; L.mode = won ? 'won' : 'lost'; audio.ev('finish', { won }); document.body.classList.add('ended', won ? 'won' : 'lost');
     $('endTitle').textContent = won ? 'SNACKS ACQUIRED.' : 'CLOSED.';
     $('endSub').textContent = won ? `Arrived ${fmt(L.left)}. The store was still open. Nobody said anything.` : 'The store closed at 2:00 PM. The Wolf looks at the sign for a while.';
   }
@@ -388,14 +389,14 @@ export function createLevel(C) {
     c.pos.addScaledVector(fwd, c.v * dt);
     // collisions (cacti, buildings, posts): bonk + bounce back, deadpan
     c.bonkT -= dt;
-    for (const k of colliders) { const dx = c.pos.x - k.x, dz = c.pos.z - k.z, d = Math.hypot(dx, dz), r = k.r + 1.4; if (d < r && d > 1e-4) { c.pos.x = k.x + dx / d * r; c.pos.z = k.z + dz / d * r; if (Math.abs(c.v) > 3 && c.bonkT <= 0) { c.v *= -0.25; c.hopV = 1.6; c.bonkT = 0.8; toast(['(cactus)', 'Bonk.', 'The driver blinks.', '(that was a cactus)'][Math.floor(rnd() * 4)], 1.6); } else c.v *= 0.9; } }
+    for (const k of colliders) { const dx = c.pos.x - k.x, dz = c.pos.z - k.z, d = Math.hypot(dx, dz), r = k.r + 1.4; if (d < r && d > 1e-4) { c.pos.x = k.x + dx / d * r; c.pos.z = k.z + dz / d * r; if (Math.abs(c.v) > 3 && c.bonkT <= 0) { c.v *= -0.25; c.hopV = 1.6; c.bonkT = 0.8; audio.ev('bonk'); toast(['(cactus)', 'Bonk.', 'The driver blinks.', '(that was a cactus)'][Math.floor(rnd() * 4)], 1.6); } else c.v *= 0.9; } }
     // invisible boundary: the desert looks endless, but the car is gently turned back toward the road
     if (nr.d > 38) { const p = nr.road.s[nr.i], k = (nr.d - 38) / nr.d; c.pos.x -= (c.pos.x - p.x) * k; c.pos.z -= (c.pos.z - p.z) * k; c.v *= 0.97; if (!L.edgeSaid) { toast('Nothing out there. Back to the road.', 2.2); L.edgeSaid = true; } } else if (nr.d < 20) L.edgeSaid = false;
     // cattle guards: rattle + small hop, a little speed lost
-    for (const g of L.guards) { const d = Math.hypot(c.pos.x - g.x, c.pos.z - g.z); if (d < 2.4 && !g.hit) { g.hit = true; if (Math.abs(c.v) > 5) { c.hopV = 2.4; c.v *= 0.82; toast('Cattle guard. Rattle rattle.', 1.8); } } else if (d > 8) g.hit = false; }
+    for (const g of L.guards) { const d = Math.hypot(c.pos.x - g.x, c.pos.z - g.z); if (d < 2.4 && !g.hit) { g.hit = true; if (Math.abs(c.v) > 5) { c.hopV = 2.4; c.v *= 0.82; audio.ev('guard'); toast('Cattle guard. Rattle rattle.', 1.8); } } else if (d > 8) g.hit = false; }
     // tumbleweed
     const tw = L.tumble, td = Math.hypot(c.pos.x - tw.obj.position.x, c.pos.z - tw.obj.position.z);
-    if (td < 2.0 && tw.push <= 0) { tw.push = 1.4; tw.pushDir = c.yaw; c.v *= 0.55; toast('A tumbleweed, taking its time.', 2.2); }
+    if (td < 2.0 && tw.push <= 0) { tw.push = 1.4; tw.pushDir = c.yaw; c.v *= 0.55; audio.ev('tumble'); toast('A tumbleweed, taking its time.', 2.2); }
     // suspension hop
     c.hopV -= 14 * dt; c.hop = Math.max(0, c.hop + c.hopV * dt); if (c.hop === 0 && c.hopV < 0) c.hopV = 0;
     const rough = onRoad ? (nr.road === SHORT ? 0.02 : 0.008) : 0.035;
@@ -439,7 +440,7 @@ export function createLevel(C) {
     animateBoots(dt, t);
     { const dc = Math.hypot(wolfPos.x - L.car.pos.x, wolfPos.z - L.car.pos.z);
       const want = L.radioOverride != null ? L.radioOverride : titleUp ? 0 : L.inCar ? (L.mode === 'lost' ? 0.25 : 1) : clamp(1 - dc / 22, 0, 1) * 0.22; // loud in the car, faint from the street
-      if (Math.abs(want - L.radioVol) > 0.02 || (want === 0 && L.radioVol !== 0)) { L.radioVol = want; radio.set(want); } }
+      L.radioVol = want; }   // audio.js reads it every frame
     if (L.mode === 'walk') {
       const d = Math.hypot(wolfPos.x - L.car.pos.x, wolfPos.z - L.car.pos.z);
       if (hud.getIn) hud.getIn.style.display = d < 5 && !L.ended ? 'block' : 'none';

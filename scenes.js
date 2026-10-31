@@ -61,6 +61,10 @@ export const CUES = {
   sfx_wheel_spin:       'Roadside art: a bicycle wheel spinning on a stool, ticking spokes, slowing down.',
   amb_gallery_hush:     'Roadside art: faint gallery room-tone out in the desert (polite murmur, one cough).',
   // optional VO (one line each; the cast is deadpan): vo_<speaker>_<n> fired with every say beat
+  // v8 (audio.js playCue): mus_store_arrive -> cue_store_arrival; sfx_boots_stop -> five slowing boot thuds + a bump;
+  // sfx_car_door_open/close -> car door; sfx_store_door_shut -> car door shut pitched down (stand-in);
+  // mus_win_tag / mus_lose_tag -> sting_win / sting_lose; amb_radio_outside -> the radio's outside muffle.
+  // Every other name is a logged silent no-op. Say beats get a non-verbal bark via ctx.onSay (moth barks, wolf grunts, cast mumbles).
 };
 
 // speaker label + subtitle colour (deadpan cast; colours from their costumes)
@@ -408,6 +412,7 @@ export function createDirector(ctx) {
     const [label, color] = SPEAKERS[b.who] || [String(b.who).toUpperCase(), '#fff3dc'];
     const blocking = D.run?.sc.blocking;
     let bub = null;
+    ctx.onSay?.(b.who, !!blocking, dur);                             // audio: a non-verbal bark, never the words
     if (blocking) { ui.subName.textContent = label; ui.subName.style.color = color; ui.subText.textContent = b.text; ui.sub.classList.add('on'); }
     else { bub = document.createElement('div'); bub.className = 'sbub'; bub.innerHTML = `<b style="color:${color}">${label}</b><span></span>`; bub.querySelector('span').textContent = b.text; ui.bubbles.appendChild(bub); D.bubbles.push({ el: bub, who: a, t: 0 }); requestAnimationFrame(() => bub.classList.add('on')); }
     if (a && b.who !== 'wolf') a.nod = 0;                            // a tiny deadpan nod on the line
@@ -528,6 +533,7 @@ export function createDirector(ctx) {
   }
   function skip() {
     const run = D.run; if (!run || !run.sc.blocking) return;
+    ctx.onSkip?.();
     run.blocker?.finish?.(); run.blocker = null; for (const t of run.side) t.finish?.(); run.side.length = 0;
     while (run.i < run.sc.beats.length) startBeat(run.sc.beats[run.i++], run, true);
     ui.sub.classList.remove('on');
