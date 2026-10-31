@@ -5,6 +5,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 
 const Q = new URLSearchParams(location.search);
 const SHOT = Q.has('shot');
+const QCAM = Q.get('cam') ? Q.get('cam').split(',').map(Number) : null; // QA: ?cam=x,y,z,tx,ty,tz
 const lerp = THREE.MathUtils.lerp, clamp = THREE.MathUtils.clamp;
 const smooth = t => t * t * (3 - 2 * t);
 let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -35,7 +36,7 @@ scene.fog = new THREE.Fog(PAL.fog[0].clone(), 45, 330);
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 2500);
 
 // ---------------------------------------------------------------- lights
-const hemi = new THREE.HemisphereLight(PAL.hemiSky[0].clone(), new THREE.Color('#d8653a'), 1.55);
+const hemi = new THREE.HemisphereLight(PAL.hemiSky[0].clone(), new THREE.Color('#e08a5a'), 1.55);
 scene.add(hemi);
 const key = new THREE.DirectionalLight(PAL.key[0].clone(), 2.3);
 key.castShadow = true;
@@ -43,7 +44,7 @@ key.shadow.mapSize.set(1024, 1024);
 const sc = key.shadow.camera; sc.left = -24; sc.right = 24; sc.top = 24; sc.bottom = -24; sc.near = 1; sc.far = 120;
 key.shadow.bias = -0.0008; key.shadow.normalBias = 0.03; key.shadow.radius = 4;
 scene.add(key, key.target);
-const KEY_OFFSET = new THREE.Vector3(-22, 40, -30); // warm hard light from the sun side, shadows fall toward camera
+const KEY_OFFSET = new THREE.Vector3(-30, 34, 30); // warm light from front-left like the concept art: lit fronts, shadows fall back-right
 
 // ---------------------------------------------------------------- felt texture (procedural speckle)
 function feltTexture(size = 256, base = 235, spread = 40) {
@@ -74,24 +75,30 @@ const MELT_VERT = /* glsl */`
   float m = uMelt;
   // sag: squash height, more at the top; wobble a little like warm wax
   float wob = 0.03 * sin(uTime * 1.7 + uSeed + mh * 4.0) * m;
-  float newH = mh * (1.0 - 0.30 * m) - m * (0.10 + 0.10 * drip) * pow(mh, 3.0) - m * drip * 0.08 * sin(mh * 3.14159) + wob * mh;
+  float newH = mh * (1.0 - 0.17 * m) - m * (0.07 + 0.08 * drip) * pow(mh, 3.0) - m * drip * 0.08 * sin(mh * 3.14159) + wob * mh;
   // bottom spreads out into a puddle-ish skirt, top leans
-  float spread = 1.0 + m * 0.45 * pow(1.0 - mh, 6.0) + m * 0.06 * (1.0 - mh);
-  transformed.xz = uCenter + rel * spread;
+  // base flows out a fixed distance (metres), not a ratio, so big buildings don't turn into pancakes
+  float rl = max(length(rel), 1e-3);
+  transformed.xz = uCenter + rel + rel / rl * m * (0.55 * pow(1.0 - mh, 5.0) + 0.08 * (1.0 - mh)) * min(1.0, rl);
   transformed.x += m * 0.10 * mh * mh * uHeight * sin(uSeed);
   transformed.z += m * 0.10 * mh * mh * uHeight * cos(uSeed);
   transformed.y = uMinY + max(newH, 0.0) * uHeight;
+  // bend (lamp posts): the top curls over like a warm candy cane
+  float bk = m * uBend;
+  transformed.x += bk * uHeight * 0.42 * pow(mh, 2.2) * cos(uSeed);
+  transformed.z += bk * uHeight * 0.42 * pow(mh, 2.2) * sin(uSeed);
+  transformed.y -= bk * uHeight * 0.22 * pow(mh, 3.0);
   transformed = (uFromRoot * vec4(transformed, 1.0)).xyz;
 `;
 function patchMelt(mat, u) {
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u, G);
-    sh.vertexShader = 'uniform float uMelt,uMinY,uHeight,uSeed,uTime;uniform vec2 uCenter;uniform mat4 uToRoot,uFromRoot;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + MELT_VERT);
+    sh.vertexShader = 'uniform float uMelt,uMinY,uHeight,uSeed,uTime,uBend;uniform vec2 uCenter;uniform mat4 uToRoot,uFromRoot;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + MELT_VERT);
     if (sh.fragmentShader) {
       sh.fragmentShader = 'uniform float uWild;uniform vec3 uTint;\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
         float lum = dot(diffuseColor.rgb, vec3(0.30, 0.59, 0.11));
         vec3 wildCol = uTint * (0.45 + 1.1 * lum);
-        diffuseColor.rgb = mix(diffuseColor.rgb, wildCol, uWild * 0.78);`);
+        diffuseColor.rgb = mix(diffuseColor.rgb, wildCol, uWild * 0.86);`);
     }
   };
   mat.customProgramCacheKey = () => 'melt';
@@ -102,7 +109,7 @@ function meltUniforms(geo, tint, seedv, box, toRoot) {
   const T = toRoot || new THREE.Matrix4();
   return {
     uToRoot: { value: T.clone() }, uFromRoot: { value: T.clone().invert() },
-    uMelt: { value: 0 }, uMinY: { value: b.min.y }, uHeight: { value: Math.max(1e-4, b.max.y - b.min.y) },
+    uMelt: { value: 0 }, uBend: { value: 0 }, uMinY: { value: b.min.y }, uHeight: { value: Math.max(1e-4, b.max.y - b.min.y) },
     uCenter: { value: new THREE.Vector2((b.min.x + b.max.x) / 2, (b.min.z + b.max.z) / 2) },
     uSeed: { value: seedv ?? rnd() * 6.28 }, uTint: { value: new THREE.Color(tint || '#ff7f8a') },
   };
@@ -111,7 +118,7 @@ function depthMatFor(u) {
   const d = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
   d.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u, G);
-    sh.vertexShader = 'uniform float uMelt,uMinY,uHeight,uSeed,uTime;uniform vec2 uCenter;uniform mat4 uToRoot,uFromRoot;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + MELT_VERT);
+    sh.vertexShader = 'uniform float uMelt,uMinY,uHeight,uSeed,uTime,uBend;uniform vec2 uCenter;uniform mat4 uToRoot,uFromRoot;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + MELT_VERT);
   };
   return d;
 }
@@ -129,8 +136,30 @@ function puddleMesh(radius, color) {
   m.rotation.x = -Math.PI / 2; m.position.y = 0.02; m.scale.setScalar(0.001); m.receiveShadow = true;
   return m;
 }
-function makeMeltable(root, { tint = '#ff7f8a', puddle = 1, puddleColor = '#f08a8a', delay = rnd() * 0.35 } = {}) {
-  const entry = { root, meshes: [], delay, puddle: null };
+// Wax drips: one instanced mesh for the whole town. Each drip hangs from a roof edge, rides the sag of its
+// building (same formula as MELT_VERT at the top edge) and grows with the melt.
+const DRIP_MAX = 320;
+const dripGeo = (() => { const pts = [[0, 0.03], [1.0, 0.02], [0.92, -0.12], [0.76, -0.36], [0.7, -0.6], [0.8, -0.78], [0.78, -0.9], [0.6, -0.99], [0.32, -1.04], [0, -1.05]].map(([x, y]) => new THREE.Vector2(x, y)); const g = new THREE.LatheGeometry(pts, 12); g.computeVertexNormals(); return g; })();
+const dripMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.42, metalness: 0, map: FELT, emissive: '#ff4a6a', emissiveIntensity: 0.08 });
+const dripMesh = new THREE.InstancedMesh(dripGeo, dripMat, DRIP_MAX); dripMesh.count = 0; dripMesh.castShadow = true; dripMesh.frustumCulled = false;
+dripMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(dripMesh);
+const dripList = []; // {entry, lx, ly, lz, ang, w, len, ph}
+function perimeter(spec, n) { // points (x,z) on the top outline in root space, plus outward angle
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const t = (i + 0.5 + (rnd() - 0.5) * 0.6) / n;
+    if (spec.drip === 'box' || spec.drip === 'stadium') {
+      const [w, d] = spec.footprint; const P = 2 * (w + d); let u = t * P, x, z;
+      if (spec.drip === 'stadium') { const r = d / 2, hx = w / 2 - r, L = 4 * hx + 2 * Math.PI * r; u = t * L;
+        if (u < 2 * hx) { x = -hx + u; z = r; } else if (u < 2 * hx + Math.PI * r) { const a = Math.PI / 2 - (u - 2 * hx) / r; x = hx + Math.cos(a) * r; z = Math.sin(a) * r; } else if (u < 4 * hx + Math.PI * r) { x = hx - (u - 2 * hx - Math.PI * r); z = -r; } else { const a = -Math.PI / 2 - (u - 4 * hx - Math.PI * r) / r; x = -hx + Math.cos(a) * r; z = Math.sin(a) * r; } }
+      else if (u < w) { x = -w / 2 + u; z = d / 2; } else if (u < w + d) { x = w / 2; z = d / 2 - (u - w); } else if (u < 2 * w + d) { x = w / 2 - (u - w - d); z = -d / 2; } else { x = -w / 2; z = -d / 2 + (u - 2 * w - d); }
+      out.push([x, z]);
+    } else { const a = t * Math.PI * 2, r = spec.radius || 1; out.push([Math.cos(a) * r, Math.sin(a) * r]); }
+  }
+  return out;
+}
+function makeMeltable(root, { tint = '#ff7f8a', puddle = 1, puddleColor = '#f08a8a', delay = rnd() * 0.35, drips = null, bend = 0 } = {}) {
+  const entry = { root, meshes: [], delay, puddle: null, puddleColor };
   const s = rnd() * 6.28;
   // bounding box of the whole prop in its own root space
   root.updateMatrixWorld(true);
@@ -141,10 +170,22 @@ function makeMeltable(root, { tint = '#ff7f8a', puddle = 1, puddleColor = '#f08a
     if (!o.isMesh || o.isSkinnedMesh) return;
     const inst = o.isInstancedMesh;
     const u = inst ? meltUniforms(o.geometry, tint, s) : meltUniforms(o.geometry, tint, s, box, new THREE.Matrix4().multiplyMatrices(rootInv, o.matrixWorld));
+    u.uBend.value = bend;
     o.material = patchMelt(o.material.clone(), u);
     o.customDepthMaterial = depthMatFor(u);
     entry.meshes.push({ mesh: o, u });
   });
+  entry.box = box; entry.seed = s;
+  if (drips && drips.drip && drips.kind !== 'cactus') {
+    const H = box.max.y - box.min.y, edgeY = Math.min(drips.height ?? box.max.y, box.max.y);
+    const n = drips.kind === 'lamp' ? 3 : drips.kind === 'payphone' ? 3 : drips.kind === 'fountain' ? 9 : Math.round(clamp((drips.footprint ? drips.footprint[0] + drips.footprint[1] : 6) * 1.5, 6, 22));
+    const thick = drips.kind === 'lamp' || drips.kind === 'payphone' ? 0.13 : drips.kind === 'fountain' ? 0.24 : 0.38;
+    for (const [x, z] of perimeter(drips, n)) {
+      if (dripList.length >= DRIP_MAX) break;
+      dripList.push({ entry, lx: x * 1.01, lz: z * 1.01, ly: edgeY - 0.04, mh: (edgeY - box.min.y) / H, H, cx: (box.min.x + box.max.x) / 2, cz: (box.min.z + box.max.z) / 2,
+        w: thick * (0.7 + rnd() * 0.7), len: (0.4 + Math.pow(rnd(), 1.5) * 1.15) * (drips.kind === 'lamp' || drips.kind === 'payphone' ? 0.45 : drips.kind === 'fountain' ? 0.4 : 1), ph: rnd() * 6.28, color: new THREE.Color(puddleColor).offsetHSL(0, 0.05, -0.02 + rnd() * 0.05) });
+    }
+  }
   if (puddle > 0) {
     const p = puddleMesh(puddle, puddleColor);
     p.position.x = root.position.x; p.position.z = root.position.z;
@@ -152,6 +193,27 @@ function makeMeltable(root, { tint = '#ff7f8a', puddle = 1, puddleColor = '#f08a
   }
   meltables.push(entry);
   return entry;
+}
+const _dm = new THREE.Matrix4(), _dq = new THREE.Quaternion(), _dv = new THREE.Vector3(), _ds = new THREE.Vector3();
+function updateDrips(t) {
+  let i = 0;
+  for (const d of dripList) {
+    const e = d.entry, m = e.k || 0; if (m < 0.02) continue;
+    // replicate MELT_VERT at the drip's anchor (root space)
+    const ang = Math.atan2(d.lz - d.cz, d.lx - d.cx), seed = e.seed;
+    const dr = Math.pow(Math.max(0, Math.sin(ang * 5 + seed) * Math.sin(ang * 3 - seed * 1.7 + 1.3)), 2);
+    const mh = d.mh, wob = 0.03 * Math.sin(t * 1.7 + seed + mh * 4) * m;
+    const newH = mh * (1 - 0.17 * m) - m * (0.07 + 0.08 * dr) * mh ** 3 - m * dr * 0.08 * Math.sin(mh * Math.PI) + wob * mh;
+    const rl = Math.max(Math.hypot(d.lx - d.cx, d.lz - d.cz), 1e-3), spread = 1 + m * (0.55 * (1 - mh) ** 5 + 0.08 * (1 - mh)) * Math.min(1, rl) / rl;
+    _dv.set(d.cx + (d.lx - d.cx) * spread + m * 0.10 * mh * mh * d.H * Math.sin(seed), e.box.min.y + Math.max(newH, 0) * d.H - 0.03, d.cz + (d.lz - d.cz) * spread + m * 0.10 * mh * mh * d.H * Math.cos(seed));
+    _dv.applyMatrix4(e.root.matrixWorld);
+    const grow = smooth(clamp(m * 1.25 - 0.15, 0, 1));
+    const L = Math.max(0.001, d.len * grow * (1 + 0.05 * Math.sin(t * 0.9 + d.ph)) * (0.6 + 0.4 * dr + 0.4));
+    _ds.set(d.w * (0.6 + 0.4 * grow), L, d.w * (0.6 + 0.4 * grow));
+    _dm.compose(_dv, _dq.identity(), _ds);
+    dripMesh.setMatrixAt(i, _dm); dripMesh.setColorAt(i, d.color); i++;
+  }
+  dripMesh.count = i; dripMesh.instanceMatrix.needsUpdate = true; if (dripMesh.instanceColor) dripMesh.instanceColor.needsUpdate = true;
 }
 
 // ---------------------------------------------------------------- felt primitive helper
@@ -170,133 +232,83 @@ function bakeGroup(group) { // merge-free: just mark shadows
 // ---------------------------------------------------------------- ground
 const groundMat = new THREE.MeshStandardMaterial({ color: PAL.ground[0].clone(), roughness: 1, map: FELT, bumpMap: FELT_BUMP, bumpScale: 0.4 });
 FELT.repeat.set(1, 1);
-const groundTex = FELT.clone(); groundTex.repeat.set(220, 220); groundTex.needsUpdate = true;
+const GROUND_FELT = feltTexture(256, 238, 20); // finer, cleaner speckle for the big flat ground
+const groundTex = GROUND_FELT; groundTex.repeat.set(220, 220); groundTex.needsUpdate = true;
 groundMat.map = groundTex;
 const groundBump = FELT_BUMP.clone(); groundBump.repeat.set(220, 220); groundBump.needsUpdate = true; groundMat.bumpMap = groundBump;
 const ground = new THREE.Mesh(new THREE.CircleGeometry(1600, 64), groundMat);
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 
-// ---------------------------------------------------------------- set pieces (primitives)
+// ---------------------------------------------------------------- set pieces (procedural felt GLBs from tools/build_town.mjs)
 const colliders = []; // {x,z,r}
-const ADOBE = ['#c98e58', '#c48552', '#cf9963', '#bf8150'];
-function adobe(x, z, w, h, d, rot = 0, color = ADOBE[0]) {
-  const g = new THREE.Group();
-  const body = rbox(w, h, d, 0.55, color); g.add(body);
-  const roof = rbox(w * 0.96, 0.35, d * 0.96, 0.17, color); roof.position.y = h - 0.05; g.add(roof);
-  const dark = feltMat('#4a3527');
-  const door = rbox(0.9, 1.7, 0.2, 0.3, '#57402d'); door.position.set(w * 0.18, 0, d / 2 - 0.05); g.add(door);
-  for (const sx of [-0.28, 0.42]) { if (w < 3 && sx > 0) continue; const win = new THREE.Mesh(new RoundedBoxGeometry(0.75, 0.75, 0.2, 2, 0.25), dark); win.position.set(w * sx - (sx > 0 ? 0 : 0), h * 0.58, d / 2); if (Math.abs(win.position.x - door.position.x) < 1) win.position.x -= 1.2; g.add(win); }
-  g.position.set(x, 0, z); g.rotation.y = rot; scene.add(bakeGroup(g));
-  colliders.push({ x, z, r: Math.max(w, d) * 0.55 });
-  makeMeltable(g, { tint: '#ff8f86', puddle: Math.max(w, d) * 0.7, puddleColor: '#f48f7f' });
-  return g;
+// layout: [model, x, z, rotY, collider r, puddle r]
+const TOWN = [
+  ['adobe_a', -14, -11, 0.25, 2.8, 3.4], ['adobe_b', -5.5, -19, 0.05, 2.5, 3.0], ['adobe_c', 13, -14, -0.3, 3.0, 3.7],
+  ['adobe_small', 19, -3, -0.9, 2.0, 2.4], ['adobe_a', -19, 1, 1.1, 2.8, 3.4], ['adobe_small', 23, -15, -0.6, 2.0, 2.4], ['adobe_b', -24, -9, 0.7, 2.5, 3.0],
+  ['diner', 2, -12, 0, 0, 6.2], ['fountain', 0, -3, 0, 2.9, 3.4], ['bus_shelter', -8, -4.5, 0.35, 1.7, 2.3], ['lamp', 9, -1, 0, 0.45, 1.0],
+  ['payphone', 6.6, -3.5, -0.35, 0.5, 0.9], ['cactus_tall', -11.5, -7.6, 0.4, 0.55, 1.3], ['cactus_small', 4.6, -2.5, -0.5, 0.4, 0.75],
+  ['cactus_mid', 15.5, -7.5, 1.2, 0.45, 1.0], ['cactus_tall', -21, -16, 2.1, 0.55, 1.3], ['cactus_mid', 8.5, -19, 0.3, 0.45, 1.0],
+];
+const WAX = { adobe: '#ff7c78', diner: '#ff8378', fountain: '#ff8a7c', shelter: '#ff7a76', lamp: '#ff7480', payphone: '#ff867a', cactus: '#d0507e' };
+const TINT = { adobe: '#ff7a6c', diner: '#ff8270', fountain: '#ff8672', shelter: '#ff786c', lamp: '#ff7078', payphone: '#ff8070', cactus: '#a02a5a' };
+function feltify(root) {
+  root.traverse(o => {
+    if (!o.isMesh) return;
+    const m0 = o.material;
+    const m = feltMat(m0.color.clone(), { emissive: m0.emissive.clone(), map: m0.map || FELT, bumpScale: 0.22 });
+    if (m0.map) { m.map.colorSpace = THREE.SRGBColorSpace; }
+    o.material = m; o.castShadow = o.receiveShadow = true;
+  });
+  return root;
 }
-adobe(-14, -11, 5, 3.0, 4, 0.25, ADOBE[0]);
-adobe(-5.5, -19, 4.5, 2.6, 3.6, 0.05, ADOBE[1]);
-adobe(13, -14, 5.4, 2.8, 4.2, -0.3, ADOBE[2]);
-adobe(19, -3, 4, 2.4, 3.5, -0.9, ADOBE[3]);
-adobe(-19, 1, 4.2, 2.7, 3.8, 1.1, ADOBE[1]);
-
-let dinerMelt;
-// Diner: low rounded building with a ball sign on top (concept), neon in wild mode
-const diner = new THREE.Group();
-{
-  const c = '#cf9a64';
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(4.6, 4.6, 2.6, 40), feltMat(c)); body.scale.z = 0.55; body.position.y = 1.3; diner.add(body);
-  const lip = new THREE.Mesh(new THREE.TorusGeometry(4.6, 0.32, 10, 48), feltMat(c)); lip.rotation.x = Math.PI / 2; lip.scale.y = 0.55; lip.position.y = 2.65; diner.add(lip);
-  const roof = new THREE.Mesh(new THREE.CylinderGeometry(4.6, 4.75, 0.5, 40), feltMat(c)); roof.scale.z = 0.55; roof.position.y = 2.75; diner.add(roof);
-  const top = new THREE.Mesh(new THREE.CylinderGeometry(3.6, 4.2, 0.4, 40), feltMat('#c99260')); top.scale.z = 0.5; top.position.y = 3.15; diner.add(top);
-  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, 0.7, 10), feltMat(c)); post.position.y = 3.6; diner.add(post);
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(1.15, 28, 20), feltMat('#d8a46c')); ball.scale.z = 0.45; ball.position.y = 4.95; diner.add(ball);
-  const dark = feltMat('#3d2c22');
-  for (const x of [-2.9, -1.6, 1.6, 2.9]) { const w = new THREE.Mesh(new RoundedBoxGeometry(0.95, 0.85, 0.3, 2, 0.2), dark); w.position.set(x, 1.55, 2.48 - Math.abs(x) * 0.06); w.lookAt(x * 1.3, 1.55, 6); diner.add(w); }
-  const door = new THREE.Mesh(new RoundedBoxGeometry(1.5, 1.9, 0.3, 2, 0.15), feltMat('#4f3a2a')); door.position.set(0, 0.95, 2.5); diner.add(door);
-  diner.position.set(2, 0, -12);
-  scene.add(bakeGroup(diner));
-  colliders.push({ x: 2, z: -12, r: 4.4 }, { x: -1, z: -12, r: 3 }, { x: 5, z: -12, r: 3 });
-  dinerMelt = makeMeltable(diner, { tint: '#ff9a8e', puddle: 6, puddleColor: '#f59584' });
-}
-// neon (hot pink only)
-const NEON = new THREE.Color('#ff2fa0');
-const neonMat = new THREE.MeshBasicMaterial({ color: '#3b2a2a', fog: false });
-const neonRing = new THREE.Mesh(new THREE.TorusGeometry(1.32, 0.09, 8, 48), neonMat); neonRing.position.set(2, 4.95, -12 + 0.25); scene.add(neonRing);
-const neonStrip = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 7.4, 4, 8), neonMat); neonStrip.rotation.z = Math.PI / 2; neonStrip.position.set(2, 2.35, -12 + 2.62); scene.add(neonStrip);
-const neonGlowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); const gr = g.createRadialGradient(64, 64, 4, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.35, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
-const neonGlows = [];
-for (const [p, s] of [[[2, 4.95, -11.7], [3.6, 3.6]], [[2, 2.35, -9.3], [8.5, 1.3]]]) {
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: neonGlowTex, color: NEON, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
-  sp.position.set(...p); sp.scale.set(...s, 1); scene.add(sp); neonGlows.push(sp);
-}
-const neonLight = new THREE.PointLight(NEON, 0, 13, 1.6); neonLight.position.set(2, 3.2, -8.5); scene.add(neonLight);
-
-// Fountain (lathe) in the middle of the square
-{
-  const pts = [[0, 0], [2.4, 0], [2.55, 0.15], [2.55, 0.55], [2.35, 0.62], [2.1, 0.5], [0.55, 0.45], [0.42, 0.9], [0.42, 1.2], [1.0, 1.35], [1.05, 1.55], [0.7, 1.62], [0.3, 1.7], [0.28, 2.05], [0.42, 2.2], [0.3, 2.45], [0, 2.5]].map(([x, y]) => new THREE.Vector2(x, y));
-  const f = new THREE.Mesh(new THREE.LatheGeometry(pts, 40), feltMat('#cf9c66'));
-  f.castShadow = f.receiveShadow = true;
-  const fg = new THREE.Group(); fg.add(f);
-  const water = new THREE.Mesh(new THREE.CircleGeometry(2.1, 32), feltMat('#7a5a8a', { roughness: .6 })); water.rotation.x = -Math.PI / 2; water.position.y = 0.48; fg.add(water);
-  fg.position.set(0, 0, -3); scene.add(fg);
-  colliders.push({ x: 0, z: -3, r: 2.7 });
-  makeMeltable(fg, { tint: '#ff9c8a', puddle: 3.2, puddleColor: '#f6a08a' });
-}
-// Bus shelter (concept: arched felt box)
-{
-  const g = new THREE.Group(); const c = '#b98552';
-  const back = rbox(2.6, 2.6, 0.35, 0.15, c); back.position.z = -0.6; g.add(back);
-  const side = rbox(0.35, 2.6, 1.4, 0.15, c); side.position.x = -1.15; g.add(side);
-  const roof = rbox(3.1, 0.35, 1.9, 0.17, '#a97648'); roof.position.set(0, 2.55, 0); g.add(roof);
-  const seat = rbox(2.2, 0.18, 0.6, 0.08, '#a97648'); seat.position.set(0.1, 0.55, -0.25); g.add(seat);
-  g.position.set(-8, 0, -4.5); g.rotation.y = 0.35; scene.add(bakeGroup(g));
-  colliders.push({ x: -8, z: -4.5, r: 1.6 });
-  makeMeltable(g, { tint: '#ff8c84', puddle: 2.2, puddleColor: '#f4927e' });
-}
-// Street lamp post (concept)
-{
-  const g = new THREE.Group(); const c = '#c49460';
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.55, 0.5, 16), feltMat(c)); base.position.y = .25; g.add(base);
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 3.6, 12), feltMat(c)); pole.position.y = 2.2; g.add(pole);
-  const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.3, 0.3, 16), feltMat(c)); cup.position.y = 4.1; g.add(cup);
-  const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.45, 0.7, 16), feltMat('#e2b77a')); lamp.position.y = 4.6; g.add(lamp);
-  const cap = new THREE.Mesh(new THREE.ConeGeometry(0.62, 0.45, 16), feltMat(c)); cap.position.y = 5.15; g.add(cap);
-  g.position.set(9, 0, -1); scene.add(bakeGroup(g));
-  colliders.push({ x: 9, z: -1, r: 0.6 });
-  makeMeltable(g, { tint: '#ff8a8a', puddle: 1.1, puddleColor: '#f28c84' });
+let dinerMelt, neonSpec = null;
+function placeTown(models) {
+  for (const [name, x, z, ry, cr, pr] of TOWN) {
+    const src = models[name]; const root = feltify(src.scene.clone(true));
+    const ex = src.scene.children[0]?.userData?.sunspots || {};
+    root.position.set(x, 0, z); root.rotation.y = ry; scene.add(root);
+    if (name === 'diner') colliders.push({ x: x - 2.8, z, r: 2.6 }, { x, z, r: 2.6 }, { x: x + 2.8, z, r: 2.6 });
+    else if (cr) colliders.push({ x, z, r: cr });
+    const kind = ex.kind === 'shelter' ? 'shelter' : (ex.kind || 'adobe');
+    const e = makeMeltable(root, { tint: TINT[kind] || '#ff8f86', puddle: pr, puddleColor: WAX[kind] || '#f2907f', drips: ex, bend: ex.bend || 0 });
+    if (name === 'diner') { dinerMelt = e; neonSpec = { ...ex.neon, x, z }; }
+  }
 }
 
-// Distant cacti: instanced felt primitives out to the horizon
-function cactusGeo() {
-  const parts = [];
-  const trunk = new THREE.CapsuleGeometry(0.35, 2.6, 4, 10); trunk.translate(0, 1.65, 0); parts.push(trunk);
-  const a1 = new THREE.CapsuleGeometry(0.22, 0.9, 4, 8); a1.translate(-0.75, 1.9, 0); parts.push(a1);
-  const a1b = new THREE.CapsuleGeometry(0.2, 0.45, 4, 8); a1b.rotateZ(Math.PI / 2); a1b.translate(-0.45, 1.45, 0); parts.push(a1b);
-  const a2 = new THREE.CapsuleGeometry(0.2, 0.7, 4, 8); a2.translate(0.7, 2.3, 0); parts.push(a2);
-  const a2b = new THREE.CapsuleGeometry(0.18, 0.4, 4, 8); a2b.rotateZ(Math.PI / 2); a2b.translate(0.42, 1.95, 0); parts.push(a2b);
-  // manual merge
-  let pos = [], nor = [], uv = [], idx = [], off = 0;
-  for (const p of parts) { const g = p.index ? p : p; pos.push(...g.attributes.position.array); nor.push(...g.attributes.normal.array); uv.push(...g.attributes.uv.array); for (const i of g.index.array) idx.push(i + off); off += g.attributes.position.count; }
-  const m = new THREE.BufferGeometry(); m.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); m.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); m.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); m.setIndex(idx);
-  return m;
-}
-{
-  const N = 90; const geo = cactusGeo();
-  const u = meltUniforms(geo, '#a8325e', 1.3);
-  const mat = patchMelt(feltMat('#4f7a3c'), u);
+// Distant cacti: one instanced felt saguaro (cactus_far.glb) scattered to the horizon
+function placeFarCacti(gltf) {
+  let geo; gltf.scene.traverse(o => { if (o.isMesh && !geo) geo = o.geometry; });
+  const N = 110;
+  const u = meltUniforms(geo, '#7a2f5a', 1.3);
+  const mat = patchMelt(feltMat('#58773a'), u);
   const inst = new THREE.InstancedMesh(geo, mat, N); inst.castShadow = true; inst.customDepthMaterial = depthMatFor(u);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sv = new THREE.Vector3();
   let i = 0;
   while (i < N) {
-    const r = 26 + Math.pow(rnd(), 1.4) * 320, a = rnd() * Math.PI * 2;
+    const r = 30 + Math.pow(rnd(), 1.3) * 330, a = rnd() * Math.PI * 2;
     const x = Math.cos(a) * r, z = Math.sin(a) * r;
     q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rnd() * 6.28);
-    const s = 0.7 + rnd() * 0.9;
-    m4.compose(new THREE.Vector3(x, 0, z), q, sv.set(s, s * (0.8 + rnd() * 0.5), s));
+    const s = 0.75 + rnd() * 0.8;
+    m4.compose(new THREE.Vector3(x, 0, z), q, sv.set(s, s * (0.8 + rnd() * 0.45), s));
     inst.setMatrixAt(i++, m4);
     if (r < 40) colliders.push({ x, z, r: 0.6 * s });
   }
   scene.add(inst);
-  meltables.push({ root: inst, meshes: [{ mesh: inst, u }], delay: 0.15, puddle: null });
+  meltables.push({ root: inst, meshes: [{ mesh: inst, u }], delay: 0.15, puddle: null, drips: [] });
 }
+
+// neon (hot pink only) — positioned from the diner's extras once it loads
+const NEON = new THREE.Color('#ff2fa0');
+const neonMat = new THREE.MeshBasicMaterial({ color: '#3b2a2a', fog: false });
+const neonRing = new THREE.Mesh(new THREE.TorusGeometry(1.32, 0.09, 8, 48), neonMat); neonRing.visible = false; scene.add(neonRing);
+const neonStrip = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 7.0, 4, 8), neonMat); neonStrip.rotation.z = Math.PI / 2; neonStrip.visible = false; scene.add(neonStrip);
+const neonGlowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); const gr = g.createRadialGradient(64, 64, 4, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(.35, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
+const neonGlows = [];
+for (const s of [[3.6, 3.6], [8.5, 1.3]]) {
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: neonGlowTex, color: NEON, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+  sp.scale.set(...s, 1); scene.add(sp); neonGlows.push(sp);
+}
+const neonLight = new THREE.PointLight(NEON, 0, 13, 1.6); scene.add(neonLight);
 
 // ---------------------------------------------------------------- EYE SUN (layers: disc, spots, eye-white, iris/pupil, lid, lash line, brow)
 const sun = new THREE.Group(); scene.add(sun);
@@ -354,7 +366,7 @@ for (let i = 0; i < 9; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0
 { const N = 30, pos = [], idx = []; for (let i = 0; i <= N; i++) { const t = i / N, x = -0.46 + t * 0.92; const y = EY + 0.27 + 0.07 * (1 - ((x + 0.04) / 0.48) ** 2); const th = 0.012 + 0.028 * Math.sin(Math.PI * Math.pow(t, 0.8)); pos.push(x, y + th, 0, x, y - th, 0); if (i < N) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); } } const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); L(new THREE.Mesh(g, sunMat('#3a2412')), 19); }
 let lidClose = 0; // 0 open .. 1 closed
 function updateLid(c) {
-  const s = lerp(EH_T + 0.006, -EH_B * 0.5, c);
+  const s = lerp(EH_T + 0.006, -EH_B * 1.04, c);
   const p = lidGeo.attributes.position.array, q = lashGeo.attributes.position.array;
   const th = lerp(0.010, 0.013, c);
   for (let i = 0; i <= LID_N; i++) {
@@ -365,6 +377,7 @@ function updateLid(c) {
     q.set([x, yb + tt, 0, x, yb - tt * 0.6, 0], i * 6);
   }
   lidGeo.attributes.position.needsUpdate = true; lashGeo.attributes.position.needsUpdate = true;
+  iris.visible = c < 0.98;
   for (const m of lashes) { const x = m.userData.x, k = 1 - (x / EW) ** 2; m.position.set(x * 1.0, EY + s * k - 0.03, 0); m.rotation.z = x * 1.2; m.visible = c > 0.85; }
 }
 updateLid(0);
@@ -419,19 +432,26 @@ const wolfState = { pos: new THREE.Vector3(0, 0, 6), yaw: Math.PI, speed: 0 };
 
 async function loadAll() {
   const M = './models/';
-  const [w, wRun, bench, cactus, hydrant, car, payphone, lantern, dinerChar, rain] = await Promise.all([
-    'wolf.glb', 'wolf_run_anim.glb', 'busstop_bench.glb', 'busstop_cactus.glb', 'mainst_hydrant.glb', 'mainst_car.glb',
-    'mainst_payphone_blockhead.glb', 'mines_lantern.glb', 'mainst_diner_building.glb', 'busstop_rain_cloud.glb'].map(f => load(M + f)));
+  const TOWN_MODELS = ['adobe_a', 'adobe_b', 'adobe_c', 'adobe_small', 'diner', 'fountain', 'bus_shelter', 'lamp', 'payphone', 'cactus_tall', 'cactus_mid', 'cactus_small', 'cactus_far'];
+  const [w, wRun, bench, hydrant, car, lantern, rain, ...townG] = await Promise.all([
+    'wolf.glb', 'wolf_run_anim.glb', 'busstop_bench.glb', 'mainst_hydrant.glb', 'mainst_car.glb',
+    'mines_lantern.glb', 'busstop_rain_cloud.glb', ...TOWN_MODELS.map(n => 'town/' + n + '.glb')].map(f => load(M + f)));
+  const town = Object.fromEntries(TOWN_MODELS.map((n, i) => [n, townG[i]]));
+  placeTown(town); placeFarCacti(town.cactus_far);
+  if (neonSpec) { // hot-pink neon: ring around the ball sign + strip along the roof lip
+    const [rx, ry, rz, rr] = neonSpec.ring, [sx, sy, sz, sl] = neonSpec.strip;
+    neonRing.position.set(neonSpec.x + rx, ry, neonSpec.z + rz); neonRing.scale.setScalar(rr / 1.32);
+    neonStrip.position.set(neonSpec.x + sx, sy, neonSpec.z + sz); neonStrip.scale.set(1, sl / 7.0, 1);
+    neonGlows[0].position.copy(neonRing.position).z += 0.2; neonGlows[1].position.copy(neonStrip.position).z += 0.25;
+    neonLight.position.set(neonSpec.x, 3.2, neonSpec.z + 3.2);
+    for (const o of [neonRing, neonStrip, ...neonGlows]) o.userData.y0 = o.position.y;
+  }
 
   // dressing: Meshy characters/props standing about the square
   prop(bench, { h: 1.15, x: -4.6, z: -4.2, ry: 0.15, collide: 1.0, puddle: 1.3 });
-  prop(cactus, { h: 3.4, x: -11.5, z: -8, ry: 0.4, collide: 0.8, tint: '#b2386a', puddle: 1.2 });
-  prop({ scene: cactus.scene.clone() }, { h: 1.6, x: 4.6, z: -2.5, ry: -0.5, collide: 0.5, tint: '#b2386a', puddle: 0.8 });
   prop(hydrant, { h: 1.1, x: 3.2, z: 3.2, ry: -0.6, collide: 0.45, puddle: 0.8 });
   prop(car, { h: 1.7, x: 13, z: 2.5, ry: -1.9, collide: 1.7, puddle: 2.2 });
-  prop(payphone, { h: 2.1, x: 6.6, z: -3.5, ry: -0.35, collide: 0.6, puddle: 1.0 });
   prop(lantern, { h: 1.0, x: 8.3, z: 0.4, ry: -0.8, collide: 0.4, puddle: 0.7 });
-  prop(dinerChar, { h: 2.4, x: -3.5, z: -9.5, ry: 0.5, collide: 1.3, puddle: 1.6 });
   const rc = prop(rain, { h: 2.6, x: -10.6, z: -2.6, ry: 0.6, collide: 0.5, puddle: 1.0 });
 
   // Wolf
@@ -534,7 +554,7 @@ function frame() {
   scene.background.lerpColors(PAL.sky[0], PAL.sky[1], w);
   scene.fog.color.lerpColors(PAL.fog[0], PAL.fog[1], w);
   groundMat.color.lerpColors(PAL.ground[0], PAL.ground[1], w);
-  hemi.color.lerpColors(PAL.hemiSky[0], PAL.hemiSky[1], w); hemi.groundColor.copy(groundMat.color);
+  hemi.color.lerpColors(PAL.hemiSky[0], PAL.hemiSky[1], w); hemi.groundColor.copy(groundMat.color).lerp(col.set('#f0b080'), 0.35 * (1 - w));
   key.color.lerpColors(PAL.key[0], PAL.key[1], w); key.intensity = lerp(2.3, 1.6, w);
   discMat.color.lerpColors(PAL.sun[0], PAL.sun[1], w);
   lidMat.color.copy(discMat.color).multiplyScalar(0.9);
@@ -548,16 +568,16 @@ function frame() {
   neonMat.color.set('#3b2a2a').lerp(NEON, nOn * flick);
   neonRing.visible = neonStrip.visible = nOn > 0.01;
   { const sag = smooth(clamp(wild, 0, 1)); // neon rides down with the melting diner
-    neonRing.position.y = 4.95 * (1 - 0.42 * sag); neonStrip.position.y = 2.35 * (1 - 0.3 * sag);
-    for (const g of neonGlows) { g.userData.y0 ??= g.position.y; g.position.y = g.userData.y0 * (1 - (g.userData.y0 > 3.5 ? 0.42 : 0.3) * sag); } }
+    for (const o of [neonRing, neonStrip, ...neonGlows]) if (o.userData.y0) o.position.y = o.userData.y0 * (1 - (o.userData.y0 > 3.5 ? 0.25 : 0.19) * sag); }
   for (const g of neonGlows) g.material.opacity = nOn * 0.6 * flick;
   neonLight.intensity = nOn * 9 * flick;
   // melt (staggered per object)
   for (const m of meltables) {
     const k = smooth(clamp((wild - m.delay) / (1 - m.delay * 0.6), 0, 1));
-    for (const e of m.meshes) e.u.uMelt.value = k;
-    if (m.puddle) { m.puddle.scale.setScalar(Math.max(0.001, k * 0.75)); m.puddle.material.color.set('#f39286').lerp(groundMat.color, 0.15); }
+    m.k = k; for (const e of m.meshes) e.u.uMelt.value = k;
+    if (m.puddle) { m.puddle.scale.setScalar(Math.max(0.001, k * 0.75)); m.puddle.material.color.set(m.puddleColor).lerp(groundMat.color, 0.12); }
   }
+  updateDrips(t);
 
   // wolf movement
   if (wolfReady) {
@@ -611,6 +631,7 @@ function frame() {
   camera.lookAt(camTarget);
   const cc = DEBUG.closeCam; // screenshot/QA hook: close-up orbit relative to the wolf's facing
   if (cc && wolfReady) { const a = wolfState.yaw + (cc.yaw || 0); camera.position.set(wp.x + Math.sin(a) * cc.dist, cc.h, wp.z + Math.cos(a) * cc.dist); camTarget.set(wp.x, cc.ty, wp.z); camera.lookAt(camTarget); }
+  if (QCAM) { camera.position.set(QCAM[0], QCAM[1], QCAM[2]); camTarget.set(QCAM[3], QCAM[4], QCAM[5]); camera.lookAt(camTarget); }
   camera.updateMatrixWorld();
   key.position.copy(wp).add(KEY_OFFSET); key.target.position.copy(wp);
 
