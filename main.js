@@ -495,7 +495,7 @@ let snapCam = false;
 // first person: the moth driver's cockpit (default while driving) + the Wolf's own eyes on foot (eye button, hold 0.5 s / V)
 const cockpit = createCockpit(level, { feltMat, rbox, clamp, lerp, rnd: Math.random, patchRider }); level.cockpit = cockpit;
 let moth = null; const wolfRM = { value: 0 };
-if (Q.has('chase')) cockpit.chase = true;
+if (Q.has('chase')) cockpit.setChase(true);
 if (Q.has('look')) cockpit.holdLook = [(+Q.get('look') || 0) * Math.PI / 180, (+Q.get('lookp') || 0) * Math.PI / 180];
 if (Q.get('prank')) cockpit.forceAct = Q.get('prank');
 const FP = { on: Q.has('fp') ? 1 : 0, k: Q.has('fp') ? 1 : 0, pitch: Q.has('fpp') ? +Q.get('fpp') * Math.PI / 180 : 0, tpPos: new THREE.Vector3(0, 4, 14), tpQ: new THREE.Quaternion(), fpPos: new THREE.Vector3(), fpQ: new THREE.Quaternion(), e: new THREE.Euler(0, 0, 0, 'YXZ'), bob: 0 };
@@ -511,7 +511,7 @@ const fpL = sleeve(0.55, 0.085), fpR = sleeve(0.55, 0.085); fpArms.add(fpL, fpR)
 { const a = sleeve(0.5, 0.09), b = sleeve(0.5, 0.09); a.position.set(-0.24, 0.0, 0.02); a.rotation.set(0, -1.32, 0.15); b.position.set(0.24, 0.05, -0.02); b.rotation.set(0, 1.32, -0.15); fpCross.add(a, b); }
 const eyeBtn = document.getElementById('eyeBtn'), eyeRing = eyeBtn.querySelector('.ring'), fpFx = document.getElementById('fpFx'), hazeT = document.getElementById('hazeT');
 function setWolfGhost(on) { for (const m of wolf.userData.mats || []) { m.colorWrite = !on; m.depthWrite = !on; } }
-function toggleFP() { FP.on = FP.on ? 0 : 1; eyeBtn.classList.toggle('fp', !!FP.on); try { navigator.vibrate && navigator.vibrate(12); } catch (_) {} }
+function toggleFP() { if (level.inCar) { cockpit.setChase(!cockpit.chase); eyeBtn.classList.toggle('fp', !cockpit.chase); } else { FP.on = FP.on ? 0 : 1; eyeBtn.classList.toggle('fp', !!FP.on); } try { navigator.vibrate && navigator.vibrate(12); } catch (_) {} }
 { let holdT = null, raf = 0; const RING = 163.4;
   const fill = (x) => eyeRing.style.strokeDashoffset = RING * (1 - x);
   const step = () => { if (holdT === null) return; const x = Math.min(1, (performance.now() - holdT) / 500); fill(x);
@@ -775,6 +775,8 @@ function frame() {
   const dist = portrait ? 10.5 : 9.5, hgt = portrait ? 4.2 : 3.3;
   const wp = wolfReady ? wolf.position : wolfState.pos;
   let wantFov = portrait ? 62 : 50, wantNear = 0.1;
+  if (level.inCar !== FP.wasInCar) { FP.wasInCar = level.inCar; if (level.inCar) cockpit.chase = cockpit.savedChase(); eyeBtn.classList.toggle('fp', level.inCar ? !cockpit.chase : !!FP.on); }
+  else if (level.inCar && eyeBtn.classList.contains('fp') === cockpit.chase) eyeBtn.classList.toggle('fp', !cockpit.chase); // C key on desktop
   const fpDrive = level.inCar && !cockpit.chase;
   if (level.inCar) {
     if (fpDrive) { cockpit.camera(camera); wantFov = portrait ? 76 : 62; wantNear = 0.03; snapCam = false; }

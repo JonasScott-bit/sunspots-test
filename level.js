@@ -449,8 +449,8 @@ export function createLevel(C) {
   L.seatWorld = (out) => { L.car.root.updateMatrixWorld(); return out.copy(L.seat).applyMatrix4(L.car.body.matrixWorld); };
   // chase camera
   L.chaseCam = (camera, dt, portrait, snap) => {
-    const c = L.car, f = _q.set(Math.sin(c.yaw), 0, Math.cos(c.yaw));
-    const dist = portrait ? 10.5 : 9, h = portrait ? 4.4 : 3.6;
+    const c = L.car, lk = L.look || { yaw: 0, pitch: 0 }, a = c.yaw + lk.yaw, f = _q.set(Math.sin(a), 0, Math.cos(a));
+    const dist = portrait ? 10.5 : 9, h = (portrait ? 4.4 : 3.6) + Math.max(0, -lk.pitch) * 3.5; // drag: orbit round the car / lift to look down on him
     const want = new THREE.Vector3(c.pos.x - f.x * dist, h + c.hop * 0.5, c.pos.z - f.z * dist);
     if (snap) camera.position.copy(want); else camera.position.lerp(want, 1 - Math.exp(-dt * 4));
     const look = new THREE.Vector3(c.pos.x + f.x * 8, 2.5, c.pos.z + f.z * 8);

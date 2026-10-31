@@ -82,7 +82,9 @@
   #eyeBtn.fp{background:rgba(246,178,58,.5)}
   #eyeBtn.wig{animation:wig .32s ease-in-out}
   @keyframes wig{0%,100%{transform:rotate(0)}25%{transform:rotate(-11deg)}75%{transform:rotate(9deg)}}
-  body.driving #eyeBtn,body.ended #eyeBtn,body.map #eyeBtn{display:none}
+  body.driving #eyeBtn{top:calc(env(safe-area-inset-top) + 64px);bottom:auto;right:calc(env(safe-area-inset-right) + 12px)} /* in the car: first person <-> chase view, under WILD */
+  @media (orientation:landscape){body.driving #eyeBtn{top:calc(env(safe-area-inset-top) + 8px);right:calc(env(safe-area-inset-right) + 104px)}}
+  body.ended #eyeBtn,body.map #eyeBtn{display:none}
   #fpFx{position:fixed;inset:-4%;z-index:3;pointer-events:none;opacity:0;filter:url(#haze);
     background:radial-gradient(ellipse at 50% 50%,rgba(255,120,170,0) 46%,rgba(255,110,170,.22) 68%,rgba(255,80,150,.55) 100%)}
 </style>

@@ -98,11 +98,11 @@ export function createMoth(gltf, L, CK, H) {
   }
   const _tw = new THREE.Vector3(), _pw = new THREE.Vector3();
   function handsOnWheel() {
-    driver.updateMatrixWorld(true);
+    driver.updateWorldMatrix(true, true);                         // parents too: the car moved this frame; a stale body matrix mixed with fresh getWorldQuaternion() made the arms jump
     for (const h of CK.hands) {
       h.updateMatrixWorld(true);
       h.localToWorld(_tw.set(0, -0.045, -0.05));                    // wrist just behind/below the grip, glove wraps the rim
-      _pw.copy(_tw); driver.worldToLocal(_pw); const side = Math.sign(_pw.x) || 1;
+      const side = Math.sign(h.position.x) || 1;                    // fixed arm per grip (rest side). Picking by the grip's live x swapped both grips onto one arm past ~60 deg of wheel, leaving the other arm to pop back to its idle pose: the in/out arm flicker
       const up = side > 0 ? B.LeftArm : B.RightArm, lo = side > 0 ? B.LeftForeArm : B.RightForeArm, en = side > 0 ? B.LeftHand : B.RightHand;
       if (!up || !lo || !en) continue;
       const pole = driver.localToWorld(new THREE.Vector3(side * 0.55, 0.85, 0.15));

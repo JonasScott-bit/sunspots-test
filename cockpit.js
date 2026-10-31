@@ -217,7 +217,7 @@ export function createCockpit(L, H) {
   // ---------------------------------------------------------------- head look (drag the upper screen, snap back on release)
   const ptr = { id: null, x: 0, y: 0 };
   const canvas = document.querySelector('canvas#c') || document.querySelector('canvas');
-  const fpOn = () => L.mode === 'drive' && !CK.chase;
+  const fpOn = () => L.mode === 'drive'; // head look in first person, orbit the chase cam in the chase view
   addEventListener('pointerdown', e => {
     if (!fpOn() || ptr.id !== null || e.target.tagName !== 'CANVAS') return;
     const portrait = innerHeight > innerWidth; if (e.clientY > innerHeight * (portrait ? 0.6 : 0.62)) return;
@@ -231,9 +231,14 @@ export function createCockpit(L, H) {
   });
   const end = e => { if (e.pointerId === ptr.id) { ptr.id = null; CK.look.held = false; } };
   addEventListener('pointerup', end); addEventListener('pointercancel', end);
-  addEventListener('keydown', e => { if (e.code === 'KeyC' && L.mode === 'drive') CK.chase = !CK.chase; if (e.code === 'KeyQ') CK.keyLook = 1; if (e.code === 'KeyE' && L.mode === 'drive') CK.keyLook = -1; });
+  addEventListener('keydown', e => { if (e.code === 'KeyC' && L.mode === 'drive') CK.setChase(!CK.chase); if (e.code === 'KeyQ') CK.keyLook = 1; if (e.code === 'KeyE' && L.mode === 'drive') CK.keyLook = -1; });
   addEventListener('keyup', e => { if (e.code === 'KeyQ' || e.code === 'KeyE') CK.keyLook = 0; });
   void canvas;
+
+  // in-car view choice, remembered for the session (first person by default)
+  L.look = CK.look; // level.chaseCam reads it
+  CK.setChase = v => { CK.chase = !!v; try { sessionStorage.setItem('sunspots.chase', CK.chase ? '1' : '0'); } catch (_) {} };
+  CK.savedChase = () => { try { return sessionStorage.getItem('sunspots.chase') === '1'; } catch (_) { return false; } };
 
   // ---------------------------------------------------------------- per frame
   CK.update = (dt, t) => {
@@ -243,11 +248,12 @@ export function createCockpit(L, H) {
     if (CK.holdLook != null) { lk.tyaw = CK.holdLook[0]; lk.tpitch = CK.holdLook[1]; }
     const kk = 1 - Math.exp(-dt * 14); lk.yaw = lerp(lk.yaw, lk.tyaw, kk); lk.pitch = lerp(lk.pitch, lk.tpitch, kk);
     // wheel turns with steering (a 70s wheel needs a lot of arm)
-    wheelSpin.rotation.z = -c.steer * 1.6;
+    wheelSpin.rotation.z = -c.steer * 1.05; // hands stay on their own sides of the rim (no arm crossing through the camera)
     if (!CK.moth) aimArms();
     const fp = L.mode === 'drive' && !CK.chase;
     for (const o of headParts) o.visible = !fp && !CK.moth;
     updateClip(fp);
+    binn.visible = mirrorG.visible = fp || L.mode !== 'drive'; // cockpit-only bits off in the chase view (windshield panel comes back via updateClip)
     { const por = innerHeight > innerWidth; mirrorG.position.set(por ? 0.43 : 0.26, por ? 1.71 : 1.69, por ? 0.5 : 0.4); mirrorG.scale.setScalar(por ? 0.3 : 0.62); mirrorG.rotation.y = por ? 0 : -0.25; }
     // needles: speedo follows speed, the other one (fuel? nerves?) twitches
     needles[1].rotation.z = 2.0 - clamp(Math.abs(c.v) / 22, 0, 1) * 4.0; needles[0].rotation.z = 0.4 + Math.sin(t * 0.7) * 0.05 + Math.sin(t * 9) * 0.01;
