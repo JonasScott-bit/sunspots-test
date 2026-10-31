@@ -483,6 +483,9 @@ async function loadAll() {
   actWalk = mixer.clipAction(legClip(w.animations[0])); actRun = mixer.clipAction(legClip(wRun.animations[0]));
   actWalk.play(); actRun.play(); actWalk.setEffectiveWeight(0); actRun.setEffectiveWeight(0);
   wolf.userData.body = wm; wolf.userData.sy = wm.scale.y; wolf.userData.phase = 0;
+  // idle head glance: only the Head bone (not in any clip) gets a small yaw/tilt on top of its bind pose
+  const hb = wm.getObjectByName('Head');
+  if (hb) wolf.userData.head = { bone: hb, bind: hb.quaternion.clone(), q: new THREE.Quaternion(), e: new THREE.Euler(), yaw: 0, tilt: 0 };
   wolfReady = true;
 }
 
@@ -630,9 +633,23 @@ function frame() {
     wolf.userData.turn = lerp(wolf.userData.turn || 0, clamp((wolfState.yaw - (wolf.userData.lastYaw ?? wolfState.yaw)) / Math.max(dt, 1e-3), -3, 3), 1 - Math.exp(-dt * 6));
     wolf.userData.lastYaw = wolfState.yaw;
     body.rotation.x = lerp(0, 0.16, runK) * move + 0.04 * move;
-    body.rotation.z = Math.sin(ph * Math.PI * 2) * 0.035 * move - wolf.userData.turn * 0.04 * move + idle * Math.sin(t * 0.7) * 0.012;
+    // idle: slow weight shift side to side (hip sway + counter-lean), breathing
+    const shift = Math.sin(t * 0.55) * 0.6 + Math.sin(t * 0.23 + 1.3) * 0.4;
+    body.rotation.z = Math.sin(ph * Math.PI * 2) * 0.035 * move - wolf.userData.turn * 0.04 * move + idle * shift * 0.022;
+    body.position.x = idle * shift * 0.025;
     body.scale.y = wolf.userData.sy * (1 + idle * 0.012 * Math.sin(t * 2.1));
     mixer.update(dt);
+    const hd = wolf.userData.head;
+    if (hd) {
+      // deadpan glance cycle (~9 s): hold centre, look slowly left, hold, centre, look right, hold. Fades out as he moves.
+      const c = (t % 9) / 9, sm = (a, b, x) => smooth(clamp((x - a) / (b - a), 0, 1));
+      const g = (sm(0.18, 0.30, c) - sm(0.42, 0.52, c)) * 0.32 - (sm(0.62, 0.72, c) - sm(0.86, 0.96, c)) * 0.26;
+      const k = 1 - Math.exp(-dt * 5);
+      hd.yaw = lerp(hd.yaw, g * idle - wolf.userData.turn * 0.05 * move, k);
+      hd.tilt = lerp(hd.tilt, idle * 0.05 * Math.sin(t * 0.4), k);
+      hd.e.set(hd.tilt * 0.4, hd.yaw, hd.tilt); hd.q.setFromEuler(hd.e);
+      hd.bone.quaternion.copy(hd.bind).multiply(hd.q);
+    }
     // camera auto-follows behind travel direction unless the player recently dragged the sky
     manualLookT -= dt;
     if (manualLookT <= 0 && sp > 1) { let d = (wolfState.yaw + Math.PI) - camYawTarget; d = Math.atan2(Math.sin(d), Math.cos(d)); camYawTarget += d * (1 - Math.exp(-dt * 0.8)); }
