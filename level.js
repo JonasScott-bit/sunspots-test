@@ -359,7 +359,7 @@ export function createLevel(C) {
 
   // -------------------------------------------------------------- state machine
   L.enterCar = () => { if (L.mode !== 'walk' || L.ended) return; L.mode = 'drive'; L.inCar = true; document.body.classList.add('driving'); hud.getIn.style.display = 'none'; toast('The driver nods once. You steer.', 3.5); C.onEnterCar?.(); };
-  L.reset = () => { L.mode = 'walk'; L.inCar = false; L.left = START_LEFT; L.ended = false; L.started = false; document.body.classList.remove('driving', 'ended', 'won', 'lost'); placeCar(); for (const g of L.guards) g.hit = false; L.forkSaid = false; C.onReset?.(); };
+  L.reset = () => { L.frozen = false; L.sceneCar = false; L.car.sceneDriven = false; L.radioOverride = null; L.lateSaid = false; L.mode = 'walk'; L.inCar = false; L.left = START_LEFT; L.ended = false; L.started = false; document.body.classList.remove('driving', 'ended', 'won', 'lost'); placeCar(); for (const g of L.guards) g.hit = false; L.forkSaid = false; C.onReset?.(); };
   function finish(won) {
     if (L.ended) return; L.ended = true; L.mode = won ? 'won' : 'lost'; document.body.classList.add('ended', won ? 'won' : 'lost');
     $('endTitle').textContent = won ? 'SNACKS ACQUIRED.' : 'CLOSED.';
@@ -405,7 +405,7 @@ export function createLevel(C) {
     // fork hint
     if (!L.forkSaid && Math.hypot(c.pos.x - 44, c.pos.z + 92) < 16) { L.forkSaid = true; toast('A fork. One way says SHORTCUT.', 2.6); }
     // arrival
-    const [ax, az, ar] = LAYOUT.storeArrive; if (Math.hypot(c.pos.x - ax, c.pos.z - az) < ar) finish(true);
+    if (!L.scenesOwnArrival) { const [ax, az, ar] = LAYOUT.storeArrive; if (Math.hypot(c.pos.x - ax, c.pos.z - az) < ar) finish(true); } // scenes.js plays the arrival instead
     return nr;
   }
   L.carFwd = fwd;
@@ -423,13 +423,22 @@ export function createLevel(C) {
     updateCast(dt, t, wolfPos);
     if (L.toastT > 0) { L.toastT -= dt; if (L.toastT <= 0 && hud.toast) hud.toast.style.opacity = 0; }
     // clock
-    if (!titleUp && !L.ended) { L.started = true; L.left -= dt; if (L.left <= 0) { L.left = 0; finish(false); } }
+    if (!titleUp && !L.ended && !L.frozen) { L.started = true; L.left -= dt;
+      if (!L.scenesOwnArrival) { if (L.left <= 0) { L.left = 0; finish(false); } }
+      // with scenes: at 2:00 on foot it's over; in the car you can still drive there (90 s grace) and watch it close
+      else if (L.left <= 0) { if (!L.lateSaid) { L.lateSaid = true; toast(L.inCar ? "2:00. Go anyway." : 'It is 2:00.', 2.6); } if (!L.inCar || L.left <= -90) finish(false); } }
     if (hud.clock) { hud.clock.textContent = fmt(L.left); hud.clock.classList.toggle('late', L.left < 30); }
     let nr = null;
-    if (L.mode === 'drive') nr = updateCar(dt, keys); else { L.car.v *= Math.exp(-dt * 3); }
+    if (L.mode === 'drive' && !L.frozen && !L.sceneCar) nr = updateCar(dt, keys);
+    else if (L.sceneCar) { // a scene owns the car: scenes.js moves it (sceneDriven), otherwise it coasts to a stop
+      const c = L.car; if (!c.sceneDriven) { fwd.set(Math.sin(c.yaw), 0, Math.cos(c.yaw)); c.pos.addScaledVector(fwd, c.v * dt); c.v *= Math.exp(-dt * 2.5); }
+      c.hopV -= 14 * dt; c.hop = Math.max(0, (c.hop || 0) + c.hopV * dt); if (c.hop === 0 && c.hopV < 0) c.hopV = 0;
+      c.root.position.set(c.pos.x, c.hop, c.pos.z); c.root.rotation.y = c.yaw; c.steer = lerp(c.steer, 0, 1 - Math.exp(-dt * 6)); c.wheel.rotation.z = c.steer * 1.2;
+      c.lean = lerp(c.lean || 0, 0, 1 - Math.exp(-dt * 6)); c.pitch = lerp(c.pitch || 0, 0, 1 - Math.exp(-dt * 6)); }
+    else { L.car.v *= Math.exp(-dt * 3); }
     animateBoots(dt, t);
     { const dc = Math.hypot(wolfPos.x - L.car.pos.x, wolfPos.z - L.car.pos.z);
-      const want = titleUp ? 0 : L.inCar ? (L.mode === 'lost' ? 0.25 : 1) : clamp(1 - dc / 22, 0, 1) * 0.22; // loud in the car, faint from the street
+      const want = L.radioOverride != null ? L.radioOverride : titleUp ? 0 : L.inCar ? (L.mode === 'lost' ? 0.25 : 1) : clamp(1 - dc / 22, 0, 1) * 0.22; // loud in the car, faint from the street
       if (Math.abs(want - L.radioVol) > 0.02 || (want === 0 && L.radioVol !== 0)) { L.radioVol = want; radio.set(want); } }
     if (L.mode === 'walk') {
       const d = Math.hypot(wolfPos.x - L.car.pos.x, wolfPos.z - L.car.pos.z);
@@ -437,8 +446,8 @@ export function createLevel(C) {
       if (d < 5 && (keys.KeyE || keys.Enter)) L.enterCar();
       if (hud.obj) hud.obj.textContent = 'Walk to the ride pickup, east end of the street.';
       if (hud.dist) hud.dist.textContent = Math.round(d) + ' m to pickup';
-    } else if (L.mode === 'drive') {
-      if (hud.obj) hud.obj.textContent = 'Get to the convenience store.';
+    } else if (L.mode === 'drive' && nr) {
+      if (hud.obj) hud.obj.textContent = L.left <= 0 ? "It's 2:00. Go anyway." : 'Get to the convenience store.';
       const [ax, az] = LAYOUT.storeArrive; const onMainIdx = nr.road === MAIN ? nr.i : nr.road === SHORT ? nearestIdx(MAIN.s, [nr.road.s[nr.i].x, nr.road.s[nr.i].z]) : 0;
       const remain = Math.max(Math.hypot(L.car.pos.x - ax, L.car.pos.z - az), MAIN.len - MAIN.cum[onMainIdx]);
       if (hud.dist) hud.dist.textContent = `STORE ${Math.round(remain)} m`;

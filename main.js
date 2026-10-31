@@ -6,6 +6,8 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { createLevel, LAYOUT } from './level.js';
 import { createCockpit } from './cockpit.js';
 import { createMoth } from './moth.js';
+import { createDirector } from './scenes.js';
+window.__SUNSPOTS_VERSION = 'v7';
 
 const Q = new URLSearchParams(location.search);
 const SHOT = Q.has('shot');
@@ -486,11 +488,14 @@ function prop(gltf, { h, x, z, ry = 0, tint = '#ff8a8a', puddle = 1, collide = 0
 }
 
 let wolf, mixer, actWalk, actRun, wolfReady = false, wolfBaseScale = 1;
+// scenes.js drives the Wolf on foot during cutscenes through this puppet (gait from speed, head look)
+const puppet = { on: false, speed: 0, headYaw: 0, headTilt: 0, base: 1 };
+let director = null;
 const wolfState = { pos: new THREE.Vector3(LAYOUT.wolfStart[0], 0, LAYOUT.wolfStart[1]), yaw: LAYOUT.wolfStart[2], speed: 0 };
 // ---------------------------------------------------------------- level 1: Last Minute Snacks (roads, car, store, townsfolk, HUD)
 const level = createLevel({ scene, colliders, feltMat, rbox, makeMeltable, feltify: (r) => feltify(r), rnd, clamp, lerp, smooth, FELT,
   onEnterCar: () => { if (actWalk) { actWalk.setEffectiveWeight(0); actRun.setEffectiveWeight(0); } wolfState.speed = 0; snapCam = true; },
-  onReset: () => { moth?.reset(); wolfState.pos.set(LAYOUT.wolfStart[0], 0, LAYOUT.wolfStart[1]); wolfState.yaw = LAYOUT.wolfStart[2]; wolfState.speed = 0; camYawTarget = camYaw = 0; snapCam = true; } });
+  onReset: () => { director?.reset(); moth?.reset(); wolfState.pos.set(LAYOUT.wolfStart[0], 0, LAYOUT.wolfStart[1]); wolfState.yaw = LAYOUT.wolfStart[2]; wolfState.speed = 0; camYawTarget = camYaw = 0; snapCam = true; } });
 let snapCam = false;
 // first person: the moth driver's cockpit (default while driving) + the Wolf's own eyes on foot (eye button, hold 0.5 s / V)
 const cockpit = createCockpit(level, { feltMat, rbox, clamp, lerp, rnd: Math.random, patchRider }); level.cockpit = cockpit;
@@ -592,7 +597,7 @@ const DEBUG = {};
 let camYaw = 0, camYawTarget = 0, manualLookT = 0;
 const R = 52;
 canvas.addEventListener('pointerdown', e => {
-  if (level.mode !== 'walk') return;
+  if (level.mode !== 'walk' || level.frozen) return;
   const portrait = innerHeight > innerWidth;
   const isLook = portrait ? e.clientY < innerHeight * 0.38 : e.clientX > innerWidth * 0.6;
   if (isLook && lookId === null) { lookId = e.pointerId; lookLast = e.clientX; lookLastY = e.clientY; canvas.setPointerCapture(e.pointerId); return; }
@@ -614,7 +619,7 @@ canvas.addEventListener('pointermove', e => {
 });
 const endPtr = e => { if (e.pointerId === joyId) { joyId = null; input.x = input.y = 0; joy.style.display = 'none'; } if (e.pointerId === lookId) lookId = null; };
 canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointercancel', endPtr);
-const keys = {}; addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyM') toggleWild(); if (e.code === 'KeyV' && !e.repeat && level.mode === 'walk') toggleFP(); }); addEventListener('keyup', e => keys[e.code] = false);
+const keys = {}; addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyM') toggleWild(); if (e.code === 'KeyV' && !e.repeat && level.mode === 'walk' && !level.frozen) toggleFP(); }); addEventListener('keyup', e => keys[e.code] = false);
 
 // ---------------------------------------------------------------- wild mode
 let wild = Q.has('wild') ? 1 : 0, wildTarget = wild;
@@ -703,18 +708,31 @@ function frame() {
   updateDrips(t);
 
   // level (clock, car, townsfolk, obstacles)
+  director?.update(dt, t, { wolfPos: wolfState.pos, titleUp: !!window.__titleUp || !wolfReady || !!MAP });   // scenes: triggers + timeline
   level.update(dt, t, { wolfPos: wolfState.pos, keys, wild: w, titleUp: !!window.__titleUp || !wolfReady || !!MAP });
   // wolf riding shotgun
-  if (wolfReady && level.inCar) {
+  if (wolfReady && level.inCar && !puppet.on) {
     level.car.root.updateMatrixWorld(true); cockpit.wolfRig.matrixWorld.decompose(wolf.position, wolf.quaternion, tmpV); wolf.scale.setScalar(wolfBaseScale * level.seatScale); wolfState.pos.copy(wolf.position).setY(0);
     const hd0 = wolf.userData.head; if (hd0) { hd0.e.set(cockpit.wolfHeadTilt || 0, cockpit.wolfHeadYaw || 0, 0); hd0.q.setFromEuler(hd0.e); hd0.bone.quaternion.copy(hd0.bind).multiply(hd0.q); }
     const body = wolf.userData.body; body.rotation.set(0, 0, Math.sin(t * 7) * 0.01 * clamp(level.car.v / 10, 0, 1)); body.position.x = 0; mixer.update(dt);
   }
   cockpit.wolfH = 1.75 * wolfBaseScale * level.seatScale; cockpit.update(dt, t);
   { const rk = smooth(clamp(wild, 0, 1)); level.car.body.updateMatrixWorld(true); RIDE.uCar.value.copy(level.car.body.matrixWorld); RIDE.uCarInv.value.copy(level.car.body.matrixWorld).invert();
-    if (cockpit.rm) cockpit.rm.value = rk; wolfRM.value = level.inCar ? rk : 0; moth?.update(dt, t, wolfState.pos, rk); }
+    if (cockpit.rm) cockpit.rm.value = rk; wolfRM.value = level.inCar && !puppet.on ? rk : 0; moth?.update(dt, t, wolfState.pos, rk); }
+  // wolf as a scene puppet: scenes.js sets position/yaw/scale + puppet.speed; same shared-phase gait as walking
+  if (wolfReady && puppet.on) {
+    const sp = puppet.speed, move = clamp(sp / 1.4, 0, 1), idle = 1 - move;
+    wolf.userData.phase = (wolf.userData.phase + dt * 0.95 * clamp(sp / 2.4, 0.45, 1.25) * move) % 1; const ph = wolf.userData.phase;
+    actWalk.setEffectiveWeight(move); actRun.setEffectiveWeight(0); actWalk.time = ph * actWalk.getClip().duration; actWalk.timeScale = actRun.timeScale = 0;
+    const body = wolf.userData.body, shift = Math.sin(t * 0.55) * 0.6 + Math.sin(t * 0.23 + 1.3) * 0.4;
+    body.rotation.set(0.04 * move, 0, Math.sin(ph * Math.PI * 2) * 0.035 * move + idle * shift * 0.022); body.position.x = idle * shift * 0.025;
+    body.scale.y = wolf.userData.sy * (1 + idle * 0.012 * Math.sin(t * 2.1));
+    mixer.update(dt);
+    const hd = wolf.userData.head; if (hd) { hd.yaw = puppet.headYaw || 0; hd.tilt = puppet.headTilt || 0; hd.e.set(hd.tilt * 0.4, hd.yaw, hd.tilt); hd.q.setFromEuler(hd.e); hd.bone.quaternion.copy(hd.bind).multiply(hd.q); }
+    wolfState.pos.copy(wolf.position).setY(0); wolfState.yaw = wolf.rotation.y; wolfState.speed = sp;
+  }
   // wolf movement
-  if (wolfReady && level.mode === 'walk') {
+  if (wolfReady && level.mode === 'walk' && !level.frozen && !puppet.on) {
     let ix = input.x, iy = input.y;
     if (keys.KeyW || keys.ArrowUp) iy = -1; if (keys.KeyS || keys.ArrowDown) iy = 1; if (keys.KeyA || keys.ArrowLeft) ix = -1; if (keys.KeyD || keys.ArrowRight) ix = 1;
     if (keys.ShiftLeft) { ix *= 1; iy *= 1; } else if (!input.x && !input.y && (ix || iy)) { const l = Math.hypot(ix, iy); ix *= 0.6 / l; iy *= 0.6 / l; }
@@ -824,6 +842,7 @@ function frame() {
   const cc = DEBUG.closeCam; // screenshot/QA hook: close-up orbit relative to the wolf's facing
   if (cc && wolfReady) { const a = wolfState.yaw + (cc.yaw || 0); camera.position.set(wp.x + Math.sin(a) * cc.dist, cc.h, wp.z + Math.cos(a) * cc.dist); camTarget.set(wp.x, cc.ty, wp.z); camera.lookAt(camTarget); }
   if (QCAM) { camera.position.set(QCAM[0], QCAM[1], QCAM[2]); camTarget.set(QCAM[3], QCAM[4], QCAM[5]); camera.lookAt(camTarget); }
+  director?.camera(camera, dt);   // scene shots / hand-back blend + speech bubbles
   camera.updateMatrixWorld();
   key.position.copy(wp).add(KEY_OFFSET); key.target.position.copy(wp);
 
@@ -874,7 +893,35 @@ loadAll().then(() => {
   if (Q.has('drive') || Q.has('at')) { level.enterCar(); if (Q.has('at')) level.teleportCar(+Q.get('at') || 0, Q.has('short') ? level.SHORT : level.MAIN); }
   if (Q.get('end')) setTimeout(() => level.forceEnd(Q.get('end') === 'win'), 300);
   if (Q.has('gas')) keys.ArrowUp = true;
+  // motion scenes (scenes.js). ?scenes=0 turns them off (old instant arrival / 2:00 lose)
+  if (Q.get('scenes') !== '0') {
+    director = createDirector({ scene, camera, L: level, CK: cockpit, load: (u) => load(u), normalize, feltMat, rbox, colliders, puppet,
+      getWolf: () => wolf, getMoth: () => moth,
+      onFreeze: () => { for (const k in keys) keys[k] = false; input.x = input.y = 0; joyId = null; lookId = null; joy.style.display = 'none';
+        const c = level.ctl; c.left = c.right = c.gas = c.brake = false; c.tilt = null; document.querySelectorAll('#drive .on, #drive .down').forEach(b => b.classList.remove('on', 'down')); } });
+    puppet.base = wolfBaseScale; window.__director = director;
+    director.init().then(() => { if (Q.get('scene')) debugScene(Q.get('scene')); }).catch(e => console.warn('scenes failed to load', e));
+  }
   window.__ready = true;
 }).catch(e => { document.getElementById('err').style.display = 'block'; document.getElementById('err').textContent = 'Load error: ' + e.message; console.error(e); });
 requestAnimationFrame(frame);
-window.__sunspots = { DEBUG, toggleWild, toggleFP, FP, cockpit, input, keys, get wild() { return wild; }, scene, camera, level, wolfState };
+// QA: ?scene=store_win|store_lose|roadside|handoff_test drives you there (after the title is dismissed) and lets it play
+function debugScene(name) {
+  const go = () => {
+    if (window.__titleUp) { setTimeout(go, 200); return; }
+    if (level.mode === 'walk') level.enterCar();
+    if (name === 'store_win' || name === 'store_lose') {
+      if (name === 'store_lose') level.left = -20; else level.left = Math.max(level.left, 60);
+      level.teleportCar(level.MAIN.len - 38); keys.ArrowUp = true;
+    } else if (name === 'roadside') {
+      const A = director.anchors.roadside(); level.teleportCar(A.d - 120); DEBUG.autopilot = true;
+    } else director.play(name);
+  };
+  go();
+}
+// QA autopilot: hold gas and steer along MAIN (roadside probe)
+function autopilot() { if (!DEBUG.autopilot || level.mode !== 'drive' || level.frozen) return; const c = level.car, nr = level.nearestRoad(c.pos.x, c.pos.z);
+  const r = level.atDist(level.MAIN, level.MAIN.cum[nr.road === level.MAIN ? nr.i : 0] + 14); const want = Math.atan2(r.x - c.pos.x, r.z - c.pos.z);
+  const d = Math.atan2(Math.sin(want - c.yaw), Math.cos(want - c.yaw)); level.ctl.left = d > 0.04; level.ctl.right = d < -0.04; level.ctl.gas = c.v < 13; }
+setInterval(autopilot, 50);
+window.__sunspots = { puppet, get director() { return director; }, DEBUG, toggleWild, toggleFP, FP, cockpit, input, keys, get wild() { return wild; }, scene, camera, level, wolfState };

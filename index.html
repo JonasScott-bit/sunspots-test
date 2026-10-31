@@ -87,6 +87,30 @@
   body.ended #eyeBtn,body.map #eyeBtn{display:none}
   #fpFx{position:fixed;inset:-4%;z-index:3;pointer-events:none;opacity:0;filter:url(#haze);
     background:radial-gradient(ellipse at 50% 50%,rgba(255,120,170,0) 46%,rgba(255,110,170,.22) 68%,rgba(255,80,150,.55) 100%)}
+  /* ---- motion scenes (scenes.js): letterbox, subtitles, hold-to-skip, world speech bubbles */
+  .lb{position:fixed;left:0;right:0;height:0;background:#1b1324;z-index:8;pointer-events:none;transition:height .55s cubic-bezier(.4,0,.2,1)}
+  #lbTop{top:0} #lbBot{bottom:0}
+  body.lbox .lb{height:11.5vh} @media (orientation:landscape){body.lbox .lb{height:10vh}}
+  body.scene #hud,body.scene #drive,body.scene #eyeBtn,body.scene #wildBtn,body.scene #title,body.scene #getIn,body.scene #toast,body.scene #hint,body.scene #joy{display:none!important}
+  #sceneSub{position:fixed;left:50%;bottom:calc(11.5vh + 14px);transform:translate(-50%,8px);z-index:8;width:min(88vw,560px);text-align:center;color:#fff3dc;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;
+    font-size:clamp(15px,4.3vw,19px);line-height:1.3;letter-spacing:.02em;text-shadow:0 2px 6px rgba(20,8,30,.85),0 0 2px rgba(20,8,30,.9)}
+  @media (orientation:landscape){#sceneSub{bottom:calc(10vh + 10px);font-size:clamp(14px,2.2vw,19px)}}
+  #sceneSub.on{opacity:1;transform:translate(-50%,0)}
+  #sceneSubName{display:block;font-size:.66em;letter-spacing:.24em;font-weight:700;margin-bottom:3px}
+  #skipBtn{position:fixed;z-index:10;top:calc(env(safe-area-inset-top) + 11.5vh + 10px);right:calc(env(safe-area-inset-right) + 14px);width:58px;height:58px;border:0;padding:0;border-radius:50%;
+    background:rgba(43,30,60,.45);color:#fff3dc;font:700 10px/58px Futura,Avenir,sans-serif;letter-spacing:.18em;text-indent:.18em;display:none;touch-action:none;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  @media (orientation:landscape){#skipBtn{top:calc(env(safe-area-inset-top) + 10vh + 8px);right:calc(env(safe-area-inset-right) + 18px);width:50px;height:50px;line-height:50px;font-size:9px}}
+  #skipBtn svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  #skipBtn .ring{fill:none;stroke:#f6b23a;stroke-width:4;stroke-linecap:round;stroke-dasharray:163.4;stroke-dashoffset:163.4;transform:rotate(-90deg);transform-origin:50% 50%}
+  #skipBtn .track{fill:none;stroke:rgba(255,240,220,.28);stroke-width:4}
+  body.scene #skipBtn{display:block} body.ended #skipBtn{display:none}
+  #bubbles{position:fixed;inset:0;z-index:6;pointer-events:none;overflow:hidden}
+  .sbub{position:absolute;left:0;top:0;max-width:min(62vw,300px);padding:7px 12px 8px;border-radius:14px;background:rgba(255,243,220,.93);color:#2b1e3a;font-size:14px;line-height:1.25;text-align:center;
+    box-shadow:0 3px 10px rgba(40,10,40,.25);opacity:0;transition:opacity .25s;white-space:normal}
+  .sbub b{display:block;font-size:9px;letter-spacing:.22em;filter:brightness(.62) saturate(1.3);margin-bottom:1px}
+  .sbub::after{content:'';position:absolute;left:50%;bottom:-6px;margin-left:-6px;border:6px solid transparent;border-bottom:0;border-top-color:rgba(255,243,220,.93)}
+  .sbub.pin::after{display:none} .sbub.on{opacity:1}
+  body.ended #bubbles{display:none}
 </style>
 <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/addons/"}}</script>
 <link rel="preload" href="./title/title_poster.jpg" as="image">
@@ -106,6 +130,10 @@
 <button id="getIn">GET IN</button>
 <div id="drive"><button class="dbtn" id="bL">◀</button><button class="dbtn" id="bR">▶</button><button class="dbtn" id="bBrake">BRAKE</button><button class="dbtn" id="bGas">GAS</button><button class="dbtn" id="bTilt">TILT</button><button class="dbtn" id="bVol">RADIO VOL</button></div>
 <div id="toast"></div>
+<div id="bubbles"></div>
+<div class="lb" id="lbTop"></div><div class="lb" id="lbBot"></div>
+<div id="sceneSub"><span id="sceneSubName"></span><span id="sceneSubText"></span></div>
+<button id="skipBtn" aria-label="Hold to skip the scene"><svg viewBox="0 0 58 58"><circle class="track" cx="29" cy="29" r="26"/><circle class="ring" cx="29" cy="29" r="26"/></svg>SKIP</button>
 <div id="endScr"><div id="endTitle"></div><div id="endSub"></div><button id="retry">TRY AGAIN</button></div>
 <div class="joy" id="joy"><div class="knob" id="knob"></div></div>
 <div id="load"><div class="disc"></div>SUNSPOTS<div id="bar"><i></i></div></div>

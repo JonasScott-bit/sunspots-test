@@ -65,8 +65,15 @@ export function createMoth(gltf, L, CK, H) {
   function seat() {
     driver.add(holder); holder.position.copy(seatPos); holder.rotation.set(0, 0, 0); holder.scale.setScalar(s);
     for (const k in A) if (k !== 'seated') A[k].stop(); A.seated.reset().setEffectiveWeight(1).play();
-    M.state = 'seat'; M.seated = true; setFold(1);
+    M.state = 'seat'; M.seated = true; setFold(1); M.cur = A.seated;
   }
+  // ---- scene hooks (scenes.js): take him out of the car into world space, play a clip, put him back
+  M.toScene = () => { if (M.state === 'scene') return; driver.updateMatrixWorld(true); scene.attach(holder);
+    const e = new THREE.Euler().setFromQuaternion(holder.quaternion, 'YXZ'); holder.rotation.set(0, e.y, 0);
+    M.state = 'scene'; M.seated = false; M.greeted = true; };
+  M.play = (name, fade = 0.3) => { const a = A[name]; if (!a || a === M.cur) return; a.reset().setEffectiveWeight(1).play(); if (M.cur) M.cur.crossFadeTo(a, fade, false); M.cur = a; };
+  M.setFold = (k) => setFold(k);
+  M.reseat = () => seat();
   function setFold(k) { for (const m of skinned) if (m.morphTargetInfluences) m.morphTargetInfluences[0] = k; M.fold = k; }
   seat();
   // wild mode: fuzzy melt (rider shader works on skinned meshes, in car space)
@@ -114,7 +121,7 @@ export function createMoth(gltf, L, CK, H) {
   const _wolf = new THREE.Vector3(), _door = new THREE.Vector3(), _mp = new THREE.Vector3();
   let fadeT = 0;
   M.update = (dt, t, wolfPos, wild) => {
-    const fp = L.mode === 'drive' && !CK.chase;
+    const fp = L.mode === 'drive' && !CK.chase && !CK.sceneView;
     // greeting: Wolf approaches the parked car on foot -> moth climbs out and walks over
     if (L.mode === 'walk' && M.state === 'seat' && !M.greeted && wolfPos && !window.__titleUp) {
       c.root.updateMatrixWorld(true); _mp.copy(c.root.position);
@@ -143,7 +150,7 @@ export function createMoth(gltf, L, CK, H) {
       } else if (d > 3.2 && !M.waited) { M.state = 'walk'; A.walk.reset().play(); A.idle.crossFadeTo(A.walk, 0.3, false); }
       if (M.state === 'greet') M.nod += dt;
     }
-    if (L.mode === 'drive' && M.state !== 'seat') seat();
+    if (L.mode === 'drive' && M.state !== 'seat' && M.state !== 'scene') seat();
     mixer.update(dt);
     // greeting nod (one slow nod, then the occasional tiny one)
     if (M.state === 'greet' && B.Head) { const n = M.nod; const a = n < 1.2 ? Math.sin(n / 1.2 * Math.PI) * 0.35 : Math.max(0, Math.sin((n - 1.2) * 1.3)) * 0.04; B.Head.rotateX(a); }

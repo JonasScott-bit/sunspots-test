@@ -217,7 +217,7 @@ export function createCockpit(L, H) {
   // ---------------------------------------------------------------- head look (drag the upper screen, snap back on release)
   const ptr = { id: null, x: 0, y: 0 };
   const canvas = document.querySelector('canvas#c') || document.querySelector('canvas');
-  const fpOn = () => L.mode === 'drive'; // head look in first person, orbit the chase cam in the chase view
+  const fpOn = () => L.mode === 'drive' && !L.frozen; // head look in first person, orbit the chase cam in the chase view
   addEventListener('pointerdown', e => {
     if (!fpOn() || ptr.id !== null || e.target.tagName !== 'CANVAS') return;
     const portrait = innerHeight > innerWidth; if (e.clientY > innerHeight * (portrait ? 0.6 : 0.62)) return;
@@ -231,7 +231,7 @@ export function createCockpit(L, H) {
   });
   const end = e => { if (e.pointerId === ptr.id) { ptr.id = null; CK.look.held = false; } };
   addEventListener('pointerup', end); addEventListener('pointercancel', end);
-  addEventListener('keydown', e => { if (e.code === 'KeyC' && L.mode === 'drive') CK.setChase(!CK.chase); if (e.code === 'KeyQ') CK.keyLook = 1; if (e.code === 'KeyE' && L.mode === 'drive') CK.keyLook = -1; });
+  addEventListener('keydown', e => { if (e.code === 'KeyC' && L.mode === 'drive' && !L.frozen) CK.setChase(!CK.chase); if (e.code === 'KeyQ') CK.keyLook = 1; if (e.code === 'KeyE' && L.mode === 'drive') CK.keyLook = -1; });
   addEventListener('keyup', e => { if (e.code === 'KeyQ' || e.code === 'KeyE') CK.keyLook = 0; });
   void canvas;
 
@@ -250,7 +250,7 @@ export function createCockpit(L, H) {
     // wheel turns with steering (a 70s wheel needs a lot of arm)
     wheelSpin.rotation.z = -c.steer * 1.05; // hands stay on their own sides of the rim (no arm crossing through the camera)
     if (!CK.moth) aimArms();
-    const fp = L.mode === 'drive' && !CK.chase;
+    const fp = L.mode === 'drive' && !CK.chase && !CK.sceneView;
     for (const o of headParts) o.visible = !fp && !CK.moth;
     updateClip(fp);
     binn.visible = mirrorG.visible = fp || L.mode !== 'drive'; // cockpit-only bits off in the chase view (windshield panel comes back via updateClip)
@@ -283,7 +283,7 @@ export function createCockpit(L, H) {
   // rear-view mirror: render the back seat (and the road behind) into the mirror every other frame
   let mf = 0;
   CK.renderMirror = (renderer, scene) => {
-    if (L.mode !== 'drive' || CK.chase || (mf++ & 1)) return;
+    if (L.mode !== 'drive' || CK.chase || CK.sceneView || (mf++ & 1)) return;
     mirrorG.updateMatrixWorld(true); mirrorG.getWorldPosition(_p); mirrorCam.position.copy(_p);
     _a.set(0.0, 1.05, -1.6); body.localToWorld(_a); mirrorCam.lookAt(_a);
     mirrorCam.layers.enableAll();
