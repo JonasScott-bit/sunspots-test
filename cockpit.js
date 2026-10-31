@@ -60,9 +60,19 @@ export function createCockpit(L, H) {
   const dash = new THREE.Group(); body.add(dash);
   add(dash, box(1.5, 0.2, 0.44, 0.08, MUSTARD), 0, 1.06, 0.86);
   add(dash, box(1.48, 0.36, 0.06, 0.03, '#b98428'), 0, 0.86, 0.64);
-  const hood = add(dash, box(0.5, 0.11, 0.22, 0.05, '#c28d2c'), 0.48, 1.2, 0.75);              // gauge hood in front of the driver
-  for (const [x, col] of [[0.38, '#f3e6c8'], [0.58, '#f3e6c8']]) { const g = add(dash, cyl(0.06, 0.06, 0.02, col), x, 1.14, 0.605); g.rotation.x = Math.PI / 2; }
-  for (const x of [0.38, 0.58]) { const n = add(dash, box(0.008, 0.05, 0.006, 0.002, '#c0392b'), x, 1.15, 0.594); n.rotation.z = x > 0.5 ? -0.7 : 0.4; }
+  // gauges: a raised binnacle straight ahead of the driver, tilted up at his eyes, so the dials sit just above the
+  // wheel rim between his hands (stays readable in portrait too)
+  const binn = new THREE.Group(); binn.position.set(0.48, 1.33, 0.8); binn.rotation.x = 0.38; dash.add(binn);
+  const hood = add(binn, box(0.4, 0.17, 0.14, 0.05, '#c28d2c'), 0, -0.085, 0.02);
+  add(binn, box(0.42, 0.04, 0.2, 0.02, '#a8741f'), 0, 0.075, -0.02);                               // little visor
+  add(dash, box(0.3, 0.2, 0.12, 0.04, '#b98428'), 0.48, 1.08, 0.8);                                 // pedestal
+  const needles = [];
+  for (const x of [-0.085, 0.085]) {
+    const g = add(binn, cyl(0.066, 0.066, 0.02, '#f3e6c8', 24), x, 0, -0.06); g.rotation.x = Math.PI / 2;
+    const bz = add(binn, new THREE.Mesh(new THREE.TorusGeometry(0.068, 0.009, 8, 28), feltMat('#3a2a26')), x, 0, -0.071); void bz;
+    for (let k = 0; k < 7; k++) { const a = -2.2 + k * 4.4 / 6; const tk = add(binn, box(0.005, 0.016, 0.004, 0.001, '#3a2a26'), x + Math.sin(a) * 0.05, Math.cos(a) * 0.05, -0.072); tk.rotation.z = -a; }
+    const n = new THREE.Group(); n.position.set(x, 0, -0.074); binn.add(n); add(n, box(0.009, 0.05, 0.004, 0.002, '#c0392b'), 0, 0, 0); n.rotation.z = x > 0 ? -0.7 : 0.4; needles.push(n);
+  }
   // radio in the centre stack (the knob is the 'nope.' button's cousin)
   const radioBox = add(dash, box(0.34, 0.1, 0.05, 0.02, '#6b4a2e'), 0, 0.94, 0.6);
   const radioLed = add(dash, new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.035), new THREE.MeshBasicMaterial({ color: '#ffb347', toneMapped: false })), 0, 0.99, 0.572); radioLed.rotation.y = Math.PI;
@@ -216,7 +226,7 @@ export function createCockpit(L, H) {
   addEventListener('pointermove', e => {
     if (e.pointerId !== ptr.id) return;
     const s = 2.6 / Math.max(innerWidth, 500);
-    CK.look.tyaw = clamp(CK.look.tyaw + (e.clientX - ptr.x) * s, -2.1, 2.1); CK.look.tpitch = clamp(CK.look.tpitch - (e.clientY - ptr.y) * s * 0.8, -0.35, 0.3);
+    CK.look.tyaw = clamp(CK.look.tyaw + (e.clientX - ptr.x) * s, -2.1, 2.1); CK.look.tpitch = clamp(CK.look.tpitch - (e.clientY - ptr.y) * s * 0.8, CK.pitchMin, 0.3);
     ptr.x = e.clientX; ptr.y = e.clientY;
   });
   const end = e => { if (e.pointerId === ptr.id) { ptr.id = null; CK.look.held = false; } };
@@ -234,11 +244,13 @@ export function createCockpit(L, H) {
     const kk = 1 - Math.exp(-dt * 14); lk.yaw = lerp(lk.yaw, lk.tyaw, kk); lk.pitch = lerp(lk.pitch, lk.tpitch, kk);
     // wheel turns with steering (a 70s wheel needs a lot of arm)
     wheelSpin.rotation.z = -c.steer * 1.6;
-    aimArms();
+    if (!CK.moth) aimArms();
     const fp = L.mode === 'drive' && !CK.chase;
-    for (const o of headParts) o.visible = !fp;
+    for (const o of headParts) o.visible = !fp && !CK.moth;
     updateClip(fp);
-    { const por = innerHeight > innerWidth; mirrorG.position.x = por ? 0.36 : 0.26; mirrorG.scale.setScalar(por ? 0.45 : 0.62); }
+    { const por = innerHeight > innerWidth; mirrorG.position.set(por ? 0.43 : 0.26, por ? 1.71 : 1.69, por ? 0.5 : 0.4); mirrorG.scale.setScalar(por ? 0.3 : 0.62); mirrorG.rotation.y = por ? 0 : -0.25; }
+    // needles: speedo follows speed, the other one (fuel? nerves?) twitches
+    needles[1].rotation.z = 2.0 - clamp(Math.abs(c.v) / 22, 0, 1) * 4.0; needles[0].rotation.z = 0.4 + Math.sin(t * 0.7) * 0.05 + Math.sin(t * 9) * 0.01;
     // freshener: pendulum pushed by the waddle and by turning
     const yawRate = (c.yaw - fr.lastYaw) / Math.max(dt, 1e-3); fr.lastYaw = c.yaw; const acc = (c.v - fr.lastV) / Math.max(dt, 1e-3); fr.lastV = c.v;
     const latF = -yawRate * c.v * 0.06 + (c.bodyRoll || 0) * 6, lonF = acc * 0.03 + (c.bodyPitch || 0) * 4;
@@ -253,7 +265,9 @@ export function createCockpit(L, H) {
   const _m = new THREE.Matrix4(), _e = new THREE.Euler(0, 0, 0, 'YXZ'), _q = new THREE.Quaternion(), _p = new THREE.Vector3();
   CK.camera = (camera) => {
     c.root.updateMatrixWorld(true);
-    _p.copy(EYE).add(driver.position); _p.y += c.body.position.y * 0.5;
+    const lk0 = CK.look; _p.copy(EYE);
+    if (CK.moth) { const kd = clamp((-lk0.pitch - 0.3) / 0.8, 0, 1); _p.z -= 0.18 * kd; _p.y += 0.04 * kd; } // looking down: lean the head over his chest
+    _p.add(driver.position); _p.y += c.body.position.y * 0.5;
     _p.applyMatrix4(c.root.matrixWorld);
     camera.position.copy(_p);
     const lk = CK.look;
@@ -272,6 +286,17 @@ export function createCockpit(L, H) {
     headParts.forEach((o, i) => o.visible = vis[i]); mirror.visible = true;
   };
   CK.mirrorCam = mirrorCam;
+  // the real moth model takes over: his own gloved hands/arms on the wheel (IK in moth.js), stand-in parts hidden
+  CK.hands = hands; CK.EYE = EYE; CK.pitchMin = -0.35;
+  CK.useMoth = (m) => {
+    CK.moth = m; CK.pitchMin = -1.2; EYE.set(0, 1.55, 0.1);                                     // look down far enough to see his air-freshener necklace
+    for (const h of hands) h.children.forEach(o => o.visible = false);
+    for (const A of arms) A.m.visible = false;
+    for (const o of headParts) o.visible = false;
+    driver.children.forEach(o => { if (o.isMesh && o !== m.holder) o.visible = false; });
+  };
+  // wild mode: the back-seat blockouts get the rider fuzzy-melt too
+  if (H.patchRider) { CK.rm = { value: 0 }; let sd = 2; for (const b of [squid, farm]) { sd += 1.7; b.root.traverse(o => { if (o.isMesh && !o.isSprite) H.patchRider(o.material, sd, CK.rm); }); } }
   // cabin fill: the roof shades the cockpit, so give the props a soft warm self-light (cheaper than another light)
   for (const g of [dash, wheelTilt, mirrorG]) g.traverse(o => { if (o.isMesh && o.material && o.material.emissive && !o.material.map?.isRenderTargetTexture) { o.material.emissive.copy(o.material.color).multiplyScalar(0.28); } });
   return CK;

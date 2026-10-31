@@ -243,8 +243,15 @@ export function createLevel(C) {
   cattleGuard(SHORT, SHORT.len * 0.42);
   // fork signs
   { const f = atDist(MAIN, MAIN.cum[nearestIdx(MAIN.s, [44, -95])]);
-    signPost(f.x + 6.5, f.z + 1, f.yaw + Math.PI, 'STORE\nLONG WAY →', 2.4, 1.0);
-    signPost(f.x - 6.5, f.z - 2, f.yaw + Math.PI, '← SHORTCUT\n(PROBABLY)', 2.4, 1.0); }
+    // arrows are real meshes (the → / ← glyphs don't exist in every font); STORE is the long way right, the shortcut left
+    const arrow = (g, dir) => {
+      const sh = new THREE.Shape(); sh.moveTo(-0.55, -0.09); sh.lineTo(0.2, -0.09); sh.lineTo(0.2, -0.22); sh.lineTo(0.55, 0); sh.lineTo(0.2, 0.22); sh.lineTo(0.2, 0.09); sh.lineTo(-0.55, 0.09); sh.closePath();
+      const m = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.06, bevelEnabled: false }), feltMat('#ffd36b'));
+      m.scale.x = dir; m.position.set(0, 1.22, 0.02); m.castShadow = true; g.add(m);
+      const plank = add(g, rbox(1.3, 0.56, 0.08, 0.03, '#a05e34'), 0, 1.22 - 0.28, -0.05); void plank;
+    };
+    arrow(signPost(f.x + 6.5, f.z + 1, f.yaw + Math.PI, 'STORE\nLONG WAY', 2.4, 1.0), 1);
+    arrow(signPost(f.x - 6.5, f.z - 2, f.yaw + Math.PI, 'SHORTCUT\n(PROBABLY)', 2.4, 1.0), -1); }
   // cacti: roadside dressing + a few in the road on curves (steer round them)
   L.roadCacti = [];
   L.placeRoadCacti = (town) => {

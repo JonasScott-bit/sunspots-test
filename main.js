@@ -5,6 +5,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { createLevel, LAYOUT } from './level.js';
 import { createCockpit } from './cockpit.js';
+import { createMoth } from './moth.js';
 
 const Q = new URLSearchParams(location.search);
 const SHOT = Q.has('shot');
@@ -127,6 +128,38 @@ function depthMatFor(u) {
   return d;
 }
 
+// RIDER MELT: the cast inside the boot car (moth, Wolf riding shotgun, back-seat blockouts) are animated / skinned, so
+// the static root-space melt can't hold them. This one runs after skinning, in CAR space: heads sag and slump toward
+// the seat, cheeks drip in lobes, everything wobbles like warm wax, and the felt goes the same Wild tint.
+const RIDE = { uCar: { value: new THREE.Matrix4() }, uCarInv: { value: new THREE.Matrix4() }, uRTint: { value: new THREE.Color('#ff8a7a') } };
+const RIDER_PROJ = /* glsl */`
+  vec4 rW = modelMatrix * vec4(transformed, 1.0);
+  vec3 rc = (uCarInv * rW).xyz;
+  float rm = uRM;
+  float rh = clamp((rc.y - 0.55) / 1.4, 0.0, 1.0);
+  float ra = atan(rc.z + 0.4, rc.x - 0.0);
+  float rl = pow(max(0.0, sin(ra * 5.0 + uRSeed) * sin(ra * 3.0 - uRSeed * 1.7 + 1.3)), 2.0);
+  float rwb = sin(uTime * 1.9 + rc.x * 3.0 + rc.z * 2.0 + uRSeed);
+  rc.y -= rm * rh * rh * (0.13 + 0.12 * rl) - rm * 0.025 * rwb * rh;
+  rc.x += rm * 0.07 * rh * rh * sin(uTime * 0.8 + uRSeed);
+  rc.z += rm * 0.05 * rh * rh * cos(uTime * 0.7 + uRSeed * 2.0);
+  vec4 mvPosition = viewMatrix * (uCar * vec4(rc, 1.0));
+  gl_Position = projectionMatrix * mvPosition;
+`;
+function patchRider(mat, seed, rm) {
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (sh, r) => {
+    prev?.call(mat, sh, r);
+    Object.assign(sh.uniforms, RIDE, G); sh.uniforms.uRM = rm; sh.uniforms.uRSeed = { value: seed };
+    const hasT = /uniform float[^;]*uTime/.test(sh.vertexShader);
+    sh.vertexShader = 'uniform mat4 uCar,uCarInv;uniform float uRM,uRSeed;' + (hasT ? '' : 'uniform float uTime;') + '\n' + sh.vertexShader.replace('#include <project_vertex>', RIDER_PROJ);
+    if (sh.fragmentShader.includes('#include <color_fragment>')) sh.fragmentShader = 'uniform float uRM;uniform vec3 uRTint;\n' + sh.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+      { float rLum = dot(diffuseColor.rgb, vec3(0.30, 0.59, 0.11)); diffuseColor.rgb = mix(diffuseColor.rgb, uRTint * (0.45 + 1.1 * rLum), uRM * 0.8); }`);
+  };
+  const pk = mat.customProgramCacheKey?.bind(mat); mat.customProgramCacheKey = () => (pk ? pk() : '') + '|rider';
+  mat.needsUpdate = true;
+  return mat;
+}
 // meltables: { root, meshes:[{mesh,u}], delay, puddle }
 const meltables = [];
 function puddleMesh(radius, color) {
@@ -457,10 +490,11 @@ const wolfState = { pos: new THREE.Vector3(LAYOUT.wolfStart[0], 0, LAYOUT.wolfSt
 // ---------------------------------------------------------------- level 1: Last Minute Snacks (roads, car, store, townsfolk, HUD)
 const level = createLevel({ scene, colliders, feltMat, rbox, makeMeltable, feltify: (r) => feltify(r), rnd, clamp, lerp, smooth, FELT,
   onEnterCar: () => { if (actWalk) { actWalk.setEffectiveWeight(0); actRun.setEffectiveWeight(0); } wolfState.speed = 0; snapCam = true; },
-  onReset: () => { wolfState.pos.set(LAYOUT.wolfStart[0], 0, LAYOUT.wolfStart[1]); wolfState.yaw = LAYOUT.wolfStart[2]; wolfState.speed = 0; camYawTarget = camYaw = 0; snapCam = true; } });
+  onReset: () => { moth?.reset(); wolfState.pos.set(LAYOUT.wolfStart[0], 0, LAYOUT.wolfStart[1]); wolfState.yaw = LAYOUT.wolfStart[2]; wolfState.speed = 0; camYawTarget = camYaw = 0; snapCam = true; } });
 let snapCam = false;
 // first person: the moth driver's cockpit (default while driving) + the Wolf's own eyes on foot (eye button, hold 0.5 s / V)
-const cockpit = createCockpit(level, { feltMat, rbox, clamp, lerp, rnd: Math.random }); level.cockpit = cockpit;
+const cockpit = createCockpit(level, { feltMat, rbox, clamp, lerp, rnd: Math.random, patchRider }); level.cockpit = cockpit;
+let moth = null; const wolfRM = { value: 0 };
 if (Q.has('chase')) cockpit.chase = true;
 if (Q.has('look')) cockpit.holdLook = [(+Q.get('look') || 0) * Math.PI / 180, (+Q.get('lookp') || 0) * Math.PI / 180];
 if (Q.get('prank')) cockpit.forceAct = Q.get('prank');
@@ -509,7 +543,10 @@ async function loadAll() {
   // dressing: Meshy characters/props standing about the square
   prop(bench, { h: 1.15, x: -4.6, z: -4.2, ry: 0.15, collide: 1.0, puddle: 1.3 });
   void hydrant; // the static hydrant is replaced by the rigged mainst_hydrant_spin townsperson (level.js)
-  level.setBootCar(car.scene, normalize); // the boot car is the rideshare: parked at the pickup, drivable, walks on its boots
+  level.setBootCar(car.scene, normalize);
+  // the real moth driver (rigged Meshy model, meshopt + 1024 webp): replaces the felt stand-in + placeholder gloves
+  load(M + 'moth_driver.glb').then(g => { moth = createMoth(g, level, cockpit, { scene, patchRider }); cockpit.useMoth(moth); window.__moth = moth; })
+    .catch(e => console.warn('moth driver model failed, keeping the stand-in', e)); // the boot car is the rideshare: parked at the pickup, drivable, walks on its boots
   prop(lantern, { h: 1.0, x: 8.3, z: 0.4, ry: -0.8, collide: 0.4, puddle: 0.7 });
   const rc = prop(rain, { h: 2.6, x: -10.6, z: -2.6, ry: 0.6, collide: 0.5, puddle: 1.0 });
 
@@ -519,6 +556,7 @@ async function loadAll() {
   wm.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; o.material.roughness = 1; o.material.metalness = 0; } });
   wolf.add(wm); scene.add(wolf);
   wolf.userData.mats = []; wm.traverse(o => { if (o.isMesh) [].concat(o.material).forEach(m => wolf.userData.mats.push(m)); });
+  for (const m of wolf.userData.mats) patchRider(m, 2.4, wolfRM); // wild: fuzzy-melts while riding shotgun
   mixer = new THREE.AnimationMixer(wm);
   // Meshy's auto-rig tears the mesh when the arm/spine/hip-twist channels play (the model is
   // sculpted arms-crossed, the clips swing the arms). Keep only the leg chain + vertical hip bob;
@@ -673,6 +711,8 @@ function frame() {
     const body = wolf.userData.body; body.rotation.set(0, 0, Math.sin(t * 7) * 0.01 * clamp(level.car.v / 10, 0, 1)); body.position.x = 0; mixer.update(dt);
   }
   cockpit.wolfH = 1.75 * wolfBaseScale * level.seatScale; cockpit.update(dt, t);
+  { const rk = smooth(clamp(wild, 0, 1)); level.car.body.updateMatrixWorld(true); RIDE.uCar.value.copy(level.car.body.matrixWorld); RIDE.uCarInv.value.copy(level.car.body.matrixWorld).invert();
+    if (cockpit.rm) cockpit.rm.value = rk; wolfRM.value = level.inCar ? rk : 0; moth?.update(dt, t, wolfState.pos, rk); }
   // wolf movement
   if (wolfReady && level.mode === 'walk') {
     let ix = input.x, iy = input.y;
@@ -767,8 +807,9 @@ function frame() {
       const sw = Math.sin(ph) * 0.07 * move, dn = idle * 0.45;
       fpL.position.set(-0.3, -0.4 - dn + Math.abs(Math.sin(ph)) * 0.015 * move, -0.05 + sw); fpL.rotation.set(0.38 + sw * 0.8, -0.18, 0.1);
       fpR.position.set(0.3, -0.4 - dn + Math.abs(Math.cos(ph)) * 0.015 * move, -0.05 - sw); fpR.rotation.set(0.38 - sw * 0.8, 0.18, -0.1);
-      fpCross.position.set(FP.fpPos.x - Math.sin(camYaw) * 0.32, FP.fpPos.y - 0.58, FP.fpPos.z - Math.cos(camYaw) * 0.32); fpCross.rotation.set(0, camYaw, 0);
-      fpCross.scale.setScalar(idle > 0.3 ? 0.62 : 0.001);
+      const prt = innerHeight > innerWidth, cd = prt ? 0.36 : 0.32; // portrait: smaller, lower, a touch further out so they don't fill the screen
+      fpCross.position.set(FP.fpPos.x - Math.sin(camYaw) * cd, FP.fpPos.y - (prt ? 0.66 : 0.58), FP.fpPos.z - Math.cos(camYaw) * cd); fpCross.rotation.set(0, camYaw, 0);
+      fpCross.scale.setScalar(idle > 0.3 ? (prt ? 0.4 : 0.62) : 0.001);
     }
     // the Wolf model hides in first person but still casts his shadow (colour/depth writes off; the shadow pass ignores those)
     const hideWolf = e > 0.6; if (wolfReady && hideWolf !== !!FP.hidden) { FP.hidden = hideWolf; setWolfGhost(hideWolf); }
@@ -826,6 +867,7 @@ loadAll().then(() => {
   renderer.compile(scene, camera); // warm shaders while the title screen is up
   window.__title?.ready();
   // QA hooks: ?drive  ?at=<metres along road>  ?short  ?end=win|lose
+  if (Q.has('greet')) { wolfState.pos.set(LAYOUT.pickup[0] - 5, 0, LAYOUT.pickup[1] + 0.5); wolfState.yaw = Math.PI / 2; camYawTarget = camYaw = 0; snapCam = true; }
   if (Q.has('walk')) { input.y = -(+Q.get('walk') || 0.6); }  // QA: hold the joystick forward
   if (Q.has('drive') || Q.has('at')) { level.enterCar(); if (Q.has('at')) level.teleportCar(+Q.get('at') || 0, Q.has('short') ? level.SHORT : level.MAIN); }
   if (Q.get('end')) setTimeout(() => level.forceEnd(Q.get('end') === 'win'), 300);
