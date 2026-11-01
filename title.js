@@ -1,4 +1,4 @@
-// Sunspots v9 launch sequence:  EES company intro (silent video)  ->  trippy title menu  ->  fuzzy melt into the game.
+// Sunspots v10 (launch sequence from v9):  EES company intro (silent video)  ->  trippy title menu  ->  fuzzy melt into the game.
 //
 //  * Intro: ./intro/ees_intro.mp4 (H.264, faststart) / .webm (VP9), muted + autoplay + playsinline, object-fit: contain
 //    on black so the logo is never cropped. A tap skips it (and that tap unlocks Web Audio). If autoplay is refused the
@@ -214,6 +214,7 @@ function openPanel(which) {
   for (const p of root.querySelectorAll('.panel')) p.classList.toggle('open', p.dataset.p === which);
   root.classList.toggle('paneled', !!which);
   if (which === 'credits') { const r = root.querySelector('.roll'); r.style.animation = 'none'; void r.offsetWidth; r.style.animation = ''; }
+  try { window.__audio?.credits?.(which === 'credits'); } catch (_) {}   // v10: The Eye Sets Over the Coral crossfades in under the roll
 }
 // v9 sound mode segmented control (Off / SFX / Music / All), kept in step with the HUD button via __audio.onMode
 const modeBtns = [...root.querySelectorAll('.modes button')];

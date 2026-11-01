@@ -488,14 +488,14 @@ function prop(gltf, { h, x, z, ry = 0, tint = '#ff8a8a', puddle = 1, collide = 0
   return holder;
 }
 
-let wolf, mixer, actWalk, actRun, wolfReady = false, wolfBaseScale = 1;
+let wolf, mixer, actWalk, actRun, actIdle, wolfReady = false, wolfBaseScale = 1;
 // scenes.js drives the Wolf on foot during cutscenes through this puppet (gait from speed, head look)
 const puppet = { on: false, speed: 0, headYaw: 0, headTilt: 0, base: 1 };
 let director = null;
 const wolfState = { pos: new THREE.Vector3(LAYOUT.wolfStart[0], 0, LAYOUT.wolfStart[1]), yaw: LAYOUT.wolfStart[2], speed: 0 };
 // ---------------------------------------------------------------- level 1: Last Minute Snacks (roads, car, store, townsfolk, HUD)
 const level = createLevel({ scene, colliders, feltMat, rbox, makeMeltable, feltify: (r) => feltify(r), rnd, clamp, lerp, smooth, FELT,
-  onEnterCar: () => { if (actWalk) { actWalk.setEffectiveWeight(0); actRun.setEffectiveWeight(0); } wolfState.speed = 0; snapCam = true; },
+  onEnterCar: () => { if (actWalk) { actWalk.setEffectiveWeight(0); actRun.setEffectiveWeight(0); actIdle.setEffectiveWeight(1); } wolfState.speed = 0; snapCam = true; },
   onReset: () => { director?.reset(); moth?.reset(); wolfState.pos.set(LAYOUT.wolfStart[0], 0, LAYOUT.wolfStart[1]); wolfState.yaw = LAYOUT.wolfStart[2]; wolfState.speed = 0; camYawTarget = camYaw = 0; snapCam = true; } });
 let snapCam = false;
 // first person: the moth driver's cockpit (default while driving) + the Wolf's own eyes on foot (eye button, hold 0.5 s / V)
@@ -531,8 +531,8 @@ if (FP.on) eyeBtn.classList.add('fp');
 async function loadAll() {
   const M = './models/';
   const TOWN_MODELS = ['adobe_a', 'adobe_b', 'adobe_c', 'adobe_small', 'diner', 'fountain', 'bus_shelter', 'lamp', 'payphone', 'cactus_tall', 'cactus_mid', 'cactus_small', 'cactus_far'];
-  const [w, wRun, bench, hydrant, car, lantern, rain, ...townG] = await Promise.all([
-    'wolf.glb', 'wolf_run_anim.glb', 'busstop_bench.glb', 'mainst_hydrant.glb', 'mainst_car.glb',
+  const [w, bench, hydrant, car, lantern, rain, ...townG] = await Promise.all([
+    'wolf_armsdown.glb', 'busstop_bench.glb', 'mainst_hydrant.glb', 'mainst_car.glb',
     'mines_lantern.glb', 'busstop_rain_cloud.glb', ...TOWN_MODELS.map(n => 'town/' + n + '.glb')].map(f => load(M + f)));
   const town = Object.fromEntries(TOWN_MODELS.map((n, i) => [n, townG[i]]));
   placeTown(town); placeFarCacti(town.cactus_far); level.placeRoadCacti(town);
@@ -564,10 +564,10 @@ async function loadAll() {
   wolf.userData.mats = []; wm.traverse(o => { if (o.isMesh) [].concat(o.material).forEach(m => wolf.userData.mats.push(m)); });
   for (const m of wolf.userData.mats) patchRider(m, 2.4, wolfRM); // wild: fuzzy-melts while riding shotgun
   mixer = new THREE.AnimationMixer(wm);
-  // Meshy's auto-rig tears the mesh when the arm/spine/hip-twist channels play (the model is
-  // sculpted arms-crossed, the clips swing the arms). Keep only the leg chain + vertical hip bob;
-  // the upper body stays in the clean bind pose and gets procedural sway instead.
-  const legClip = (clip) => {
+  // v10: arms-down Meshy rig (texture-fixed grey) with idle / walk / run clips merged in one file (tools/build_armsdown.mjs).
+  // Full-body clips now (the old arms-crossed sculpt tore when the arms moved, so v9 kept only the legs).
+  // Hips keep their bind x/z (clips stay in place) and a slightly softer bob; scale tracks dropped.
+  const inPlace = (clip) => {
     const tracks = [];
     for (const tr of clip.tracks) {
       const [bone, prop] = tr.name.split('.');
@@ -577,12 +577,15 @@ async function loadAll() {
         for (let i = 0; i < t2.values.length; i += 3) { t2.values[i] = b.position.x; t2.values[i + 2] = b.position.z; t2.values[i + 1] = b.position.y + (t2.values[i + 1] - b.position.y) * 0.8; }
         tracks.push(t2); continue;
       }
-      if (prop === 'quaternion' && /(UpLeg|Leg|Foot|ToeBase)$/.test(bone)) tracks.push(tr.clone());
+      tracks.push(tr.clone());
     }
-    return new THREE.AnimationClip(clip.name + '_legs', clip.duration, tracks);
+    return new THREE.AnimationClip(clip.name + '_inplace', clip.duration, tracks);
   };
-  actWalk = mixer.clipAction(legClip(w.animations[0])); actRun = mixer.clipAction(legClip(wRun.animations[0]));
-  actWalk.play(); actRun.play(); actWalk.setEffectiveWeight(0); actRun.setEffectiveWeight(0);
+  const wClip = n => w.animations.find(c => c.name === n) || w.animations[0];
+  // walk/run are phase-driven (timeScale 0, time set from the shared gait phase); idle loops on its own clock.
+  // Weights always sum to 1 (the bind pose is an A-pose, never shown). No arms-crossed clip exists for this rig, so a long idle is just idle.
+  actWalk = mixer.clipAction(inPlace(wClip('walk'))); actRun = mixer.clipAction(inPlace(wClip('run'))); actIdle = mixer.clipAction(inPlace(wClip('idle')));
+  actWalk.play(); actRun.play(); actIdle.play(); actWalk.setEffectiveWeight(0); actRun.setEffectiveWeight(0); actIdle.setEffectiveWeight(1);
   wolf.userData.body = wm; wolf.userData.sy = wm.scale.y; wolf.userData.phase = 0;
   // idle head glance: only the Head bone (not in any clip) gets a small yaw/tilt on top of its bind pose
   const hb = wm.getObjectByName('Head');
@@ -716,8 +719,9 @@ function frame() {
   // wolf riding shotgun
   if (wolfReady && level.inCar && !puppet.on) {
     level.car.root.updateMatrixWorld(true); cockpit.wolfRig.matrixWorld.decompose(wolf.position, wolf.quaternion, tmpV); wolf.scale.setScalar(wolfBaseScale * level.seatScale); wolfState.pos.copy(wolf.position).setY(0);
-    const hd0 = wolf.userData.head; if (hd0) { hd0.e.set(cockpit.wolfHeadTilt || 0, cockpit.wolfHeadYaw || 0, 0); hd0.q.setFromEuler(hd0.e); hd0.bone.quaternion.copy(hd0.bind).multiply(hd0.q); }
-    const body = wolf.userData.body; body.rotation.set(0, 0, Math.sin(t * 7) * 0.01 * clamp(level.car.v / 10, 0, 1)); body.position.x = 0; mixer.update(dt);
+    actWalk.setEffectiveWeight(0); actRun.setEffectiveWeight(0); actIdle.setEffectiveWeight(1); actIdle.timeScale = 1;
+    const body = wolf.userData.body; body.rotation.set(0, 0, Math.sin(t * 7) * 0.01 * clamp(level.car.v / 10, 0, 1)); body.position.x = 0; body.scale.y = wolf.userData.sy; mixer.update(dt);
+    const hd0 = wolf.userData.head; if (hd0) { hd0.e.set(cockpit.wolfHeadTilt || 0, cockpit.wolfHeadYaw || 0, 0); hd0.q.setFromEuler(hd0.e); hd0.bone.quaternion.multiply(hd0.q); }
   }
   cockpit.wolfH = 1.75 * wolfBaseScale * level.seatScale; cockpit.update(dt, t);
   { const rk = smooth(clamp(wild, 0, 1)); level.car.body.updateMatrixWorld(true); RIDE.uCar.value.copy(level.car.body.matrixWorld); RIDE.uCarInv.value.copy(level.car.body.matrixWorld).invert();
@@ -726,12 +730,12 @@ function frame() {
   if (wolfReady && puppet.on) {
     const sp = puppet.speed, move = clamp(sp / 1.4, 0, 1), idle = 1 - move;
     wolf.userData.phase = (wolf.userData.phase + dt * 0.95 * clamp(sp / 2.4, 0.45, 1.25) * move) % 1; const ph = wolf.userData.phase;
-    actWalk.setEffectiveWeight(move); actRun.setEffectiveWeight(0); actWalk.time = ph * actWalk.getClip().duration; actWalk.timeScale = actRun.timeScale = 0;
+    actWalk.setEffectiveWeight(move); actRun.setEffectiveWeight(0); actIdle.setEffectiveWeight(idle); actWalk.time = ph * actWalk.getClip().duration; actWalk.timeScale = actRun.timeScale = 0;
     const body = wolf.userData.body, shift = Math.sin(t * 0.55) * 0.6 + Math.sin(t * 0.23 + 1.3) * 0.4;
-    body.rotation.set(0.04 * move, 0, Math.sin(ph * Math.PI * 2) * 0.035 * move + idle * shift * 0.022); body.position.x = idle * shift * 0.025;
-    body.scale.y = wolf.userData.sy * (1 + idle * 0.012 * Math.sin(t * 2.1));
+    body.rotation.set(0.02 * move, 0, Math.sin(ph * Math.PI * 2) * 0.02 * move + idle * shift * 0.012); body.position.x = idle * shift * 0.012;
+    body.scale.y = wolf.userData.sy;
     mixer.update(dt);
-    const hd = wolf.userData.head; if (hd) { hd.yaw = puppet.headYaw || 0; hd.tilt = puppet.headTilt || 0; hd.e.set(hd.tilt * 0.4, hd.yaw, hd.tilt); hd.q.setFromEuler(hd.e); hd.bone.quaternion.copy(hd.bind).multiply(hd.q); }
+    const hd = wolf.userData.head; if (hd) { hd.yaw = puppet.headYaw || 0; hd.tilt = puppet.headTilt || 0; hd.e.set(hd.tilt * 0.4, hd.yaw, hd.tilt); hd.q.setFromEuler(hd.e); hd.bone.quaternion.multiply(hd.q); }
     wolfState.pos.copy(wolf.position).setY(0); wolfState.yaw = wolf.rotation.y; wolfState.speed = sp;
   }
   // wolf movement
@@ -762,19 +766,19 @@ function frame() {
     const cadence = lerp(0.95, 1.55, runK) * clamp(sp / 2.4, 0.45, 1.25); // gait cycles per second
     wolf.userData.phase = (wolf.userData.phase + dt * cadence * move) % 1;
     const ph = wolf.userData.phase;
-    actWalk.setEffectiveWeight(move * (1 - runK)); actRun.setEffectiveWeight(move * runK);
+    actWalk.setEffectiveWeight(move * (1 - runK)); actRun.setEffectiveWeight(move * runK); actIdle.setEffectiveWeight(1 - move);
     actWalk.time = ph * actWalk.getClip().duration; actRun.time = ph * actRun.getClip().duration;
     actWalk.timeScale = actRun.timeScale = 0;
     // procedural upper body: forward lean with speed, sway with the stride, lean into turns, idle breathing + slow weight shift
     const body = wolf.userData.body, idle = 1 - move;
     wolf.userData.turn = lerp(wolf.userData.turn || 0, clamp((wolfState.yaw - (wolf.userData.lastYaw ?? wolfState.yaw)) / Math.max(dt, 1e-3), -3, 3), 1 - Math.exp(-dt * 6));
     wolf.userData.lastYaw = wolfState.yaw;
-    body.rotation.x = lerp(0, 0.16, runK) * move + 0.04 * move;
+    body.rotation.x = lerp(0, 0.05, runK) * move + 0.02 * move; // the v10 clips carry their own lean; just a touch extra
     // idle: slow weight shift side to side (hip sway + counter-lean), breathing
     const shift = Math.sin(t * 0.55) * 0.6 + Math.sin(t * 0.23 + 1.3) * 0.4;
-    body.rotation.z = Math.sin(ph * Math.PI * 2) * 0.035 * move - wolf.userData.turn * 0.04 * move + idle * shift * 0.022;
-    body.position.x = idle * shift * 0.025;
-    body.scale.y = wolf.userData.sy * (1 + idle * 0.012 * Math.sin(t * 2.1));
+    body.rotation.z = Math.sin(ph * Math.PI * 2) * 0.02 * move - wolf.userData.turn * 0.04 * move + idle * shift * 0.012; // idle clip breathes; keep a faint weight shift
+    body.position.x = idle * shift * 0.012;
+    body.scale.y = wolf.userData.sy;
     mixer.update(dt);
     const hd = wolf.userData.head;
     if (hd) {
@@ -785,7 +789,7 @@ function frame() {
       hd.yaw = lerp(hd.yaw, g * idle - wolf.userData.turn * 0.05 * move, k);
       hd.tilt = lerp(hd.tilt, idle * 0.05 * Math.sin(t * 0.4), k);
       hd.e.set(hd.tilt * 0.4, hd.yaw, hd.tilt); hd.q.setFromEuler(hd.e);
-      hd.bone.quaternion.copy(hd.bind).multiply(hd.q);
+      hd.bone.quaternion.multiply(hd.q);
     }
     // camera auto-follows behind travel direction unless the player recently dragged the sky
     manualLookT -= dt;
@@ -823,7 +827,7 @@ function frame() {
     }
     // sleeves + paws ride the camera; crossed arms hang off the body (only seen when looking down while idle)
     const showArms = e > 0.85 && wolfReady;
-    fpArms.visible = fpCross.visible = showArms;
+    fpArms.visible = showArms; fpCross.visible = false; // v10: arms-down Wolf, so no crossed-arms prop when looking down
     if (showArms) {
       const move = clamp(wolfState.speed / 1.4, 0, 1), ph = (wolf.userData.phase || 0) * Math.PI * 2, idle = 1 - move;
       fpArms.position.copy(camera.position); fpArms.quaternion.copy(camera.quaternion);
@@ -899,7 +903,7 @@ loadAll().then(() => {
   // motion scenes (scenes.js). ?scenes=0 turns them off (old instant arrival / 2:00 lose)
   if (Q.get('scenes') !== '0') {
     director = createDirector({ scene, camera, L: level, CK: cockpit, load: (u) => load(u), normalize, feltMat, rbox, colliders, puppet,
-      getWolf: () => wolf, getMoth: () => moth, playCue: (n) => audio.playCue(n), onSay: (who, blocking, dur) => audio.say(who, blocking, dur), onSkip: () => audio.ui('confirm'),
+      getWolf: () => wolf, getMoth: () => moth, playCue: (n) => audio.playCue(n), onSay: (who, blocking, dur, vo) => audio.say(who, blocking, dur, vo), voDur: (n) => audio.voDur(n), onSkip: () => { audio.stopVoice(); audio.ui('confirm'); },
       onFreeze: () => { for (const k in keys) keys[k] = false; input.x = input.y = 0; joyId = null; lookId = null; joy.style.display = 'none';
         const c = level.ctl; c.left = c.right = c.gas = c.brake = false; c.tilt = null; document.querySelectorAll('#drive .on, #drive .down').forEach(b => b.classList.remove('on', 'down')); } });
     puppet.base = wolfBaseScale; window.__director = director;
@@ -939,12 +943,12 @@ addEventListener('pointerdown', e => { const b = e.target.closest?.('.dbtn,#getI
 const _fv = new THREE.Vector3();
 function calibrateFeet() {
   const f = wolf.userData.feet, wm = wolf.userData.body; if (!f?.length) return [0, 0.5];
-  const prof = [], wW = actWalk.getEffectiveWeight(), wR = actRun.getEffectiveWeight(), tW = actWalk.time, tR = actRun.time, N = 64, best = f.map(() => [1e9, 0]);
-  actWalk.setEffectiveWeight(1); actRun.setEffectiveWeight(0);
+  const prof = [], wW = actWalk.getEffectiveWeight(), wR = actRun.getEffectiveWeight(), wI = actIdle.getEffectiveWeight(), tW = actWalk.time, tR = actRun.time, tI = actIdle.time, N = 64, best = f.map(() => [1e9, 0]);
+  actWalk.setEffectiveWeight(1); actRun.setEffectiveWeight(0); actIdle.setEffectiveWeight(0);
   for (let k = 0; k < N; k++) { actWalk.time = k / N * actWalk.getClip().duration; mixer.update(0); wm.updateMatrixWorld(true);
     f.forEach((b, i) => { b.getWorldPosition(_fv); const y = _fv.y; (prof[i] ||= []).push(y); if (y < best[i][0]) best[i] = [y, k / N]; }); }
   wolf.userData.footProfile = prof.map(r => r.map(y => +(y - Math.min(...r)).toFixed(3)));
-  actWalk.setEffectiveWeight(wW); actRun.setEffectiveWeight(wR); actWalk.time = tW; actRun.time = tR; mixer.update(0);
+  actWalk.setEffectiveWeight(wW); actRun.setEffectiveWeight(wR); actIdle.setEffectiveWeight(wI); actWalk.time = tW; actRun.time = tR; actIdle.time = tI; mixer.update(0);
   // contact = the phase where the foot first comes down to within 8% of its lowest point (heel strike), not the lowest point itself
   return wolf.userData.footProfile.map((r, i) => { const th = Math.max(...r) * 0.08; for (let k = 0; k < N; k++) if (r[k] < th && r[(k + N - 1) % N] >= th) return k / N; return best[i][1]; });
 }

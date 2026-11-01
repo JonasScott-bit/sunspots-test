@@ -64,6 +64,9 @@ export const CUES = {
   // v8 (audio.js playCue): mus_store_arrive -> cue_store_arrival; sfx_boots_stop -> five slowing boot thuds + a bump;
   // sfx_car_door_open/close -> car door; sfx_store_door_shut -> car door shut pitched down (stand-in);
   // mus_win_tag / mus_lose_tag -> sting_win / sting_lose; amb_radio_outside -> the radio's outside muffle.
+  // v10: mus_store_arrive -> cue_pro_readymade_last_snack (runs through the win); mus_win_tag -> Sting Suite A twang;
+  // mus_lose_tag -> cue_pro_closed_in_my_face; mus_roadside -> cue_pro_wheel_on_a_stool; sting_roadside -> Sting Suite A rimshot chord;
+  // radio_restore -> no sound (the beat's radio: null hands the radio back). say beats with vo: play that vo_* line (9 dB music duck).
   // Every other name is a logged silent no-op. Say beats get a non-verbal bark via ctx.onSay (moth barks, wolf grunts, cast mumbles).
 };
 
@@ -94,7 +97,7 @@ export const SCENES = {
       { wait: 0.5 },
       { do: 'cam', pos: { who: 'car', off: [2.9, 1.45, 1.3] }, look: { who: 'moth', head: true, dy: -0.05 }, fov: 34 },
       { wait: 0.35 },
-      { do: 'say', who: 'moth', text: 'Destination.' },
+      { do: 'say', who: 'moth', text: 'Destination.', vo: 'vo_moth_01' },
       { do: 'audio', cue: 'amb_radio_outside', radio: 0.45 },
       { do: 'cam', pos: [3.4, 1.55, 1.4], look: [-1.4, 1.0, 6.2], fov: 46 },
       { par: [
@@ -116,22 +119,23 @@ export const SCENES = {
       { do: 'prop', id: 'door', act: 'close', wait: true },
       { do: 'cam', pos: [6.6, 1.45, 10.8], look: [-1.2, 1.0, 5.2], fov: 46 },
       { wait: 0.6 },
-      { do: 'say', who: 'squid', text: "He's been in there a while." },
-      { do: 'say', who: 'farm', text: 'Eleven seconds.' },
+      { do: 'say', who: 'squid', text: "He's been in there a while.", vo: 'vo_squid_01' },
+      { do: 'say', who: 'farm', text: 'Eleven seconds.', vo: 'vo_farmhand_01' },
       { wait: 0.4 },
       { do: 'cam', pos: [1.7, 1.3, 4.9], look: [0, 1.15, 0.6], fov: 40 },
       { do: 'prop', id: 'door', act: 'open', wait: true }, { do: 'audio', cue: 'sfx_store_door_bell' },
       { do: 'prop', snacks: true, id: 'snacks', act: 'show' },             // after the door is open, or the bag pokes through it
       { do: 'place', who: 'wolf', at: [0, -0.2], yaw: 0, show: true },
       { do: 'audio', cue: 'sfx_chip_bag' },
+      { do: 'say', who: 'clerk', text: 'Enjoy your snacks. Responsibly. Slowly. Elsewhere.', vo: 'vo_clerk_14', wait: false },   // v10: offscreen, from inside the store
       { do: 'move', who: 'wolf', path: [[0.15, 1.2], [0.3, 2.3]], speed: 1.25 },
       { do: 'prop', id: 'door', act: 'close' },
       { do: 'look', who: 'wolf', at: 'camera', body: true, dur: 0.5 },
-      { wait: 0.3 },
-      { do: 'say', who: 'wolf', text: 'They had one kind.' },
+      { wait: 1.3 },                                                     // lets the clerk finish (v9: 0.3)
+      { do: 'say', who: 'wolf', text: 'They had exactly one kind of snack. One.', vo: 'vo_wolf_01' },
       { do: 'cam', pos: [2.6, 1.5, 0.7], look: [-1.0, 1.1, 3.6], fov: 44, to: { pos: [3.4, 1.9, -0.1], look: [-1.0, 1.05, 3.8], fov: 48 }, dur: 5, ease: 'inout' },   // two-shot from the doorway: Wolf + moth, car behind
       { do: 'look', who: 'moth', at: 'wolf', body: true },
-      { do: 'say', who: 'moth', text: 'Five stars is customary.' },
+      { do: 'say', who: 'moth', text: 'Five stars is customary.', vo: 'vo_moth_02' },
       { do: 'audio', cue: 'mus_win_tag' },
       { do: 'call', fn: 'win' },
     ],
@@ -158,17 +162,19 @@ export const SCENES = {
       { do: 'move', who: 'wolf', path: [[0.05, 3.4], [0, 1.95]], speed: 1.45 },
       { do: 'cam', pos: [2.7, 1.5, 2.7], look: [-0.25, 1.35, 1.0], fov: 40 },
       { wait: 0.35 },
-      { do: 'say', who: 'clerk', text: 'Closed.' },
+      { do: 'say', who: 'clerk', text: 'Closed.', vo: 'vo_clerk_01' },
       { do: 'hide', who: 'clerk' },
       { do: 'prop', id: 'door', act: 'close', dur: 0.35, wait: true }, { do: 'audio', cue: 'sfx_store_door_shut' },
       { do: 'prop', id: 'sign', act: 'flip', wait: true }, { do: 'audio', cue: 'sfx_sign_flip' },
       { do: 'prop', id: 'bolt', act: 'lock' }, { do: 'audio', cue: 'sfx_lock_clunk' },
       { do: 'cam', pos: [0.3, 1.52, 0.62], look: { who: 'wolf', head: true, dy: -0.05 }, fov: 34 },   // the Wolf's face
-      { wait: 1.7 },
-      { do: 'say', who: 'clerk', text: 'Two o\'clock is two o\'clock.' },
+      { wait: 0.5 },
+      { do: 'say', who: 'wolf', text: 'Locked. They actually locked it.', vo: 'vo_wolf_20' },   // v10: was a 1.7 s silent beat
+      { do: 'say', who: 'clerk', text: 'Two o\'clock is two o\'clock.', vo: 'vo_clerk_02' },
       { do: 'cam', pos: [3.0, 1.6, 8.8], look: [-0.2, 1.3, 1.2], fov: 40, to: { pos: [3.6, 2.0, 11.0] }, dur: 4, ease: 'inout' },
       { wait: 0.4 },
-      { do: 'say', who: 'moth', text: 'The meter is still running.' },
+      { do: 'say', who: 'moth', text: 'The meter is still running.', vo: 'vo_moth_03' },
+      { do: 'say', who: 'wolf', text: 'Tomorrow. We leave at noon.', vo: 'vo_wolf_22' },
       { do: 'audio', cue: 'mus_lose_tag' },
       { do: 'call', fn: 'lose' },
     ],
@@ -182,13 +188,19 @@ export const SCENES = {
     stage: S => S.stageRoadside(),
     beats: [
       { do: 'audio', cue: 'amb_gallery_hush' },
+      { do: 'audio', cue: 'mus_roadside', radio: 0.25 },                 // v10: Wheel on a Stool (25 s cut) over the art; the radio sinks
       { do: 'prop', id: 'wheel', act: 'spin' }, { do: 'audio', cue: 'sfx_wheel_spin' },
-      { do: 'say', who: 'crow', text: 'Is it art?', dur: 1.5 },
-      { do: 'say', who: 'ram', text: "It's on a stool.", dur: 1.6 },
+      { do: 'say', who: 'crow', text: 'Is it art?', dur: 1.5, vo: 'vo_crow_01' },
+      { do: 'say', who: 'ram', text: "It's on a stool.", dur: 1.6, vo: 'vo_ram_01' },
       { do: 'look', who: 'crow', at: 'car', track: 6 },
       { do: 'look', who: 'ram', at: 'car', track: 6 },
-      { do: 'say', who: 'crow', text: 'That car has boots.', dur: 1.7 },
-      { do: 'say', who: 'ram', text: 'So does everyone.', dur: 1.8 },
+      { do: 'say', who: 'crow', text: 'That car has boots.', dur: 1.7, vo: 'vo_crow_02' },
+      { do: 'say', who: 'ram', text: 'So does everyone.', dur: 1.8, vo: 'vo_ram_02' },
+      { do: 'audio', cue: 'sting_roadside' },                            // Sting Suite A, the rimshot chord: the punchline
+      { wait: 0.6 },
+      { do: 'say', who: 'crow', text: 'Five stars. For the composition.', vo: 'vo_crow_12' },
+      { do: 'say', who: 'ram', text: 'Fine. One star. For the wheel.', vo: 'vo_ram_11' },
+      { do: 'audio', cue: 'radio_restore', radio: null },
     ],
   },
 
@@ -244,12 +256,17 @@ export function createDirector(ctx) {
     m.traverse(k => { if (k.isMesh) { k.castShadow = k.receiveShadow = true; k.frustumCulled = false; for (const mt of [].concat(k.material)) { mt.roughness = 1; mt.metalness = 0; } } });
     holder.add(m); holder.visible = false; scene.add(holder);
     const a = baseActor(name, holder); a.h = h; a.body = m; a.sy = m.scale.y; a.ph = Math.random() * 6.28; a.w = 0;
-    a.mixer = new THREE.AnimationMixer(m); if (g.animations[0]) { a.act = a.mixer.clipAction(g.animations[0]); a.act.play(); a.act.setEffectiveWeight(0); }
+    // v10 arms-down rigs carry named idle/walk/run clips (A-pose bind, so idle always fills what walk leaves); older files: one walk clip over the bind pose
+    const clip = n => g.animations.find(c => c.name === n);
+    a.mixer = new THREE.AnimationMixer(m); const wc = clip('walk') || g.animations[0], ic = clip('idle');
+    if (wc) { a.act = a.mixer.clipAction(wc); a.act.play(); a.act.setEffectiveWeight(ic ? 0.001 : 0); }
+    if (ic) { a.idle = a.mixer.clipAction(ic); a.idle.play(); a.idle.time = Math.random() * ic.duration; }
     m.traverse(k => { if (k.isBone && !a.head && /^head$/i.test(k.name)) a.head = k; });
     a.tick = (dt, t) => {
       a.w = lerp(a.w, clamp(a.speed / 0.7, 0, 1), 1 - Math.exp(-dt * 7));
-      if (a.act) { a.act.setEffectiveWeight(a.w); a.act.timeScale = clamp(a.speed / 1.0, 0.7, 1.4); }
-      const idle = 1 - a.w; m.scale.y = a.sy * (1 + idle * 0.014 * Math.sin(t * 1.9 + a.ph)); m.rotation.z = idle * 0.025 * Math.sin(t * 0.5 + a.ph);
+      if (a.act) { a.act.setEffectiveWeight(a.idle ? Math.max(a.w, 0.001) : a.w); a.act.timeScale = clamp(a.speed / 1.0, 0.7, 1.4); }
+      const idle = 1 - a.w; if (a.idle) a.idle.setEffectiveWeight(idle);
+      else { m.scale.y = a.sy * (1 + idle * 0.014 * Math.sin(t * 1.9 + a.ph)); m.rotation.z = idle * 0.025 * Math.sin(t * 0.5 + a.ph); }
       a.mixer.update(dt); if (a.head && holder.visible) applyHead(a, dt);
     };
     return a;
@@ -314,13 +331,17 @@ export function createDirector(ctx) {
     D.props.door = { ang: 0, set(v) { this.ang = v; hinge.rotation.y = v; }, act(a, b) { const to = a === 'open' ? -1.75 : 0, from = this.ang; return tween(b.dur ?? 0.45, k => this.set(lerp(from, to, k)), 'inout'); } };
     D.props.sign = { ang: 0, set(v) { this.ang = v; sign.rotation.y = v; }, act(a, b) { const from = this.ang, to = b.to === 'open' ? 0 : Math.PI; return tween(b.dur ?? 0.4, k => this.set(lerp(from, to, k)), 'inout'); } };
     D.props.bolt = { set(v) { bolt.position.x = 1.72 + v * 0.17; }, act(a, b) { return tween(b.dur ?? 0.2, k => this.set(a === 'unlock' ? 1 - k : k), 'in'); } };
-    // the snacks: one felt bag of chips (he's sculpted arms-crossed, so it rides tucked against his chest)
+    // the snacks: one felt bag of chips, hanging from the Wolf's right paw (v10 arms-down rig); falls back to the chest tuck if the rig has no hand bone
     const snacks = new THREE.Group();
     const bag = rbox(0.4, 0.5, 0.13, 0.06, '#e2574c'); bag.position.y = -0.25; snacks.add(bag);
     const lab = new THREE.Mesh(new THREE.PlaneGeometry(0.32, 0.16), new THREE.MeshStandardMaterial({ map: label('CHIPS', '#ffe7a8', '#a2302a', 256, 128, 'bold 74px Futura, Avenir, sans-serif'), roughness: 1 })); lab.position.set(0, 0.0, 0.07); snacks.add(lab);
     const crimp = rbox(0.42, 0.06, 0.09, 0.02, '#c9463d'); crimp.position.y = 0.24; snacks.add(crimp);
     snacks.rotation.set(-0.15, 0, 0.35); snacks.visible = false; snacks.traverse(o => { if (o.isMesh) o.castShadow = true; });
-    D.props.snacks = { act(a) { const w = getWolf(); if (a === 'show') { w.add(snacks); const s = 1 / (w.scale.x || 1); snacks.scale.setScalar(s); snacks.position.set(0.12 * s, 1.12 * s, 0.3 * s); snacks.visible = true; } else snacks.visible = false; return null; }, hide() { snacks.visible = false; } };
+    D.props.snacks = { act(a) { const w = getWolf(); if (a === 'show') { const hb = w.getObjectByName('RightHand');
+          if (hb) { w.updateMatrixWorld(true); const ws = new THREE.Vector3(), wq = new THREE.Quaternion(), hp = new THREE.Vector3(); hb.getWorldScale(ws); hb.getWorldPosition(hp);
+            hb.add(snacks); snacks.scale.setScalar(1 / ws.x); w.getWorldQuaternion(wq); snacks.quaternion.copy(hb.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(wq)).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.1, 0, 0.2)));
+            hp.y -= 0.17; snacks.position.copy(hb.worldToLocal(hp)); }
+          else { w.add(snacks); const s = 1 / (w.scale.x || 1); snacks.scale.setScalar(s); snacks.position.set(0.12 * s, 1.12 * s, 0.3 * s); snacks.rotation.set(-0.15, 0, 0.35); } snacks.visible = true; } else snacks.visible = false; return null; }, hide() { snacks.visible = false; } };
     D.props.store = { reset() { D.props.door.set(0); D.props.sign.set(0); D.props.bolt.set(0); D.props.snacks.hide(); } };
   }
   function buildRoadside() {
@@ -374,7 +395,8 @@ export function createDirector(ctx) {
   }
 
   // ── beats
-  function sayDur(b) { return b.dur ?? Math.max(1.6, 0.9 + b.text.length * 0.055); }
+  // v10: a beat with a voice line (b.vo) lasts at least the clip + 0.35 s
+  function sayDur(b) { const d = b.dur ?? Math.max(1.6, 0.9 + b.text.length * 0.055), v = b.vo ? (ctx.voDur?.(b.vo) || 0) : 0; return v ? Math.max(d, v + 0.35) : d; }
   function startBeat(b, run, instant) {
     if (typeof b.wait === 'number' && !b.do) return instant ? null : tween(b.wait, () => {});
     if (b.par) { const kids = b.par.map(k => { const tk = startBeat(k, run, instant); return tk; }).filter(Boolean); if (!kids.length) return null;
@@ -412,7 +434,7 @@ export function createDirector(ctx) {
     const [label, color] = SPEAKERS[b.who] || [String(b.who).toUpperCase(), '#fff3dc'];
     const blocking = D.run?.sc.blocking;
     let bub = null;
-    ctx.onSay?.(b.who, !!blocking, dur);                             // audio: a non-verbal bark, never the words
+    ctx.onSay?.(b.who, !!blocking, dur, b.vo);                       // audio: the voice line (b.vo), else a non-verbal bark
     if (blocking) { ui.subName.textContent = label; ui.subName.style.color = color; ui.subText.textContent = b.text; ui.sub.classList.add('on'); }
     else { bub = document.createElement('div'); bub.className = 'sbub'; bub.innerHTML = `<b style="color:${color}">${label}</b><span></span>`; bub.querySelector('span').textContent = b.text; ui.bubbles.appendChild(bub); D.bubbles.push({ el: bub, who: a, t: 0 }); requestAnimationFrame(() => bub.classList.add('on')); }
     if (a && b.who !== 'wolf') a.nod = 0;                            // a tiny deadpan nod on the line
@@ -624,7 +646,7 @@ export function createDirector(ctx) {
   async function init() {
     buildStoreProps(); buildRoadside();
     D.actors.wolf = wolfActor(); D.actors.moth = mothActor(); D.actors.car = carActor();
-    const spec = [['clerk', './models/scene/heron.glb', 2.05], ['crow', './models/scene/crow.glb', 1.6], ['ram', './models/scene/ram.glb', 1.75],
+    const spec = [['clerk', './models/scene/heron_armsdown.glb', 2.05], ['crow', './models/scene/crow_armsdown.glb', 1.6], ['ram', './models/scene/ram.glb', 1.75],
       ['squid', './models/cast/wanderer_banana_squid_walking.glb', 1.7], ['farm', './models/cast/wanderer_shovel_farmhand_walking.glb', 1.8]];
     const gl = await Promise.all(spec.map(([, u]) => load(u).catch(e => { console.warn('scene cast', u, e); return null; })));
     spec.forEach(([n, , h], i) => { if (gl[i]) D.actors[n] = glbActor(n, gl[i], h); });
