@@ -1,4 +1,4 @@
-// town.js — Sunspots town slice: four diorama interiors (Diner, Laundromat, Post Office, DMV) + two errands.
+// town.js — Sunspots town slice: diorama interiors (Main St, Civic, Adobe Row, The Neon Strip) + four errands.
 // Each room is its own small THREE.Scene seen through a fixed dollhouse camera (3 walls, open front, ~8x6 m).
 // While a room is open the town is hidden and paused (main.js skips its update and renders only the room).
 // Mobile budget per room: ~60k tris, <=3 rigged characters animating (the Wolf + 2), 512px webp textures.
@@ -17,6 +17,10 @@ const ROOMS = {
   yard:       { name: 'CROW\'S YARD',       wall: '#c9a77a', trim: '#7a5a3a', floor: '#c9a06a', floor2: '#b88f5a', light: '#ffe6b8' },
   bowl:       { name: 'GUTTER BOWL',        wall: '#6b4c8a', trim: '#ff6fae', floor: '#e3b878', floor2: '#d6a868', light: '#ffe0f0' },
   thrift:     { name: 'SECOND SUN THRIFT',  wall: '#f2d27a', trim: '#c98a3a', floor: '#c9785a', floor2: '#b86a4f', light: '#fff0d0' },
+  // slice 3 (Town Plan: The Neon Strip, next to Gutter Bowl) — mission Leave The Light On
+  motel:      { name: 'LEAVE-THE-LIGHT-ON MOTEL', wall: '#f6c6d6', trim: '#2a9d9a', floor: '#e8d6b0', floor2: '#d6c098', light: '#ffe0f0' },
+  pool:       { name: 'THE MOTEL POOL',     wall: '#3a3f6a', trim: '#ff6fae', floor: '#f0e2c0', floor2: '#e2d2ae', light: '#e6f0ff' },
+  drivein:    { name: 'EYE-MAX DRIVE-IN',   wall: '#2a2440', trim: '#ff6fae', floor: '#6a5a5a', floor2: '#5e4f4f', light: '#ffe6c8' },
 };
 // outside: which building is which (diner door is LAYOUT.spots.diner_door; the three adobes face the square)
 const DOORS = [
@@ -28,14 +32,18 @@ const DOORS = [
   { room: 'ksun', x: -15.5, z: 0.3, sign: 'KSUN · CH. 2' },       // adobe_a (-19,1)
   { room: 'yard', x: -20.6, z: -8.2, sign: 'CROW\'S YARD' },      // adobe_b (-24,-9)
   { room: 'bowl', x: 20.4, z: -13.6, sign: 'GUTTER BOWL' },       // adobe_small (23,-15)
+  { room: 'motel', x: 28.8, z: -2.8, sign: 'MOTEL · NO VACANCY' }, // adobe_b (30,-6), front
+  { room: 'pool', x: 32.9, z: -4.2, sign: 'MOTEL POOL' },         // adobe_b (30,-6), side
+  { room: 'drivein', x: 24.0, z: 15.5, sign: 'EYE-MAX DRIVE-IN' }, // felt screen south of the east road
 ];
+const DRIVEIN = { x: 24.0, z: 19.0 }; // the outdoor Eye-Max screen (felt placeholder)
 const FENCE = { x: -15, z: 10.8 }; // the Crow's roadside collection (fence-stool), south of the town street
 
 export function createTown(ctx) {
   const { renderer, mainScene, load, normalize, feltMat, level, wolfState, audio = {} } = ctx;
   const LOW = sunspotsLowEnd();
   const T = { active: null, scene: null, camera: new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 80), rooms: {}, busy: false };
-  const S = { air: 0, skates: 0, dig: 0, sock: 0, num: 0, hubcap: false, sock2: false, letter: false, ticket: 0, waitT: 0, coffee: 0, held: null, seen: {} };
+  const S = { bulb: 0, swam: false, rooms: 0, air: 0, skates: 0, dig: 0, sock: 0, num: 0, hubcap: false, sock2: false, letter: false, ticket: 0, waitT: 0, coffee: 0, held: null, seen: {} };
   const placeholders = new Set();
   const $ = (id) => document.getElementById(id);
 
@@ -162,7 +170,7 @@ export function createTown(ctx) {
       const [stove, bear, gecko, booth, chair] = await Promise.all([glb('town2/stove.glb', 1.6), glb('town2/bear_lo.glb', 1.85, 'bear', { rest: 'breathe' }),
         glb('town2/gecko_lo.glb', 1.05, 'gecko', { rest: 'breathe' }), glb('town2/booth_prop.glb', 1.25, 'feltobj'), glb('town2/eye_chair.glb', 0.95)]);
       at(stove, -1.6, 0, -2.35, 0.25); G.add(stove);
-      const chairs = [chair, chair.clone(true), chair.clone(true)]; chairs.forEach((c, i) => { at(c, -2.4 + i * 1.3, 0, 0.15, 0); G.add(c); });
+      const chairs = [chair, chair.clone(true)]; chairs.forEach((c, i) => { at(c, -2.6 + i * 1.3, 0, 0.15, 0); G.add(c); });   // 2 stools (was 3: trimmed to stay under 60k tris)
       at(booth, 3.1, 0, -2.0, -Math.PI / 2); G.add(booth); at(bear, 2.6, 0, -0.6, -0.5); G.add(bear);
       at(gecko, -0.25, 1.08, -0.95, 0.15); G.add(gecko);   // upright, standing on the counter next to the pie (always upright: never on all fours)
       const pieCase = ph('pie case', new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.45, 0.5), new THREE.MeshStandardMaterial({ color: '#dff4ff', transparent: true, opacity: 0.35, roughness: 0.2 })));
@@ -268,7 +276,7 @@ export function createTown(ctx) {
       const shelf = box(1.0, 0.08, 0.5, '#7d8a6a', 0.02); at(shelf, -0.6, 1.9, -2.75); G.add(shelf);
       at(watch, -0.6, 1.98, -2.7, 0.1); G.add(watch);
       const now = ph('NOW SERVING display', sign('NOW SERVING\n2', 0.9, 0.5, '#2a2a2a', '#ff6a4a', 0.55)); at(now, -2.0, 2.4, -2.97); G.add(now); A.now = now;
-      const c2 = chair.clone(true); at(chair, -2.4, 0, 0.3); at(c2, -1.1, 0, 0.3); G.add(chair, c2);
+      const c2 = chair; at(c2, -1.6, 0, 0.3); G.add(c2);   // one eye chair (was 2: trimmed to stay under 60k tris)
       at(moth, -3.25, 0, 0.55, 0.45); G.add(moth);   // stands by the chairs (rest pose; the seated clip folded the Moth into the chair)
       at(heron, 0.9, 0, -1.4, Math.PI * 0.85); G.add(heron);
       const post = ph('take-a-number post', new THREE.Group()); const pole = cyl(0.04, 0.05, 1.2, '#9a9a90', 8); const disp = box(0.3, 0.24, 0.2, '#e0453a', 0.05); disp.position.y = 1.2; post.add(pole, disp); at(post, -3.1, 0, 1.9); G.add(post);
@@ -515,6 +523,170 @@ export function createTown(ctx) {
         { id: 'price', label: 'PRICE CHECK', o: ctr, talk: () => [['', 'Price check: the Fence-Stool.'], ['PLAID BOX', 'On a stool? Priceless.'], ['PLAID BOX', 'Off a stool? Two dollars.']] },
       ];
     },
+    // ================================================================ slice 3 — THE NEON STRIP: Leave-The-Light-On Motel, Motel Pool, Eye-Max Drive-In (mission: LEAVE THE LIGHT ON)
+    async motel(G, A) {
+      const [house, lamp, chair] = await Promise.all([glb('hf2/house_head.glb', 1.75, 'object', { rest: 'bob' }), glb('hf2/lamp_bulb.glb', 1.15, 'object', { rest: 'bob' }), glb('town2/eye_chair.glb', 0.95)]);
+      const desk = ph('front desk', box(3.0, 1.0, 0.7, '#2a9d9a', 0.06)); at(desk, 1.1, 0, -1.55); G.add(desk);
+      const dtop = box(3.2, 0.07, 0.85, '#f6efe0', 0.03); at(dtop, 1.1, 1.0, -1.55); G.add(dtop);
+      const ds = sign('FRONT DESK · CHECK-OUT 11', 2.4, 0.26, '#3a1f2a', '#ff6fae', 0.6); at(ds, 1.1, 0.55, -1.19); G.add(ds);
+      at(house, -1.15, 0, -2.0, 0.25); G.add(house);   // stands beside the desk (it is the building)
+      // the desk bell
+      const bell = ph('desk bell', new THREE.Group()); const bb = cyl(0.09, 0.1, 0.03, '#7a5a4a', 12); const dome = new THREE.Mesh(new THREE.SphereGeometry(0.075, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), feltMat('#d9c9a0')); dome.position.y = 0.03; bell.add(bb, dome);
+      at(bell, 0.4, 1.07, -1.35); G.add(bell);
+      // key board: every key is room 11
+      const kb = ph('key board (every key is 11)', new THREE.Group()); const kbb = box(1.2, 0.9, 0.06, '#7a5a4a', 0.03); kb.add(kbb);
+      const kt = sign('11   11   11\n11   11   11\n11   11   11', 1.05, 0.72, '#7a5a4a', '#ffd04a', 0.55); kt.position.set(0, 0.45, 0.035); kb.add(kt);
+      at(kb, 2.6, 1.55, -2.95); G.add(kb);
+      // NO VACANCY neon: every room is free
+      const nv = sign('NO', 0.55, 0.36, '#2a1f2a', '#ff6fae', 0.8); at(nv, -1.55, 2.5, -2.95); G.add(nv);
+      const vac = sign('VACANCY', 1.5, 0.36, '#2a1f2a', '#ff6fae', 0.8); at(vac, -0.5, 2.5, -2.95); G.add(vac);
+      const sl = sign('LEAVE-THE-LIGHT-ON MOTEL', 2.4, 0.3, '#ff6fae', '#2a1f2a', 0.6); at(sl, -1.0, 2.88, -2.95); G.add(sl);
+      // the window lamp (the light that's left on): Lamp-Bulb works nights in it
+      const win = ph('motel window + lamp stand', new THREE.Group()); const frame = box(1.3, 1.3, 0.08, '#2a9d9a', 0.03); frame.position.y = 0.9; win.add(frame);
+      const pane = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), new THREE.MeshStandardMaterial({ color: '#2a2440', roughness: 1 })); pane.position.set(0, 1.55, 0.045); win.add(pane);
+      const stand = cyl(0.05, 0.16, 0.9, '#7a5a4a', 10); stand.position.set(0, 0, 0.35); win.add(stand);
+      at(win, -2.8, 0, -2.95); G.add(win);
+      at(lamp, -2.8, 0.9, -2.6, 0.4); G.add(lamp);
+      const poolLight = ph('pool light (felt)', new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), new THREE.MeshBasicMaterial({ color: '#9ff0e8' }))); poolLight.position.set(-2.8, 1.06, -2.6); G.add(poolLight);
+      // ice machine: makes one cube
+      const ice = ph('ice machine (one cube)', new THREE.Group()); const ib = box(0.8, 1.4, 0.6, '#c9e6ee', 0.05); ice.add(ib);
+      const is = sign('ICE', 0.5, 0.2, '#2a9d9a', '#fff3dc', 0.7); is.position.set(0, 1.15, 0.31); ice.add(is);
+      const slot = box(0.4, 0.3, 0.05, '#3a3f4a', 0.02); slot.position.set(0, 0.55, 0.3); ice.add(slot);
+      const cube = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.06), feltMat('#f4fbff')); cube.position.set(0.05, 0.6, 0.33); ice.add(cube);
+      at(ice, -3.35, 0, 0.6, Math.PI / 2); G.add(ice);
+      at(chair, 2.9, 0, 0.7, -0.6); G.add(chair);
+      const rug = box(2.0, 0.02, 1.3, '#ff6fae', 0.01); at(rug, 0.2, 0, 0.6); G.add(rug);
+      A.wolfSpot = [0.3, 1.7]; A.anim = []; A.proc = [house, lamp]; A.flick = 0; A.ding = 0;
+      A.setAir = () => { lamp.visible = S.bulb < 4; poolLight.visible = S.bulb >= 4; };
+      A.tick = (dt, t) => { nv.visible = Math.sin(t * 2.1) + Math.sin(t * 5.3) > -0.6; vac.material.color.setScalar(Math.sin(t * 1.3) > -0.85 ? 1 : 0.4);
+        if (A.ding > 0) { A.ding -= dt; dome.position.y = 0.03 + (A.ding > 0.25 ? 0.012 : 0); } };
+      A.who = [
+        { id: 'house', label: 'HOUSE-HEAD', o: house, talk: () => {
+          if (S.bulb === 1) { step('bulb', 2); return [['HOUSE-HEAD', 'A bulb? No.'], ['HOUSE-HEAD', 'The sign says we leave the light on.'], ['HOUSE-HEAD', 'Take the light, and the sign is a liar. I\'m the building. I\'d know.'], ['LAMP-BULB', 'I\'d go. But someone has to be the light that\'s left on.'], ['LAMP-BULB', 'Find me a replacement. Something that\'s on and stays on.'], ['WOLF', 'Like what?'], ['LAMP-BULB', 'The pool has a light in it. Nobody swims at night.']]; }
+          if (S.bulb === 3) { step('bulb', 4); A.setAir(); return [['', 'You put the pool light in the window lamp.'], ['HOUSE-HEAD', 'It\'s a light.'], ['HOUSE-HEAD', 'It\'s on.'], ['HOUSE-HEAD', 'I\'ll allow it.'], ['LAMP-BULB', 'My first night off since 1979.'], ['LAMP-BULB', 'Is the Drive-In still showing the same thing?'], ['WOLF', 'It\'s not showing anything.'], ['LAMP-BULB', 'Then I\'m the feature.'], ['', 'Lamp-Bulb comes with you. Take it to the projector.']]; }
+          if (S.bulb === 2) return [['HOUSE-HEAD', 'Pool\'s out back.'], ['HOUSE-HEAD', 'The lifeguard is always on duty. Nobody is ever in the pool.']];
+          if (S.bulb >= 4) return [['HOUSE-HEAD', 'The light is on. The sign is honest.'], ['HOUSE-HEAD', 'Mostly. We have no vacancy.'], ['WOLF', 'Every room is empty.'], ['HOUSE-HEAD', 'They\'re resting.']];
+          return [['HOUSE-HEAD', 'Welcome to the Leave-The-Light-On.'], ['WOLF', 'Do you have a room?'], ['HOUSE-HEAD', 'I am the rooms.'], ['HOUSE-HEAD', 'Wipe your feet. That\'s my face.']]; } },
+        { id: 'lamp', label: 'LAMP-BULB', o: lamp, talk: () => S.bulb >= 4 ? null : S.bulb >= 1 ? [['LAMP-BULB', 'I work nights. In the window.'], ['LAMP-BULB', 'Find something to be on instead of me.'], ['LAMP-BULB', 'The pool light is on all night. For nobody.']]
+          : [['LAMP-BULB', 'Night clerk.'], ['WOLF', 'You\'re sitting in a lamp.'], ['LAMP-BULB', 'I\'m being left on.'], ['LAMP-BULB', 'It\'s a whole job.']] },
+        { id: 'keys', label: 'RENT A ROOM', o: kb, talk: () => { S.rooms = (S.rooms || 0) + 1; save(); return [['HOUSE-HEAD', 'Room 11.'], ['WOLF', 'Every key says 11.'], ['HOUSE-HEAD', 'Every room is 11. Check-out is at 11.'], ['WOLF', 'What time is it?'], ['HOUSE-HEAD', '11.'], ['', `You check in and check out. Stays: ${S.rooms}.`]]; } },
+        { id: 'bell', label: 'BELL', o: bell, talk: () => { A.ding = 0.5; audio.ui?.('confirm'); return [['', 'Ding.'], ['HOUSE-HEAD', 'I heard.'], ['HOUSE-HEAD', 'I\'m the building. I hear everything.'], ['HOUSE-HEAD', 'Ring it again and I\'ll hear that too.']]; } },
+        { id: 'ice', label: 'ICE MACHINE', o: ice, talk: () => [['', 'The ice machine rumbles.'], ['', 'It makes one cube.'], ['', 'It has been making it since 1979.'], ['', 'It\'s almost done.']] },
+        { id: 'sign', label: 'NO VACANCY', o: vac, talk: () => [['', 'NO VACANCY. Every room is empty.'], ['HOUSE-HEAD', 'The sign is aspirational.'], ['', 'The NO flickers. It isn\'t sure either.']] },
+        { id: 'chair', label: 'LOBBY CHAIR', o: chair, talk: () => [['', 'Lobby seating. It watches you wait.'], ['', 'You aren\'t waiting.'], ['', 'It waits anyway.']] },
+      ];
+    },
+    async pool(G, A) {
+      const [squid, heron, glove] = await Promise.all([glb('cast/wanderer_banana_squid_walking.glb', 1.55, 'object', { rest: 'breathe' }), glb('town2/heron_lo.glb', 1.9, 'heron', { rest: 'breathe' }),
+        glb('town2/rubber_glove.glb', 0.45, 'object', { rest: 'bob' })]);
+      // the pool: felt rim + felt water (3 inches deep, all the way down)
+      const pool = ph('motel pool (felt)', new THREE.Group());
+      for (const [x, z, w, d] of [[0, -1.3, 4.6, 0.2], [0, 1.3, 4.6, 0.2], [-2.2, 0, 0.2, 2.8], [2.2, 0, 0.2, 2.8]]) { const r = box(w, 0.25, d, '#f6efe0', 0.04); r.position.set(x, 0, z); pool.add(r); }
+      const water = box(4.2, 0.16, 2.4, '#4ac0c9', 0.02); pool.add(water);
+      const tiles = sign('3 IN.   DEEP END   3 IN.', 2.4, 0.14, '#f6efe0', '#2a7a8a', 0.7); tiles.rotation.x = -Math.PI / 2; tiles.position.set(0, 0.255, 1.3); pool.add(tiles);
+      const plight = ph('underwater pool light', new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 8), new THREE.MeshBasicMaterial({ color: '#9ff0e8' }))); plight.scale.y = 0.45; plight.position.set(0.4, 0.17, -0.3); pool.add(plight);
+      const glow = new THREE.PointLight('#7fe8e0', 6, 4, 1.6); glow.position.set(0.4, 0.5, -0.3); pool.add(glow);
+      at(pool, -0.9, 0, -1.4); G.add(pool);
+      at(glove, -0.4, 0.16, -1.1, 0.6); G.add(glove);
+      at(heron, -2.3, 0.16, -1.9, 0.5); G.add(heron);   // off duty, in the shallow end (both ends)
+      // diving board
+      const board = ph('diving board', new THREE.Group()); const bs = box(0.4, 0.4, 0.4, '#7a7a70', 0.04); board.add(bs); const bp = box(1.3, 0.06, 0.36, '#ff6fae', 0.02); bp.position.set(-0.55, 0.4, 0); board.add(bp);
+      at(board, 2.0, 0, -1.6); G.add(board);
+      // lifeguard chair (the Banana Squid is always on duty)
+      const lg = ph('lifeguard chair', new THREE.Group());
+      for (const [x, z] of [[-0.35, -0.3], [0.35, -0.3], [-0.35, 0.3], [0.35, 0.3]]) { const l = cyl(0.035, 0.035, 0.95, '#f6efe0', 6); l.position.set(x, 0, z); lg.add(l); }
+      const seat = box(0.9, 0.08, 0.8, '#f6efe0', 0.02); seat.position.y = 0.95; lg.add(seat);
+      const lgs = sign('LIFEGUARD\nON DUTY', 0.7, 0.32, '#c9384a', '#fff3dc', 0.55); lgs.position.set(0, 0.6, 0.31); lg.add(lgs);
+      at(lg, 3.0, 0, -0.3, -0.3); G.add(lg);
+      at(squid, 3.0, 1.03, -0.4, -0.5); G.add(squid);
+      const whistle = ph('felt whistle', cyl(0.025, 0.03, 0.08, '#ffd04a', 8)); whistle.rotation.z = Math.PI / 2; whistle.position.set(2.62, 1.06, 0.02); G.add(whistle);
+      // two lounge chairs + one shared towel
+      const loungers = ph('lounge chairs', new THREE.Group());
+      for (const x of [0, 1.1]) { const b = box(0.7, 0.3, 1.7, '#2a9d9a', 0.04); b.position.set(x, 0, 0); loungers.add(b); const back = box(0.7, 0.08, 0.7, '#2a9d9a', 0.03); back.position.set(x, 0.42, -0.6); back.rotation.x = 0.7; loungers.add(back); }
+      const towel = box(0.6, 0.03, 0.9, '#ffd04a', 0.01); towel.position.set(0, 0.3, 0.2); loungers.add(towel);
+      at(loungers, -3.0, 0, 1.2, 0.15); G.add(loungers);
+      const rules = sign('POOL RULES\n1. NO RUNNING  2. NO WALKING\n3. LIFEGUARD ALWAYS ON DUTY', 1.9, 0.75, '#fff3dc', '#2a7a8a', 0.55); at(rules, 2.4, 2.1, -2.95); G.add(rules);
+      const neon = sign('POOL', 1.0, 0.36, '#2a1f2a', '#7fe8e0', 0.8); at(neon, -1.0, 2.55, -2.95); G.add(neon);
+      const moon = sign('the sun has its eye shut', 1.4, 0.2, '#3a3f6a', '#f6efe0', 0.6); at(moon, -2.9, 2.2, -2.95); G.add(moon);
+      A.wolfSpot = [0.9, 1.8]; A.anim = []; A.proc = [squid, heron, glove]; A.tweet = 0;
+      A.setAir = () => { plight.visible = S.bulb < 3; glow.intensity = S.bulb < 3 ? 6 : 0; };
+      A.tick = (dt, t) => { water.position.y = Math.sin(t * 0.8) * 0.004; if (A.tweet > 0) { A.tweet -= dt; whistle.scale.setScalar(A.tweet > 0 ? 1 + Math.abs(Math.sin(t * 30)) * 0.4 : 1); } };
+      const tweet = () => { A.tweet = 0.8; audio.ui?.('tick'); };
+      A.who = [
+        { id: 'squid', label: 'LIFEGUARD', o: squid, talk: () => { tweet();
+          if (S.bulb === 2 && S.swam) { step('bulb', 3); A.setAir(); return [['BANANA SQUID', 'You swam. You\'re a swimmer now.'], ['BANANA SQUID', 'Swimmers may touch the pool light.'], ['', 'You unscrew the pool light. The pool goes dark.'], ['BANANA SQUID', 'Pool\'s closed.'], ['WOLF', 'Was it ever open?'], ['BANANA SQUID', 'It was lit.'], ['', 'Got: one pool light, still on. Take it to the Motel.']]; }
+          if (S.bulb === 2) return [['', 'Tweet.'], ['BANANA SQUID', 'The pool light is for swimmers.'], ['WOLF', 'Nobody swims here.'], ['BANANA SQUID', 'Then nobody touches the light.'], ['BANANA SQUID', 'Swim first.']];
+          if (S.bulb >= 3) return [['', 'Tweet.'], ['BANANA SQUID', 'Pool\'s dark. Still on duty.'], ['BANANA SQUID', 'Dark is when they need me most.']];
+          return [['', 'Tweet.'], ['BANANA SQUID', 'No running.'], ['WOLF', 'I\'m standing still.'], ['BANANA SQUID', 'That\'s how it starts.']]; } },
+        { id: 'swim', label: 'SWIM', o: water, talk: () => { tweet(); if (S.bulb === 2) { S.swam = true; save(); }
+          return [['', 'You get in. The water is felt.'], ['', 'Three inches deep. All the way down.'], ['', 'Tweet.'], ['BANANA SQUID', 'No running!'], ['WOLF', 'I\'m swimming.'], ['BANANA SQUID', 'Swim slower.'], ['', 'You are now a swimmer.']]; } },
+        { id: 'heron', label: 'HERON', o: heron, talk: () => [['HERON', 'Off duty.'], ['WOLF', 'What do you do on duty?'], ['HERON', 'Stand in water.'], ['HERON', 'This is different. It\'s a pool.']] },
+        { id: 'glove', label: 'POOL FLOAT', o: glove, talk: () => [['', 'An inflatable rubber glove.'], ['', 'It waves at you.'], ['', 'It is not waving. It is drowning, very slowly, in three inches.'], ['BANANA SQUID', 'It does that.']] },
+        { id: 'board', label: 'DIVING BOARD', o: board, talk: () => { tweet(); return [['', 'You dive.'], ['', 'Three inches.'], ['BANANA SQUID', 'Ten.'], ['WOLF', 'Out of ten?'], ['BANANA SQUID', 'Inches. You made it deeper.']]; } },
+        { id: 'towel', label: 'TOWEL', o: loungers, talk: () => [['', 'One towel. Shared by the whole motel.'], ['', 'It\'s dry. Nobody\'s been wet since 1979.']] },
+        { id: 'rules', label: 'POOL RULES', o: rules, talk: () => [['', '1. No running. 2. No walking.'], ['', '3. Lifeguard always on duty.'], ['WOLF', 'How do I get to the pool?'], ['BANANA SQUID', 'You don\'t. That\'s the rules working.']] },
+      ];
+    },
+    async drivein(G, A) {
+      const [farm, moth, lamp] = await Promise.all([glb('cast/wanderer_shovel_farmhand_walking.glb', 1.7, 'object', { rest: 'breathe' }), glb('town2/moth_lo.glb', 1.5, 'moth', { rest: 'breathe' }),
+        glb('hf2/lamp_bulb.glb', 0.55, 'object', { rest: 'bob' })]);
+      // the screen: intermission (since the bulb) -> the feature: the sun, up close
+      const scr = ph('drive-in screen', box(4.6, 2.1, 0.12, '#f6efe0', 0.04)); at(scr, 0, 0.85, -2.92); G.add(scr);
+      for (const x of [-2.0, 2.0]) { const p = cyl(0.06, 0.06, 0.9, '#7a5a4a', 6); at(p, x, 0, -2.9); G.add(p); }
+      const blank = sign('INTERMISSION\n(since the bulb)', 4.4, 1.9, '#5a5468', '#c9c9c0', 0.4); at(blank, 0, 1.9, -2.85); G.add(blank);
+      const feat = sunPic(4.4, 1.9, 'NOW SHOWING: THE SUN', '#3a1f2a'); at(feat, 0, 1.9, -2.845); G.add(feat);
+      const marq = sign('EYE-MAX DRIVE-IN', 2.4, 0.3, '#2a1f2a', '#ff6fae', 0.7); at(marq, 0, 3.05, -2.9); G.add(marq);
+      // snack bar: popcorn, by the shovel
+      const ctr = ph('snack bar counter', box(0.7, 1.0, 2.0, '#ff6fae', 0.05)); at(ctr, -2.5, 0, 0.2); G.add(ctr);
+      const ctop = box(0.85, 0.07, 2.2, '#f6efe0', 0.03); at(ctop, -2.5, 1.0, 0.2); G.add(ctop);
+      const pop = ph('popcorn machine', new THREE.Group()); const pb = box(0.5, 0.12, 0.45, '#c9384a', 0.03); pop.add(pb);
+      const pg = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.5, 0.42), new THREE.MeshStandardMaterial({ color: '#fff3dc', transparent: true, opacity: 0.25, roughness: 1 })); pg.position.y = 0.37; pop.add(pg);
+      const pt = box(0.52, 0.1, 0.47, '#c9384a', 0.03); pt.position.y = 0.62; pop.add(pt);
+      const kern = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.035, 0), feltMat('#fff0b8'), 40); for (let i = 0; i < 40; i++) { mx4.makeTranslation(-0.18 + (i % 8) * 0.05, 0.15 + Math.floor(i / 8) * 0.035, -0.15 + ((i * 7) % 6) * 0.055); kern.setMatrixAt(i, mx4); } pop.add(kern);
+      at(pop, -2.5, 1.07, -0.35); G.add(pop);
+      const menu = sign('SNACKS\npopcorn (by the shovel)\nsoda (flat, felt)', 1.2, 0.6, '#fff3dc', '#c9384a', 0.5); at(menu, -3.88, 2.1, 0.2, Math.PI / 2); G.add(menu);
+      at(farm, -3.3, 0, 0.75, Math.PI / 2 - 0.35); G.add(farm);
+      // the Moth's taxi: parked facing the screen, meter running
+      const taxi = ph('Moth\'s taxi (felt)', new THREE.Group()); const tb = box(1.1, 0.5, 2.0, '#ffd04a', 0.12); tb.position.y = 0.22; taxi.add(tb);
+      const cab = box(0.95, 0.42, 1.0, '#ffd04a', 0.1); cab.position.set(0, 0.72, 0.15); taxi.add(cab);
+      const ws = box(0.85, 0.32, 0.02, '#2a2440', 0.01); ws.position.set(0, 0.76, -0.36); ws.rotation.x = -0.25; taxi.add(ws);
+      for (const [x, z] of [[-0.56, -0.62], [0.56, -0.62], [-0.56, 0.62], [0.56, 0.62]]) { const w = cyl(0.2, 0.2, 0.12, '#2e2a2a', 12); w.rotation.z = Math.PI / 2; w.position.set(x, 0.2, z); taxi.add(w); }
+      const meter = sign('METER $11.11', 0.5, 0.14, '#2a1f2a', '#ff6a4a', 0.7); meter.position.set(0, 1.2, 0.15); taxi.add(meter);
+      at(taxi, 0.1, 0, -0.5); G.add(taxi);
+      at(moth, -1.2, 0, -0.2, 0.4); G.add(moth);
+      // speaker post
+      const spk = ph('speaker post', new THREE.Group()); const sp = cyl(0.03, 0.04, 1.1, '#7a7a70', 6); spk.add(sp); const sb = box(0.28, 0.2, 0.12, '#3a3a3a', 0.03); sb.position.y = 1.05; spk.add(sb);
+      at(spk, 1.6, 0, -1.5); G.add(spk);
+      // projection booth: projector with a dead bulb (Lamp-Bulb goes in the top)
+      const booth = ph('projection booth', new THREE.Group()); const bx = box(1.1, 1.1, 1.0, '#5a4a8a', 0.05); booth.add(bx);
+      const proj = box(0.5, 0.36, 0.6, '#3a3a3a', 0.06); proj.position.y = 1.1; booth.add(proj);
+      const lens = cyl(0.1, 0.12, 0.16, '#2a2a2a', 10); lens.rotation.x = -Math.PI / 2; lens.position.set(0, 1.28, -0.36); booth.add(lens);
+      const reel = cyl(0.2, 0.2, 0.05, '#7a7a70', 14); reel.rotation.z = Math.PI / 2; reel.position.set(0, 1.62, 0.08); booth.add(reel);
+      const bs = sign('PROJECTION', 0.9, 0.2, '#fff3dc', '#5a4a8a', 0.6); bs.position.set(0, 0.75, 0.51); booth.add(bs);
+      at(booth, 2.9, 0, 0.6, 0.35); G.add(booth);
+      const beam = new THREE.Mesh(new THREE.ConeGeometry(0.9, 3.6, 10, 1, true), new THREE.MeshBasicMaterial({ color: '#fff6c8', transparent: true, opacity: 0.08, depthWrite: false, side: THREE.DoubleSide }));
+      beam.position.set(1.5, 1.6, -1.2); beam.lookAt(2.9, 1.3, 0.6); beam.rotateX(-Math.PI / 2); G.add(beam);
+      at(lamp, 2.84, 1.28, 0.62, 0.3); G.add(lamp);
+      A.wolfSpot = [0.9, 1.8]; A.anim = []; A.proc = [farm, moth, lamp]; A.m = 11.11;
+      A.setAir = () => { lamp.visible = S.bulb >= 4; feat.visible = beam.visible = S.bulb >= 5; blank.visible = S.bulb < 5; };
+      A.tick = (dt, t) => { if (reel.visible && S.bulb >= 5) reel.rotation.x += dt * 2; if (beam.visible) beam.material.opacity = 0.07 + Math.sin(t * 9) * 0.01; };
+      A.who = [
+        { id: 'farm', label: 'FARMHAND', o: farm, talk: () => {
+          if (S.bulb === 0) { step('bulb', 1); return [['FARMHAND', 'Projector bulb blew.'], ['FARMHAND', 'Feature can\'t start.'], ['WOLF', 'How long ago?'], ['FARMHAND', 'Since the bulb.'], ['FARMHAND', 'One car\'s waiting. The Moth\'s. Meter running.'], ['FARMHAND', 'Motel says it leaves the light on. Ask them for it.']]; }
+          if (S.bulb >= 5) return [['FARMHAND', 'Popcorn?'], ['', 'He scoops it with the shovel.'], ['FARMHAND', 'Only way I know how to serve.']];
+          return [['FARMHAND', 'Popcorn?'], ['WOLF', 'Is that a shovel?'], ['FARMHAND', 'It\'s a large.'], ['FARMHAND', 'Bulb first. Then the feature. Then the large.']]; } },
+        { id: 'moth', label: 'MOTH', o: moth, talk: () => S.bulb >= 5 ? [['MOTH', 'Beautiful.'], ['MOTH', 'The sun, up close.'], ['MOTH', 'Meter\'s still running.'], ['WOLF', 'Who\'s paying?'], ['MOTH', 'The sun. It\'s watching. It\'s good for it.']]
+          : [['MOTH', 'Meter\'s running.'], ['WOLF', 'You\'re not driving.'], ['MOTH', 'I\'m waiting. Waiting is driving, slower.'], ['MOTH', '$11.11.'], ['MOTH', 'It was $11.11 in 1979 too.']] },
+        { id: 'proj', label: 'PROJECTOR', o: booth, talk: () => {
+          if (S.bulb === 4) { step('bulb', 5); A.setAir(); return [['', 'Lamp-Bulb climbs into the projector.'], ['LAMP-BULB', 'I\'ve been left on my whole life.'], ['LAMP-BULB', 'Tonight I\'m turned up.'], ['', 'The feature starts: THE SUN.'], ['', 'Just the sun. Up close.'], ['', 'The sun watches back.'], ['MOTH', '(honks, once)'], ['FARMHAND', 'Standing ovation.'], ['WOLF', 'From one car.'], ['FARMHAND', 'All of them.']]; }
+          if (S.bulb >= 5) return [['LAMP-BULB', 'Shh. I\'m working.'], ['', 'The sun is still on screen. It hasn\'t blinked.']];
+          return [['', 'The projector bulb is a black felt pebble.'], ['', 'It is very dead.'], ['FARMHAND', 'Need a light that\'s used to staying on.']]; } },
+        { id: 'screen', label: 'SCREEN', o: scr, talk: () => S.bulb >= 5 ? [['', 'NOW SHOWING: THE SUN.'], ['', 'Runtime: until it sets.'], ['', 'It doesn\'t set.']] : [['', 'INTERMISSION (since the bulb).'], ['', 'The intermission is the longest-running show in town.']] },
+        { id: 'popcorn', label: 'POPCORN', o: pop, talk: () => [['', 'You order a small.'], ['FARMHAND', 'One shovel.'], ['WOLF', 'And a large?'], ['FARMHAND', 'One shovel. Fuller.']] },
+        { id: 'speaker', label: 'SPEAKER', o: spk, talk: () => [['', 'You hang the speaker on the window.'], ['', 'It plays the sound of someone eating popcorn.'], ['', 'Close to your ear.'], ['', 'Very close.']] },
+        { id: 'taxi', label: 'TAXI', o: taxi, talk: () => [['', 'The meter says $11.11.'], ['', 'It has said $11.11 for a long time.'], ['MOTH', 'Don\'t touch the meter. It\'s concentrating.']] },
+      ];
+    },
   };
 
   // ------------------------------------------------------------------ missions
@@ -522,14 +694,15 @@ export function createTown(ctx) {
     sock: ['', 'Ask the Washing Machine (it only talks during spin)', 'Ask around about "East"', 'Look for the sock at the Post Office',
       'Find the Crow\'s collection by the road', 'Bring the sock back to the Laundromat', ''],
     num: ['', 'Take a number', 'Wait. Or try Window 1', 'Mail yourself a letter (Post Office)', 'Back to the DMV: vision test', 'Wait for 99', 'Go to Window 1', ''],
+    bulb: ['', 'Find a new projector bulb (the Motel leaves the light on)', 'Find a light to leave on instead (the Motel Pool; the lifeguard says swim first)', 'Bring the pool light to the Motel', 'Take Lamp-Bulb to the Drive-In projector', ''],
     air: ['', 'Find rabbit ears at Crow\'s Yard (dig the junk)', 'Put the antenna on the Fence-Stool (Crow insists)', 'Buy it back at Second Sun Thrift',
       'Win $2 at Gutter Bowl (rent skates, bowl lane 2)', 'Pay the Thrift two dollars', 'Bring the rabbit ears to TV-Head (KSUN)', ''],
   };
-  const TITLE = { sock: 'ODD SOCK OUT', num: 'TAKE A NUMBER', air: 'DEAD AIR' };
-  const DONE = { sock: 6, num: 7, air: 7 };
-  const DONE_MSG = { sock: '. Lost Socks board unlocked.', num: '. Plate 11W.', air: '. Ratings doubled (both the Bear).' };
+  const TITLE = { sock: 'ODD SOCK OUT', num: 'TAKE A NUMBER', air: 'DEAD AIR', bulb: 'LEAVE THE LIGHT ON' };
+  const DONE = { sock: 6, num: 7, air: 7, bulb: 5 };
+  const DONE_MSG = { sock: '. Lost Socks board unlocked.', num: '. Plate 11W.', air: '. Ratings doubled (both the Bear).', bulb: '. Lamp-Bulb got a standing ovation from one car.' };
   function step(m, n) { S[m] = n; save(); if (n === 1) toast(TITLE[m] + ' — new errand'); if (n === DONE[m]) setTimeout(() => toast(TITLE[m] + ' — done' + DONE_MSG[m]), 600); hud(); }
-  const errands = () => ['sock', 'num', 'air'].filter(m => S[m] > 0 && S[m] < DONE[m]);
+  const errands = () => ['sock', 'num', 'air', 'bulb'].filter(m => S[m] > 0 && S[m] < DONE[m]);
   function hud() {
     let s = errands().map(m => { let o = OBJ[m][S[m]]; if (m === 'sock' && S[m] === 4 && !S.hubcap) o += '\n   (the Crow trades — check the Post Office parcels)'; return TITLE[m] + ' · ' + o; }).join('\n');
     if (errands().length) s += '\n(clock on hold while you run errands)'; $('townObj').textContent = s; const to = $('townObj'), hd = $('hud'); to.style.top = (!document.body.classList.contains('room') && hd) ? (hd.getBoundingClientRect().bottom + 8) + 'px' : '';
@@ -592,6 +765,11 @@ export function createTown(ctx) {
       const pole = cyl(0.03, 0.03, 1.2, '#7a5a4a', 6); pole.position.set(-0.4, 0, -0.6); g.add(pole);
       at(g, FENCE.x, 0, FENCE.z, Math.PI); mainScene.add(g); crowSpot = { x: FENCE.x, z: FENCE.z, label: 'TALK TO CROW' };
       ctx.colliders?.push({ x: FENCE.x, z: FENCE.z, r: 0.8 });
+      { const di = new THREE.Group(); const sc = ph('Eye-Max screen (outside, felt)', box(6.0, 3.2, 0.25, '#f6efe0', 0.06)); sc.position.y = 1.4; di.add(sc);   // the outdoor Eye-Max screen (south of the east road)
+        for (const x of [-2.6, 2.6]) { const p = cyl(0.12, 0.14, 1.5, '#7a5a4a', 6); p.position.x = x; di.add(p); }
+        const face = sunPic(5.6, 2.8, 'EYE-MAX · INTERMISSION', '#3a1f2a'); face.position.set(0, 3.0, -0.14); face.rotation.y = Math.PI; di.add(face);
+        const mq = sign('EYE-MAX DRIVE-IN', 3.4, 0.5, '#2a1f2a', '#ff6fae', 0.7); mq.position.set(0, 4.85, -0.14); mq.rotation.y = Math.PI; di.add(mq);
+        di.position.set(DRIVEIN.x, 0, DRIVEIN.z); mainScene.add(di); ctx.colliders?.push({ x: DRIVEIN.x - 2.6, z: DRIVEIN.z, r: 0.4 }, { x: DRIVEIN.x + 2.6, z: DRIVEIN.z, r: 0.4 }); }
       for (const d of DOORS) if (d.sign) { const sg = new THREE.Group(); const p = cyl(0.04, 0.04, 1.9, '#5a3a3a', 6); const b = sign(d.sign, 1.3, 0.34, '#fff3dc', '#3a1f2a'); b.position.y = 1.85; sg.add(p, b);
         const bk = b.clone(); bk.rotation.y = Math.PI; bk.position.z = -0.01; sg.add(bk);
         sg.position.set(d.x + 1.0, 0, d.z); sg.lookAt(2, 0, 4); mainScene.add(sg); }
