@@ -1,41 +1,210 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="icon" href="data:,"><title>Sunspots lookbook — hand-flat v2 (test)</title>
-<style>body{margin:0;background:#f3e6d3;font:14px system-ui;color:#3a2a20;overflow:hidden}#c{position:fixed;inset:0}
-#ui{position:fixed;left:8px;top:8px;bottom:8px;width:200px;overflow:auto;background:#fff8ee;border-radius:10px;padding:8px;opacity:.94}
-#ui b{display:block;margin:8px 0 4px}#ui a{display:block;padding:3px 6px;border-radius:6px;cursor:pointer}#ui a.on{background:#f0a868;color:#fff}
-#nm{position:fixed;right:12px;bottom:10px;font-size:18px}</style>
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2c4a9a"><meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" href="data:,"><title>Sunspots lookbook — hand-flat v2</title>
+<style>
+:root{--cobalt:#2c4a9a;--sky:#6f8fc4;--grey:#a9b8d6;--coral:#e4775d;--mustard:#e8b23a;--ink:#1d2340;--cream:#fff6e6;
+--st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);--sl:env(safe-area-inset-left,0px);--sr:env(safe-area-inset-right,0px);--pw:0px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{height:100vh;height:100dvh;width:100vw;position:fixed;inset:0;font:16px/1.25 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--cream);
+background:linear-gradient(180deg,var(--cobalt) 0%,var(--sky) 55%,var(--grey) 100%);user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;touch-action:manipulation}
+button:focus-visible{outline:3px solid var(--mustard);outline-offset:2px}
+#stage{position:absolute;top:0;left:0;bottom:0;right:var(--pw);touch-action:none}
+#c{display:block;width:100%;height:100%;touch-action:none;outline:none}
+/* header */
+#top{position:absolute;left:0;right:var(--pw);top:0;padding:calc(var(--st) + 10px) calc(var(--sr) + 12px) 10px calc(var(--sl) + 14px);display:flex;align-items:flex-start;gap:10px;
+background:linear-gradient(180deg,rgba(28,46,104,.82),rgba(28,46,104,0));pointer-events:none}
+#title{flex:1;min-width:0;pointer-events:auto}
+#nm{font-size:clamp(24px,6.6vw,34px);font-weight:800;letter-spacing:.01em;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 2px 6px rgba(10,20,60,.45)}
+#meta{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:14px;font-weight:600}
+.badge{padding:3px 10px;border-radius:99px;background:var(--mustard);color:var(--ink);font-size:13px;font-weight:800;letter-spacing:.03em;text-transform:uppercase}
+.badge.obj{background:var(--coral);color:#fff}
+#cnt{opacity:.92;text-shadow:0 1px 3px rgba(10,20,60,.5)}
+#ph{pointer-events:auto;min-width:44px;height:44px;padding:0 14px;border-radius:22px;background:rgba(255,246,230,.18);border:2px solid rgba(255,246,230,.55);font-weight:700;font-size:15px;display:flex;align-items:center;gap:6px}
+#ph[aria-pressed=true]{background:var(--mustard);border-color:var(--mustard);color:var(--ink)}
+#ph svg{width:20px;height:20px}
+/* arrows */
+.arr{position:absolute;top:50%;transform:translateY(-50%);width:56px;height:56px;border-radius:50%;background:var(--mustard);color:var(--ink);display:grid;place-items:center;
+box-shadow:0 4px 14px rgba(20,30,80,.35);z-index:3}
+.arr:active{transform:translateY(-50%) scale(.93)}
+.arr svg{width:28px;height:28px}
+#prev{left:calc(var(--sl) + 10px)}#next{right:calc(var(--pw) + var(--sr) + 10px)}
+/* bottom */
+#bot{position:absolute;left:0;right:var(--pw);bottom:0;padding:16px 0 calc(var(--sb) + 10px);background:linear-gradient(0deg,rgba(28,46,104,.85) 30%,rgba(28,46,104,0));z-index:2}
+#tabs{display:flex;gap:8px;padding:0 calc(var(--sr) + 12px) 8px calc(var(--sl) + 12px);justify-content:center}
+.tab{flex:0 1 190px;height:44px;border-radius:22px;background:rgba(255,246,230,.16);border:2px solid rgba(255,246,230,.4);font-weight:800;font-size:15px}
+.tab small{font-weight:600;opacity:.8;margin-left:4px}
+.tab.on{background:var(--cream);color:var(--cobalt);border-color:var(--cream)}
+#strip{display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;padding:4px calc(var(--sr) + 12px) 4px calc(var(--sl) + 12px);scrollbar-width:none;overscroll-behavior-x:contain;touch-action:pan-x}
+#strip::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;scroll-snap-align:center;width:72px;padding:4px 4px 5px;border-radius:12px;background:rgba(255,246,230,.14);border:2px solid transparent;display:flex;flex-direction:column;align-items:center;gap:3px}
+.chip img{width:60px;height:60px;object-fit:cover;border-radius:8px;background:var(--grey);display:block}
+.chip span{font-size:11px;font-weight:700;line-height:1.15;width:100%;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip.on{border-color:var(--mustard);background:rgba(232,178,58,.3)}
+.chip.sep{margin-left:10px}
+/* reference photo */
+#ref{position:absolute;z-index:2;display:none;border-radius:14px;overflow:hidden;background:var(--cream);box-shadow:0 6px 20px rgba(10,20,60,.4);border:3px solid var(--cream);padding:0}
+#ref img{display:block;width:100%;height:100%;object-fit:contain;background:#efe4d2}
+#ref .cap{position:absolute;left:0;right:0;bottom:0;font-size:11px;font-weight:700;color:var(--ink);background:rgba(255,246,230,.85);padding:3px 0;text-align:center}
+body.photo #ref{display:block}
+/* phone/portrait: small card under the header, tap to enlarge */
+#ref{top:calc(var(--st) + 84px);right:calc(var(--sr) + 10px);width:min(calc(30vw * max(1, var(--ar,.75))),46vw,240px);aspect-ratio:var(--ar,.75)}
+#ref:not(.big) img{object-fit:cover}
+#ref.big{top:calc(var(--st) + 10px);left:calc(var(--sl) + 10px);right:calc(var(--sr) + 10px);bottom:calc(var(--sb) + 10px);width:auto;aspect-ratio:auto;z-index:9}
+/* wide screens: photo docked beside the model */
+@media (min-width:760px) and (min-aspect-ratio:1/1){
+  body.photo{--pw:min(34vw,460px)}
+  body.photo #ref,body.photo #ref.big{top:0;bottom:0;right:0;left:auto;width:var(--pw);height:auto;aspect-ratio:auto;border-radius:0;border:0;border-left:4px solid var(--mustard);padding:calc(var(--st) + 12px) calc(var(--sr) + 12px) calc(var(--sb) + 12px) 12px;background:#efe4d2}
+  body.photo #ref img{border-radius:10px}
+  body.photo #ref .cap{bottom:calc(var(--sb) + 12px);left:12px;right:calc(var(--sr) + 12px)}
+  #nm{font-size:34px}
+}
+/* short landscape phones */
+@media (max-height:500px){#hint{bottom:calc(var(--sb) + 100px)}#tabs{display:none}#bot{padding-top:6px}.chip img{width:44px;height:44px}.chip{width:58px}#ref{top:calc(var(--st) + 10px);width:auto;height:58vh}}
+/* spinner, hint */
+#spin{position:absolute;left:calc((100% - var(--pw)) / 2);top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;border:6px solid rgba(255,246,230,.35);border-top-color:var(--mustard);animation:sp .8s linear infinite;display:none;z-index:4;pointer-events:none}
+body.loading #spin{display:block}
+@keyframes sp{to{transform:rotate(360deg)}}
+#hint{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(var(--sb) + 175px);max-width:calc(100vw - 32px);background:rgba(29,35,64,.82);padding:10px 16px;border-radius:20px;font-size:14px;font-weight:600;text-align:center;transition:opacity .5s;z-index:4;pointer-events:none}
+#hint.gone{opacity:0}
+#err{position:absolute;left:50%;top:50%;transform:translate(-50%,40px);background:var(--coral);padding:8px 14px;border-radius:12px;font-weight:700;display:none;z-index:4}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
 <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/addons/"}}</script></head>
-<body><canvas id="c"></canvas><div id="ui"></div><div id="nm"></div>
+<body class="loading">
+<div id="stage"><canvas id="c" aria-label="3D model viewer: drag to spin, pinch to zoom, flick sideways for the next model"></canvas></div>
+<div id="spin" role="status"><span class="sr">Loading</span></div><div id="err"></div>
+<header id="top"><div id="title"><div id="nm" aria-live="polite">Sunspots</div><div id="meta"><span id="bd" class="badge">Main cast</span><span id="cnt"></span></div></div>
+<button id="ph" aria-pressed="false" aria-label="Show reference photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M4 18l5-5 4 4 3-3 4 4"/></svg>Photo</button></header>
+<button class="arr" id="prev" aria-label="Previous model"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+<button class="arr" id="next" aria-label="Next model"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+<button id="ref" aria-label="Reference photo (tap to enlarge)"><img id="refimg" alt=""><div class="cap">reference photo</div></button>
+<nav id="bot"><div id="tabs"></div><div id="strip" role="listbox" aria-label="Models"></div></nav>
+<div id="hint">Drag to spin · pinch to zoom · flick or tap arrows for next</div>
 <script type="module">
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { applySunspotsLook } from './sunspots_material.js';
-const M='./models/';
-const CAST=[['Wolf','wolf_armsdown_felt.glb','wolf'],['Bear','cast2/bear.glb','bear'],['Crow','scene/crow_armsdown.glb','crow'],['Lynx','cast2/lynx.glb','lynx'],
-['Anteater','cast2/anteater.glb','anteater'],['Heron','scene/heron_armsdown.glb','heron'],['Ram','scene/ram.glb','ram'],['Gecko','cast2/gecko.glb','gecko'],
-['Moth','moth_driver.glb','moth'],['Banana Squid','cast/wanderer_banana_squid_walking.glb','squid'],['Farmhand','cast/wanderer_shovel_farmhand_walking.glb','farmhand']];
+import { applySunspotsLook, sunspotsNoise, contactShadow } from './sunspots_material.js';
+const $=id=>document.getElementById(id), M='./models/', R='./lookbook_refs/';
+// [name, glb, look preset, ref photo, group]
+const CAST=[['Wolf','wolf_armsdown_felt.glb','wolf','wolf'],['Bear','cast2/bear.glb','bear','bear'],['Crow','scene/crow_armsdown.glb','crow','crow'],['Lynx','cast2/lynx.glb','lynx','lynx'],
+['Anteater','cast2/anteater.glb','anteater','anteater'],['Heron','scene/heron_armsdown.glb','heron','heron'],['Ram','scene/ram.glb','ram','ram'],['Gecko','cast2/gecko.glb','gecko','gecko'],
+['Moth','moth_driver.glb','moth','moth_driver'],['Banana Squid','cast/wanderer_banana_squid_walking.glb','squid','banana_squid'],['Farmhand','cast/wanderer_shovel_farmhand_walking.glb','farmhand','farmhand']].map(e=>[...e,0]);
 const T2=['argyle_sock','booth_prop','corded_box','eye_chair','fence_stool','mailbox','rubber_glove','stove','washing_machine','window_box','pocket_watch'];
 const H2=['house_head','lamp_bulb','lantern','old_tv','phone','plaid_box','pliers','plunger_glasses','roller_skate','sink','toilet','tv_head','wheelbarrow'];
-const OBJ=[...T2.map(n=>[n.replace(/_/g,' '),'town2/'+n+'.glb',(n=='argyle_sock'||n=='booth_prop')?'feltobj':'object']),...H2.map(n=>[n.replace(/_/g,' '),'hf2/'+n+'.glb','object'])];
-const ALL=[...CAST,...OBJ];
-const r=new THREE.WebGLRenderer({canvas:c,antialias:true});r.setPixelRatio(Math.min(devicePixelRatio,2));r.toneMapping=THREE.NeutralToneMapping;r.outputColorSpace=THREE.SRGBColorSpace;
-const sc=new THREE.Scene();sc.background=new THREE.Color(0xf3e6d3);
-sc.add(new THREE.HemisphereLight(0xfff1e0,0xd98a6a,1.4));const k=new THREE.DirectionalLight(0xffe2c0,2.2);k.position.set(3,5,4);sc.add(k);
-const cam=new THREE.PerspectiveCamera(30,1,0.05,100);cam.position.set(2.2,1.4,4.4);cam.lookAt(0,0.85,0);let yaw=0.5,drag=null;c.onpointerdown=e=>drag=e.clientX;onpointerup=()=>drag=null;onpointermove=e=>{if(drag!==null){yaw+=(e.clientX-drag)*0.01;drag=e.clientX;}};
-const ld=new GLTFLoader();ld.setMeshoptDecoder(MeshoptDecoder);let cur=null,mix=null;const piv=new THREE.Group();sc.add(piv);const clk=new THREE.Clock();
-function size(){r.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();}addEventListener('resize',size);size();
-const ui=document.getElementById('ui');const links=[];
-[['Main cast',CAST],['New Cast objects (24)',OBJ]].forEach(([h,L])=>{const b=document.createElement('b');b.textContent=h;ui.appendChild(b);
-L.forEach(e=>{const a=document.createElement('a');a.textContent=e[0];a.onclick=()=>show(e);ui.appendChild(a);links.push([e,a]);});});
-async function show(e){links.forEach(([x,a])=>a.classList.toggle('on',x===e));nm.textContent=e[0]+' — loading';
- const g=await ld.loadAsync(M+e[1]);if(cur)piv.remove(cur);cur=g.scene;
- const bb=new THREE.Box3().setFromObject(cur),s=new THREE.Vector3();bb.getSize(s);const f=1.75/Math.max(s.x,s.y,s.z);cur.scale.setScalar(f);
- bb.setFromObject(cur);const ce=bb.getCenter(new THREE.Vector3());cur.position.x-=ce.x;cur.position.z-=ce.z;cur.position.y-=bb.min.y;
- applySunspotsLook(cur,{mode:'cheap',lite:true,char:e[2],height:1.75});piv.add(cur);
- mix=null;if(g.animations.length){mix=new THREE.AnimationMixer(cur);mix.clipAction(g.animations[0]).play();}
- nm.textContent=e[0];history.replaceState(null,'','?m='+encodeURIComponent(e[1]));window.LB_READY=e[1];}
-const q=new URLSearchParams(location.search).get('m');show(ALL.find(e=>e[1]==q)||ALL[0]);
-r.setAnimationLoop(()=>{const d=clk.getDelta();if(mix)mix.update(d);if(cur){if(drag===null)yaw+=d*0.3;piv.rotation.y=yaw;}r.render(sc,cam);});
+const title=n=>n.split('_').map(w=>w=='tv'?'TV':w[0].toUpperCase()+w.slice(1)).join(' ');
+const OBJ=[...T2.map(n=>[title(n),'town2/'+n+'.glb',(n=='argyle_sock'||n=='booth_prop')?'feltobj':'object',n,1]),...H2.map(n=>[title(n),'hf2/'+n+'.glb','object',n,1])];
+const ALL=[...CAST,...OBJ], GROUPS=[['Main Cast',0],['New Objects',CAST.length]];
 window.LB_ALL=ALL.map(e=>e[1]);
+
+// ---------- renderer (DPR capped; phones get 2, low-memory devices 1.5)
+const c=$('c'), stage=$('stage');
+const r=new THREE.WebGLRenderer({canvas:c,antialias:true,alpha:true,powerPreference:'high-performance'});
+const DPR=Math.min(devicePixelRatio||1,(navigator.deviceMemory&&navigator.deviceMemory<=4)?1.5:2);r.setPixelRatio(DPR);
+r.toneMapping=THREE.NeutralToneMapping;r.outputColorSpace=THREE.SRGBColorSpace;r.setClearColor(0,0);
+const sc=new THREE.Scene();
+sc.add(new THREE.HemisphereLight(0xdfe8ff,0xe4775d,1.35));const k=new THREE.DirectionalLight(0xfff0d8,2.3);k.position.set(3,5,4);sc.add(k);
+const fill=new THREE.DirectionalLight(0xb8c8ff,0.6);fill.position.set(-4,2,-2);sc.add(fill);
+// coral ground: soft-edged disc that fades into the sky gradient + contact shadow
+{const g=document.createElement('canvas');g.width=g.height=256;const x=g.getContext('2d'),gr=x.createRadialGradient(128,128,0,128,128,128);
+ gr.addColorStop(0,'rgba(228,119,93,1)');gr.addColorStop(.62,'rgba(228,119,93,1)');gr.addColorStop(1,'rgba(228,119,93,0)');x.fillStyle=gr;x.fillRect(0,0,256,256);
+ const t=new THREE.CanvasTexture(g);t.colorSpace=THREE.SRGBColorSpace;
+ const gm=new THREE.Mesh(new THREE.CircleGeometry(2.4,64),new THREE.MeshBasicMaterial({map:t,transparent:true,depthWrite:false}));gm.rotation.x=-Math.PI/2;gm.renderOrder=0;sc.add(gm);
+ const sh=contactShadow(0.75,0.45);sh.renderOrder=1;sc.add(sh);}
+const cam=new THREE.PerspectiveCamera(30,1,0.05,100);
+const piv=new THREE.Group();sc.add(piv);const clk=new THREE.Clock();
+const ld=new GLTFLoader();ld.setMeshoptDecoder(MeshoptDecoder);const NOISE=sunspotsNoise();
+
+// ---------- view state
+let yaw=0.5,pitch=0.16,zoom=1,fitD=5,fitY=0.85,lastTouch=-1e9;
+const ui={top:0,bot:0};
+function layout(){const w=stage.clientWidth,h=stage.clientHeight;r.setSize(w,h,false);cam.aspect=w/h;
+ ui.top=$('top').getBoundingClientRect().bottom;ui.bot=$('bot').getBoundingClientRect().height;
+ // shift the projection so the model centres in the free space between header and bottom bar
+ const off=(ui.bot-ui.top)/2*0.85;cam.setViewOffset(w,h,0,off,w,h);cam.updateProjectionMatrix();if(cur)fit();}
+new ResizeObserver(layout).observe(stage);addEventListener('resize',layout);
+let curSize=new THREE.Vector3(1,1.75,1);
+function fit(){const w=stage.clientWidth,h=stage.clientHeight,avail=Math.max(120,h-ui.top-ui.bot)/h;
+ const vf=THREE.MathUtils.degToRad(cam.fov),tv=Math.tan(vf/2)*avail*0.92,th=Math.tan(vf/2)*cam.aspect*0.8;
+ const rad=Math.hypot(curSize.x,curSize.z)/2;fitY=curSize.y/2;fitD=Math.max(curSize.y/2/tv,rad/th)+rad;}
+function place(){const d=fitD/zoom;cam.position.set(0,fitY+Math.sin(pitch)*d,Math.cos(pitch)*d);cam.lookAt(0,fitY,0);}
+
+// ---------- model loading: current + prefetch neighbours, dispose old
+const bufs=new Map();
+function getBuf(url){if(!bufs.has(url))bufs.set(url,fetch(url).then(x=>{if(!x.ok)throw new Error(x.status+' '+url);return x.arrayBuffer();}).catch(e=>{bufs.delete(url);throw e;}));return bufs.get(url);}
+function trimBufs(keep){for(const u of [...bufs.keys()])if(!keep.includes(u))bufs.delete(u);}
+function dispose(root,mx){if(mx){mx.stopAllAction();mx.uncacheRoot(root);}
+ const mats=new Set(),tex=new Set();
+ root.traverse(o=>{if(o.geometry)o.geometry.dispose();for(const m of [].concat(o.material||[],o.userData.ssPair||[]))mats.add(m);o.userData={};});
+ for(const m of mats){for(const v of Object.values(m))if(v&&v.isTexture&&v!==NOISE)tex.add(v);m.dispose();}
+ for(const t of tex)t.dispose();piv.remove(root);root.clear();}
+let cur=null,mix=null,idx=0,tok=0;
+async function show(i){idx=(i+ALL.length)%ALL.length;const e=ALL[idx],my=++tok;syncUI();
+ document.body.classList.add('loading');$('err').style.display='none';
+ const url=M+e[1],base=url.slice(0,url.lastIndexOf('/')+1);
+ try{const buf=await getBuf(url);if(my!==tok)return;
+  const g=await ld.parseAsync(buf.slice(0),base);if(my!==tok){dispose(g.scene);return;}
+  const o=g.scene,bb=new THREE.Box3().setFromObject(o),s=new THREE.Vector3();bb.getSize(s);o.scale.setScalar(1.75/Math.max(s.x,s.y,s.z));
+  bb.setFromObject(o);const ce=bb.getCenter(new THREE.Vector3());o.position.x-=ce.x;o.position.z-=ce.z;o.position.y-=bb.min.y;bb.setFromObject(o);bb.getSize(curSize);
+  applySunspotsLook(o,{mode:'cheap',lite:true,char:e[2],height:1.75});
+  if(cur)dispose(cur,mix);cur=o;piv.add(o);mix=null;
+  if(g.animations.length){mix=new THREE.AnimationMixer(o);mix.clipAction(g.animations[0]).play();}
+  zoom=1;fit();r.compile(sc,cam);
+  history.replaceState(null,'','?m='+encodeURIComponent(e[1]));window.LB_READY=e[1];
+ }catch(err){if(my!==tok)return;console.warn(err);$('err').textContent="Couldn't load "+e[0]+' — tap ›';$('err').style.display='block';}
+ if(my===tok)document.body.classList.remove('loading');
+ // prefetch next (and previous) so swiping feels instant; keep at most 3 buffers in memory
+ const nb=[M+ALL[(idx+1)%ALL.length][1],M+ALL[(idx-1+ALL.length)%ALL.length][1]];trimBufs([url,...nb]);
+ setTimeout(()=>{if(my===tok)nb.forEach(u=>getBuf(u).catch(()=>{}));},300);}
+const go=d=>show(idx+d);
+
+// ---------- UI: header, tabs, chip strip, photo
+const tabs=$('tabs'),strip=$('strip'),chips=[];
+GROUPS.forEach(([n,st],gi)=>{const b=document.createElement('button');b.className='tab';b.innerHTML=n+'<small>'+(gi?OBJ.length:CAST.length)+'</small>';b.onclick=()=>show(st);tabs.appendChild(b);});
+ALL.forEach((e,i)=>{const b=document.createElement('button');b.className='chip'+(i===CAST.length?' sep':'');b.setAttribute('role','option');
+ b.innerHTML='<img loading="lazy" decoding="async" alt="" src="'+R+e[3]+'.webp"><span></span>';b.lastChild.textContent=e[0];b.onclick=()=>show(i);strip.appendChild(b);chips.push(b);});
+function syncUI(){const e=ALL[idx];$('nm').textContent=e[0];const bd=$('bd');bd.textContent=e[4]?'Object':'Main cast';bd.classList.toggle('obj',!!e[4]);
+ $('cnt').textContent=(e[4]?'New Objects ':'Main Cast ')+(e[4]?idx-CAST.length+1:idx+1)+' / '+(e[4]?OBJ.length:CAST.length);
+ [...tabs.children].forEach((t,gi)=>t.classList.toggle('on',gi===e[4]));
+ chips.forEach((ch,i)=>{ch.classList.toggle('on',i===idx);ch.setAttribute('aria-selected',i===idx);});
+ const ch=chips[idx];strip.scrollTo({left:ch.offsetLeft-(strip.clientWidth-ch.offsetWidth)/2,behavior:'smooth'});
+ $('refimg').src=R+e[3]+'.webp';$('refimg').alt='Reference photo of '+e[0];document.title=e[0]+' — Sunspots lookbook';}
+const ph=$('ph'),ref=$('ref');
+$('refimg').onload=ev=>{const i=ev.target;if(i.naturalHeight)ref.style.setProperty('--ar',(i.naturalWidth/i.naturalHeight).toFixed(3));};
+function setPhoto(on){document.body.classList.toggle('photo',on);ph.setAttribute('aria-pressed',on);ref.classList.remove('big');try{localStorage.lbPhoto=on?1:0;}catch{}requestAnimationFrame(layout);}
+ph.onclick=()=>setPhoto(!document.body.classList.contains('photo'));
+ref.onclick=()=>{if(!matchMedia('(min-width:760px) and (min-aspect-ratio:1/1)').matches)ref.classList.toggle('big');};
+$('prev').onclick=()=>go(-1);$('next').onclick=()=>go(1);
+addEventListener('keydown',ev=>{if(ev.key==='ArrowRight')go(1);else if(ev.key==='ArrowLeft')go(-1);else if(ev.key==='p')ph.click();else if(ev.key==='Escape')ref.classList.remove('big');});
+if(matchMedia('(pointer:fine)').matches)$('hint').textContent='Drag to spin · scroll to zoom · ← → keys or arrows for next · P for photo';
+let hintT=setTimeout(()=>$('hint').classList.add('gone'),6000);const killHint=()=>{clearTimeout(hintT);$('hint').classList.add('gone');};
+
+// ---------- gestures: 1 finger spin (x) / tilt (y), 2 fingers pinch-zoom, quick horizontal flick = next/prev, wheel zoom, double-tap reset
+const P=new Map();let g0=null,pinch=null,lastTap=0;
+c.addEventListener('pointerdown',ev=>{try{c.setPointerCapture(ev.pointerId);}catch{}P.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});lastTouch=performance.now();killHint();
+ if(P.size===1)g0={x:ev.clientX,y:ev.clientY,t:performance.now(),yaw,pitch,multi:false};
+ else if(P.size===2){const [a,b]=[...P.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y),z:zoom};if(g0)g0.multi=true;}});
+c.addEventListener('pointermove',ev=>{const p=P.get(ev.pointerId);if(!p)return;const dx=ev.clientX-p.x,dy=ev.clientY-p.y;p.x=ev.clientX;p.y=ev.clientY;lastTouch=performance.now();
+ if(P.size===1&&g0&&!g0.multi){yaw+=dx*0.011;pitch=THREE.MathUtils.clamp(pitch+dy*0.006,-0.12,1.0);}
+ else if(P.size===2&&pinch){const [a,b]=[...P.values()];zoom=THREE.MathUtils.clamp(pinch.z*Math.hypot(a.x-b.x,a.y-b.y)/Math.max(pinch.d,1),0.6,3);}});
+function up(ev){if(!P.has(ev.pointerId))return;P.delete(ev.pointerId);
+ if(P.size===0&&g0){const dt=performance.now()-g0.t,dx=ev.clientX-g0.x,dy=ev.clientY-g0.y;
+  if(!g0.multi&&dt<300&&Math.abs(dx)>60&&Math.abs(dx)>1.6*Math.abs(dy)){yaw=g0.yaw;pitch=g0.pitch;go(dx<0?1:-1);}
+  else if(!g0.multi&&dt<250&&Math.hypot(dx,dy)<10){const n=performance.now();if(n-lastTap<320){zoom=1;pitch=0.16;}lastTap=n;}
+  g0=null;}
+ if(P.size<2)pinch=null;if(P.size===1)g0={...[...P.values()][0],t:0,yaw,pitch,multi:true};}
+c.addEventListener('pointerup',up);c.addEventListener('pointercancel',up);
+c.addEventListener('wheel',ev=>{ev.preventDefault();zoom=THREE.MathUtils.clamp(zoom*Math.exp(-ev.deltaY*0.0015),0.6,3);lastTouch=performance.now();},{passive:false});
+document.addEventListener('gesturestart',ev=>ev.preventDefault()); // iOS: no page zoom
+document.addEventListener('dblclick',ev=>ev.preventDefault());
+
+// ---------- loop (gentle auto-spin when idle)
+r.setAnimationLoop(()=>{const d=Math.min(clk.getDelta(),0.1);if(mix)mix.update(d);
+ if(performance.now()-lastTouch>3500)yaw+=d*0.35;piv.rotation.y=yaw;place();r.render(sc,cam);});
+try{if(localStorage.lbPhoto==='1')document.body.classList.add('photo'),ph.setAttribute('aria-pressed',true);}catch{}
+layout();
+const q=new URLSearchParams(location.search).get('m');const qi=ALL.findIndex(e=>e[1]==q);show(qi<0?0:qi);
 </script></body></html>
