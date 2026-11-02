@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { sunspotsApply, sunspotsLowEnd } from './sunspots_material.js';
+import { createBowling } from './bowling.js';   // run 8: playable lane at Gutter Bowl
 
 const M = './models/';
 const ROOMS = {
@@ -15,7 +16,7 @@ const ROOMS = {
   // slice 2 (Town Plan: KSUN, Crow's Yard, Gutter Bowl + Second Sun Thrift) — mission Dead Air
   ksun:       { name: 'KSUN RADIO & CH. 2', wall: '#d8c7e6', trim: '#5a4a8a', floor: '#5a5468', floor2: '#4a4458', light: '#fff0e0' },
   yard:       { name: 'CROW\'S YARD',       wall: '#c9a77a', trim: '#7a5a3a', floor: '#c9a06a', floor2: '#b88f5a', light: '#ffe6b8' },
-  bowl:       { name: 'GUTTER BOWL',        wall: '#6b4c8a', trim: '#ff6fae', floor: '#e3b878', floor2: '#d6a868', light: '#fff0d8', real: true },   // real place: untouched 1960 alley
+  bowl:       { name: 'GUTTER BOWL',        wall: '#6b4c8a', trim: '#ff6fae', floor: '#e3b878', floor2: '#d6a868', light: '#fff0d8', real: true, W: 14, D: 7.6 },   // run 8: 8 lanes, 14 x 7.6 m   // real place: untouched 1960 alley
   thrift:     { name: 'SECOND SUN THRIFT',  wall: '#f2d27a', trim: '#c98a3a', floor: '#c9785a', floor2: '#b86a4f', light: '#fff0d0' },
   // slice 3 (Town Plan: The Neon Strip, next to Gutter Bowl) — mission Leave The Light On
   motel:      { name: 'LEAVE-THE-LIGHT-ON MOTEL', wall: '#f6c6d6', trim: '#2a9d9a', floor: '#e8d6b0', floor2: '#d6c098', light: '#ffe0f0',
@@ -267,7 +268,7 @@ export function createTown(ctx) {
   const pane = (w, h, t, glow = 0) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), texMat(t, glow)); m.receiveShadow = !LOW; return m; };
   function txt(g, s, x, y, px, col, font = 'Futura, Avenir, sans-serif', wt = 700, align = 'center') { g.fillStyle = col; g.font = `${wt} ${px}px ${font}`; g.textAlign = align; g.textBaseline = 'middle'; g.fillText(s, x, y); }
   function realRoom(G, o) {   // floor + back/left/right walls (planes, own textures) + optional ceiling rising toward the open front (o.cy=[backY, frontY], o.curve = barrel vault)
-    const W = 8, D = 6, H = o.H || 4.0;
+    const W = o.W || 8, D = o.D || 6, H = o.H || 4.0;
     const fl = new THREE.Mesh(new THREE.BoxGeometry(W + 0.4, 0.2, D + 0.2), texMat(o.floor)); fl.position.y = -0.1; fl.receiveShadow = true; G.add(fl);
     const wall = (t, w, x, z, ry) => { const m = pane(w, H, t, o.wallGlow || 0); m.position.set(x, H / 2 - 0.02, z); m.rotation.y = ry; G.add(m); return m; };
     wall(o.back, W + 0.4, 0, -D / 2, 0); wall(o.left, D + 0.2, -W / 2, 0, Math.PI / 2); wall(o.right, D + 0.2, W / 2, 0, -Math.PI / 2);
@@ -281,7 +282,7 @@ export function createTown(ctx) {
 
   // ------------------------------------------------------------------ room shell (floor + 3 walls + soffit, open front)
   function shell(R) {
-    const g = new THREE.Group(), W = 8, D = 6, H = 3.2;
+    const g = new THREE.Group(), W = R.W || 8, D = R.D || 6, H = 3.2;
     const fc = document.createElement('canvas'); fc.width = fc.height = 256; const f = fc.getContext('2d');
     for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { f.fillStyle = (i + j) % 2 ? R.floor : R.floor2; f.fillRect(i * 32, j * 32, 32, 32); }
     const ft = new THREE.CanvasTexture(fc); ft.colorSpace = THREE.SRGBColorSpace; ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(2, 1.5);
@@ -608,98 +609,122 @@ export function createTown(ctx) {
       ];
     },
     async bowl(G, A) {   // REAL PLACE: an untouched 1960 Brunswick-era alley (refs: Kona Lanes 1960, Western Lanes Raleigh 1960, restored lanes at the Int'l Bowling Museum)
-      const [skate, ram, bear, booth] = await Promise.all([glb('hf2/roller_skate.glb', 0.5, 'object', { rest: 'bob' }), glb('town2/ram_lo.glb', 1.75, 'ram', { clip: 'idle', t: 0.2 }),
-        glb('town2/bear_lo.glb', 1.85, 'bear', { rest: 'breathe' }), glb('town2/booth_prop.glb', 1.25, 'feltobj')]);
-      const H = 4.0, WAL = '#6b4528', WAL2 = '#5a3920', CREAM = '#efe2c4', TQ = '#3f9c9a', CORAL = '#e0705a', MUST = '#e2b23a';
+      // run 8: twice the house (8 lanes, a real concourse) + a playable lane: pay at the control counter, rental shoes, walk to your lit lane, bowl (bowling.js)
+      const [skate, ram, bear] = await Promise.all([glb('hf2/roller_skate.glb', 0.5, 'object', { rest: 'bob' }), glb('town2/ram_lo.glb', 1.75, 'ram', { clip: 'idle', t: 0.2 }),
+        glb('town2/bear_lo.glb', 1.85, 'bear', { rest: 'breathe' })]);
+      const RW = 14, RD = 7.6, H = 4.0, WAL = '#6b4528', WAL2 = '#5a3920', CREAM = '#efe2c4', TQ = '#3f9c9a', CORAL = '#e0705a', MUST = '#e2b23a', PEN = 'Marker Felt, "Comic Sans MS", sans-serif';
       const yy = (h, y) => h * (1 - y / H);
       const panels = (g, w, h, top, step = 34) => { g.fillStyle = WAL; g.fillRect(0, yy(h, top), w, h); for (let x = 0; x < w; x += step) { g.fillStyle = WAL2; g.fillRect(x, yy(h, top), 3, h); g.fillStyle = 'rgba(255,220,170,0.08)'; g.fillRect(x + 6, yy(h, top), 8, h); } };
-      const LX0 = -3.75, LW = 1.1, LANES = 4, LX1 = LX0 + LW * LANES, LZ0 = -2.75, LZ1 = 2.1, FOUL = 1.2;   // 4 lanes (pitch 1.1 m), pin deck at the back, foul line, approach
+      const LANES = 8, LW = 1.05, LX0 = -6.95, LX1 = LX0 + LW * LANES, LZ0 = -3.55, LZ1 = 1.95, FOUL = 0.6, PZ = -3.0;   // 8 lanes (pitch 1.05 m), pin decks at the back, foul line, approaches
       const lc = (i) => LX0 + LW * (i + 0.5);
-      realRoom(G, { H,
+      realRoom(G, { H, W: RW, D: RD,
         floor: cvTex(256, 256, (g, w, h) => { g.fillStyle = '#2f6a6e'; g.fillRect(0, 0, w, h);   // atomic-starburst concourse carpet
           for (const [x, y, c] of [[50, 60, MUST], [180, 40, CORAL], [120, 160, CREAM], [220, 210, MUST], [30, 220, CORAL]]) { g.strokeStyle = c; g.lineWidth = 3; for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * 18, y + Math.sin(a) * 18); g.stroke(); } }
-          g.strokeStyle = '#1e4a4e'; g.lineWidth = 5; for (const [x, y] of [[110, 70], [40, 140], [200, 120]]) { g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 22, y - 18, x + 44, y + 6); g.stroke(); } }, 4, 3),
-        back: cvTex(512, 256, (g, w, h) => { g.fillStyle = CREAM; g.fillRect(0, 0, w, h); panels(g, w, h, 2.95); g.fillStyle = CORAL; g.fillRect(0, yy(h, 3.02), w, yy(h, 2.95) - yy(h, 3.02)); }),
+          g.strokeStyle = '#1e4a4e'; g.lineWidth = 5; for (const [x, y] of [[110, 70], [40, 140], [200, 120]]) { g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + 22, y - 18, x + 44, y + 6); g.stroke(); } }, 6, 3.4),
+        back: cvTex(1024, 256, (g, w, h) => { g.fillStyle = CREAM; g.fillRect(0, 0, w, h); panels(g, w, h, 2.95); g.fillStyle = CORAL; g.fillRect(0, yy(h, 3.02), w, yy(h, 2.95) - yy(h, 3.02)); }),
         left: cvTex(512, 256, (g, w, h) => { g.fillStyle = CREAM; g.fillRect(0, 0, w, h); panels(g, w, h, 1.3, 28); g.fillStyle = CORAL; g.fillRect(0, yy(h, 1.38), w, yy(h, 1.3) - yy(h, 1.38)); }),
         right: cvTex(512, 256, (g, w, h) => { g.fillStyle = CREAM; g.fillRect(0, 0, w, h); panels(g, w, h, 1.3, 28); g.fillStyle = TQ; g.fillRect(0, yy(h, 1.38), w, yy(h, 1.3) - yy(h, 1.38)); }),
-        ceil: cvTex(256, 256, (g, w, h) => { g.fillStyle = '#ece6d6'; g.fillRect(0, 0, w, h); g.fillStyle = 'rgba(90,70,50,0.25)'; for (let i = 0; i < 900; i++) g.fillRect(Math.random() * w, Math.random() * h, 1.2, 1.2);   // acoustic tile
-          g.fillStyle = '#b8ad96'; for (let p = 0; p <= w; p += 32) { g.fillRect(p, 0, 2, h); g.fillRect(0, p, w, 2); } g.fillStyle = '#fff7d8'; g.fillRect(66, 98, 28, 28); g.fillRect(162, 98, 28, 28); }, 4, 2.4),
-        cy: [3.02, 3.72], ceilGlow: 0.4 });
-      // maple lanes: boards, dark gutters, target arrows, approach dots, foul line, darker pin decks
-      const laneTex = cvTex(512, 640, (g, w, h) => { const px = (x) => (x - LX0) / (LX1 - LX0) * w, pz = (z) => (z - LZ0) / (LZ1 - LZ0) * h;
+        ceil: cvTex(256, 256, (g, w, h) => { g.fillStyle = '#ece6d6'; g.fillRect(0, 0, w, h); g.fillStyle = 'rgba(90,70,50,0.25)'; for (let i = 0; i < 900; i++) g.fillRect(Math.random() * w, Math.random() * h, 1.2, 1.2);   // acoustic tile + lane light troughs
+          g.fillStyle = '#b8ad96'; for (let p = 0; p <= w; p += 32) { g.fillRect(p, 0, 2, h); g.fillRect(0, p, w, 2); } g.fillStyle = '#fff7d8'; g.fillRect(40, 0, 18, h); g.fillRect(168, 0, 18, h); }, 7, 2.6),
+        cy: [3.1, 3.85], cz: 5.4, ceilGlow: 0.4 });
+      // maple lanes: boards, gutters, target arrows, approach dots, foul line, darker pin decks
+      const laneTex = cvTex(1024, 512, (g, w, h) => { const px = (x) => (x - LX0) / (LX1 - LX0) * w, pz = (z) => (z - LZ0) / (LZ1 - LZ0) * h;
         for (let x = 0; x < w; x += 3) { g.fillStyle = (x / 3) % 3 === 0 ? '#e2b97e' : (x / 3) % 3 === 1 ? '#ebc78f' : '#e6c086'; g.fillRect(x, 0, 3, h); }
-        g.fillStyle = 'rgba(150,90,40,0.18)'; g.fillRect(0, 0, w, pz(-1.95));   // pin decks
-        for (let i = 0; i < LANES; i++) { const c = lc(i); for (const s of [-1, 1]) { g.fillStyle = '#2e2420'; g.fillRect(px(c + s * 0.49) - 7, 0, 14, pz(FOUL)); }
-          g.fillStyle = '#5a3a22'; for (let k = -3; k <= 3; k++) { const x = px(c + k * 0.11), z = pz(0.05 + Math.abs(k) * 0.06); g.beginPath(); g.moveTo(x, z - 9); g.lineTo(x - 4, z + 5); g.lineTo(x + 4, z + 5); g.fill(); }
-          for (let k = -2; k <= 2; k++) { g.beginPath(); g.arc(px(c + k * 0.14), pz(1.75), 2.5, 0, 7); g.fill(); g.beginPath(); g.arc(px(c + k * 0.14), pz(1.45), 2.5, 0, 7); g.fill(); } }
+        g.fillStyle = 'rgba(150,90,40,0.18)'; g.fillRect(0, 0, w, pz(-2.75));   // pin decks
+        for (let i = 0; i < LANES; i++) { const c = lc(i); for (const s of [-1, 1]) { g.fillStyle = '#2e2420'; g.fillRect(px(c + s * 0.47) - 6, 0, 12, pz(FOUL)); }
+          g.fillStyle = '#5a3a22'; for (let k = -3; k <= 3; k++) { const x = px(c + k * 0.1), z = pz(-0.6 + Math.abs(k) * 0.07); g.beginPath(); g.moveTo(x, z - 9); g.lineTo(x - 4, z + 5); g.lineTo(x + 4, z + 5); g.fill(); }
+          for (let k = -2; k <= 2; k++) { g.beginPath(); g.arc(px(c + k * 0.13), pz(1.65), 2.5, 0, 7); g.fill(); g.beginPath(); g.arc(px(c + k * 0.13), pz(1.25), 2.5, 0, 7); g.fill(); } }
         g.fillStyle = '#1e1a1a'; g.fillRect(0, pz(FOUL) - 3, w, 6); }, 1, 1, 0.5);
       const lanes = ph('bowling lanes (maple)', pane(LX1 - LX0, LZ1 - LZ0, laneTex)); lanes.rotation.x = -Math.PI / 2; lanes.position.set((LX0 + LX1) / 2, 0.012, (LZ0 + LZ1) / 2); G.add(lanes);
-      const pinG = new THREE.LatheGeometry([[0, 0], [0.035, 0], [0.05, 0.08], [0.045, 0.16], [0.024, 0.24], [0.034, 0.3], [0.024, 0.37], [0, 0.38]].map(([x, y]) => new THREE.Vector2(x, y)), 8);
-      const pins = ph('bowling pins', new THREE.InstancedMesh(pinG, feltMat('#fff3dc'), 40)); let n = 0;
-      for (let l = 0; l < LANES; l++) for (let r = 0; r < 4; r++) for (let k = 0; k <= r; k++) { mx4.makeTranslation(lc(l) + (k - r / 2) * 0.14, 0.012, -2.2 - r * 0.13); pins.setMatrixAt(n++, mx4); }
+      const pinG = new THREE.LatheGeometry([[0.035, 0], [0.05, 0.09], [0.024, 0.24], [0.034, 0.31], [0, 0.38]].map(([x, y]) => new THREE.Vector2(x, y)), 5);   // far pins: 40 tris each
+      const pins = ph('bowling pins', new THREE.InstancedMesh(pinG, feltMat('#fff3dc'), 80)); let n = 0;
+      for (let l = 0; l < LANES; l++) for (let r = 0; r < 4; r++) for (let k = 0; k <= r; k++) { mx4.makeTranslation(lc(l) + (k - r / 2) * 0.14, 0.012, PZ - r * 0.13); pins.setMatrixAt(n++, mx4); }
       pins.castShadow = !LOW; G.add(pins);
-      const pit = box(LX1 - LX0, 0.62, 0.12, '#141014', 0.01); at(pit, (LX0 + LX1) / 2, 0, -2.94); G.add(pit);   // the dark pinsetter opening
-      for (let i = 0; i <= LANES; i++) { const kb = box(0.06, 0.62, 0.9, WAL2, 0.01); at(kb, LX0 + i * LW, 0, -2.5); G.add(kb); }   // kickbacks
-      // masking units: back-lit panels with lane numbers + crown (Brunswick-style)
-      const mask = pane(LX1 - LX0, 0.6, cvTex(512, 70, (g, w, h) => { g.fillStyle = '#3a2418'; g.fillRect(0, 0, w, h); for (let i = 0; i < LANES; i++) { const x = i * w / LANES; g.fillStyle = '#f6ead0'; g.fillRect(x + 6, 6, w / LANES - 12, h - 12);
+      const pit = new THREE.Mesh(new THREE.BoxGeometry(LX1 - LX0, 0.62, 0.12), feltMat('#141014')); pit.position.set((LX0 + LX1) / 2, 0.31, -3.74); G.add(pit);   // the dark pinsetter opening
+      const kbG = new THREE.BoxGeometry(0.06, 0.62, 0.9), kbM = feltMat(WAL2); for (let i = 0; i <= LANES; i++) { const kb = new THREE.Mesh(kbG, kbM); kb.position.set(LX0 + i * LW, 0.31, -3.25); G.add(kb); }   // kickbacks
+      // masking units: back-lit panels with lane numbers + crown (Brunswick-style); yours glows when it's assigned
+      const mask = pane(LX1 - LX0, 0.6, cvTex(1024, 70, (g, w, h) => { g.fillStyle = '#3a2418'; g.fillRect(0, 0, w, h); for (let i = 0; i < LANES; i++) { const x = i * w / LANES; g.fillStyle = '#f6ead0'; g.fillRect(x + 6, 6, w / LANES - 12, h - 12);
         g.fillStyle = MUST; g.beginPath(); const cx = x + w / LANES * 0.3, cy = h * 0.55; g.moveTo(cx - 16, cy + 10); g.lineTo(cx - 16, cy - 8); g.lineTo(cx - 8, cy); g.lineTo(cx, cy - 12); g.lineTo(cx + 8, cy); g.lineTo(cx + 16, cy - 8); g.lineTo(cx + 16, cy + 10); g.fill();
         txt(g, String(i + 1), x + w / LANES * 0.68, h * 0.53, 44, '#b8332e'); } }, 1, 1, 0.2), 0.75);
-      at(mask, (LX0 + LX1) / 2, 0.93, -2.86); G.add(mask); const mf = box(LX1 - LX0 + 0.1, 0.08, 0.2, WAL2, 0.02); at(mf, (LX0 + LX1) / 2, 1.22, -2.86); G.add(mf);
-      const houseSign = pane(3.1, 0.78, cvTex(512, 128, (g, w, h) => { g.fillStyle = '#2a1a16'; g.fillRect(0, 0, w, h); g.strokeStyle = CORAL; g.lineWidth = 5; g.strokeRect(8, 8, w - 16, h - 16);
-        g.save(); g.translate(w / 2, h * 0.54); g.rotate(-0.06); txt(g, 'Gutter Bowl', 0, 0, 76, '#ffd9c0', '"Brush Script MT", "Snell Roundhand", cursive', 700); g.restore();
+      at(mask, (LX0 + LX1) / 2, 0.93, -3.66); G.add(mask); const mf = box(LX1 - LX0 + 0.1, 0.08, 0.2, WAL2, 0.02); at(mf, (LX0 + LX1) / 2, 1.22, -3.66); G.add(mf);
+      const lit = new THREE.Mesh(new THREE.PlaneGeometry(LW - 0.06, 0.62), new THREE.MeshBasicMaterial({ color: '#ffb36a', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })); lit.position.set(0, 1.23, -3.64); G.add(lit);
+      const litBar = new THREE.Mesh(new THREE.PlaneGeometry(LW - 0.1, 0.07), new THREE.MeshBasicMaterial({ color: '#ff8a5a' })); litBar.position.set(0, 1.58, -3.63); G.add(litBar);
+      const houseSign = pane(3.6, 0.9, cvTex(512, 128, (g, w, h) => { g.fillStyle = '#2a1a16'; g.fillRect(0, 0, w, h); g.strokeStyle = CORAL; g.lineWidth = 5; g.strokeRect(8, 8, w - 16, h - 16);
+        g.save(); g.translate(w / 2, h * 0.5); g.rotate(-0.06); txt(g, 'Gutter Bowl', 0, 0, 74, '#ffd9c0', '"Brush Script MT", "Snell Roundhand", cursive', 700); g.restore(); txt(g, '8 LANES · SINCE 1960', w / 2, h - 20, 14, MUST);
         g.fillStyle = MUST; for (const x of [40, w - 40]) { g.beginPath(); for (let k = 0; k < 10; k++) { const a = k * Math.PI / 5 - Math.PI / 2, r = k % 2 ? 7 : 17; g.lineTo(x + Math.cos(a) * r, h / 2 + Math.sin(a) * r); } g.fill(); } }, 1, 1, 0.2), 0.85);
-      at(houseSign, (LX0 + LX1) / 2, 2.3, -2.97); G.add(houseSign);
-      // Telescore overhead projector screens (grease pencil on film), scorer's desk with the lamp-head projector, settee chairs
-      const scoreTex = cvTex(512, 200, (g, w, h) => { g.fillStyle = '#26323a'; g.fillRect(0, 0, w, h); g.strokeStyle = '#d8e0c8'; g.lineWidth = 2; const fx = (i) => 70 + i * 44;
+      at(houseSign, (LX0 + LX1) / 2, 2.35, -3.77); G.add(houseSign);
+      // Telescore overhead screens (one per lane pair): grease pencil; the one over your lane shows your last game
+      const scoreDraw = (g, w, h) => { g.fillStyle = '#26323a'; g.fillRect(0, 0, w, h); g.strokeStyle = '#d8e0c8'; g.lineWidth = 2; const fx = (i) => 70 + i * 44;
         for (let r = 0; r < 3; r++) { g.strokeRect(10, 20 + r * 58, w - 20, 50); for (let i = 0; i < 10; i++) g.strokeRect(fx(i), 20 + r * 58, 44, 50); }
-        txt(g, 'RAM', 40, 45, 20, '#f2e070', 'Marker Felt, "Comic Sans MS", sans-serif'); txt(g, 'SUN', 40, 103, 20, '#f2e070', 'Marker Felt, "Comic Sans MS", sans-serif'); txt(g, 'WOLF', 40, 161, 18, '#f2e070', 'Marker Felt, "Comic Sans MS", sans-serif');
-        for (let i = 0; i < 10; i++) { txt(g, '0', fx(i) + 22, 50, 22, '#f2e070', 'Marker Felt, "Comic Sans MS", sans-serif'); g.strokeStyle = '#f2e070'; g.lineWidth = 2; g.beginPath(); g.arc(fx(i) + 22, 103, 10, 0, 7); g.stroke();
-          for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; g.beginPath(); g.moveTo(fx(i) + 22 + Math.cos(a) * 13, 103 + Math.sin(a) * 13); g.lineTo(fx(i) + 22 + Math.cos(a) * 18, 103 + Math.sin(a) * 18); g.stroke(); } } }, 1, 1, 0.2);
-      const screens = []; for (const x of [lc(0) + LW / 2, lc(2) + LW / 2]) { const s = new THREE.Group(); const fr = box(1.5, 0.58, 0.06, WAL2, 0.02); fr.position.y = -0.58; s.add(fr); const sp = pane(1.4, 0.5, scoreTex, 0.7); sp.position.set(0, -0.29, 0.035); s.add(sp);
-        for (const sx of [-0.6, 0.6]) { const rod = cyl(0.012, 0.012, 0.7, STEEL[2], 5); rod.position.x = sx; s.add(rod); } s.position.set(x, 3.3, 0.85); s.rotation.x = 0.22; G.add(s); screens.push(s); }
+        txt(g, 'RAM', 40, 45, 20, '#f2e070', PEN); txt(g, 'SUN', 40, 103, 20, '#f2e070', PEN); txt(g, 'HUMM', 40, 161, 16, '#f2e070', PEN);
+        for (let i = 0; i < 10; i++) { txt(g, '0', fx(i) + 22, 50, 22, '#f2e070', PEN); g.strokeStyle = '#f2e070'; g.lineWidth = 2; g.beginPath(); g.arc(fx(i) + 22, 103, 10, 0, 7); g.stroke();
+          for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; g.beginPath(); g.moveTo(fx(i) + 22 + Math.cos(a) * 13, 103 + Math.sin(a) * 13); g.lineTo(fx(i) + 22 + Math.cos(a) * 18, 103 + Math.sin(a) * 18); g.stroke(); } txt(g, 'X', fx(i) + 22, 161, 22, '#f2e070', PEN); } };
+      const scoreTex = cvTex(512, 200, scoreDraw, 1, 1, 0.2);
+      const screens = [], rodG = new THREE.CylinderGeometry(0.012, 0.012, 0.7, 4); for (let p = 0; p < LANES / 2; p++) { const s = new THREE.Group(); const fr = box(1.5, 0.58, 0.06, WAL2, 0.02); fr.position.y = -0.58; s.add(fr); const sp = pane(1.4, 0.5, scoreTex, 0.7); sp.position.set(0, -0.29, 0.035); s.add(sp); s.userData.sp = sp;
+        for (const sx of [-0.6, 0.6]) { const rod = new THREE.Mesh(rodG, feltMat(STEEL[2])); rod.position.set(sx, 0.35, 0); s.add(rod); } s.position.set(lc(2 * p) + LW / 2, 3.3, 0.7); s.rotation.x = 0.22; G.add(s); screens.push(s); }
       ph('Telescore overhead screens', screens[0]);
-      const desk = new THREE.Group(); desk.add(box(0.75, 0.66, 0.45, WAL, 0.03)); const dtop = box(0.8, 0.05, 0.5, CREAM, 0.02); dtop.position.y = 0.66; dtop.rotation.x = 0.18; desk.add(dtop);
-      const pc = cyl(0.03, 0.03, 0.5, STEEL[2], 6); pc.position.set(0, 0.68, -0.18); desk.add(pc); const proj = box(0.26, 0.2, 0.3, '#2a2a2e', 0.04); proj.position.set(0, 1.12, -0.18); desk.add(proj);
-      const lens = cyl(0.05, 0.05, 0.08, '#4a4a4e', 8); lens.rotation.x = -Math.PI / 2 - 0.4; lens.position.set(0, 1.24, -0.06); desk.add(lens);
-      const ash = cyl(0.07, 0.06, 0.03, STEEL[0], 10); ash.position.set(0.26, 0.72, 0.08); desk.add(ash); at(desk, lc(1) + LW / 2 + 0.02, 0, 2.5); G.add(desk); ph('scorer\'s desk + overhead projector', desk);
-      const chair = (x, z, col, ry = 0) => { const c = new THREE.Group(); c.add(cyl(0.03, 0.06, 0.4, STEEL[2], 6)); const st = box(0.44, 0.07, 0.42, col, 0.035); st.position.y = 0.4; c.add(st);
-        const bk = box(0.46, 0.42, 0.06, col, 0.03); bk.position.set(0, 0.46, 0.2); bk.rotation.x = 0.18; c.add(bk); at(c, x, 0, z, ry); G.add(c); return c; };
-      chair(-3.35, 2.55, TQ, Math.PI); chair(-2.85, 2.6, CORAL, Math.PI); chair(-0.35, 2.6, TQ, Math.PI);
-      // Gold-Crown-style ball returns between lane pairs (long angular cream hood, black base, coral stripe, rack of black hard-rubber balls)
+      A.setLaneScore = (draw) => { const s = screens[Math.floor((S.lane - 1) / 2)]; if (!s) return; const t = cvTex(512, 200, (g, w, h) => { g.fillStyle = '#26323a'; g.fillRect(0, 0, w, h); draw(g, w, h); }, 1, 1, 0); s.userData.sp.material = texMat(t, 0.7); };
+      // scorer's desks (lamp-head projector) + settee chairs, one set per lane pair
+      const deskG = new THREE.Group(); deskG.add(box(0.75, 0.66, 0.45, WAL, 0.03)); const dtop = box(0.8, 0.05, 0.5, CREAM, 0.02); dtop.position.y = 0.66; dtop.rotation.x = 0.18; deskG.add(dtop);
+      const pc = cyl(0.03, 0.03, 0.5, STEEL[2], 5); pc.position.set(0, 0.68, -0.18); deskG.add(pc); const proj = box(0.26, 0.2, 0.3, '#2a2a2e', 0.04); proj.position.set(0, 1.12, -0.18); deskG.add(proj);
+      const chairG = new THREE.Group(); { const st = box(0.46, 0.08, 0.44, TQ, 0.03); st.position.y = 0.4; chairG.add(st); chairG.add(cyl(0.03, 0.05, 0.4, STEEL[2], 5)); const bk = box(0.46, 0.42, 0.06, TQ, 0.03); bk.position.set(0, 0.46, 0.2); bk.rotation.x = 0.18; chairG.add(bk); }
+      const chairC = chairG.clone(true); chairC.traverse(o => { if (o.isMesh && o.material.color.getHexString() === TQ.slice(1)) { o.material = o.material.clone(); o.material.color.set(CORAL); } });
+      const desks = []; for (let p = 0; p < LANES / 2; p++) { const x = lc(2 * p) + LW / 2, d = deskG.clone(); at(d, x, 0, 2.35, Math.PI); G.add(d); desks.push(d);
+        for (const s of [-1, 1]) { const c = (s < 0 ? chairG : chairC).clone(); at(c, x + s * 0.62, 0, 2.75, Math.PI); G.add(c); } }
+      const step = box(LX1 - LX0, 0.06, 0.12, WAL2, 0.02); at(step, (LX0 + LX1) / 2, 0, 2.0); G.add(step);   // the step up from the approaches to the settees
+      // Gold-Crown-style ball returns between lane pairs
       const sh = new THREE.Shape([[0, 0], [1.4, 0], [1.4, 0.36], [0.85, 0.36], [0, 0.07]].map(([x, y]) => new THREE.Vector2(x, y)));
-      const hoodG = new THREE.ExtrudeGeometry(sh, { depth: 0.34, bevelEnabled: true, bevelSize: 0.02, bevelThickness: 0.02, bevelSegments: 1 });
-      const ballG = new THREE.SphereGeometry(0.11, 12, 8); let theBall = null;
-      for (const i of [0, 2]) { const r = new THREE.Group(); const hm = new THREE.Mesh(hoodG, feltMat('#efe6d2')); hm.castShadow = !LOW; hm.rotation.y = -Math.PI / 2; hm.position.x = 0.17; r.add(hm);
-        const base = box(0.3, 0.06, 1.3, '#1e1a1a', 0.01); base.position.z = 0.7; r.add(base); const st = box(0.36, 0.035, 0.8, CORAL, 0.01); st.position.set(0, 0.2, 0.5); st.rotation.x = -0.26; r.add(st);
-        ['#1e1a1e', '#7a2a2e', '#2a3a6a'].forEach((c, k) => { const b = new THREE.Mesh(ballG, feltMat(c)); b.position.set(0, 0.47, 0.95 + k * 0.17); r.add(b); });
-        at(r, lc(i) + LW / 2, 0, 1.05); G.add(r); if (!theBall) theBall = r; }
-      ph('ball returns (Gold Crown style)', theBall);
-      const ball = ph('bowling ball', new THREE.Mesh(ballG, feltMat('#1e1a1e'))); const B0 = [lc(1), 0.12, 1.75]; ball.position.set(...B0); ball.castShadow = !LOW; G.add(ball);
-      // control counter: shoe rental (skates only) with the cubby wall behind, a coin-op crane "digger" full of socks
-      const ctr = ph('shoe rental counter', box(2.1, 1.0, 0.62, WAL, 0.03)); at(ctr, 2.75, 0, -2.25); G.add(ctr);
-      const cband = box(2.12, 0.06, 0.64, STEEL[0], 0.01); at(cband, 2.75, 0.8, -2.25); G.add(cband); const ctop = box(2.2, 0.06, 0.74, CREAM, 0.02); at(ctop, 2.75, 1.0, -2.25); G.add(ctop);
-      at(skate, 2.55, 1.06, -2.2, 0.5); G.add(skate);
-      const cub = pane(2.1, 0.95, cvTex(256, 116, (g, w, h) => { g.fillStyle = WAL2; g.fillRect(0, 0, w, h); for (let i = 0; i < 7; i++) for (let j = 0; j < 4; j++) { const x = 6 + i * 35.5, y = 5 + j * 27.5; g.fillStyle = '#2a1a12'; g.fillRect(x, y, 31, 23);
-        g.fillStyle = (i + j) % 3 ? '#f6efe0' : CORAL; g.fillRect(x + 4, y + 7, 22, 9); g.fillStyle = '#1e1a1a'; g.beginPath(); g.arc(x + 9, y + 19, 3, 0, 7); g.arc(x + 21, y + 19, 3, 0, 7); g.fill(); } }, 1, 1, 0.3));
-      at(cub, 2.75, 1.72, -2.97); G.add(cub);
-      const rs = pane(1.8, 0.42, cvTex(256, 60, (g, w, h) => { g.fillStyle = '#f6ead0'; g.fillRect(0, 0, w, h); txt(g, 'SHOE RENTAL', w / 2, 22, 26, '#b8332e'); txt(g, '(skates only)', w / 2, 47, 16, WAL2); }, 1, 1, 0.2), 0.6);
-      at(rs, 2.75, 2.5, -2.97); G.add(rs);
+      const hoodG = new THREE.ExtrudeGeometry(sh, { depth: 0.34, bevelEnabled: false }), hoodM = feltMat('#efe6d2');
+      const ballG = new THREE.SphereGeometry(0.11, 10, 7), BCOL = ['#1e1a1e', '#7a2a2e', '#2a3a6a'].map(c => feltMat(c));
+      for (let p = 0; p < LANES / 2; p++) { const r = new THREE.Group(); const hm = new THREE.Mesh(hoodG, hoodM); hm.castShadow = !LOW; hm.rotation.y = -Math.PI / 2; hm.position.x = 0.17; r.add(hm);
+        const st = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.035, 0.8), feltMat(CORAL)); st.position.set(0, 0.22, 0.5); st.rotation.x = -0.26; r.add(st);
+        BCOL.forEach((m, k) => { const b = new THREE.Mesh(ballG, m); b.position.set(0, 0.47, 0.95 + k * 0.17); r.add(b); }); at(r, lc(2 * p) + LW / 2, 0, 0.35); G.add(r); if (!p) ph('ball returns (Gold Crown style)', r); }
+      // the house ball that marks your lane (sits on the approach of the lit lane)
+      const ball = ph('bowling ball', new THREE.Mesh(ballG, feltMat('#2a3f7a'))); ball.castShadow = !LOW; G.add(ball);
+      // CONTROL COUNTER (right of the lanes): cash register, the Roller Skate clerk, shoe cubbies + price board
+      const CX = 3.6, CZ = -2.95;
+      const ctr = ph('control counter', box(2.6, 1.0, 0.62, WAL, 0.03)); at(ctr, CX, 0, CZ); G.add(ctr);
+      const cband = box(2.62, 0.06, 0.64, STEEL[0], 0.01); at(cband, CX, 0.8, CZ); G.add(cband); const ctop = box(2.7, 0.06, 0.74, CREAM, 0.02); at(ctop, CX, 1.0, CZ); G.add(ctop);
+      at(skate, CX - 0.35, 1.06, CZ + 0.05, 0.4); G.add(skate);
+      const reg = ph('cash register', new THREE.Group()); reg.add(box(0.42, 0.24, 0.36, STEEL[0], 0.03)); const keys = box(0.38, 0.06, 0.2, '#2a2a2e', 0.02); keys.position.set(0, 0.25, 0.06); keys.rotation.x = -0.4; reg.add(keys);
+      const flagT = cvTex(64, 32, (g, w, h) => { g.fillStyle = '#f6ead0'; g.fillRect(0, 0, w, h); txt(g, 'NO SALE', w / 2, h / 2, 13, '#b8332e'); }, 1, 1, 0);
+      const flag = pane(0.24, 0.12, flagT, 0.5); flag.position.set(0, 0.42, -0.05); reg.add(flag); const top2 = box(0.3, 0.1, 0.12, STEEL[1], 0.02); top2.position.set(0, 0.24, -0.1); reg.add(top2);
+      const drawer = box(0.38, 0.08, 0.3, STEEL[2], 0.02); drawer.position.set(0, -0.08, 0.04); reg.add(drawer); at(reg, CX + 0.6, 1.06, CZ - 0.02, -0.15); G.add(reg);
+      const cub = pane(2.6, 1.0, cvTex(320, 124, (g, w, h) => { g.fillStyle = WAL2; g.fillRect(0, 0, w, h); for (let i = 0; i < 9; i++) for (let j = 0; j < 4; j++) { const x = 6 + i * 34.5, y = 5 + j * 29.5; g.fillStyle = '#2a1a12'; g.fillRect(x, y, 31, 25);
+        const c2 = ['#b8332e', '#2f6a3e', '#2a3a6a'][(i + j) % 3]; g.fillStyle = c2; g.fillRect(x + 3, y + 8, 8, 10); g.fillStyle = '#f6efe0'; g.fillRect(x + 11, y + 8, 9, 10); g.fillStyle = c2; g.fillRect(x + 20, y + 8, 8, 10); g.fillStyle = '#1e1a1a'; g.fillRect(x + 3, y + 18, 25, 3); } }, 1, 1, 0.3));
+      at(cub, CX, 1.75, -3.77); G.add(cub);
+      const rs = pane(2.3, 0.5, cvTex(320, 70, (g, w, h) => { g.fillStyle = '#f6ead0'; g.fillRect(0, 0, w, h); g.strokeStyle = CORAL; g.lineWidth = 4; g.strokeRect(4, 4, w - 8, h - 8); txt(g, 'CONTROL DESK', w / 2, 24, 22, '#b8332e'); txt(g, 'SHOES 15¢  ·  GAMES 35¢', w / 2, 50, 18, WAL2); }, 1, 1, 0.2), 0.6);
+      at(rs, CX, 2.62, -3.77); G.add(rs);
+      // spray puff (the Skate sprays the shoes) — a few felt cotton balls that grow and fade
+      const puffM = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0, depthWrite: false }), puff = new THREE.Group(), pG = new THREE.IcosahedronGeometry(0.09, 0);
+      for (let i = 0; i < 7; i++) { const m = new THREE.Mesh(pG, puffM); m.userData.d = new THREE.Vector3(Math.random() - 0.5, Math.random() * 0.6 + 0.2, Math.random() - 0.3); puff.add(m); } puff.visible = false; G.add(puff);
+      // crane "digger" full of socks, house ball rack on the right wall, ball cleaner
       const claw = ph('crane "digger" (socks)', new THREE.Group());
       claw.add(box(0.8, 0.95, 0.75, WAL, 0.04)); const cg = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.7, 0.72), new THREE.MeshStandardMaterial({ color: '#e8f6fa', transparent: true, opacity: 0.25, roughness: 1 })); cg.position.y = 1.3; claw.add(cg);
       const ct = box(0.84, 0.2, 0.8, STEEL[0], 0.04); ct.position.y = 1.65; claw.add(ct); const mq = sign('DIGGER 5¢', 0.78, 0.17, '#b8332e', '#f6ead0', 0.7); mq.position.set(0, 1.75, 0.405); claw.add(mq);
-      for (let i = 0; i < 7; i++) { const s = box(0.12, 0.2, 0.08, ['#d9a43a', '#e98a8a', '#9fd6b8', '#6aa4b8', '#c9384a', '#f2d27a', '#8a6ab8'][i], 0.04); s.position.set(-0.24 + (i % 4) * 0.16, 0.97 + Math.floor(i / 4) * 0.12, -0.2 + (i % 3) * 0.17); s.rotation.z = i; claw.add(s); }
-      const cl = cyl(0.01, 0.01, 0.3, STEEL[2], 4); cl.position.set(0.1, 1.35, 0); claw.add(cl);
-      at(claw, 1.15, 0, -2.3); G.add(claw);
-      // snack bar along the right wall: back-lit menu, pop cooler, the booth
-      const menu = pane(1.9, 0.95, cvTex(256, 128, (g, w, h) => { g.fillStyle = '#f6ead0'; g.fillRect(0, 0, w, h); g.fillStyle = CORAL; g.fillRect(0, 0, w, 30); txt(g, 'SNACK BAR', w / 2, 16, 22, '#f6ead0');
-        [['HOT DOG', '25¢'], ['COFFEE', '10¢'], ['PIE', '20¢'], ['SOCK (ONE)', 'FREE']].forEach(([a, b], i) => { txt(g, a, 14, 44 + i * 21, 16, WAL2, 'Futura, Avenir, sans-serif', 700, 'left'); txt(g, b, w - 14, 44 + i * 21, 16, '#b8332e', 'Futura, Avenir, sans-serif', 700, 'right'); }); }, 1, 1, 0.2), 0.6);
-      menu.position.set(3.97, 2.05, 0.0); menu.rotation.y = -Math.PI / 2; G.add(menu);
-      const cooler = ph('pop cooler', new THREE.Group()); cooler.add(box(0.5, 0.85, 0.85, '#b8332e', 0.05)); const cl2 = box(0.52, 0.06, 0.87, STEEL[0], 0.02); cl2.position.y = 0.85; cooler.add(cl2);
-      const ice = sign('ICE COLD\nPOP 10¢', 0.6, 0.3, '#f6ead0', '#b8332e', 0.6); ice.rotation.y = -Math.PI / 2; ice.position.set(-0.26, 0.5, 0); cooler.add(ice); at(cooler, 3.6, 0, -1.0); G.add(cooler);
-      at(booth, 3.15, 0, 1.6, -Math.PI / 2); G.add(booth); at(bear, 2.25, 0, 1.15, -0.7); G.add(bear);
-      at(ram, lc(3) + 0.2, 0, 1.45, 0.3); G.add(ram);
+      for (let i = 0; i < 7; i++) { const s = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.08), feltMat(['#d9a43a', '#e98a8a', '#9fd6b8', '#6aa4b8', '#c9384a', '#f2d27a', '#8a6ab8'][i])); s.position.set(-0.24 + (i % 4) * 0.16, 1.07 + Math.floor(i / 4) * 0.12, -0.2 + (i % 3) * 0.17); s.rotation.z = i; claw.add(s); }
+      at(claw, 5.8, 0, -3.1); G.add(claw);
+      const rack = ph('house ball rack', new THREE.Group()); for (const y of [0.35, 0.75]) { const rl = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.05, 2.2), feltMat(STEEL[2])); rl.position.y = y; rack.add(rl); }
+      for (const z of [-1.05, 1.05]) { const lg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.8, 0.05), feltMat(WAL2)); lg.position.set(0, 0.4, z); rack.add(lg); }
+      const hb10 = new THREE.InstancedMesh(ballG, feltMat('#ffffff'), 10), cA = ['#1e1a1e', '#7a2a2e', '#2a3a6a', '#2f6a3e', '#c9a24a'];
+      for (let i = 0; i < 10; i++) { mx4.makeTranslation(0, i < 5 ? 0.48 : 0.88, -0.8 + (i % 5) * 0.4); hb10.setMatrixAt(i, mx4); hb10.setColorAt(i, new THREE.Color(cA[i % 5])); } rack.add(hb10);
+      at(rack, 6.65, 0, -1.4); G.add(rack);
       const cleaner = ph('ball cleaner 10¢', new THREE.Group()); cleaner.add(cyl(0.03, 0.05, 0.85, STEEL[2], 6)); const cbx = box(0.3, 0.26, 0.24, TQ, 0.04); cbx.position.y = 0.85; cleaner.add(cbx);
-      const bcl = sign('BALL CLEANER 10¢', 0.3, 0.08, '#f6ead0', WAL2, 0.8); bcl.position.set(0, 0.98, 0.125); cleaner.add(bcl); at(cleaner, 1.0, 0, 0.9); G.add(cleaner);
+      const bcl = sign('BALL CLEANER 10¢', 0.3, 0.08, '#f6ead0', WAL2, 0.8); bcl.position.set(0, 0.98, 0.125); cleaner.add(bcl); at(cleaner, 2.0, 0, 0.6); G.add(cleaner);
+      // SNACK BAR along the right wall: counter, stools, back-lit menu, pop cooler
+      const snack = ph('snack bar (procedural)', new THREE.Group()); const sc0 = box(0.6, 1.0, 2.4, CREAM, 0.03); snack.add(sc0); const scb = box(0.62, 0.12, 2.42, CORAL, 0.02); scb.position.y = 0.2; snack.add(scb);
+      const sct = box(0.75, 0.06, 2.55, WAL, 0.02); sct.position.y = 1.0; snack.add(sct); const urn = cyl(0.12, 0.12, 0.4, STEEL[1], 8); urn.position.set(0.05, 1.06, 0.8); snack.add(urn);
+      const pie = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#e8f6fa', transparent: true, opacity: 0.35 })); pie.position.set(0.05, 1.06, -0.6); snack.add(pie);
+      const pz2 = cyl(0.13, 0.13, 0.05, '#d9a43a', 8); pz2.position.set(0.05, 1.06, -0.6); snack.add(pz2);
+      for (const z of [-0.8, 0, 0.8]) { const stl = new THREE.Group(); stl.add(cyl(0.03, 0.12, 0.7, STEEL[2], 6)); const seat = cyl(0.19, 0.19, 0.09, CORAL, 10); seat.position.y = 0.7; stl.add(seat); at(stl, -0.7, 0, z); snack.add(stl); }
+      at(snack, 6.25, 0, 1.6); G.add(snack);
+      const menu = pane(2.2, 1.0, cvTex(256, 128, (g, w, h) => { g.fillStyle = '#f6ead0'; g.fillRect(0, 0, w, h); g.fillStyle = CORAL; g.fillRect(0, 0, w, 30); txt(g, 'SNACK BAR', w / 2, 16, 22, '#f6ead0');
+        [['HOT DOG', '25¢'], ['COFFEE', '10¢'], ['PIE', '20¢'], ['SOCK (ONE)', 'FREE']].forEach(([a, b], i) => { txt(g, a, 14, 44 + i * 21, 16, WAL2, 'Futura, Avenir, sans-serif', 700, 'left'); txt(g, b, w - 14, 44 + i * 21, 16, '#b8332e', 'Futura, Avenir, sans-serif', 700, 'right'); }); }, 1, 1, 0.2), 0.6);
+      menu.position.set(6.97, 2.1, 1.6); menu.rotation.y = -Math.PI / 2; G.add(menu);
+      const cooler = ph('pop cooler', new THREE.Group()); cooler.add(box(0.5, 0.85, 0.85, '#b8332e', 0.05)); const cl2 = box(0.52, 0.06, 0.87, STEEL[0], 0.02); cl2.position.y = 0.85; cooler.add(cl2);
+      const ice = sign('ICE COLD\nPOP 10¢', 0.6, 0.3, '#f6ead0', '#b8332e', 0.6); ice.rotation.y = -Math.PI / 2; ice.position.set(-0.26, 0.5, 0); cooler.add(ice); at(cooler, 6.6, 0, -0.05); G.add(cooler);
+      at(bear, 4.9, 0, 1.75, -1.1); G.add(bear);
+      at(ram, 2.35, 0, 1.35, -0.9); G.add(ram);
       // the Hummingbird (felt placeholder): small, leather jacket, hovering
       const hb = ph('Hummingbird (league bully)', new THREE.Group());
       const hbody = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), feltMat('#3fae7a')); hbody.scale.set(1, 1.2, 1); hb.add(hbody);
@@ -707,26 +732,58 @@ export function createTown(ctx) {
       const hh = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), feltMat('#3fae7a')); hh.position.y = 0.12; hb.add(hh);
       const bk = cyl(0.004, 0.01, 0.13, '#2a2a2a', 5); bk.rotation.x = Math.PI / 2; bk.position.set(0, 0.12, 0.04); hb.add(bk);
       const wings = []; for (const s of [-1, 1]) { const w = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 4), feltMat('#9fd6b8')); w.scale.set(1.4, 0.2, 0.6); w.position.set(s * 0.1, 0.03, -0.02); hb.add(w); wings.push(w); }
-      hb.position.set(1.6, 1.5, 0.3); G.add(hb);
-      A.wolfSpot = [1.7, 2.0]; A.anim = [ram]; A.proc = [bear, skate]; A.roll = 0;
-      A.tick = (dt, t) => { hb.position.y = 1.5 + Math.sin(t * 2.3) * 0.08; hb.rotation.y = Math.sin(t * 0.7) * 0.6; for (const w of wings) w.rotation.z = Math.sin(t * 70) * 0.5;
-        if (A.roll > 0) { A.roll -= dt; const p = Math.min(1, 1 - A.roll / 2.2); ball.position.set(B0[0] - Math.max(0, p - 0.35) * 0.75, 0.12 - (p > 0.75 ? 0.04 : 0), B0[2] - p * 3.9); ball.rotation.x -= dt * 9;
-          if (A.roll <= 0) { ball.position.set(...B0); A.after?.(); } } };
-      const roll = (then) => { A.roll = 2.2; A.after = () => { A.after = null; say(then); }; say([['', 'You bowl on skates. The ball also rolls.']], true); };
+      hb.position.set(1.85, 1.6, 0.9); G.add(hb);
+
+      // ---------------- state: your lane, the shoes on the Wolf's feet
+      const laneSpot = () => new THREE.Vector3(lc((S.lane || 4) - 1), 0, 1.45);
+      const setLane = () => { const on = !!(S.shoes && S.lane); lit.visible = litBar.visible = on; const i = (S.lane || 4) - 1; lit.position.x = litBar.position.x = lc(i); ball.position.set(lc(i) + 0.25, 0.12, 1.75); };
+      let shoes = [];
+      const shoeMats = { sole: feltMat('#2a1e1a'), a: feltMat('#b8332e'), b: feltMat('#f6efe0'), lace: feltMat('#3a1f2a') };
+      const findBone = (n) => { let b = null; A.wolf.traverse(o => { if (!b && o.isBone && o.name === n) b = o; }); return b; };
+      function putShoes(on) {
+        for (const s of shoes) s.parent?.remove(s); shoes = []; if (!on || !A.wolf) return;
+        A.wolf.updateMatrixWorld(true); const fp = new THREE.Vector3(), tp = new THREE.Vector3();
+        for (const side of ['Left', 'Right']) { const foot = findBone(side + 'Foot'), toe = findBone(side + 'ToeBase'); if (!foot || !toe) continue;
+          foot.getWorldPosition(fp); toe.getWorldPosition(tp); const dir = tp.clone().sub(fp); dir.y = 0; const l = Math.max(0.06, dir.length()); dir.normalize();
+          const s = new THREE.Group(), len = l * 2.3, wd = l * 1.05, ht = l * 0.75;   // two-tone rental: coloured heel + toe, cream saddle, dark sole, lace stripe, size on the heel
+          const sole = new THREE.Mesh(new THREE.BoxGeometry(wd, ht * 0.22, len), shoeMats.sole); sole.position.y = ht * 0.11; s.add(sole);
+          const mid = new THREE.Mesh(new THREE.BoxGeometry(wd * 0.94, ht * 0.7, len * 0.42), shoeMats.b); mid.position.set(0, ht * 0.55, -len * 0.02); s.add(mid);
+          const heel = new THREE.Mesh(new THREE.BoxGeometry(wd * 0.96, ht * 0.75, len * 0.32), shoeMats.a); heel.position.set(0, ht * 0.56, -len * 0.33); s.add(heel);
+          const toeC = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), shoeMats.a); toeC.scale.set(wd * 0.94, ht * 0.75, len * 0.36); toeC.position.set(0, ht * 0.2, len * 0.22); s.add(toeC);
+          const lace = new THREE.Mesh(new THREE.BoxGeometry(wd * 0.3, 0.012, len * 0.38), shoeMats.lace); lace.position.set(0, ht * 0.91, 0); s.add(lace);
+          s.position.set(fp.x + dir.x * l * 0.45, 0.002, fp.z + dir.z * l * 0.45); s.rotation.y = Math.atan2(dir.x, dir.z); s.updateMatrixWorld(true); foot.attach(s); shoes.push(s); }
+      }
+      A.putShoes = putShoes;
+      // little timed effects: register drawer, spray puff
+      let drawerT = 0, puffT = 0;
+      const chaChing = () => { drawerT = 1.6; bowling().sfx('chaching'); };
+      const spray = () => { puffT = 1.0; puff.visible = true; puff.position.set(CX - 0.35, 1.25, CZ + 0.3); bowling().sfx('spray'); };
+      A.wolfSpot = [2.6, 2.6]; A.anim = [ram]; A.proc = [bear, skate]; A.view = { pw: 3.9, lw: 5.4, h: 2.3, look: -0.7, pan: 3.4 }; A.bounds = [-6.6, 6.6, -2.4, 3.3]; A.speed = 2.6;
+      A.setAir = () => { setLane(); if (S.shoes) putShoes(true); };
+      A.tick = (dt, t) => { hb.position.y = 1.6 + Math.sin(t * 2.3) * 0.08; hb.rotation.y = Math.sin(t * 0.7) * 0.6; for (const w of wings) w.rotation.z = Math.sin(t * 70) * 0.5;
+        if (lit.visible) lit.material.opacity = 0.35 + 0.3 * Math.sin(t * 5);
+        if (drawerT > 0) { drawerT -= dt; const k = Math.min(1, (1.6 - drawerT) * 8) * Math.min(1, drawerT * 3); drawer.position.z = 0.04 + 0.22 * k; flag.position.y = 0.42 + 0.1 * k; }
+        if (puffT > 0) { puffT -= dt; const u = 1 - puffT; puff.children.forEach(m => { m.position.copy(m.userData.d).multiplyScalar(u * 0.6); m.scale.setScalar(0.4 + u * 1.6); }); puffM.opacity = Math.max(0, 0.8 * Math.sin(Math.min(1, u) * Math.PI)); if (puffT <= 0) puff.visible = false; }
+        if (A.toLane && T.goal && A.wolf.position.distanceTo(T.goal) < 0.08) { A.toLane = false; startLane(A); } };
+      const goLane = () => { A.toLane = true; T.focus = null; T.goal = laneSpot(); T.look = new THREE.Vector3(T.goal.x, 0, -3.5); };
       A.who = [
-        { id: 'skate', label: 'SHOE RENTAL', o: skate, talk: () => { if (!S.skates) { S.skates = 1; save(); return [['ROLLER SKATE', 'Size?'], ['WOLF', 'Paws.'], ['ROLLER SKATE', 'We only rent skates.'], ['', 'Got: rental skates.']]; }
-          return [['ROLLER SKATE', 'Bring them back when you\'re done.'], ['ROLLER SKATE', 'Nobody is ever done.']]; } },
-        { id: 'lane', label: 'LANE 2', o: ball, talk: () => { if (A.roll > 0) return null;
-          if (!S.skates) return [['ROLLER SKATE', 'No bowling in shoes.'], ['WOLF', 'I\'m in paws.'], ['ROLLER SKATE', 'No bowling in paws.']];
-          if (S.air === 4) { roll([['', 'Gutter.'], ['RAM', 'Zero.'], ['RAM', 'That ties my high score.'], ['RAM', 'And my low score.'], ['RAM', 'Ties go to the challenger. Two-dollar league prize.'], ['', 'Got: two dollars.']]); step('air', 5); return 'async'; }
-          roll([['', 'Gutter.'], ['RAM', 'Consistent.']]); return 'async'; } },
-        { id: 'ram', label: 'RAM', o: ram, talk: () => S.air === 4 ? [['RAM', 'You need two dollars?'], ['RAM', 'Beat my score. Rent skates first.']]
-          : [['RAM', 'I own the place. Opened it in 1960. Changed nothing.'], ['RAM', 'I play alone at 4 PM.'], ['RAM', 'My high score is my low score.'], ['WOLF', 'What is it?'], ['RAM', 'Consistent.']] },
+        { id: 'skate', label: 'CONTROL DESK', o: skate, talk: () => {
+          if (!S.shoes) return [['ROLLER SKATE', 'One game, one pair of shoes. Fifty cents.'], ['WOLF', 'Put it on my tab.'], ['ROLLER SKATE', 'You don\'t have a tab.', chaChing], ['ROLLER SKATE', 'You do now.'],
+            ['ROLLER SKATE', 'Size?'], ['WOLF', 'Paws.'], ['ROLLER SKATE', 'We have one size. It\'s this one.'], ['', 'The Skate sprays the shoes. For your protection.', spray], ['WOLF', 'Whose protection?'], ['ROLLER SKATE', 'Ours.'],
+            ['', 'Got: two-tone rental shoes.', () => { S.shoes = 1; S.skates = 1; S.lane = 3 + Math.floor(Math.random() * 4); save(); putShoes(true); setLane(); chipsFor(A); bowling().sfx('tock'); }],
+            ['ROLLER SKATE', () => `Lane ${S.lane}. It's the one that's lit.`]];
+          S.shoes = 0; save(); return [['', 'You put the shoes on the counter.'], ['ROLLER SKATE', 'They\'re warm.'], ['ROLLER SKATE', 'We\'ll spray them twice.', () => { spray(); putShoes(false); setLane(); chipsFor(A); }], ['', 'Got: your paws back.']]; } },
+        { id: 'lane', get label() { return S.shoes && S.lane ? 'BOWL · LANE ' + S.lane : 'LANES'; }, o: ball, talk: () => {
+          if (!S.shoes) return [['ROLLER SKATE', 'No bowling in paws.'], ['ROLLER SKATE', 'Shoes at the control desk.']];
+          goLane(); return [['', `You walk to lane ${S.lane}. The shoes squeak.`]]; } },
+        { id: 'ram', label: 'RAM', o: ram, talk: () => S.air === 4 ? [['RAM', 'You need two dollars?'], ['RAM', 'Knock a pin down. Any pin. League prize.'], ['RAM', 'Shoes first.']]
+          : [['RAM', 'I own the place. Opened it in 1960. Changed nothing.'], ['RAM', 'Eight lanes. I play the one in the middle.'], ['RAM', 'My high score is my low score.'], ['WOLF', 'What is it?'], ['RAM', 'Consistent.']] },
         { id: 'humm', label: 'HUMMINGBIRD', o: hb, talk: () => [['HUMMINGBIRD', 'League night. You\'re not in the league.'], ['WOLF', 'You\'re very small.'], ['HUMMINGBIRD', 'I\'m small, but I\'m a lotta small.']] },
         { id: 'bear', label: 'BEAR', o: bear, talk: () => [['BEAR', 'I\'m on the team.'], ['WOLF', 'Do you bowl?'], ['BEAR', 'I\'m the comfortable one.'], ['BEAR', 'Every team needs one.']] },
         { id: 'claw', label: 'DIGGER', o: claw, talk: () => [['', 'Five cents. You win a sock.'], ['', 'It isn\'t the one.'], ['', 'It never is.']] },
-        { id: 'score', label: 'SCORE PROJECTOR', o: desk, talk: () => [['', 'The overhead projector throws your score on the screen.'], ['', 'Someone wrote it in grease pencil: SUN, SUN, SUN.'], ['', 'The sun is winning.']] },
+        { id: 'score', label: 'SCORE PROJECTOR', o: desks[1], talk: () => [['', 'The overhead projector throws the score on the screen.'], ['', 'Someone wrote it in grease pencil: SUN, SUN, SUN.'], ['', 'The sun is winning.']] },
       ];
+      setLane();
     },
     async living90(G, A) {   // REAL PLACE: a 1990s suburban family room (refs: "Living Room 1998 NOLA", Palmer Ave New Orleans 2000; 90s decor surveys)
       const H = 4.0, OAK = '#c8914e', OAK2 = '#a8733a', HUNTER = '#2f5a3e', BURG = '#7a2634', BEIGE = '#e6d8bc', BRASS = '#c9a24a';
@@ -1080,7 +1137,7 @@ export function createTown(ctx) {
     num: ['', 'Take a number', 'Wait. Or try Window 1', 'Mail yourself a letter (Post Office)', 'Back to the DMV: vision test', 'Wait for 99', 'Go to Window 1', ''],
     bulb: ['', 'Find a new projector bulb (the Motel leaves the light on)', 'Find a light to leave on instead (the Motel Pool; the lifeguard says swim first)', 'Bring the pool light to the Motel', 'Take Lamp-Bulb to the Drive-In projector', ''],
     air: ['', 'Find rabbit ears at Crow\'s Yard (dig the junk)', 'Put the antenna on the Fence-Stool (Crow insists)', 'Buy it back at Second Sun Thrift',
-      'Win $2 at Gutter Bowl (rent skates, bowl lane 2)', 'Pay the Thrift two dollars', 'Bring the rabbit ears to TV-Head (KSUN)', ''],
+      'Win $2 at Gutter Bowl (rent shoes at the control desk, bowl a frame)', 'Pay the Thrift two dollars', 'Bring the rabbit ears to TV-Head (KSUN)', ''],
   };
   const TITLE = { sock: 'ODD SOCK OUT', num: 'TAKE A NUMBER', air: 'DEAD AIR', bulb: 'LEAVE THE LIGHT ON' };
   const DONE = { sock: 6, num: 7, air: 7, bulb: 5 };
@@ -1098,8 +1155,9 @@ export function createTown(ctx) {
 
   // ------------------------------------------------------------------ dialogue (reuses the scene subtitle UI)
   let lines = [], lineT = 0;
-  function say(L, keep = false) { lines = L.slice(); lineT = 0; if (keep) lines.keep = true; nextLine(); }
-  function nextLine() { const l = lines.shift(); if (!l) { sub.classList.remove('on'); return; } subName.textContent = l[0] ? l[0] + ' ' : ''; subText.textContent = l[1]; sub.classList.add('on'); lineT = 1.4 + l[1].length * 0.045; }
+  function say(L, keep = false) { for (const l of lines) try { l[2]?.(); } catch (e) { console.warn(e); } lines = L.slice(); lineT = 0; if (keep) lines.keep = true; nextLine(); }
+  function nextLine() { const l = lines.shift(); if (!l) { sub.classList.remove('on'); return; } const tx = typeof l[1] === 'function' ? l[1]() : l[1]; try { l[2]?.(); } catch (e) { console.warn(e); }
+    subName.textContent = l[0] ? l[0] + ' ' : ''; subText.textContent = tx; sub.classList.add('on'); lineT = 1.4 + tx.length * 0.045; }
   function talk(who) {
     if (!who) return; T.focus = who; audio.ui?.('tick'); const r = who.talk(); S.seen[who.id] = 1;
     if (r && r !== 'async') say(r); chipsFor(T.rooms[T.active]); }
@@ -1112,7 +1170,7 @@ export function createTown(ctx) {
     sc.background = new THREE.Color('#24161f');
     const hemi = new THREE.HemisphereLight(R.light, '#5a3a3a', 1.35); sc.add(hemi);
     const k = new THREE.DirectionalLight(R.light, 2.0); k.position.set(3.5, 7, 6); k.target.position.set(0, 0.8, -0.5); sc.add(k, k.target);
-    if (!LOW) { k.castShadow = true; k.shadow.mapSize.set(1024, 1024); const c = k.shadow.camera; c.left = c.bottom = -6; c.right = c.top = 6; c.near = 1; c.far = 20; k.shadow.bias = -0.0008; k.shadow.normalBias = 0.03; }
+    if (!LOW) { k.castShadow = true; k.shadow.mapSize.set(1024, 1024); const c = k.shadow.camera; const e = Math.max(6, (R.W || 8) / 2 + 1.5); c.left = c.bottom = -e; c.right = c.top = e; c.near = 1; c.far = 20; k.shadow.bias = -0.0008; k.shadow.normalBias = 0.03; }
     const G = new THREE.Group(); G.add(shell(R)); sc.add(G);
     const [wolf] = await Promise.all([glb('town2/wolf_lo.glb', 1.75, 'wolf'), BUILD[key](G, A)]);
     A.wolf = wolf; at(wolf, A.wolfSpot[0], 0, A.wolfSpot[1], -0.6); sc.add(wolf);
@@ -1134,6 +1192,7 @@ export function createTown(ctx) {
   async function exit() {
     if (T.busy || !T.active) return; T.busy = true; audio.ui?.('tick');
     curtain.querySelector('b').textContent = 'MAIN STREET'; curtain.classList.add('shut'); await wait(560);
+    if (T.lane) { T.lane.end(); T.lane = null; T.camera = roomCam; }
     sub.classList.remove('on'); lines = []; document.body.classList.remove('room'); T.active = null; T.scene = null; ctx.onExit?.(); hud();
     await wait(120); curtain.classList.remove('shut'); T.busy = false;
   }
@@ -1183,26 +1242,52 @@ export function createTown(ctx) {
 
   // ------------------------------------------------------------------ per-frame
   const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
-  function resize() { const a = innerWidth / innerHeight; T.camera.aspect = a; T.camera.fov = a < 1 ? 50 : 40;
-    const halfW = a < 1 ? 3.6 : 4.6, halfH = 2.1; const tv = Math.tan(THREE.MathUtils.degToRad(T.camera.fov / 2));
-    const d = Math.max(halfH / tv, halfW / (tv * a)); T.camera.position.set(0, 1.55 + d * 0.16, 3 + d * 0.98); T.camera.lookAt(0, 1.35, -0.3); T.camera.updateProjectionMatrix(); }
-  addEventListener('resize', () => T.active && resize());
+  const roomCam = T.camera, VIEW = { x: 0 };
+  function resize() { const c = roomCam, a = innerWidth / innerHeight, A = T.rooms[T.active], V = A?.view || {}, D = ROOMS[T.active]?.D || 6; c.aspect = a; c.fov = a < 1 ? 50 : 40;
+    const halfW = a < 1 ? (V.pw || 3.6) : (V.lw || 4.6), halfH = V.h || 2.1; const tv = Math.tan(THREE.MathUtils.degToRad(c.fov / 2));
+    const d = Math.max(halfH / tv, halfW / (tv * a)); VIEW.y = 1.55 + d * 0.16; VIEW.z = D / 2 + d * 0.98; VIEW.look = V.look ?? -0.3;
+    VIEW.pan = V.pan ? Math.max(0, V.pan * (a < 1 ? 1 : 0.45)) : 0; VIEW.x = VIEW.pan ? THREE.MathUtils.clamp(A.wolf?.position.x || 0, -VIEW.pan, VIEW.pan) : 0; placeCam(); c.updateProjectionMatrix(); }
+  function placeCam() { roomCam.position.set(VIEW.x, VIEW.y, VIEW.z); roomCam.lookAt(VIEW.x, 1.35, VIEW.look); }
+  addEventListener('resize', () => T.active && !T.lane && resize());
   T.update = (dt, t) => {
     const A = T.rooms[T.active]; if (!A) return;
+    if (T.lane) { T.lane.update(dt, t); if (lines.length || sub.classList.contains('on')) { lineT -= dt; if (lineT <= 0) nextLine(); } common(dt); return; }
     A.tick?.(dt, t);
     for (const o of A.anim) o.mixer?.update(dt);
     for (const o of A.proc || []) o.proc?.(t);
     // the Wolf walks over to whoever you talk to, then idles facing them
     const w = A.wolf, ac = w.acts;
     if (T.focus) { T.focus.o.getWorldPosition(tmp); tmp.y = 0; tmp2.copy(tmp).sub(A.wolfHome).setY(0); const L = tmp2.length(); T.goal = L > 1.4 ? A.wolfHome.clone().addScaledVector(tmp2.normalize(), L - 1.2) : A.wolfHome.clone();
-      T.goal.x = THREE.MathUtils.clamp(T.goal.x, -3.3, 3.3); T.goal.z = THREE.MathUtils.clamp(T.goal.z, -1.9, 2.4); T.look = tmp.clone(); }
+      const bd = A.bounds || [-3.3, 3.3, -1.9, 2.4]; T.goal.x = THREE.MathUtils.clamp(T.goal.x, bd[0], bd[1]); T.goal.z = THREE.MathUtils.clamp(T.goal.z, bd[2], bd[3]); T.look = tmp.clone(); }
     let moving = false;
-    if (T.goal) { tmp2.copy(T.goal).sub(w.position); tmp2.y = 0; const d = tmp2.length(); if (d > 0.05) { moving = true; const s = Math.min(d, dt * 1.6); w.position.addScaledVector(tmp2.normalize(), s); const y = Math.atan2(tmp2.x, tmp2.z); w.rotation.y += Math.atan2(Math.sin(y - w.rotation.y), Math.cos(y - w.rotation.y)) * Math.min(1, dt * 8); } }
+    if (T.goal) { tmp2.copy(T.goal).sub(w.position); tmp2.y = 0; const d = tmp2.length(); if (d > 0.05) { moving = true; const s = Math.min(d, dt * (A.speed || 1.6)); w.position.addScaledVector(tmp2.normalize(), s); const y = Math.atan2(tmp2.x, tmp2.z); w.rotation.y += Math.atan2(Math.sin(y - w.rotation.y), Math.cos(y - w.rotation.y)) * Math.min(1, dt * 8); } }
     if (!moving && T.look) { const y = Math.atan2(T.look.x - w.position.x, T.look.z - w.position.z); w.rotation.y += Math.atan2(Math.sin(y - w.rotation.y), Math.cos(y - w.rotation.y)) * Math.min(1, dt * 5); }
     if (ac) { const k = Math.min(1, dt * 6); ac.walk.setEffectiveWeight(THREE.MathUtils.lerp(ac.walk.getEffectiveWeight(), moving ? 1 : 0, k)); ac.idle.setEffectiveWeight(THREE.MathUtils.lerp(ac.idle.getEffectiveWeight(), moving ? 0 : 1, k)); if (!ac.walk.isRunning()) ac.walk.play(); w.mixer.update(dt); }
     if (lines.length || sub.classList.contains('on')) { lineT -= dt; if (lineT <= 0) nextLine(); }
+    if (T.swoop) { const sw = T.swoop; sw.t += dt; const u = Math.min(1, sw.t / sw.dur), e = u * u * (3 - 2 * u); roomCam.position.lerpVectors(sw.p0, sw.p1, e); tmp.lerpVectors(sw.l0, sw.l1, e); roomCam.lookAt(tmp); roomCam.fov = THREE.MathUtils.lerp(sw.f0, 55, e); roomCam.updateProjectionMatrix(); }
+    else if (VIEW.pan) { VIEW.x += (THREE.MathUtils.clamp(w.position.x, -VIEW.pan, VIEW.pan) - VIEW.x) * Math.min(1, dt * 2.5); placeCam(); }
     common(dt);
   };
+  // ------------------------------------------------------------------ run 8: the playable lane (bowling.js). Walk up -> swoop + LANE n title card -> behind-the-Wolf lane view
+  let BW = null;
+  function bowling() { if (BW) return BW;
+    BW = createBowling({ renderer, feltMat, audio, LOW, say: (L) => say(L),
+      onRoll: (r) => { const A = T.rooms.bowl;
+        if (r.over) { A?.setLaneScore?.((g, w, h) => BW.drawCard(g, w, h, r.rolls, r.frames, -1)); S.bowled = (S.bowled || 0) + 1; save(); return null; }
+        if (S.air === 4) { step('air', 5); return r.down === 0 ? [['RAM', 'Zero. That ties my high score.'], ['RAM', 'Ties go to the challenger. Two-dollar league prize.'], ['', 'Got: two dollars.']]
+          : [['RAM', `${r.down}. That beats my high score.`], ['RAM', 'My high score is zero.'], ['RAM', 'Two-dollar league prize.'], ['', 'Got: two dollars.']]; }
+        return null; },
+      onLeave: async ({ mid }) => { const A = T.rooms.bowl; if (!A) return; T.busy = true; await BW.cover('Gutter Bowl', `LANE ${S.lane} · SHOES STILL ON`);
+        BW.end(); T.lane = null; A.scene.add(A.wolf); const sp = new THREE.Vector3(BW.laneX || 0, 0, 2.15); A.wolf.position.copy(sp); A.wolf.rotation.y = 0.3; A.wolf.updateMatrixWorld(true);
+        T.scene = A.scene; T.camera = roomCam; T.focus = null; T.goal = null; T.look = null; T.swoop = null; resize(); chipsFor(A); await wait(150); await BW.uncover(); T.busy = false;
+        say(mid ? [['RAM', 'You left in the middle of a frame.'], ['RAM', 'Bold.']] : [['ROLLER SKATE (from the desk)', 'Shoes come back to the desk.'], ['ROLLER SKATE (from the desk)', 'Eventually.']]); } });
+    return BW; }
+  async function startLane(A) {
+    if (T.busy || T.lane) return; T.busy = true; const B = bowling(), w = A.wolf; chips.innerHTML = '';
+    const lx = w.position.x; B.laneX = lx; tmp.set(VIEW.x, 1.35, VIEW.look);
+    T.swoop = { t: 0, dur: 0.75, p0: roomCam.position.clone(), l0: tmp.clone(), p1: new THREE.Vector3(lx + 0.15, 1.55, w.position.z + 2.0), l1: new THREE.Vector3(lx, 0.45, -3.6), f0: roomCam.fov };
+    await wait(780); await B.cover('Lane ' + S.lane, 'GUTTER BOWL · SHOES ON · NO TAB');
+    T.swoop = null; B.begin(w, S.lane); T.lane = B; T.scene = B.scene; T.camera = B.camera; await wait(260); await B.uncover(); T.busy = false; }
   T.outside = (dt) => {   // called every town frame (walk mode): door prompts, the Crow, held clock, errand timers
     if (!level || level.mode !== 'walk' || level.frozen || document.body.classList.contains('scene')) { btn.style.display = 'none'; near = null; return; }
     const p = wolfState.pos; near = null; let best = 2.4;
@@ -1218,10 +1303,10 @@ export function createTown(ctx) {
   }
   T.stats = () => Object.fromEntries(Object.entries(T.rooms).map(([k, A]) => [k, { tris: A.tris, animating: 1 + A.anim.length }]));
   T.state = S; T.enter = enter; T.exit = exit; T.talk = (id) => { const A = T.rooms[T.active]; talk(A?.who.find(w => w.id === id)); }; T.talkOutside = talkOutside;
-  T.placeholders = () => [...placeholders]; T.next = () => { if (T.active) nextLine(); else nextOut(); };
+  T.placeholders = () => [...placeholders]; Object.defineProperty(T, 'bowl', { get: () => BW && Object.assign(BW.test, { active: !!T.lane, last: BW.last, tris: BW.tris, B: BW }) }); T.next = () => { if (T.active) nextLine(); else nextOut(); };
   const _p = new THREE.Vector3(), _b = new THREE.Box3();
   renderer.domElement.addEventListener('pointerdown', (e) => {   // tap a character / prop in the room (or tap to advance the line)
-    if (!T.active || T.busy) return; const A = T.rooms[T.active];
+    if (!T.active || T.busy || T.lane) return; const A = T.rooms[T.active];
     if (sub.classList.contains('on') && lines.length) { nextLine(); return; }
     let best = null, bd = 90;
     for (const w of A.who) { _b.setFromObject(w.o); _b.getCenter(_p).project(T.camera); const x = (_p.x + 1) / 2 * innerWidth, y = (1 - _p.y) / 2 * innerHeight; const d = Math.hypot(x - e.clientX, y - e.clientY); if (d < bd) { bd = d; best = w; } }
