@@ -119,7 +119,7 @@ const piv=new THREE.Group();sc.add(piv);const clk=new THREE.Clock();
 const ld=new GLTFLoader();ld.setMeshoptDecoder(MeshoptDecoder);const NOISE=sunspotsNoise();
 
 // ---------- view state
-let yaw=0.5,pitch=0.16,zoom=1,fitD=5,fitY=0.85,lastTouch=-1e9;
+let yaw=0,sway=0,pitch=0.16,zoom=1,fitD=5,fitY=0.85,lastTouch=-1e9;
 const ui={top:0,bot:0};
 function layout(){const w=stage.clientWidth,h=stage.clientHeight;r.setSize(w,h,false);cam.aspect=w/h;
  ui.top=$('top').getBoundingClientRect().bottom;ui.bot=$('bot').getBoundingClientRect().height;
@@ -147,12 +147,14 @@ async function show(i){idx=(i+ALL.length)%ALL.length;const e=ALL[idx],my=++tok;s
  const url=M+e[1],base=url.slice(0,url.lastIndexOf('/')+1);
  try{const buf=await getBuf(url);if(my!==tok)return;
   const g=await ld.parseAsync(buf.slice(0),base);if(my!==tok){dispose(g.scene);return;}
-  const o=g.scene,bb=new THREE.Box3().setFromObject(o),s=new THREE.Vector3();bb.getSize(s);o.scale.setScalar(1.75/Math.max(s.x,s.y,s.z));
-  bb.setFromObject(o);const ce=bb.getCenter(new THREE.Vector3());o.position.x-=ce.x;o.position.z-=ce.z;o.position.y-=bb.min.y;bb.setFromObject(o);bb.getSize(curSize);
+  const o=g.scene;
+  // show the rig's rest (bind) pose, never a mid-animation frame: Meshy walk/idle/seated clips squash and twist these meshes
+  o.traverse(m=>{if(m.isSkinnedMesh)m.skeleton.pose();});o.updateMatrixWorld(true);
+  const bb=new THREE.Box3().setFromObject(o,true),s=new THREE.Vector3();bb.getSize(s);o.scale.setScalar(1.75/Math.max(s.x,s.y,s.z));o.updateMatrixWorld(true);
+  bb.setFromObject(o,true);const ce=bb.getCenter(new THREE.Vector3());o.position.x-=ce.x;o.position.z-=ce.z;o.position.y-=bb.min.y;o.updateMatrixWorld(true);bb.setFromObject(o,true);bb.getSize(curSize);
   applySunspotsLook(o,{mode:'cheap',lite:true,char:e[2],height:1.75});
   if(cur)dispose(cur,mix);cur=o;piv.add(o);mix=null;
-  if(g.animations.length){mix=new THREE.AnimationMixer(o);mix.clipAction(g.animations[0]).play();}
-  zoom=1;fit();r.compile(sc,cam);
+  zoom=1;yaw=0;sway=0;lastTouch=-1e9;fit();r.compile(sc,cam);
   history.replaceState(null,'','?m='+encodeURIComponent(e[1]));window.LB_READY=e[1];
  }catch(err){if(my!==tok)return;console.warn(err);$('err').textContent="Couldn't load "+e[0]+' — tap ›';$('err').style.display='block';}
  if(my===tok)document.body.classList.remove('loading');
@@ -203,7 +205,8 @@ document.addEventListener('dblclick',ev=>ev.preventDefault());
 
 // ---------- loop (gentle auto-spin when idle)
 r.setAnimationLoop(()=>{const d=Math.min(clk.getDelta(),0.1);if(mix)mix.update(d);
- if(performance.now()-lastTouch>3500)yaw+=d*0.35;piv.rotation.y=yaw;place();r.render(sc,cam);});
+ // idle: face the camera and sway gently (±30°) instead of spinning round to the back
+ if(performance.now()-lastTouch>3500){yaw=Math.atan2(Math.sin(yaw),Math.cos(yaw));sway+=d*0.5;yaw+=(Math.sin(sway)*0.5-yaw)*Math.min(1,d*1.2);}piv.rotation.y=yaw;place();r.render(sc,cam);});
 try{if(localStorage.lbPhoto==='1')document.body.classList.add('photo'),ph.setAttribute('aria-pressed',true);}catch{}
 layout();
 const q=new URLSearchParams(location.search).get('m');const qi=ALL.findIndex(e=>e[1]==q);show(qi<0?0:qi);
