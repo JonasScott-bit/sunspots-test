@@ -187,7 +187,7 @@ export function applySunspotsLook(root, opts = {}) {
   if (uDebug > 0.5) outgoingLight = vec3(ssCloth); if (uDebug > 1.5) outgoingLight = vec3(ssNf.r); if (uDebug > 2.5) outgoingLight = normal*0.5+0.5; if (uDebug > 3.5) outgoingLight = ssBase; if (uDebug > 4.5) outgoingLight = ssDbg;
   #include <opaque_fragment>`);
     };
-    const preflat = opts.preflat ?? cl.preflat ?? false; // albedo already hand-flattened (tools/flatten_atlas.py): skip the blur passes (they bleed across UV islands)
+    const preflat = opts.preflat ?? cl.preflat ?? !!m0.userData?.handflat; // albedo already hand-flattened (tools/flatten_atlas.py / handflat.py set material extras.handflat): skip the blur passes (they bleed across UV islands)
     if (opts.lite) m.defines = { ...(m.defines || {}), SS_LITE: '' };
     if (preflat) m.defines = { ...(m.defines || {}), SS_PREFLAT: '' };
     m.customProgramCacheKey = () => 'sunspots|' + mode + (opts.lite ? '|lite' : '') + (preflat ? '|flat' : '');
