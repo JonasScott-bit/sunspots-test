@@ -299,7 +299,7 @@ export function createLevel(C) {
       if (o.wander) { const [x, z] = SPOTS[o.spot]; holder.position.set(x, 0, z); }
       else { holder.position.set(o.x, 0, o.z); holder.rotation.y = o.ry; if (o.cr) colliders.push({ x: o.x, z: o.z, r: o.cr }); }
       if (o.prop) { makeMeltable(holder, { tint: '#ff7a80', puddle: 1.2, puddleColor: '#f39286' }); return; }
-      const c = { name, holder, body: m, sy: m.scale.y, ph: rnd() * 6.28, spin: o.spin };
+      const c = { name, holder, body: m, sy: m.scale.y, ph: rnd() * 6.28, spin: o.spin, gentle: /squid|farmhand/.test(name) ? 0.4 : 1 }; // squid + farmhand: the Meshy walk at full weight twists/leans them, so blend 40% over the rest pose
       if (g.animations.length) { c.mixer = new THREE.AnimationMixer(m); c.act = c.mixer.clipAction(g.animations[0]); c.act.play(); c.act.setEffectiveWeight(0); }
       if (o.wander) Object.assign(c, { wander: true, from: o.spot, to: o.spot, wait: 1 + rnd() * 3, speed: 0.9 + rnd() * 0.25, yaw: rnd() * 6.28 });
       L.cast.push(c);
@@ -321,12 +321,12 @@ export function createLevel(C) {
           h.rotation.y = c.yaw;
         }
         const k = 1 - Math.exp(-dt * 5); c.w = lerp(c.w || 0, c.moving ? 1 : 0, k);
-        if (c.act) { c.act.setEffectiveWeight(c.w); c.act.timeScale = 0.85; }
+        if (c.act) { c.act.setEffectiveWeight(c.w * c.gentle); c.act.timeScale = 0.85; }
       }
       // deadpan idle: breathing + slow weight shift (bind pose); the hydrant turns very slowly on the spot
       const idle = 1 - (c.w || 0);
       c.body.scale.y = c.sy * (1 + idle * 0.014 * Math.sin(t * 1.9 + c.ph));
-      c.body.rotation.z = idle * 0.025 * Math.sin(t * 0.5 + c.ph);
+      c.body.rotation.z = idle * 0.025 * Math.sin(t * 0.5 + c.ph) + (1 - c.gentle) * (c.w || 0) * 0.035 * Math.sin(t * 6 + c.ph); // gentle walkers waddle a little
       if (c.spin) h.rotation.y += dt * 0.35;
       if (c.mixer) c.mixer.update(dt);
     }

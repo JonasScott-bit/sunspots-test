@@ -261,15 +261,16 @@ export function createDirector(ctx) {
     const a = baseActor(name, holder); a.h = h; a.body = m; a.sy = m.scale.y; a.ph = Math.random() * 6.28; a.w = 0;
     // v10 arms-down rigs carry named idle/walk/run clips (A-pose bind, so idle always fills what walk leaves); older files: one walk clip over the bind pose
     const clip = n => g.animations.find(c => c.name === n);
+    a.gentle = (name === 'squid' || name === 'farm') ? 0.4 : 1; // their walk clip at full weight twists/leans them: blend 40% over the rest pose + a small waddle
     a.mixer = new THREE.AnimationMixer(m); const wc = clip('walk') || g.animations[0], ic = clip('idle');
     if (wc) { a.act = a.mixer.clipAction(wc); a.act.play(); a.act.setEffectiveWeight(ic ? 0.001 : 0); }
     if (ic) { a.idle = a.mixer.clipAction(ic); a.idle.play(); a.idle.time = Math.random() * ic.duration; }
     m.traverse(k => { if (k.isBone && !a.head && /^head$/i.test(k.name)) a.head = k; });
     a.tick = (dt, t) => {
       a.w = lerp(a.w, clamp(a.speed / 0.7, 0, 1), 1 - Math.exp(-dt * 7));
-      if (a.act) { a.act.setEffectiveWeight(a.idle ? Math.max(a.w, 0.001) : a.w); a.act.timeScale = clamp(a.speed / 1.0, 0.7, 1.4); }
+      if (a.act) { a.act.setEffectiveWeight(a.idle ? Math.max(a.w, 0.001) : a.w * a.gentle); a.act.timeScale = clamp(a.speed / 1.0, 0.7, 1.4); }
       const idle = 1 - a.w; if (a.idle) a.idle.setEffectiveWeight(idle);
-      else { m.scale.y = a.sy * (1 + idle * 0.014 * Math.sin(t * 1.9 + a.ph)); m.rotation.z = idle * 0.025 * Math.sin(t * 0.5 + a.ph); }
+      else { m.scale.y = a.sy * (1 + idle * 0.014 * Math.sin(t * 1.9 + a.ph)); m.rotation.z = idle * 0.025 * Math.sin(t * 0.5 + a.ph) + (1 - a.gentle) * a.w * 0.035 * Math.sin(t * 6 + a.ph); }
       a.mixer.update(dt); if (a.head && holder.visible) applyHead(a, dt);
     };
     return a;

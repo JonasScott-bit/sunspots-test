@@ -88,10 +88,19 @@ export function createTown(ctx) {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: tx, roughness: 1 })); return m;
   }
   const ph = (name, o) => { placeholders.add(name); o.userData.placeholder = name; return o; };
+  function restMotion(root, kind, h) { // 'breathe' (standing characters) or 'bob' (legless props); runs on the inner root so room code can still move/rotate the wrap
+    const y0 = root.position.y, sy = root.scale.y, ph = Math.random() * 6.28;
+    return kind === 'bob'
+      ? (t) => { root.position.y = y0 + h * 0.012 * (0.5 + 0.5 * Math.sin(t * 1.6 + ph)); root.rotation.z = 0.03 * Math.sin(t * 0.9 + ph); }
+      : (t) => { root.scale.y = sy * (1 + 0.012 * Math.sin(t * 1.9 + ph)); root.rotation.z = 0.02 * Math.sin(t * 0.5 + ph); };
+  }
   async function glb(file, h, look = 'object', opt = {}) {
     const g = await load(M + file); const root = g.scene; root.traverse(o => { if (o.isMesh) { o.castShadow = !LOW; o.receiveShadow = !LOW; if (o.isSkinnedMesh) o.frustumCulled = false; } });
+    if (opt.rest) { root.traverse(o => { if (o.isSkinnedMesh) o.skeleton.pose(); }); root.updateMatrixWorld(true); }   // bind pose before sizing
     normalize(root, h); sunspotsApply(root, look, h);
     const wrap = new THREE.Group(); wrap.add(root); wrap.userData.h = h;
+    // opt.rest: rest (bind) pose + a subtle procedural breathe/bob instead of the Meshy clip (those clips twist legs, flare pants, squash and topple props)
+    if (opt.rest) { wrap.proc = restMotion(root, opt.rest, h); return wrap; }
     if (g.animations.length) { const mx = new THREE.AnimationMixer(root); wrap.mixer = mx; wrap.acts = {};
       for (const c of g.animations) { const k = /idle/i.test(c.name) ? 'idle' : /walk/i.test(c.name) ? 'walk' : /seat/i.test(c.name) ? 'seated' : c.name; wrap.acts[k] = mx.clipAction(c); }
       const a = wrap.acts[opt.clip || 'idle'] || Object.values(wrap.acts)[0]; a.play(); if (opt.t != null) a.time = opt.t * a.getClip().duration; a.timeScale = opt.speed ?? 1; mx.update(0); }
@@ -150,8 +159,8 @@ export function createTown(ctx) {
     async diner(G, A) {
       const counter = ph('diner counter', box(4.2, 1.0, 0.7, '#e0705a', 0.06)); at(counter, -1.0, 0, -0.9); G.add(counter);
       const ctop = box(4.4, 0.08, 0.85, '#f6efe0', 0.03); at(ctop, -1.0, 1.0, -0.9); G.add(ctop);
-      const [stove, bear, gecko, booth, chair] = await Promise.all([glb('town2/stove.glb', 1.6), glb('town2/bear_lo.glb', 1.85, 'bear', { clip: 'idle', t: 0.2 }),
-        glb('town2/gecko_lo.glb', 1.05, 'gecko', { clip: 'idle', t: 0.6 }), glb('town2/booth_prop.glb', 1.25, 'feltobj'), glb('town2/eye_chair.glb', 0.95)]);
+      const [stove, bear, gecko, booth, chair] = await Promise.all([glb('town2/stove.glb', 1.6), glb('town2/bear_lo.glb', 1.85, 'bear', { rest: 'breathe' }),
+        glb('town2/gecko_lo.glb', 1.05, 'gecko', { rest: 'breathe' }), glb('town2/booth_prop.glb', 1.25, 'feltobj'), glb('town2/eye_chair.glb', 0.95)]);
       at(stove, -1.6, 0, -2.35, 0.25); G.add(stove);
       const chairs = [chair, chair.clone(true), chair.clone(true)]; chairs.forEach((c, i) => { at(c, -2.4 + i * 1.3, 0, 0.15, 0); G.add(c); });
       at(booth, 3.1, 0, -2.0, -Math.PI / 2); G.add(booth); at(bear, 2.6, 0, -0.6, -0.5); G.add(bear);
@@ -165,7 +174,7 @@ export function createTown(ctx) {
       const s1 = sign('THINK ABOUT SOUP', 2.4, 0.42, '#e0705a', '#fff3dc'); at(s1, -1.2, 2.45, -2.98); G.add(s1);
       const win = sign('OPEN', 0.9, 0.36, '#9fd6b8', '#24331f'); at(win, 2.4, 2.2, -2.98); G.add(win);
       A.wolfSpot = [-0.2, 1.6];
-      A.anim = [gecko, bear]; A.blink = chairs;
+      A.anim = []; A.proc = [gecko, bear]; A.blink = chairs;
       A.tick = (dt, t) => {
         for (let i = 0; i < chairs.length; i++) { const p = ((t * 0.37 + i * 0.29) % 3.1); chairs[i].scale.y = p < 0.12 ? 0.86 : 1; } };
       A.who = [
@@ -223,7 +232,7 @@ export function createTown(ctx) {
       const ctop = box(5.2, 0.07, 0.85, '#e9dfc0', 0.03); at(ctop, -0.6, 1.05, -1.3); G.add(ctop);
       const boxes = ph('P.O. boxes', new THREE.Group()); const pb = new THREE.InstancedMesh(new THREE.BoxGeometry(0.34, 0.26, 0.06), feltMat('#c9a35a'), 36);
       const mtx = new THREE.Matrix4(); for (let i = 0; i < 36; i++) { mtx.setPosition(-3.3 + (i % 9) * 0.38, 1.3 + Math.floor(i / 9) * 0.3, -2.95); pb.setMatrixAt(i, mtx); } boxes.add(pb); G.add(boxes);
-      const [mail, corded, bear] = await Promise.all([glb('town2/mailbox.glb', 1.35), glb('town2/corded_box.glb', 0.8), glb('town2/bear_lo.glb', 1.85, 'bear', { clip: 'idle', t: 0.4, speed: 0.7 })]);
+      const [mail, corded, bear] = await Promise.all([glb('town2/mailbox.glb', 1.35, 'object', { rest: 'breathe' }), glb('town2/corded_box.glb', 0.8), glb('town2/bear_lo.glb', 1.85, 'bear', { rest: 'breathe' })]);
       at(corded, -1.2, 1.1, -1.35, 0.1); G.add(corded); at(mail, 3.0, 0, 0.3, -0.6); G.add(mail);
       const scale = ph('parcel scale (floor)', box(0.9, 0.12, 0.8, '#b8b4a8', 0.04)); at(scale, 1.2, 0, 0.6); G.add(scale);
       const read = ph('scale readout', sign('2 BEARS', 0.5, 0.2, '#2a2a2a', '#9fd6b8', 0.6)); at(read, 1.2, 0.6, 1.05); const post = cyl(0.03, 0.03, 0.5, '#7a7a70', 6); at(post, 1.2, 0, 1.0); G.add(post, read);
@@ -233,7 +242,7 @@ export function createTown(ctx) {
       const parcels = ph('FRAGILE parcels', new THREE.Group()); [[0, 0, 0.6, '#c9a36a'], [0.1, 0.45, 0.45, '#d8b47a'], [-0.05, 0.8, 0.32, '#c08f5a']].forEach(([x, y, s, c]) => { const b = box(s, s * 0.75, s, c, 0.03); b.position.set(x, y, 0); parcels.add(b); });
       const fr = sign('FRAGILE', 0.5, 0.14, '#c9584a', '#fff3dc'); fr.position.set(0, 0.24, 0.31); parcels.add(fr); at(parcels, -2.6, 0, 1.0, 0.2); G.add(parcels);
       const s1 = sign('PLEASE TAKE A NUMBER\nThe numbers are at the DMV', 2.4, 0.55, '#fff3dc', '#5f6f3c', 0.5); at(s1, 1.8, 2.55, -2.97); G.add(s1);
-      A.wolfSpot = [-0.4, 1.4]; A.anim = [mail, bear];
+      A.wolfSpot = [-0.4, 1.4]; A.anim = []; A.proc = [mail, bear];
       A.who = [
         { id: 'corded', label: 'CORDED BOX', o: corded, talk: () => {
           if (S.sock === 3) { step('sock', 4); return [['CORDED BOX', 'Next.'], ['WOLF', 'I\'m looking for a sock.'], ['CORDED BOX', 'A sock came in. Tried to mail itself.'], ['CORDED BOX', 'To "Elsewhere".'], ['CORDED BOX', 'Undeliverables go to the Collection. By the road. The Crow runs it.'], ['CORDED BOX', 'Also there\'s a parcel for you.']]; }
@@ -251,7 +260,7 @@ export function createTown(ctx) {
       ];
     },
     async dmv(G, A) {
-      const [watch, win, moth, heron, chair] = await Promise.all([glb('town2/pocket_watch.glb', 1.0), glb('town2/window_box.glb', 1.1), glb('town2/moth_lo.glb', 1.5, 'moth', { clip: 'seated' }),
+      const [watch, win, moth, heron, chair] = await Promise.all([glb('town2/pocket_watch.glb', 1.0), glb('town2/window_box.glb', 1.1), glb('town2/moth_lo.glb', 1.5, 'moth', { rest: 'breathe' }),
         glb('town2/heron_lo.glb', 1.9, 'heron', { clip: 'idle', t: 0.3, speed: 0 }), glb('town2/eye_chair.glb', 0.95)]);
       const ledge = ph('service window counter', box(2.2, 1.05, 0.6, '#7d8a6a', 0.05)); at(ledge, 1.9, 0, -2.6); G.add(ledge);
       at(win, 1.9, 1.05, -2.65); G.add(win); win.userData.sy = win.scale.y;
@@ -260,14 +269,14 @@ export function createTown(ctx) {
       at(watch, -0.6, 1.98, -2.7, 0.1); G.add(watch);
       const now = ph('NOW SERVING display', sign('NOW SERVING\n2', 0.9, 0.5, '#2a2a2a', '#ff6a4a', 0.55)); at(now, -2.0, 2.4, -2.97); G.add(now); A.now = now;
       const c2 = chair.clone(true); at(chair, -2.4, 0, 0.3); at(c2, -1.1, 0, 0.3); G.add(chair, c2);
-      at(moth, -2.4, 0.42, 0.42); G.add(moth);
+      at(moth, -3.25, 0, 0.55, 0.45); G.add(moth);   // stands by the chairs (rest pose; the seated clip folded the Moth into the chair)
       at(heron, 0.9, 0, -1.4, Math.PI * 0.85); G.add(heron);
       const post = ph('take-a-number post', new THREE.Group()); const pole = cyl(0.04, 0.05, 1.2, '#9a9a90', 8); const disp = box(0.3, 0.24, 0.2, '#e0453a', 0.05); disp.position.y = 1.2; post.add(pole, disp); at(post, -3.1, 0, 1.9); G.add(post);
       const plant = ph('plant (waiting longest)', new THREE.Group()); const pot = cyl(0.22, 0.17, 0.35, '#c9785a', 12); plant.add(pot);
       for (let i = 0; i < 5; i++) { const l = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), feltMat('#5f8a4a')); l.scale.set(0.6, 1.4, 0.3); l.position.set(Math.sin(i * 1.3) * 0.12, 0.55 + (i % 2) * 0.12, Math.cos(i * 1.3) * 0.12); l.rotation.z = Math.sin(i * 2) * 0.5; plant.add(l); }
       const tk = sign('3', 0.12, 0.09, '#fff3dc', '#e0453a', 0.8); tk.position.set(0, 0.42, 0.24); plant.add(tk); at(plant, -3.4, 0, -2.4); G.add(plant);
       const chart = ph('eye chart', sign('E\nF P\nT O Z\nfish', 0.6, 0.85, '#fff3dc', '#2a2a2a', 0.75)); at(chart, -3.88, 1.6, -1.0, Math.PI / 2); G.add(chart);
-      A.wolfSpot = [0.2, 1.7]; A.anim = [watch, moth];
+      A.wolfSpot = [0.2, 1.7]; A.anim = [watch]; A.proc = [moth];
       A.tick = (dt) => { if (A.shut > 0) { A.shut -= dt; win.scale.y = win.userData.sy * (A.shut > 0.2 ? 0.55 : 1); } };
       const shut = () => { A.shut = 1.4; };
       A.setNow = (n) => { A.now.material.map.dispose(); const s = sign('NOW SERVING\n' + n, 0.9, 0.5, '#2a2a2a', '#ff6a4a', 0.55); A.now.material.map = s.material.map; A.now.material.needsUpdate = true; };
@@ -295,7 +304,7 @@ export function createTown(ctx) {
     // ================================================================ slice 2 — KSUN, Crow's Yard, Gutter Bowl, Second Sun Thrift (mission: DEAD AIR)
     async ksun(G, A) {
       const [tvh, otv, phone, lynx] = await Promise.all([glb('hf2/tv_head.glb', 1.75, 'object', { clip: 'idle' }), glb('hf2/old_tv.glb', 0.8),
-        glb('hf2/phone.glb', 0.5, 'object', { clip: 'idle', t: 0.4, speed: 0 }), glb('town2/lynx_lo.glb', 1.7, 'lynx', { clip: 'idle', t: 0.5 })]);
+        glb('hf2/phone.glb', 0.5, 'object', { rest: 'bob' }), glb('town2/lynx_lo.glb', 1.7, 'lynx', { clip: 'idle', t: 0.5 })]);
       // news desk: "Nothing New Tonight"
       const desk = ph('news desk', box(2.6, 0.95, 0.8, '#5a4a8a', 0.06)); at(desk, 0.4, 0, -1.3); G.add(desk);
       const dtop = box(2.8, 0.07, 0.95, '#f6efe0', 0.03); at(dtop, 0.4, 0.95, -1.3); G.add(dtop);
@@ -332,7 +341,7 @@ export function createTown(ctx) {
       const lens = cyl(0.11, 0.13, 0.2, '#2a2a2a', 10); lens.rotation.x = -Math.PI / 2; lens.position.set(0, 1.27, -0.33); cam.add(lens);
       const tp = sign('NOTHING\nHAPPENED.', 0.42, 0.3, '#2a2a2a', '#9fd6b8', 0.6); tp.position.set(0, 1.62, 0.02); tp.rotation.x = -0.35; cam.add(tp);
       at(cam, -1.1, 0, 1.5, 0.3); G.add(cam);
-      A.wolfSpot = [0.6, 1.9]; A.anim = [tvh, lynx]; A.ring = 0; A.fz = 0;
+      A.wolfSpot = [0.6, 1.9]; A.anim = [tvh, lynx]; A.proc = [phone]; A.ring = 0; A.fz = 0;
       A.setAir = () => { scr.visible = S.air < 7; fixed.visible = ears.visible = S.air >= 7; }; A.setAir();
       A.tick = (dt, t) => { onair.material.color.setScalar(Math.sin(t * 3) > -0.3 ? 1 : 0.35);
         if (scr.visible && (A.fz += dt) > 0.09) { A.fz = 0; scr.userData.fuzz(); }
@@ -388,8 +397,8 @@ export function createTown(ctx) {
       ];
     },
     async bowl(G, A) {
-      const [skate, ram, bear, booth] = await Promise.all([glb('hf2/roller_skate.glb', 0.5, 'object', { clip: 'idle', t: 0.3, speed: 0 }), glb('town2/ram_lo.glb', 1.75, 'ram', { clip: 'idle', t: 0.2 }),
-        glb('town2/bear_lo.glb', 1.85, 'bear', { clip: 'idle', t: 0.5 }), glb('town2/booth_prop.glb', 1.25, 'feltobj')]);
+      const [skate, ram, bear, booth] = await Promise.all([glb('hf2/roller_skate.glb', 0.5, 'object', { rest: 'bob' }), glb('town2/ram_lo.glb', 1.75, 'ram', { clip: 'idle', t: 0.2 }),
+        glb('town2/bear_lo.glb', 1.85, 'bear', { rest: 'breathe' }), glb('town2/booth_prop.glb', 1.25, 'feltobj')]);
       // four felt lanes + gutters + pins (instanced)
       const lanes = ph('bowling lanes (felt)', new THREE.Group());
       for (let i = 0; i < 4; i++) { const l = box(0.82, 0.05, 5.0, '#e8c088', 0.01); l.position.set(-3.2 + i, 0, -0.45); lanes.add(l); }
@@ -428,7 +437,7 @@ export function createTown(ctx) {
       const bk = cyl(0.004, 0.01, 0.13, '#2a2a2a', 5); bk.rotation.x = Math.PI / 2; bk.position.set(0, 0.12, 0.04); hb.add(bk);
       const wings = []; for (const s of [-1, 1]) { const w = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 4), feltMat('#9fd6b8')); w.scale.set(1.4, 0.2, 0.6); w.position.set(s * 0.1, 0.03, -0.02); hb.add(w); wings.push(w); }
       hb.position.set(0.7, 1.45, 0.3); G.add(hb);
-      A.wolfSpot = [0.5, 1.9]; A.anim = [ram, bear]; A.roll = 0;
+      A.wolfSpot = [0.5, 1.9]; A.anim = [ram]; A.proc = [bear, skate]; A.roll = 0;
       A.tick = (dt, t) => { hb.position.y = 1.45 + Math.sin(t * 2.3) * 0.08; hb.rotation.y = Math.sin(t * 0.7) * 0.6; for (const w of wings) w.rotation.z = Math.sin(t * 70) * 0.5;
         if (A.roll > 0) { A.roll -= dt; const p = Math.min(1, 1 - A.roll / 2.2); ball.position.set(-2.2 - Math.max(0, p - 0.35) * 0.82, 0.16 - (p > 0.75 ? 0.05 : 0), 1.6 - p * 3.4); ball.rotation.x -= dt * 9;
           if (A.roll <= 0) { ball.position.set(-2.2, 0.16, 1.6); A.after?.(); } } };
@@ -449,8 +458,8 @@ export function createTown(ctx) {
       ];
     },
     async thrift(G, A) {
-      const [plaid, lamp, gecko] = await Promise.all([glb('hf2/plaid_box.glb', 0.7, 'object', { clip: 'idle' }), glb('hf2/lamp_bulb.glb', 1.15, 'object', { clip: 'idle', t: 0.5, speed: 0 }),
-        glb('town2/gecko_lo.glb', 1.05, 'gecko', { clip: 'idle', t: 0.2 })]);
+      const [plaid, lamp, gecko] = await Promise.all([glb('hf2/plaid_box.glb', 0.7, 'object', { rest: 'bob' }), glb('hf2/lamp_bulb.glb', 1.15, 'object', { rest: 'bob' }),
+        glb('town2/gecko_lo.glb', 1.05, 'gecko', { rest: 'breathe' })]);
       const ctr = ph('thrift counter', box(2.2, 1.0, 0.7, '#c98a3a', 0.05)); at(ctr, 1.0, 0, -2.2); G.add(ctr);
       const ctop = box(2.4, 0.07, 0.85, '#f6efe0', 0.03); at(ctop, 1.0, 1.0, -2.2); G.add(ctop);
       at(plaid, 0.7, 1.07, -2.2); G.add(plaid);
@@ -490,7 +499,7 @@ export function createTown(ctx) {
       const glassM = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 1.5), new THREE.MeshStandardMaterial({ color: '#cfe3ea', roughness: 1 })); glassM.position.set(0, 0.87, 0.045); mir.add(glassM);
       const stars = sign('★★☆☆☆', 0.5, 0.14, '#3a1f2a', '#ffd04a', 0.7); stars.position.set(0, 1.85, 0.05); mir.add(stars);
       at(mir, 2.1, 0, 1.2, -0.7); G.add(mir);
-      A.wolfSpot = [0.4, 1.7]; A.anim = [plaid, gecko];
+      A.wolfSpot = [0.4, 1.7]; A.anim = []; A.proc = [plaid, lamp, gecko];
       A.who = [
         { id: 'plaid', label: 'PLAID BOX', o: plaid, talk: () => {
           if (S.air === 3) { step('air', 4); return [['PLAID BOX', 'Rabbit ears. Two dollars.'], ['WOLF', 'They were free an hour ago.'], ['PLAID BOX', 'They were on a stool an hour ago.'], ['WOLF', 'I don\'t have two dollars.'], ['PLAID BOX', 'Gutter Bowl has a two-dollar league prize.']]; }
@@ -608,6 +617,7 @@ export function createTown(ctx) {
     const A = T.rooms[T.active]; if (!A) return;
     A.tick?.(dt, t);
     for (const o of A.anim) o.mixer?.update(dt);
+    for (const o of A.proc || []) o.proc?.(t);
     // the Wolf walks over to whoever you talk to, then idles facing them
     const w = A.wolf, ac = w.acts;
     if (T.focus) { T.focus.o.getWorldPosition(tmp); tmp.y = 0; tmp2.copy(tmp).sub(A.wolfHome).setY(0); const L = tmp2.length(); T.goal = L > 1.4 ? A.wolfHome.clone().addScaledVector(tmp2.normalize(), L - 1.2) : A.wolfHome.clone();
