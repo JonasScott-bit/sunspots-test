@@ -8,7 +8,8 @@ import { sunspotsApply, sunspotsLowEnd } from './sunspots_material.js';
 
 const M = './models/';
 const ROOMS = {
-  diner:      { name: 'THE DINER',       wall: '#f3dcb8', trim: '#e0705a', floor: '#d9c6a4', floor2: '#7a5a4a', light: '#ffe2b8' },
+  diner:      { name: 'THE DINER',       wall: '#f3dcb8', trim: '#e0705a', floor: '#d9c6a4', floor2: '#7a5a4a', light: '#ffe2b8',
+                pw: { back: ['dots', '#3f5fb8', '#f2b632', '#ff6fae'], side: ['squig', '#f07a5e', '#22a89a', '#fff3dc'], floor: ['zig', '#8a4fc0', '#f2b632', '#fff3dc'], ceil: ['stripes', '#ff6fae', '#f2b632', '#fff3dc'] } },
   laundromat: { name: 'THE LAUNDROMAT',  wall: '#bfe0e2', trim: '#6aa4b8', floor: '#e8e2cf', floor2: '#c9b9a0', light: '#eaf6ff' },
   post:       { name: 'THE POST OFFICE', wall: '#d9d0a8', trim: '#5f6f3c', floor: '#b89a74', floor2: '#a3855f', light: '#fff0c8' },
   dmv:        { name: 'THE DMV',         wall: '#c6d6a6', trim: '#7d8a6a', floor: '#b8b8a8', floor2: '#a4a494', light: '#f0ffe6' },
@@ -18,7 +19,8 @@ const ROOMS = {
   bowl:       { name: 'GUTTER BOWL',        wall: '#6b4c8a', trim: '#ff6fae', floor: '#e3b878', floor2: '#d6a868', light: '#ffe0f0' },
   thrift:     { name: 'SECOND SUN THRIFT',  wall: '#f2d27a', trim: '#c98a3a', floor: '#c9785a', floor2: '#b86a4f', light: '#fff0d0' },
   // slice 3 (Town Plan: The Neon Strip, next to Gutter Bowl) — mission Leave The Light On
-  motel:      { name: 'LEAVE-THE-LIGHT-ON MOTEL', wall: '#f6c6d6', trim: '#2a9d9a', floor: '#e8d6b0', floor2: '#d6c098', light: '#ffe0f0' },
+  motel:      { name: 'LEAVE-THE-LIGHT-ON MOTEL', wall: '#f6c6d6', trim: '#2a9d9a', floor: '#e8d6b0', floor2: '#d6c098', light: '#ffe0f0',
+                pw: { back: ['swirl', '#ff6fae', '#22a89a', '#f2b632'], side: ['zig', '#8a4fc0', '#f2b632', '#7d93c4'], floor: ['checker', '#f07a5e', '#fff3dc', '#22a89a'], ceil: ['stripes', '#22a89a', '#ff6fae', '#fff3dc'] } },
   pool:       { name: 'THE MOTEL POOL',     wall: '#3a3f6a', trim: '#ff6fae', floor: '#f0e2c0', floor2: '#e2d2ae', light: '#e6f0ff' },
   drivein:    { name: 'EYE-MAX DRIVE-IN',   wall: '#2a2440', trim: '#ff6fae', floor: '#6a5a5a', floor2: '#5e4f4f', light: '#ffe6c8' },
 };
@@ -146,13 +148,119 @@ export function createTown(ctx) {
     return g;
   }
 
+  // ------------------------------------------------------------------ PLAYHOUSE kit: trippy, wonky felt rooms (procedural geometry + canvas textures only, matte felt, no new models)
+  const PW = { mustard: '#f2b632', cobalt: '#3f5fb8', sky: '#7d93c4', coral: '#f07a5e', purple: '#8a4fc0', teal: '#22a89a', pink: '#ff6fae', cream: '#fff3dc', ink: '#2a1a24' };
+  function patTex(kind, a, b, c = PW.cream, rep = 0.6) {   // loud clashing felt patterns, tile-seamless 256px canvases
+    const cv = document.createElement('canvas'); cv.width = cv.height = 256; const g = cv.getContext('2d');
+    g.fillStyle = a; g.fillRect(0, 0, 256, 256); g.lineCap = g.lineJoin = 'round';
+    if (kind === 'dots') for (let j = 0; j < 4; j++) for (let i = 0; i < 5; i++) { g.fillStyle = (i + j) % 2 ? b : c; g.beginPath(); g.arc(i * 64 + (j % 2) * 32, j * 64 + 32, 15, 0, 7); g.fill(); }
+    if (kind === 'squig') { g.lineWidth = 10; for (let j = 0; j < 4; j++) { g.strokeStyle = j % 2 ? c : b; g.beginPath(); for (let x = -8; x <= 264; x += 4) { const y = j * 64 + 32 + Math.sin((x / 256) * Math.PI * 4 + j) * 13; x > -8 ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); } }
+    if (kind === 'swirl') { g.lineWidth = 9; [[64, 64, b], [192, 192, b], [192, 64, c], [64, 192, c]].forEach(([cx, cy, col], q) => { g.strokeStyle = col; g.beginPath();
+      for (let k = 0; k < 56; k++) { const an = k * 0.36 * (q % 2 ? -1 : 1), r = k * 0.95; const x = cx + Math.cos(an) * r, y = cy + Math.sin(an) * r; k ? g.lineTo(x, y) : g.moveTo(x, y); } g.stroke(); }); }
+    if (kind === 'zig') for (let j = 0; j < 8; j++) { g.fillStyle = j % 2 ? b : (j % 4 === 0 ? a : c); g.beginPath();
+      for (let k = 0; k <= 8; k++) g.lineTo(k * 32, j * 32 + (k % 2 ? 16 : 0)); for (let k = 8; k >= 0; k--) g.lineTo(k * 32, j * 32 + 32 + (k % 2 ? 16 : 0)); g.fill(); }
+    if (kind === 'checker') for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { g.fillStyle = (i + j) % 2 ? b : a; g.fillRect(i * 32, j * 32, 32, 32); if ((i + j) % 4 === 0) { g.fillStyle = c; g.beginPath(); g.arc(i * 32 + 16, j * 32 + 16, 5, 0, 7); g.fill(); } }
+    if (kind === 'stripes') for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? b : a; g.fillRect(i * 32, 0, 32, 256); g.fillStyle = c; g.fillRect(i * 32 + 14, 0, 4, 256); }
+    for (let i = 0; i < 2200; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.10)'; g.fillRect(Math.random() * 256, Math.random() * 256, 1.6, 1.6); }   // felt fibres
+    const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; tx.wrapS = tx.wrapT = THREE.RepeatWrapping; tx.repeat.set(rep, rep); tx.anisotropy = 4; return tx;
+  }
+  const patMat = (kind, a, b, c, rep) => feltMat('#ffffff', { map: patTex(kind, a, b, c, rep) });
+  function pwShell(R, g) {   // wonky walls (leaning, crooked tops), a lumpy tilted felt ceiling, loud patterns
+    const P = R.pw, W = 8, D = 6;
+    const flat = (pts, mat, trim) => { const s = new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y)));
+      const m = new THREE.Mesh(new THREE.ExtrudeGeometry(s, { depth: 0.2, bevelEnabled: false, curveSegments: 1 }), [mat, feltMat(trim)]); m.receiveShadow = !LOW; m.castShadow = false; return m; };
+    const back = flat([[-W / 2 - 0.3, -0.1], [W / 2 + 0.3, -0.1], [W / 2 + 0.3, 3.85], [1.6, 3.95], [-1.2, 3.8], [-W / 2 - 0.3, 4.0]], patMat(...P.back), R.trim);
+    back.position.set(0, 0, -D / 2 - 0.2); back.rotation.set(-0.035, 0, 0.014); g.add(back);
+    const zs = [-3.25, -2.0, -0.8, 0.4, 1.1, 2.0, 3.1];
+    for (const sd of [-1, 1]) { const tops = sd < 0 ? [3.85, 4.0, 4.2, 4.4, 4.5, 3.7, 3.05] : [3.9, 4.05, 4.15, 4.45, 4.4, 3.45, 3.2];
+      const pts = [[3.25, -0.1], [-3.1, -0.1], ...zs.slice().reverse().map((z, i) => [-z, tops[zs.length - 1 - i]])];
+      const w = flat(pts, patMat(...P.side), R.trim); w.rotation.y = Math.PI / 2; w.position.set(sd < 0 ? -0.2 : 0, 0, 0);
+      const lean = new THREE.Group(); lean.add(w); lean.position.x = sd * W / 2; /* pivot on the wall's foot */ lean.rotation.z = sd < 0 ? 0.045 : -0.03; g.add(lean); }
+    const cg = new THREE.PlaneGeometry(W + 0.6, 4.4, 20, 8); cg.rotateX(Math.PI / 2); const pa = cg.attributes.position;   // lumpy ceiling, tipping up toward the viewer
+    for (let i = 0; i < pa.count; i++) { const x = pa.getX(i), z = pa.getZ(i) - 1.1; pa.setZ(i, z); pa.setY(i, 3.62 + (z + 3.3) / 4.4 * 0.55 + 0.13 * Math.sin(x * 1.4 + z * 0.9) + 0.07 * Math.cos(x * 3.1 - z * 1.7)); }
+    cg.computeVertexNormals(); const ceil = new THREE.Mesh(cg, patMat(...P.ceil)); ceil.material.map.repeat.set(5, 2.6); ceil.material.emissive.set('#ffffff'); ceil.material.emissiveMap = ceil.material.map; ceil.material.emissiveIntensity = 0.45; ceil.material.side = THREE.DoubleSide; ceil.castShadow = false; g.add(ceil);
+  }
+  function eyes(A, parent, spots, r = 0.07) {   // flat felt googly eyes [[x,y,z,ry,rx,size]]: pupils follow the Wolf, each set blinks together
+    const set = { list: [], next: 0.8 + Math.random() * 3, blink: 0 };
+    for (const [x, y, z, ry = 0, rx = 0, s = 1] of spots) { const e = new THREE.Group(); e.position.set(x, y, z); e.rotation.set(rx, ry, 0);
+      const w = new THREE.Mesh(new THREE.CircleGeometry(r * s, 14), feltMat(PW.cream)); w.position.z = 0.003;
+      const p = new THREE.Mesh(new THREE.CircleGeometry(r * s * 0.46, 10), feltMat(PW.ink)); p.position.z = 0.007; e.add(w, p); e.userData.p = p; e.userData.r = r * s; parent.add(e); set.list.push(e); }
+    (A.eyeSets ||= []).push(set); return set;
+  }
+  const smile = (r, color = PW.ink) => { const m = new THREE.Mesh(new THREE.TorusGeometry(r, r * 0.16, 4, 10, Math.PI), feltMat(color)); m.rotation.z = Math.PI; return m; };
+  function picTex(kind, w, h) {   // the "wrong" window views
+    const c = document.createElement('canvas'); c.width = 256; c.height = Math.round(256 * h / w); const g = c.getContext('2d'), H = c.height;
+    if (kind === 'sea') { const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, PW.teal); gr.addColorStop(1, '#1d3f7a'); g.fillStyle = gr; g.fillRect(0, 0, 256, H);
+      g.fillStyle = PW.coral; g.beginPath(); g.moveTo(0, H); for (let x = 0; x <= 256; x += 16) g.lineTo(x, H * 0.84 + Math.sin(x / 30) * 6); g.lineTo(256, H); g.fill();
+      g.strokeStyle = PW.purple; g.lineWidth = 7; for (const x0 of [30, 200]) { g.beginPath(); for (let y = H; y > H * 0.35; y -= 6) g.lineTo(x0 + Math.sin(y / 14) * 9, y); g.stroke(); }
+      for (const [x, y, s, col] of [[90, H * 0.35, 1, PW.mustard], [170, H * 0.6, 0.8, PW.pink], [60, H * 0.68, 0.6, PW.mustard]]) { g.fillStyle = col; g.beginPath(); g.ellipse(x, y, 30 * s, 17 * s, 0, 0, 7); g.fill();
+        g.beginPath(); g.moveTo(x + 26 * s, y); g.lineTo(x + 46 * s, y - 14 * s); g.lineTo(x + 46 * s, y + 14 * s); g.fill(); g.fillStyle = PW.cream; g.beginPath(); g.arc(x - 14 * s, y - 3 * s, 7 * s, 0, 7); g.fill(); g.fillStyle = PW.ink; g.beginPath(); g.arc(x - 16 * s, y - 3 * s, 3.5 * s, 0, 7); g.fill(); }
+      g.strokeStyle = PW.cream; g.lineWidth = 3; for (const [x, y, r] of [[120, H * 0.2, 6], [128, H * 0.12, 4], [215, H * 0.3, 5]]) { g.beginPath(); g.arc(x, y, r, 0, 7); g.stroke(); } }
+    if (kind === 'night') { g.fillStyle = '#1c1a3a'; g.fillRect(0, 0, 256, H); g.fillStyle = PW.cream; for (let i = 0; i < 40; i++) g.fillRect((i * 97) % 256, (i * 53) % H, 3, 3);
+      g.fillStyle = PW.mustard; g.beginPath(); g.arc(170, H * 0.35, 34, 0, 7); g.fill(); g.fillStyle = '#1c1a3a'; g.beginPath(); g.arc(186, H * 0.3, 30, 0, 7); g.fill();
+      g.fillStyle = PW.cream; g.font = '700 22px Futura, Avenir, sans-serif'; g.textAlign = 'center'; g.fillText('MIDNIGHT', 128, H * 0.88); }
+    const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({ map: tx, roughness: 1, metalness: 0 }));
+  }
+  const bar = (w, h, d, col) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), feltMat(col)); m.castShadow = !LOW; return m; };
+  function crookedWindow(pic, w, h, frame) {   // a window frame that is not quite square
+    const g = new THREE.Group(); pic.position.z = 0.01; g.add(pic); const t = 0.08;
+    for (const [x, y, ww, hh] of [[0, h / 2 + t / 2, w + 2 * t + 0.06, t], [0.03, -h / 2 - t / 2, w + 2 * t, t], [-w / 2 - t / 2, 0, t, h], [w / 2 + t / 2, 0.02, t, h + 0.05]]) { const b = bar(ww, hh, 0.07, frame); b.position.set(x, y, 0.03); g.add(b); }
+    const sill = bar(w + 0.3, 0.06, 0.16, frame); sill.position.set(0.05, -h / 2 - t - 0.02, 0.08); sill.rotation.z = 0.04; g.add(sill); return g;
+  }
+  function crookedDoor(A, color, frame, label) {   // a leaning doorway with a watching peephole
+    const g = new THREE.Group(); const panel = bar(0.9, 2.0, 0.05, color); panel.position.y = 1.0; g.add(panel);
+    for (const [x, y, ww, hh] of [[0, 2.05, 1.16, 0.12], [-0.52, 1.0, 0.12, 2.1], [0.52, 1.02, 0.12, 2.14]]) { const b = bar(ww, hh, 0.09, frame); b.position.set(x, y, 0.02); g.add(b); }
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 6), feltMat(PW.mustard)); knob.position.set(0.3, 0.95, 0.06); g.add(knob);
+    if (label) { const s = sign(label, 0.5, 0.2, PW.cream, PW.ink, 0.7); s.position.set(0, 1.72, 0.035); s.rotation.z = -0.08; g.add(s); }
+    eyes(A, g, [[-0.09, 1.45, 0.03], [0.1, 1.47, 0.03, 0, 0, 0.8]], 0.075); return g;
+  }
+  function backClock(A, r, ring = PW.mustard) {   // a wall clock that runs backwards (numbers go anticlockwise too)
+    const g = new THREE.Group(); const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
+    x.fillStyle = PW.cream; x.fillRect(0, 0, 256, 256); x.fillStyle = PW.ink; x.font = '700 30px Futura, Avenir, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    for (let n = 1; n <= 12; n++) { const a = n * Math.PI / 6; x.fillText(String(n), 128 - Math.sin(a) * 96, 128 - Math.cos(a) * 96); }
+    const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace;
+    const face = new THREE.Mesh(new THREE.CircleGeometry(r, 22), new THREE.MeshStandardMaterial({ map: tx, roughness: 1 })); g.add(face);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(r, 0.035, 4, 22), feltMat(ring)); g.add(rim);
+    const hand = (len, wid, col) => { const p = new THREE.Group(); const m = bar(wid, len, 0.012, col); m.position.y = len / 2; p.add(m); p.position.z = 0.02; g.add(p); return p; };
+    const hr = hand(r * 0.5, 0.04, PW.ink), mn = hand(r * 0.78, 0.028, PW.coral);
+    eyes(A, g, [[-0.32 * r, 0.42 * r, 0.03], [0.3 * r, 0.44 * r, 0.03, 0, 0, 0.85]], r * 0.17);
+    (A.clocks ||= []).push({ hr, mn }); return g;
+  }
+  function popper(A, base, head, y0, dy, lid) { const p = { head, y0, dy, t: 0, lid }; head.position.y = y0; (A.pops ||= []).push(p); return p; }
+  function mobile(A, shape, color, x, y, z, len = 0.55) {   // felt shapes on strings from the lumpy ceiling, turning slowly
+    const g = new THREE.Group(); const str = cyl(0.006, 0.006, len, PW.ink, 4); str.position.y = -len; g.add(str);
+    const s = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: 0.04, bevelEnabled: false, curveSegments: 6 }), feltMat(color)); s.position.y = -len - 0.05; g.add(s);
+    g.position.set(x, y, z); (A.spin ||= []).push(s); (A.wob ||= []).push({ o: g, y: y, rz: 0, a: 0.06, f: 0.9, p: x }); return [g, s];
+  }
+  function starShape(r1 = 0.22, r2 = 0.1, n = 5) { const s = new THREE.Shape(); for (let i = 0; i <= n * 2; i++) { const a = i * Math.PI / n + Math.PI / 2, r = i % 2 ? r2 : r1; i ? s.lineTo(Math.cos(a) * r, Math.sin(a) * r) : s.moveTo(Math.cos(a) * r, Math.sin(a) * r); } return s; }
+  function moonShape(r = 0.2) { const s = new THREE.Shape(); s.absarc(0, 0, r, 0.833, Math.PI * 2 - 0.833, false); s.absarc(r * 0.55, 0, r * 0.75, Math.PI * 2 - 1.407, 1.407, true); return s; }
+  function discShape(r = 0.2) { const s = new THREE.Shape(); s.absarc(0, 0, r, 0, Math.PI * 2, false); return s; }
+  const wob = (A, o, a = 0.05, f = 1.2) => (A.wob ||= []).push({ o, y: o.position.y, rz: o.rotation.z, a, f, p: Math.random() * 6.28 });
+  const watch = (A, o, range = 0.7) => (A.watch ||= []).push({ o, ry: o.rotation.y, range });
+  function playhouse(A) {   // chain the kit's per-frame motion onto the room's own tick
+    const prev = A.tick, head = new THREE.Vector3(), v = new THREE.Vector3();
+    A.tick = (dt, t) => { prev?.(dt, t); if (!A.wolf) return; A.wolf.getWorldPosition(head); head.y += 1.45;
+      for (const s of A.eyeSets || []) { s.next -= dt; if (s.next <= 0) { s.blink = 0.13; s.next = 1.8 + Math.random() * 4; } if (s.blink > 0) s.blink -= dt;
+        for (const e of s.list) { e.scale.y = s.blink > 0 ? 0.1 : 1; v.copy(head); e.worldToLocal(v); const L = v.length() || 1; let px = v.x / L * 1.8, py = v.y / L * 1.8; const q = Math.hypot(px, py); if (q > 1) { px /= q; py /= q; }
+          e.userData.p.position.x = px * e.userData.r * 0.5; e.userData.p.position.y = py * e.userData.r * 0.5; } }
+      for (const w of A.watch || []) { const want = THREE.MathUtils.clamp(Math.atan2(head.x - w.o.position.x, head.z - w.o.position.z) - w.ry, -w.range, w.range) + w.ry; w.o.rotation.y += (want - w.o.rotation.y) * Math.min(1, dt * 3); }
+      for (const w of A.wob || []) { w.o.rotation.z = w.rz + w.a * Math.sin(t * w.f + w.p); w.o.position.y = w.y + w.a * 0.3 * (0.5 + 0.5 * Math.sin(t * w.f * 1.3 + w.p)); }
+      for (const s of A.spin || []) s.rotation.y += dt * 0.5;
+      for (const c of A.clocks || []) { c.mn.rotation.z = t * 0.6; c.hr.rotation.z = t * 0.05; }   // positive = anticlockwise: backwards
+      for (const p of A.pops || []) if (p.t > 0) { p.t = Math.max(0, p.t - dt); const e = 3 - p.t;
+        const up = p.t <= 0 ? 0 : e < 0.16 ? e / 0.16 * 1.15 : e < 2.4 ? 1 + 0.15 * Math.sin((e - 0.16) * 22) * Math.exp(-(e - 0.16) * 4) : Math.max(0, 1 - (e - 2.4) / 0.6);
+        p.head.position.y = p.y0 + p.dy * up; if (p.lid) p.lid.rotation.x = -1.3 * Math.min(1, up); } };
+  }
+  function quips(list) { let i = 0; return () => list[i++ % list.length]; }
+
   // ------------------------------------------------------------------ room shell (floor + 3 walls + soffit, open front)
   function shell(R) {
     const g = new THREE.Group(), W = 8, D = 6, H = 3.2;
     const fc = document.createElement('canvas'); fc.width = fc.height = 256; const f = fc.getContext('2d');
     for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { f.fillStyle = (i + j) % 2 ? R.floor : R.floor2; f.fillRect(i * 32, j * 32, 32, 32); }
     const ft = new THREE.CanvasTexture(fc); ft.colorSpace = THREE.SRGBColorSpace; ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(2, 1.5);
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(W + 0.4, 0.2, D + 0.2), new THREE.MeshStandardMaterial({ map: ft, roughness: 1 })); floor.position.set(0, -0.1, 0); floor.receiveShadow = true; g.add(floor);
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(W + 0.4, 0.2, D + 0.2), R.pw ? patMat(...R.pw.floor) : new THREE.MeshStandardMaterial({ map: ft, roughness: 1 })); floor.position.set(0, -0.1, 0); floor.receiveShadow = true; g.add(floor);
+    if (R.pw) { floor.material.map.repeat.set(4, 3); pwShell(R, g); const lip = box(W + 0.8, 0.28, 0.3, '#3a1f2a', 0.06); at(lip, 0, -0.28, D / 2 + 0.05); g.add(lip); return g; }   // PLAYHOUSE rooms
     const back = box(W + 0.4, H, 0.2, R.wall, 0.02); at(back, 0, 0, -D / 2 - 0.1); g.add(back);
     for (const s of [-1, 1]) { const w = box(0.2, H, D + 0.2, R.wall, 0.02); at(w, s * (W / 2 + 0.1), 0, 0); g.add(w); }
     const base = box(W, 0.18, 0.06, R.trim, 0.02); at(base, 0, 0, -D / 2 + 0.02); g.add(base);
@@ -180,7 +288,22 @@ export function createTown(ctx) {
       const coffee = cyl(0.062, 0.062, 0.005, '#3a1f12', 10); at(coffee, -1.1, 1.19, -0.65); G.add(coffee);
       const menu = ph('menu', sign('MENU\n1. The Menu', 0.34, 0.46, '#fff3dc', '#e0705a', 0.6)); at(menu, -2.3, 1.32, -0.75, 0.2); G.add(menu);
       const s1 = sign('THINK ABOUT SOUP', 2.4, 0.42, '#e0705a', '#fff3dc'); at(s1, -1.2, 2.45, -2.98); G.add(s1);
-      const win = sign('OPEN', 0.9, 0.36, '#9fd6b8', '#24331f'); at(win, 2.4, 2.2, -2.98); G.add(win);
+      const win = sign('OPEN', 0.9, 0.36, '#9fd6b8', '#24331f');
+      // --- PLAYHOUSE pilot: the room watches you, leans, and runs backwards
+      const cface = new THREE.Group(); eyes(A, cface, [[-2.25, 0.68, 0], [-1.8, 0.72, 0, 0, 0, 0.85]], 0.11); const sm = smile(0.17); sm.position.set(-2.02, 0.45, 0.005); cface.add(sm); cface.position.z = -0.535; G.add(cface);   // the counter has a face
+      const bottle = (col, cap, x, z) => { const b = new THREE.Group(); b.add(cyl(0.065, 0.075, 0.28, col, 10)); const c = cyl(0.02, 0.045, 0.09, cap, 8); c.position.y = 0.28; b.add(c);
+        eyes(A, b, [[-0.03, 0.2, 0.072], [0.03, 0.2, 0.072]], 0.025); at(b, x, 1.08, z, 0); G.add(b); watch(A, b); wob(A, b, 0.07, 1.6 + x); return b; };
+      bottle('#e0402a', '#f2b632', -2.85, -0.95); bottle('#f2b632', '#e0402a', -2.62, -1.12);   // ketchup + mustard turn to watch the Wolf
+      const toaster = ph('toaster (pops up a quip)', new THREE.Group()); toaster.add(box(0.44, 0.26, 0.26, '#22a89a', 0.06)); const tsl = box(0.3, 0.012, 0.06, '#2a1a24', 0.004); tsl.position.y = 0.26; toaster.add(tsl);
+      const lever = box(0.04, 0.06, 0.05, '#f2b632', 0.01); lever.position.set(0.24, 0.12, 0); toaster.add(lever);
+      const toast = new THREE.Group(); const tb = box(0.24, 0.22, 0.05, '#e8b36a', 0.04); toast.add(tb); eyes(A, toast, [[-0.05, 0.15, 0.027], [0.05, 0.15, 0.027]], 0.025); const tsm = smile(0.035); tsm.position.set(0, 0.09, 0.028); toast.add(tsm); toaster.add(toast);
+      at(toaster, -1.65, 1.08, -1.1, 0.12); G.add(toaster); const pt = popper(A, toaster, toast, 0.08, 0.3);
+      const toastQ = quips(['Toast.', 'I\'m done. You\'re not.', 'Lightly. Like you.', 'It\'s always breakfast somewhere. Here.', 'Don\'t look at me. Okay, look.']);
+      const door = crookedDoor(A, '#22a89a', '#f2b632'); win.scale.setScalar(0.72); win.position.set(0, 1.78, 0.04); win.rotation.z = 0.05; door.add(win); at(door, 2.05, 0, -2.95); door.rotation.z = -0.07; G.add(door);   // the OPEN door is shut
+      const sea = crookedWindow(picTex('sea', 1.0, 0.8), 1.0, 0.8, '#ff6fae'); sea.position.set(-3.05, 2.0, -2.95); sea.rotation.z = 0.12; G.add(sea);   // a diner in the desert, with a view of the sea
+      const clock = backClock(A, 0.3); clock.position.set(0.75, 2.62, -2.94); G.add(clock); wob(A, clock, 0.08, 0.7);
+      for (const [sh, col, x] of [[starShape(), '#f2b632', -3.0], [discShape(0.17), '#f07a5e', 3.0]]) { const [m] = mobile(A, sh, col, x, 3.95, 0.3, 0.6); G.add(m); }
+      wob(A, menu, 0.06, 1.1); wob(A, pie, 0.05, 2.0);
       A.wolfSpot = [-0.2, 1.6];
       A.anim = []; A.proc = [gecko, bear]; A.blink = chairs;
       A.tick = (dt, t) => {
@@ -193,7 +316,12 @@ export function createTown(ctx) {
         { id: 'bear', label: 'BEAR', o: bear, talk: () => [['BEAR', 'This booth is saved.'], ['WOLF', 'For who?'], ['BEAR', 'For the booth.']] },
         { id: 'chair', label: 'STOOL', o: chairs[1], talk: () => [['', 'The stool blinks.'], ['WOLF', '...'], ['', 'You blink first.']] },
         { id: 'pie', label: 'PIE', o: pie, talk: () => [['STOVE', 'That pie is for display.'], ['WOLF', 'Can I have a slice?'], ['STOVE', 'Of the display?']] },
+        { id: 'toaster', label: 'TOASTER', o: toaster, talk: () => { pt.t = 3; audio.ui?.('confirm'); return [['TOAST', toastQ()]]; } },
+        { id: 'window', label: 'WINDOW', o: sea, chip: false, talk: () => [['', 'The window shows the sea.'], ['WOLF', 'We\'re in the desert.'], ['', 'A fish looks at you like you\'re the one in the wrong window.']] },
+        { id: 'clock', label: 'CLOCK', o: clock, chip: false, talk: () => [['', 'The clock runs backwards.'], ['STOVE', 'Breakfast is getting closer.'], ['WOLF', 'It was already breakfast.'], ['STOVE', 'Closer.']] },
+        { id: 'door', label: 'DOOR', o: door, chip: false, talk: () => [['', 'The door says OPEN.'], ['', 'It is shut. It leans on purpose.'], ['', 'The peephole watches you think about it.']] },
       ];
+      playhouse(A);
     },
     async laundromat(G, A) {
       const [washer, sock, glove, ant] = await Promise.all([glb('town2/washing_machine.glb', 1.3), glb('town2/argyle_sock.glb', 0.95, 'feltobj'),
@@ -556,6 +684,21 @@ export function createTown(ctx) {
       at(ice, -3.35, 0, 0.6, Math.PI / 2); G.add(ice);
       at(chair, 2.9, 0, 0.7, -0.6); G.add(chair);
       const rug = box(2.0, 0.02, 1.3, '#ff6fae', 0.01); at(rug, 0.2, 0, 0.6); G.add(rug);
+      // --- PLAYHOUSE: the motel is a face (several), the windows disagree, the clock runs back to 11
+      const dface = new THREE.Group(); eyes(A, dface, [[0.6, 0.86, 0], [1.55, 0.86, 0, 0, 0, 0.9]], 0.1); dface.position.z = -1.185; G.add(dface);   // the front desk looks up
+      eyes(A, ice, [[-0.14, 0.97, 0.31], [0.14, 0.97, 0.31]], 0.065);   // the ice machine, waiting on its cube
+      const rface = new THREE.Group(); eyes(A, rface, [[-0.35, 0, 0], [0.55, 0, 0, 0, 0, 0.9]], 0.15); const rsm = smile(0.32); rsm.position.set(0.1, -0.4, 0.004); rface.add(rsm); rface.rotation.x = -Math.PI / 2; rface.position.set(0, 0.026, 0.35); G.add(rface);   // the rug is a face (wipe your feet)
+      pane.material = picTex('night', 1.1, 1.1).material;   // the lamp window: midnight
+      const noon = crookedWindow(sunPic(0.95, 0.8, 'NOON', '#7d93c4'), 0.95, 0.8, '#f2b632'); noon.position.set(1.05, 2.4, -2.94); noon.rotation.z = -0.1; G.add(noon);   // the other window: noon
+      const clock = backClock(A, 0.26, '#ff6fae'); clock.position.set(2.6, 2.85, -2.94); G.add(clock); wob(A, clock, 0.08, 0.6);
+      const door = crookedDoor(A, '#8a4fc0', '#f2b632', 'ROOM 11'); door.position.set(-3.95, 0, -1.7); door.rotation.set(0, Math.PI / 2, 0.08); G.add(door);
+      const sbox = ph('suggestion box (pops up a quip)', new THREE.Group()); sbox.add(box(0.36, 0.3, 0.3, '#f2b632', 0.04)); const sbs = sign('SUGGESTIONS', 0.32, 0.08, '#f2b632', '#2a1a24', 0.75); sbs.position.set(0, 0.15, 0.152); sbox.add(sbs);
+      const lid = new THREE.Group(); const lb = box(0.38, 0.04, 0.32, '#8a4fc0', 0.015); lb.position.z = 0.16; lid.add(lb); lid.position.set(0, 0.3, -0.16); sbox.add(lid);
+      const shead = new THREE.Group(); const sh = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 8), feltMat('#ff6fae')); sh.position.y = 0.11; shead.add(sh); eyes(A, shead, [[-0.04, 0.14, 0.1], [0.04, 0.14, 0.1]], 0.026); sbox.add(shead);
+      at(sbox, 2.15, 1.07, -1.5, -0.15); G.add(sbox); const sp = popper(A, sbox, shead, 0.05, 0.3, lid);
+      const sugQ = quips(['Suggestion: leave.', 'We read every one. Out loud. To nobody.', 'Check-out is 11. Check-in is also 11.', 'Suggestion: more suggestions.', 'I suggest you put that down.']);
+      for (const [shp, col, x] of [[moonShape(0.2), '#f2b632', -3.0], [starShape(0.2, 0.09), '#ff6fae', 3.0]]) { const [m] = mobile(A, shp, col, x, 3.95, 0.3, 0.6); G.add(m); }
+      wob(A, kb, 0.03, 0.9); wob(A, bell, 0.06, 1.7);
       A.wolfSpot = [0.3, 1.7]; A.anim = []; A.proc = [house, lamp]; A.flick = 0; A.ding = 0;
       A.setAir = () => { lamp.visible = S.bulb < 4; poolLight.visible = S.bulb >= 4; };
       A.tick = (dt, t) => { nv.visible = Math.sin(t * 2.1) + Math.sin(t * 5.3) > -0.6; vac.material.color.setScalar(Math.sin(t * 1.3) > -0.85 ? 1 : 0.4);
@@ -574,7 +717,13 @@ export function createTown(ctx) {
         { id: 'ice', label: 'ICE MACHINE', o: ice, talk: () => [['', 'The ice machine rumbles.'], ['', 'It makes one cube.'], ['', 'It has been making it since 1979.'], ['', 'It\'s almost done.']] },
         { id: 'sign', label: 'NO VACANCY', o: vac, talk: () => [['', 'NO VACANCY. Every room is empty.'], ['HOUSE-HEAD', 'The sign is aspirational.'], ['', 'The NO flickers. It isn\'t sure either.']] },
         { id: 'chair', label: 'LOBBY CHAIR', o: chair, talk: () => [['', 'Lobby seating. It watches you wait.'], ['', 'You aren\'t waiting.'], ['', 'It waits anyway.']] },
+        { id: 'suggest', label: 'SUGGESTION BOX', o: sbox, talk: () => { sp.t = 3; audio.ui?.('confirm'); return [['SUGGESTION BOX', sugQ()]]; } },
+        { id: 'noon', label: 'WINDOW', o: noon, chip: false, talk: () => [['', 'This window says it is noon.'], ['', 'The one by the lamp says midnight.'], ['HOUSE-HEAD', 'I have a lot of sides.']] },
+        { id: 'clock', label: 'CLOCK', o: clock, chip: false, talk: () => [['', 'The clock runs backwards.'], ['HOUSE-HEAD', 'It\'s heading for 11.'], ['HOUSE-HEAD', 'Everything here is heading for 11.']] },
+        { id: 'door', label: 'ROOM 11', o: door, chip: false, talk: () => [['', 'ROOM 11.'], ['', 'The peephole looks at you.'], ['HOUSE-HEAD', 'Occupied. By the door.']] },
+        { id: 'rug', label: 'RUG', o: rface, chip: false, talk: () => [['RUG', 'Wipe your feet.'], ['RUG', 'That\'s my face.']] },
       ];
+      playhouse(A);
     },
     async pool(G, A) {
       const [squid, heron, glove] = await Promise.all([glb('cast/wanderer_banana_squid_walking.glb', 1.55, 'object', { rest: 'breathe' }), glb('town2/heron_lo.glb', 1.9, 'heron', { rest: 'breathe' }),
@@ -719,7 +868,7 @@ export function createTown(ctx) {
   function talk(who) {
     if (!who) return; T.focus = who; audio.ui?.('tick'); const r = who.talk(); S.seen[who.id] = 1;
     if (r && r !== 'async') say(r); chipsFor(T.rooms[T.active]); }
-  function chipsFor(A) { chips.innerHTML = ''; for (const w of A.who) { const b = document.createElement('button'); b.textContent = w.label; if (!S.seen[w.id]) b.className = 'new'; b.onclick = (e) => { e.stopPropagation(); talk(w); }; chips.appendChild(b); } }
+  function chipsFor(A) { chips.innerHTML = ''; for (const w of A.who) { if (w.chip === false) continue; const b = document.createElement('button'); b.textContent = w.label; if (!S.seen[w.id]) b.className = 'new'; b.onclick = (e) => { e.stopPropagation(); talk(w); }; chips.appendChild(b); } }
 
   // ------------------------------------------------------------------ build / enter / exit
   async function build(key) {
