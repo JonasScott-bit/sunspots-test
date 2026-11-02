@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Sunspots — ÆTV test set</title>
+<style>
+ html,body{margin:0;height:100%;background:#120d0a;overflow:hidden;font-family:system-ui,sans-serif;color:#eee;touch-action:manipulation}
+ canvas{display:block;width:100%;height:100%}
+ #ui{position:fixed;left:0;right:0;bottom:max(14px,env(safe-area-inset-bottom));display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:0 8px}
+ button{font:600 17px system-ui;padding:14px 16px;min-width:64px;border-radius:12px;border:1px solid #5a4636;background:#2a1f18;color:#f3e3cf;-webkit-tap-highlight-color:transparent}
+ button:active{background:#4a3627}
+ #osd{position:fixed;top:12%;right:12%;font:bold 34px 'Courier New',monospace;color:#3f6;text-shadow:0 0 6px #3f6,2px 2px 0 #030;opacity:0;transition:opacity .4s;pointer-events:none}
+ #dbg{position:fixed;left:8px;top:8px;font:11px monospace;color:#9a8;white-space:pre;pointer-events:none}
+ #tap{position:fixed;left:50%;top:8px;transform:translateX(-50%);font:600 13px system-ui;background:#000a;padding:6px 10px;border-radius:8px}
+</style>
+<script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/addons/"}}</script>
+</head><body>
+<canvas id="c"></canvas>
+<div id="osd">CH 03</div><div id="dbg"></div><div id="tap">Tap 🔊 for sound</div>
+<div id="ui">
+ <button id="dn">CH ▼</button><button id="up">CH ▲</button>
+ <button id="pw">⏻</button><button id="snd">🔊</button><button id="gl">ROLL</button><button id="sec">✶</button>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { TVSet } from './tvchannel.js';
+
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x120d0a);
+const camera = new THREE.PerspectiveCamera(45, 1, 0.05, 50);
+scene.add(new THREE.HemisphereLight(0xffe2c0, 0x201510, 0.9));
+const lamp = new THREE.PointLight(0xffb070, 6, 8); lamp.position.set(-1.2, 1.2, 1.5); scene.add(lamp);
+
+// '90s wood-grain CRT cabinet, 4:3 screen
+const cab = new THREE.Group(); scene.add(cab);
+const wood = new THREE.MeshStandardMaterial({ color: 0x5b3a22, roughness: 0.7 });
+const plastic = new THREE.MeshStandardMaterial({ color: 0x1b1918, roughness: 0.5 });
+const body = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.1, 1.0), wood); body.position.z = -0.5; cab.add(body);
+const bezel = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.95, 0.06), plastic); bezel.position.set(-0.08, 0, 0.02); cab.add(bezel);
+const panel = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.9, 0.04), plastic); panel.position.set(0.66, 0, 0.02); cab.add(panel);
+for (let i = 0; i < 4; i++) { const k = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.04, 16), new THREE.MeshStandardMaterial({ color: 0x999088, metalness: .6, roughness: .3 })); k.rotation.x = Math.PI / 2; k.position.set(0.66, 0.3 - i * 0.14, 0.06); cab.add(k); }
+const led = new THREE.Mesh(new THREE.SphereGeometry(0.012), new THREE.MeshBasicMaterial({ color: 0xff2200 })); led.position.set(0.66, -0.36, 0.05); cab.add(led);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ color: 0x3a2a20 })); floor.rotation.x = -Math.PI / 2; floor.position.y = -0.55; scene.add(floor);
+
+const tv = new TVSet({ lineup: [
+  { number: 2, type: 'static', name: 'SNOW' },
+  { number: 3, type: 'playlist', manifest: './media/aetv/channel_aetv.json', name: 'ÆTV' },
+  { number: 4, type: 'playlist', manifest: './media/aetv/channel_aetv.json', name: 'ÆTV ENCORE', shuffle: true, seed: 'encore' },
+  { number: 13, type: 'bars', name: 'TEST' },
+  { number: 99, type: 'playlist', manifest: './media/aetv/channel_aetv.json', name: '???', hidden: true, include: ['f1022_0342', '05', '28'] },
+], startChannel: 3 });
+const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.12, 0.84), tv.material); screen.position.set(-0.08, 0, 0.055); cab.add(screen);
+const glass = new THREE.Mesh(new THREE.PlaneGeometry(1.12, 0.84), new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.06, roughness: 0.05, metalness: 0 })); glass.position.copy(screen.position).z += 0.003; cab.add(glass);
+
+const osd = document.getElementById('osd'); let osdT;
+tv.addEventListener('channel', e => { const d = e.detail; osd.textContent = d.on ? 'CH ' + String(d.number).padStart(2, '0') + (d.name ? '  ' + d.name : '') : ''; osd.style.opacity = 1; clearTimeout(osdT); osdT = setTimeout(() => osd.style.opacity = 0, 2200); led.material.color.set(d.on ? 0xff2200 : 0x220000); });
+const tap = document.getElementById('tap');
+const unlock = () => { tv.unlock(); tap.style.display = 'none'; };
+document.getElementById('up').onclick = () => { unlock(); tv.channelUp(); };
+document.getElementById('dn').onclick = () => { unlock(); tv.channelDown(); };
+document.getElementById('pw').onclick = () => { unlock(); tv.power(!tv.on); };
+document.getElementById('snd').onclick = () => { if (tv.unlocked) { tv.mute(true); tap.style.display = ''; } else unlock(); };
+document.getElementById('gl').onclick = () => tv.glitch('roll');
+document.getElementById('sec').onclick = () => { unlock(); tv.setChannel(99); };
+canvas.addEventListener('pointerdown', unlock, { once: true });
+
+function resize() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; const fit = w / h < 1 ? 2.9 / (w / h) * 0.75 : 2.6; camera.position.set(0.15, 0.25, Math.min(fit, 6)); camera.lookAt(0, 0, 0); camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+const dbg = document.getElementById('dbg'); const clock = new THREE.Clock(); let acc = 0;
+const q = new URLSearchParams(location.search); window.tv = tv;
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.1);
+  tv.update(dt, camera, screen);
+  cab.rotation.y = Math.sin(clock.elapsedTime * 0.25) * 0.08;
+  renderer.render(scene, camera);
+  if ((acc += dt) > 0.25) { acc = 0; const i = tv.info(); dbg.textContent = `ch ${i.channel} ${i.name}\n${i.state} ${i.clip || ''} ${i.t.toFixed(1)}s${i.muted ? ' muted' : ''}`; }
+});
+</script>
+</body></html>
