@@ -96,7 +96,8 @@ const CAST=[['Wolf','wolf_armsdown_felt.glb','wolf','wolf'],['Bear','cast2/bear.
 const T2=['argyle_sock','booth_prop','corded_box','eye_chair','fence_stool','mailbox','rubber_glove','stove','washing_machine','window_box','pocket_watch'];
 const H2=['house_head','lamp_bulb','lantern','old_tv','phone','plaid_box','pliers','plunger_glasses','roller_skate','sink','toilet','tv_head','wheelbarrow'];
 const title=n=>n.split('_').map(w=>w=='tv'?'TV':w[0].toUpperCase()+w.slice(1)).join(' ');
-const OBJ=[...T2.map(n=>[title(n),'town2/'+n+'.glb',(n=='argyle_sock'||n=='booth_prop')?'feltobj':'object',n,1]),...H2.map(n=>[title(n),'hf2/'+n+'.glb','object',n,1])];
+const LB=new Set(['mailbox','eye_chair']); // lookbook-only full-res rebuilds from the Meshy originals (hand-flat v2 colours, un-smeared eyes)
+const OBJ=[...T2.map(n=>[title(n),(LB.has(n)?'lb/':'town2/')+n+'.glb',(n=='argyle_sock'||n=='booth_prop')?'feltobj':'object',n,1]),...H2.map(n=>[title(n),'hf2/'+n+'.glb','object',n,1])];
 const ALL=[...CAST,...OBJ], GROUPS=[['Main Cast',0],['New Objects',CAST.length]];
 window.LB_ALL=ALL.map(e=>e[1]);
 
