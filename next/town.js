@@ -900,8 +900,10 @@ export function createTown(ctx) {
       // Scott's paintings in gilded antique frames (bearwall.js): centrepiece over the sofa (on the 4th wall, seen from the couch / the TV feeds),
       // a pair on the right wall, a pair on the left wall beside the patio-door blinds -- all at eye height, clear of the TV, blinds and windows
       const art = [['lady', 0.95, front, [0.7, -0.2, 0.004], 0], ['suit', 0.64, G, [3.975, 1.66, -0.62], -Math.PI / 2], ['painter', 0.64, G, [3.975, 1.66, 0.62], -Math.PI / 2],
-        ['cowboy', 0.62, G, [-3.975, 1.62, 1.22], Math.PI / 2], ['guitar', 0.74, G, [-3.975, 1.62, 2.22], Math.PI / 2]].map(([k, h, par, p, ry]) => {
-        const f = framedPainting(k, h, { px: LOW ? 256 : 512 }); f.position.set(...p); f.rotation.y = ry; par.add(f); return f; });
+        ['cowboy', 0.62, G, [-3.975, 1.62, 1.22], Math.PI / 2], ['guitar', 0.74, G, [-3.975, 1.62, 2.22], Math.PI / 2],
+        // run 9c: the big square sunflower-face statement piece on the blank back wall right of the entertainment centre (unit ends x 0.63, ficus to ~x 1.8; frame x 1.86..3.54)
+        ['sunflower', 1.4, G, [2.7, 1.9, -2.975], 0, 0.14]].map(([k, h, par, p, ry, B]) => {
+        const f = framedPainting(k, h, { px: LOW ? 256 : 512, B }); f.position.set(...p); f.rotation.y = ry; par.add(f); return f; });
       await Promise.all(art.map((f) => f.userData.ready));
       const [bear] = await Promise.all([glb('town2/bear_lo.glb', 1.85, 'bear', { rest: 'breathe' })]);
       at(bear, 2.05, 0, 1.25, -1.1); G.add(bear);

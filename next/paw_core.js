@@ -3,7 +3,7 @@
 // Coordinates are remote-local (metres): the remote body is x ±0.033, y ±0.1075, z ±0.012; buttons sit on the face,
 // z 0.012..0.018 (pressed: 0.008..0.014). Primitives: ell {c,r:[rx,ry,rz]}, cap {a,b,ra,rb} (tapered capsule), cone {a(base),b(tip),r}.
 export const FACE_TOP = 0.018, PRESS = 0.004;
-export const THUMB = { rBase: 0.0125, rMid: 0.011, rTip: 0.0088, L0: 0.075, B0: [0.05, -0.072, 0.012], rest: [0.019, -0.011], arch: 0.034, kAt: 0.42 };
+export const THUMB = { rBase: 0.0145, rMid: 0.0128, rTip: 0.0102, L0: 0.075, B0: [0.05, -0.072, 0.012], rest: [0.019, -0.011], arch: 0.034, kAt: 0.42 };
 const CONTACT = FACE_TOP + THUMB.rTip + 0.0006;   // tip-sphere centre height when it just touches a button top
 export const TIP_Z = { contact: CONTACT, hover: CONTACT + 0.004, press: CONTACT - PRESS };
 export const REMOTE_BOXES = [
@@ -16,21 +16,24 @@ const len = (a) => Math.hypot(a[0], a[1], a[2]), nrm = (a) => mul(a, 1 / (len(a)
 export const V3 = { add, sub, mul, len, nrm, lerp };
 
 // static hand (hand-local; the whole hand slides along the remote's length by dy so the thumb can reach every button)
-export function handPrims() {
+export function handPrims() {   // run 9c: plump mitten paw -- these blend into ONE soft surface (paw_mesh.js smooth union), so no tubes/segments show
   const P = [];
-  P.push({ t: 'ell', c: [-0.002, -0.07, -0.04], r: [0.043, 0.047, 0.023], m: 'fur' });          // palm, behind the remote
-  P.push({ t: 'ell', c: [0.049, -0.082, -0.016], r: [0.0145, 0.027, 0.018], m: 'fur' });          // thenar pad (thumb root)
-  P.push({ t: 'ell', c: [0.012, -0.124, -0.05], r: [0.031, 0.03, 0.028], m: 'fur' });             // wrist
-  for (let i = 0; i < 4; i++) {   // four chunky fingers curling round the LEFT side; tips peek over the face edge, dark claws
-    const y = -0.03 - i * 0.019, r = 0.0105 - i * 0.0006, rt = r * 0.86;
-    const J = [[-0.016, y, -0.042], [-0.043, y, -0.03], [-0.0485, y, -0.004], [-0.0445, y, 0.014]];
-    P.push({ t: 'cap', a: J[0], b: J[1], ra: r, rb: r, m: 'fur' }, { t: 'cap', a: J[1], b: J[2], ra: r, rb: r * 0.95, m: i % 2 ? 'fur' : 'fur2' }, { t: 'cap', a: J[2], b: J[3], ra: r * 0.95, rb: rt, m: 'fur' });
-    const d = nrm(sub(J[3], J[2])), base = add(J[3], mul(d, rt * 0.62)); P.push({ t: 'cone', a: base, b: add(base, mul(nrm(add(d, [0.25, 0, 0])), 0.0095)), r: 0.0033, m: 'claw' });
+  P.push({ t: 'ell', c: [-0.004, -0.07, -0.044], r: [0.047, 0.051, 0.026], m: 'fur' });          // palm, behind the remote
+  P.push({ t: 'ell', c: [0.0, -0.066, -0.056], r: [0.04, 0.042, 0.02], m: 'fur' });              // plump back of the paw
+  P.push({ t: 'ell', c: [0.046, -0.084, -0.02], r: [0.017, 0.029, 0.02], m: 'fur' });            // thenar (thumb root)
+  P.push({ t: 'ell', c: [0.008, -0.122, -0.054], r: [0.036, 0.034, 0.031], m: 'fur' });          // wrist
+  for (let i = 0; i < 4; i++) {   // four short stubby padded toes curling round the LEFT side; tips peek over the face edge
+    const y = -0.031 - i * 0.0185, r = 0.0128 - i * 0.0005;
+    const J = [[-0.02, y, -0.045], [-0.0465, y, -0.026], [-0.047, y, 0.0005]], tip = [-0.0438, y, 0.0115];
+    P.push({ t: 'cap', a: J[0], b: J[1], ra: r, rb: r * 0.97, m: 'fur', f: i, seg: 0 }, { t: 'cap', a: J[1], b: J[2], ra: r * 0.97, rb: r * 0.9, m: 'fur', f: i, seg: 1 });
+    P.push({ t: 'ell', c: tip, r: [0.0098, r * 0.86, 0.0102], m: 'fur', f: i, seg: 2 });   // padded toe tip
   }
   P.push({ t: 'cap', a: [0.02, -0.15, -0.062], b: [0.03, -0.185, -0.08], ra: 0.036, rb: 0.037, m: 'cuff' });          // ribbed sweater cuff
   P.push({ t: 'cap', a: [0.03, -0.185, -0.08], b: [0.09, -0.44, -0.21], ra: 0.042, rb: 0.052, m: 'sleeve' });         // puffy mustard fleece sleeve
   return P;
 }
+// claws: short dark curved hooks peeking from the fur at each toe tip (hand-local base, direction, length)
+export function clawSpecs() { return [0, 1, 2, 3].map((i) => { const y = -0.031 - i * 0.0185; return { a: [-0.0425, y, 0.0195], d: [0.5, 0, 0.86], bend: [0.6, 0, -0.8], L: 0.0075, r: 0.0022 }; }); }
 export function slideFor(x, y) { const dx = THUMB.B0[0] - x, dz = THUMB.B0[2] - CONTACT, h = Math.sqrt(Math.max(0, THUMB.L0 ** 2 - dx * dx - dz * dz)); return Math.max(-0.01, Math.min(0.125, y - h - THUMB.B0[1])); }
 // thumb chain: base on the thenar, knuckle arched up over the face, padded tip on the button; claw on the BACK of the tip (never pokes the button)
 export function thumbPrims(T, dy) {

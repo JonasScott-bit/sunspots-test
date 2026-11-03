@@ -11,6 +11,7 @@ export const BEAR_WALL = {
   suit: { src: 'media/bear_wall/brown_suit.jpg', aspect: 1024 / 842 },
   guitar: { src: 'media/bear_wall/guitarist.jpg', aspect: 771 / 1024 },
   painter: { src: 'media/bear_wall/painter_bird.jpg', aspect: 1024 / 855 },
+  sunflower: { src: 'media/bear_wall/sunflower_bowler.jpg', aspect: 1 },   // run 9c: the big square statement piece
 };
 
 // carving height map for a frame of outer size W x H (m), moulding width B: returns { map, normalMap } canvases' textures

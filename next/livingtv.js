@@ -7,6 +7,8 @@
 import * as THREE from 'three';
 import { TVSet, registerChannelType } from './tvchannel.js';
 import { handPrims, thumbPrims, thumbInit, thumbAim, thumbStep, slideFor, buttonDepth } from './paw_core.js';   // run 9b: felt paw that really holds the remote
+import { buildHand, buildThumb, thumbTopology } from './paw_mesh.js';   // run 9c: one soft-blended furry mitten paw (no tube fingers)
+import { pawFurMaterial, pawGeometry, refillPaw } from './paw_fur.js';
 
 // ------------------------------------------------------------------ channel types (registered once, globally)
 class CanvasChannel {
@@ -238,10 +240,14 @@ export function createLivingTV({ renderer, feltMat, audio, LOW, say, glb, S, sav
       else if (pr.t === 'cap') { const c = new THREE.Mesh(pr.ra === pr.rb ? CG : new THREE.CylinderGeometry(pr.rb, pr.ra, 1, 14, 1, true), M), e0 = new THREE.Mesh(SG, M), e1 = new THREE.Mesh(SG, M); g.add(c, e0, e1); g.userData.set = (p) => { const L = putSeg(c, p.a, p.b); c.scale.set(p.ra === p.rb ? p.ra : 1, L, p.ra === p.rb ? p.ra : 1); e0.position.set(...p.a); e0.scale.setScalar(p.ra); e1.position.set(...p.b); e1.scale.setScalar(p.rb); }; g.userData.set(pr); }
       else { const c = new THREE.Mesh(KG, M); g.add(c); g.userData.set = (p) => { const L = putSeg(c, p.a, p.b); c.scale.set(p.r, L, p.r); }; g.userData.set(pr); }
       return g; };
-    const hand = new THREE.Group(); hand.name = 'paw'; rem.add(hand); for (const pr of handPrims()) mk(pr, hand);
-    const th0 = thumbPrims([0.019, -0.011, 0.03], 0); const thumb = th0.prims.map((pr) => mk(pr, rem));
-    const knuckle = new THREE.Mesh(SG, PM.fur); rem.add(knuckle);   // fills the thumb's middle joint
-    vm.userData.paw = { hand, thumb, knuckle, st: thumbInit() };
+    // run 9c: the hand is ONE smooth-union surface (paw_mesh.js) with fur tufts, cuff ruff + little claws; thumb = a live sweep re-filled each frame.
+    // Clearance vs the remote + pressed buttons is proved on the real mesh by bw_tmp/pawtest2.mjs.
+    const furM = pawFurMaterial(), clawM = new THREE.MeshStandardMaterial({ color: '#2b2930', roughness: 0.3, metalness: 0.05 });
+    const hand = new THREE.Group(); hand.name = 'paw'; rem.add(hand); for (const pr of handPrims()) if (pr.m === 'cuff' || pr.m === 'sleeve') mk(pr, hand);
+    const HM = buildHand(handPrims(), { h: LOW ? 0.0034 : 0.0028 }); hand.add(new THREE.Mesh(pawGeometry(HM.fur), furM), new THREE.Mesh(pawGeometry(HM.claw), clawM));
+    const topo = thumbTopology(), th0 = thumbPrims([0.019, -0.011, 0.03], 0), T0 = buildThumb(th0.B, th0.K, th0.T);
+    const thumbG = pawGeometry(T0.fur, topo.fur, true), thumbCG = pawGeometry(T0.claw, topo.claw, true); rem.add(new THREE.Mesh(thumbG, furM), new THREE.Mesh(thumbCG, clawM));
+    vm.userData.paw = { hand, thumbG, thumbCG, furM, st: thumbInit() };
     vm.traverse((o) => { o.frustumCulled = false; o.castShadow = o.receiveShadow = false; o.renderOrder = 5; }); vm.visible = false; }
 
   // ------------------------------------------------------------------ helpers: bone aiming (procedural sit pose), walking, camera
@@ -335,11 +341,11 @@ export function createLivingTV({ renderer, feltMat, audio, LOW, say, glb, S, sav
     const aspect = cam.aspect, port = aspect < 1, D = 0.4;   // constant on-screen size: the remote is ~27% of the screen width in portrait, ~11% in landscape
     const nx = port ? 0.1 : 0.55, ny = port ? -0.58 : -0.5, f = port ? 0.27 : 0.11, s = f * 2 * D * fp.tan * aspect / 0.066;
     _vp.set(nx * aspect * fp.tan * D, ny * fp.tan * D, -D).applyQuaternion(cam.quaternion); vm.position.copy(cam.position).add(_vp);
-    vm.quaternion.copy(cam.quaternion); vm.scale.setScalar(s); const rem = vm.userData.rem; rem.rotation.set(-0.8, port ? -0.06 : -0.16, port ? -0.1 : -0.2); vm.updateMatrixWorld(true); }
+    vm.quaternion.copy(cam.quaternion); vm.scale.setScalar(s); vm.userData.paw && (vm.userData.paw.furM.userData.u.uBump.value = 0.00035 * s); const rem = vm.userData.rem; rem.rotation.set(-0.8, port ? -0.06 : -0.16, port ? -0.1 : -0.2); vm.updateMatrixWorld(true); }
 
   function pawStep(dt) {
     const P = vm.userData.paw, T = thumbStep(P.st, Math.min(dt, 0.05)), dy = slideFor(T[0], T[1]); P.hand.position.y = dy;
-    const tp = thumbPrims(T, dy); tp.prims.forEach((pr, i) => P.thumb[i].userData.set(pr)); P.knuckle.position.set(...tp.K); P.knuckle.scale.setScalar(0.0112); }
+    const tp = thumbPrims(T, dy), M = buildThumb(tp.B, tp.K, tp.T); refillPaw(P.thumbG, M.fur); refillPaw(P.thumbCG, M.claw); }
   // ------------------------------------------------------------------ remote buttons
   function blink() { M.ledT = 0.14; }
   function press(id) {
