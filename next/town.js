@@ -1415,6 +1415,10 @@ export function createTown(ctx) {
   const DONE_MSG = { sock: '. Lost Socks board unlocked.', num: '. Plate 11W.', air: '. Ratings doubled (both the Bear).', bulb: '. Lamp-Bulb got a standing ovation from one car.', adv: '. Party of four. The adventure is ongoing.' };
   function step(m, n) { S[m] = n; save(); if (n === 1) toast(TITLE[m] + ' — new errand'); if (n === DONE[m]) setTimeout(() => toast(TITLE[m] + ' — done' + DONE_MSG[m]), 600); hud(); }
   const errands = () => ['adv', 'sock', 'num', 'air', 'bulb'].filter(m => S[m] > 0 && S[m] < DONE[m]);
+  // run 12: where each errand step sends the Wolf (for the minimap / full map)
+  const TGT = { sock: [0, 'laundromat', 'laundromat', 'post', 'fence', 'laundromat'], num: [0, 'dmv', 'dmv', 'post', 'dmv', 'dmv', 'dmv'],
+    bulb: [0, 'motel', 'pool', 'motel', 'drivein'], adv: [0, 'diner', 'diner', 'diner', 'fence'], air: [0, 'yard', 'yard', 'thrift', 'bowl', 'thrift', 'ksun'] };
+  T.targets = () => errands().map(m => ({ k: TGT[m][S[m]], title: TITLE[m], obj: OBJ[m][S[m]] })).filter(o => o.k);
   function hud() {
     let s = errands().map(m => { let o = OBJ[m][S[m]]; if (m === 'sock' && S[m] === 4 && !S.hubcap) o += '\n   (the Crow trades — check the Post Office parcels)'; return TITLE[m] + ' · ' + o; }).join('\n');
     if (errands().length) s += '\n(clock on hold while you run errands)'; $('townObj').textContent = s; const to = $('townObj'), hd = $('hud'); to.style.top = (!document.body.classList.contains('room') && hd) ? (hd.getBoundingClientRect().bottom + 8) + 'px' : '';
@@ -1596,6 +1600,7 @@ export function createTown(ctx) {
   let outT0 = 0;
   T.outside = (dt) => {   // called every town frame (walk mode): door prompts, the Crow, held clock, errand timers
     outT0 += dt; if (S.party) diner().outside(dt, outT0, !T.active && level?.mode === 'walk' && !document.body.classList.contains('scene'));   // run 10: the party follows the Wolf
+    if (level?.mode === 'solo') { btn.style.display = 'none'; near = null; if (errands().length) { if (S.held == null) S.held = level.left; level.left = S.held; } else S.held = null; common(dt); return; }   // run 12: errands hold the clock in his own car too
     if (!level || level.mode !== 'walk' || level.frozen || document.body.classList.contains('scene')) { btn.style.display = 'none'; near = null; return; }
     const p = wolfState.pos; near = null; let best = 2.4;
     for (const d of DOORS) { const dd = Math.hypot(p.x - d.x, p.z - d.z); if (dd < best) { best = dd; near = d; } }

@@ -19,10 +19,11 @@ export function createQuickTravel({ TS, level, wolfState, LAYOUT, onJump }) {
   const sheet = document.createElement('div'); sheet.id = 'qtSheet'; document.body.appendChild(sheet);
   const PLACES = [
     ['Main St', [['bus', 'Bus stop', 'ride pickup'], ['diner', 'Diner'], ['laundromat', 'Laundromat'], ['post', 'Post Office'], ['dmv', 'DMV'], ['thrift', 'Thrift'], ['ksun', 'KSUN'], ['yard', "Crow's Yard"], ['moth', "Moth's place", 'apartment row']]],
-    ['Neon Strip', [['bowl', 'Gutter Bowl'], ['motel', 'Motel'], ['pool', 'Motel Pool'], ['drivein', 'Drive-in']]],
+    ['Neon Strip', [['bowl', 'Gutter Bowl'], ['motel', 'Motel'], ['pool', 'Motel Pool'], ['drivein', 'Drive-in'], ['poolhall', 'Pool Hall', 'eight-ball'], ['court', 'The Court', 'hoops']]],
     ['Homes', [['wolf', 'Home', "the Wolf's"], ['living90', "Bear's"], ['lynx', "Lynx's"], ['crow', "Crow's"], ['heron', "Heron's"], ['gecko', "Gecko's"], ['ram', "Ram's"], ['anteater', "Anteater's"], ['mansion', 'The Mansion', 'Vulture + Larry Byrd'], ['farm', 'The Farm']]],
   ];
   const where = (k) => {
+    if (k === 'fence') return { x: -86.5, z: 18.5, yaw: 0 };   // run 12: the Crow's collection by the road
     if (k === 'bus') { const s = TS.busStops?.[0]; return s ? { x: s.x - 2.2, z: s.z + 1.6, yaw: Math.PI / 2 } : null; }
     const d = TS.doors[k]; if (!d) return null; const ry = d.ry || 0, out = 2.2;
     return { x: d.x + Math.sin(ry) * out, z: d.z + Math.cos(ry) * out, yaw: ry + Math.PI };
@@ -34,10 +35,13 @@ export function createQuickTravel({ TS, level, wolfState, LAYOUT, onJump }) {
   sheet.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; if (b.classList.contains('x')) { close(); return; } go(b.dataset.k); });
   addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
   function go(k) {
-    const w = where(k); if (!w) return; close(); fade.style.opacity = 1;
+    const w = where(k); if (!w) return; close(); jump(w);
+  }
+  function jump(w) {   // run 12: also used by the map (stand by the car, etc.)
+    fade.style.opacity = 1;
     setTimeout(() => { wolfState.pos.set(w.x, 0, w.z); wolfState.yaw = w.yaw; wolfState.speed = 0; onJump?.(w.yaw); setTimeout(() => { fade.style.opacity = 0; }, 120); }, 260);
   }
   return {
-    go, update(town) { const ok = level.mode === 'walk' && !level.frozen && !town?.active && !window.__titleUp; btn.style.display = ok ? 'block' : 'none'; if (!ok) close(); },
+    go, jump, where, PLACES, close, update(town) { const ok = level.mode === 'walk' && !level.frozen && !town?.active && !window.__titleUp; btn.style.display = ok ? 'block' : 'none'; if (!ok) close(); },
   };
 }
