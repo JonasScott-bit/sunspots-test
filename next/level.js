@@ -141,7 +141,8 @@ export function createLevel(C) {
   L.car = { root: car, body, wheels, driver, wheel, pos: new THREE.Vector3(), yaw: 0, v: 0, hop: 0, hopV: 0, steer: 0, bonkT: 0, step: 0, stepAmp: 0 };
   L.seat = new THREE.Vector3(-0.5, 0.5, -0.05); L.seatScale = 0.82; // wolf rides shotgun (car-local; legs hidden below the window line)
   // boot car GLB -> car body. Orientation is found from the mesh (roof sits toward the rear); boots found from the sole clusters.
-  const bootU = { uStep: { value: 0 }, uLift: { value: 0 }, uStride: { value: 0 }, uRear: { value: 1 }, uBMinY: { value: 0 }, uBH: { value: 1 }, uBootC: { value: [new THREE.Vector2(), new THREE.Vector2(), new THREE.Vector2(), new THREE.Vector2()] }, uBootR: { value: new THREE.Vector2(0.24, 0.15) } };
+  const makeBootU = () => ({ uStep: { value: 0 }, uLift: { value: 0 }, uStride: { value: 0 }, uRear: { value: 1 }, uBMinY: { value: 0 }, uBH: { value: 1 }, uBootC: { value: [new THREE.Vector2(), new THREE.Vector2(), new THREE.Vector2(), new THREE.Vector2()] }, uBootR: { value: new THREE.Vector2(0.24, 0.15) } });
+  const bootU = makeBootU(); L.car.U = bootU;
   const BOOT_VERT = `
     { float yr = (transformed.y - uBMinY) / uBH;
       float bw = 1.0 - smoothstep(0.24, 0.34, yr);
@@ -156,13 +157,13 @@ export function createLevel(C) {
         transformed.x += bw * cos(ph) * uStride * uRear;
         transformed.z += bw * lift * uLift * 0.25 * sign(transformed.z);
       } }`;
-  function chainBoot(mat) {
+  function chainBoot(mat, U = bootU) {
     const prev = mat.onBeforeCompile;
-    mat.onBeforeCompile = (sh, r) => { prev?.call(mat, sh, r); Object.assign(sh.uniforms, bootU);
+    mat.onBeforeCompile = (sh, r) => { prev?.call(mat, sh, r); Object.assign(sh.uniforms, U);
       sh.vertexShader = 'uniform float uStep,uLift,uStride,uRear,uBMinY,uBH;uniform vec2 uBootC[4];uniform vec2 uBootR;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + BOOT_VERT); };
     const pk = mat.customProgramCacheKey?.bind(mat); mat.customProgramCacheKey = () => (pk ? pk() : '') + '|boots';
   }
-  L.setBootCar = (scn, normalize) => {
+  L.setBootCar = (scn, normalize, cc = L.car) => { const U = cc.U;
     let mesh = null; scn.traverse(o => { if (o.isMesh && !mesh) mesh = o; }); if (!mesh) return;
     const g = mesh.geometry, P = g.attributes.position, v = new THREE.Vector3(); g.computeBoundingBox(); const bb = g.boundingBox, H = bb.max.y - bb.min.y;
     let rx = 0, rn = 0; const q = [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]];
@@ -170,20 +171,20 @@ export function createLevel(C) {
       if (yr > 0.9) { rx += v.x; rn++; }
       if (yr < 0.06) { const k = (v.x > 0 ? 0 : 2) + (v.z > 0 ? 0 : 1); q[k][0] += v.x; q[k][1] += v.z; q[k][2]++; } }
     const rear = Math.sign(rx / Math.max(1, rn)) || 1; // +1: rear of the car is at mesh +x
-    bootU.uRear.value = rear; bootU.uBMinY.value = bb.min.y; bootU.uBH.value = H;
-    q.forEach((a, k) => bootU.uBootC.value[k].set(a[0] / Math.max(1, a[2]), a[1] / Math.max(1, a[2])));
-    const L0 = bb.max.x - bb.min.x; bootU.uBootR.value.set(L0 * 0.125, (bb.max.z - bb.min.z) * 0.16);
-    L.car.baseLift = H * 0.085; L.car.baseStride = L0 * 0.035;
+    U.uRear.value = rear; U.uBMinY.value = bb.min.y; U.uBH.value = H;
+    q.forEach((a, k) => U.uBootC.value[k].set(a[0] / Math.max(1, a[2]), a[1] / Math.max(1, a[2])));
+    const L0 = bb.max.x - bb.min.x; U.uBootR.value.set(L0 * 0.125, (bb.max.z - bb.min.z) * 0.16);
+    cc.baseLift = H * 0.085; cc.baseStride = L0 * 0.035;
     scn.rotation.y = rear * Math.PI / 2; // nose -> +z
-    const holder = new THREE.Group(); holder.add(normalize(scn, 2.0)); body.add(holder);
+    const holder = new THREE.Group(); holder.add(normalize(scn, 2.0)); cc.body.add(holder);
     scn.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; o.material.roughness = 1; o.material.metalness = 0; } });
     makeMeltable(holder, { tint: '#ffb070', puddle: 0, bend: 0.4 });
-    scn.traverse(o => { if (o.isMesh) { chainBoot(o.material); if (o.customDepthMaterial) chainBoot(o.customDepthMaterial); } });
-    L.car.model = holder;
+    scn.traverse(o => { if (o.isMesh) { chainBoot(o.material, U); if (o.customDepthMaterial) chainBoot(o.customDepthMaterial, U); } });
+    cc.model = holder; if (cc.free) cc.root.visible = true;
   };
   // boots: a bouncy step cycle whose speed follows the car's speed; body bobs and waddles on top
-  function animateBoots(dt, t) {
-    const c = L.car, sp = Math.abs(c.v);
+  function animateBoots(dt, t, c = L.car) {
+    const bootU = c.U, sp = Math.abs(c.v);
     const amp = clamp(sp / 3, 0, 1); c.stepAmp = lerp(c.stepAmp, amp, 1 - Math.exp(-dt * 6));
     const hz = sp < 0.05 ? 0.6 : Math.min(1.1 + sp * 0.22, 5.2); // steps per second follow speed (capped so it stays readable)
     c.step += dt * hz * Math.PI * 2 * Math.sign(c.v || 1);
@@ -194,11 +195,21 @@ export function createLevel(C) {
     c.bodyRoll = Math.sin(c.step) * 0.045 * a + idle * 0.01 * Math.sin(t * 1.3);      // waddle
     c.bodyPitch = s2 * 0.012 * a;
     c.body.rotation.z = (c.lean || 0) + c.bodyRoll; c.body.rotation.x = (c.pitch || 0) + c.bodyPitch;
-    for (const an of L.antennae || []) an.rotation.x = -0.95 + Math.sin(c.step * 2 + 0.6) * 0.08 * a + Math.sin(t * 2.1) * 0.03;
+    if (c === L.car) for (const an of L.antennae || []) an.rotation.x = -0.95 + Math.sin(c.step * 2 + 0.6) * 0.08 * a + Math.sin(t * 2.1) * 0.03;
   }
   L.animateBoots = animateBoots;
   function placeCar() { const [x, z, y] = LAYOUT.carStart; L.car.pos.set(x, 0, z); L.car.yaw = y; L.car.v = 0; L.car.hop = 0; L.car.hopV = 0; car.position.copy(L.car.pos); car.rotation.y = y; }
   placeCar();
+  // run 12: the Wolf's OWN waddle car (free roam, any time). Same boot-car GLB (second copy, own boot uniforms), no topper, no moth.
+  // Parked on Mesa St outside his house. L.mode 'solo' = the Wolf driving it; the mission / cockpit / moth / scenes all ignore 'solo'.
+  { const root = new THREE.Group(), fb = new THREE.Group(); root.add(fb); scene.add(root);
+    const drv = new THREE.Group(); drv.position.set(0.48, 0, -0.05); fb.add(drv);
+    const fw = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.035, 8, 20), feltMat('#3a2a26')); fw.position.set(0, 1.2, 0.58); fw.rotation.x = -1.0; drv.add(fw);
+    L.free = { root, body: fb, wheels: [], driver: drv, wheel: fw, pos: new THREE.Vector3(), yaw: 0, v: 0, hop: 0, hopV: 0, steer: 0, bonkT: 0, step: 0, stepAmp: 0, U: makeBootU(), free: true };
+    root.visible = false; }   // shown once the GLB copy is in (setBootCar)
+  L.soloSeat = new THREE.Vector3(0.48, 0.5, -0.05); L.FREE_HOME = [30, 59.6, -Math.PI / 2];
+  L.parkFree = (x, z, yaw) => { const c = L.free; c.pos.set(x, 0, z); c.yaw = yaw; c.v = 0; c.hop = 0; c.hopV = 0; c.steer = 0; c.root.position.copy(c.pos); c.root.rotation.y = yaw; };
+  L.parkFree(...L.FREE_HOME);
 
   // -------------------------------------------------------------- convenience store (felt blockout, glowing sign, big 2:00 clock)
   { const [sx, sz] = LAYOUT.store; const g = group(sx, sz, 0);
@@ -365,17 +376,45 @@ export function createLevel(C) {
     ctl.tilt = 0; $('bTilt').classList.add('on');
     addEventListener('deviceorientation', ev => { if (ctl.tilt === null) return; const land = innerWidth > innerHeight; const v = land ? (ev.beta || 0) * (screen.orientation?.angle === 270 || window.orientation === -90 ? -1 : 1) : (ev.gamma || 0); ctl.tilt = clamp(v / 25, -1, 1); });
   });
-  hud.getIn?.addEventListener('click', () => L.enterCar());
+  hud.getIn?.addEventListener('click', () => { if (L.nearFree) L.enterFree(); else L.enterCar(); });
+  $('bExit')?.addEventListener('click', (e) => { e.preventDefault(); L.exitCar(); });
+  // run 12: the Wolf's own car radio (audio.js soloRadio): SCAN button, tap the station pill, or R
+  const scan = (e) => { e?.preventDefault?.(); if (L.solo && !L.frozen) audio.soloScan?.(); };
+  $('bScan')?.addEventListener('click', scan); $('soloRadio')?.addEventListener('click', scan);
+  addEventListener('keydown', (e) => { if (e.code === 'KeyR' && !e.repeat) scan(); });
   // the moth's radio (audio.js): the knob cycles loud / still loud / "lowest" and never reaches off
   $('bVol')?.addEventListener('click', (e) => { e.preventDefault(); toast(audio.cycleRadio(), 1.8); });
   $('bHorn')?.addEventListener('pointerdown', (e) => { e.preventDefault(); audio.horn(); });
-  addEventListener('keydown', (e) => { if (e.code === 'KeyH' && !e.repeat && L.inCar && !L.frozen) audio.horn(); });
+  addEventListener('keydown', (e) => { if (e.code === 'KeyH' && !e.repeat && (L.inCar || L.solo) && !L.frozen) audio.horn();
+    if ((e.code === 'KeyF' || e.code === 'KeyE') && !e.repeat && L.mode === 'solo' && !L.frozen) { L.exitCar(); L.kE = true; } });
   L.radioVol = 0;
   $('retry')?.addEventListener('click', () => L.reset());
 
   // -------------------------------------------------------------- state machine
   L.enterCar = () => { if (L.mode !== 'walk' || L.ended) return; L.mode = 'drive'; L.inCar = true; document.body.classList.add('driving'); hud.getIn.style.display = 'none'; toast('The driver nods once. You steer.', 3.5); audio.ev('enterCar'); C.onEnterCar?.(); };
-  L.reset = () => { L.frozen = false; L.sceneCar = false; L.car.sceneDriven = false; L.radioOverride = null; L.lateSaid = false; L.mode = 'walk'; L.inCar = false; L.left = START_LEFT; L.ended = false; L.started = false; document.body.classList.remove('driving', 'ended', 'won', 'lost'); placeCar(); for (const g of L.guards) g.hit = false; L.forkSaid = false; audio.ev('reset'); C.onReset?.(); };
+  L.enterFree = () => { if (L.mode !== 'walk' || L.ended || L.frozen || !L.free.model) return; L.mode = 'solo'; L.solo = true; L.exitPending = false; L.free.v = 0;
+    document.body.classList.add('driving', 'solo'); hud.getIn.style.display = 'none'; toast('Your own waddle car. Just you and the radio.', 2.6); audio.ev('enterSolo'); C.onEnterCar?.(); };
+  // GET OUT: brakes first if moving, then the Wolf steps out beside the driver door; the car stays parked where it stopped
+  L.exitCar = () => { if (L.mode !== 'solo') return false; const c = L.free;
+    if (Math.abs(c.v) > 1.2) { if (!L.exitPending) toast('Stopping…', 1.2); L.exitPending = true; return false; }
+    if (TS() && !TS().inTown(c.pos.x, c.pos.z, 6)) { toast('Too far to walk from here. Drive back to town.', 2.4); L.exitPending = false; return false; }
+    const s = exitSpot(c); L.mode = 'walk'; L.solo = false; L.exitPending = false; c.v = 0; c.steer = 0;
+    document.body.classList.remove('driving', 'solo'); audio.ev('exitSolo'); C.onExitCar?.(s); toast('Parked. It waits.', 1.6); return true; };
+  const TS = () => L.townscape;
+  function exitSpot(c) { const lx = Math.cos(c.yaw), lz = -Math.sin(c.yaw), fx = Math.sin(c.yaw), fz = Math.cos(c.yaw), T = TS();
+    const cand = [[lx * 2.1, lz * 2.1], [-lx * 2.1, -lz * 2.1], [-fx * 3.3, -fz * 3.3], [fx * 3.3, fz * 3.3]];
+    for (const [ox, oz] of cand) { const p = new THREE.Vector3(c.pos.x + ox, 0, c.pos.z + oz), q = p.clone(); if (T) T.collide(q, 0.45);
+      let hit = q.distanceTo(p) > 0.05; for (const k of colliders) if (Math.hypot(p.x - k.x, p.z - k.z) < k.r + 0.45) hit = true;
+      if (!hit && (!T || T.inTown(p.x, p.z, -1))) return { x: p.x, z: p.z, yaw: c.yaw }; }
+    const p = new THREE.Vector3(c.pos.x + lx * 2.1, 0, c.pos.z + lz * 2.1); if (T) { T.collide(p, 0.45); T.clampWalk(p); } return { x: p.x, z: p.z, yaw: c.yaw }; }
+  // FIND MY CAR: bring the parked car to the nearest street lane by (x,z)
+  L.summonFree = (x, z) => { if (L.mode === 'solo') return false; const T = TS(); let best = null;
+    if (T && T.GRID) { for (const st of T.GRID.ew || []) { const cx = clamp(x, st.x0 + 6, st.x1 - 6), d = Math.hypot(x - cx, z - st.z); if (!best || d < best.d) best = { d, x: cx, z: st.z + (z > st.z ? 1 : -1) * st.hw * 0.45, yaw: z > st.z ? Math.PI / 2 : -Math.PI / 2 }; }
+      for (const st of T.GRID.ns || []) { const cz = clamp(z, st.z0 + 6, st.z1 - 6), d = Math.hypot(x - st.x, z - cz); if (!best || d < best.d) best = { d, x: st.x + (x > st.x ? 1 : -1) * st.hw * 0.45, z: cz, yaw: x > st.x ? Math.PI : 0 }; } }
+    if (!best) best = { x: x + 3, z, yaw: 0 };
+    for (let k = 0; k < 8; k++) { const p = new THREE.Vector3(best.x, 0, best.z), q = p.clone(); if (T) T.collide(q, 1.5); if (q.distanceTo(p) < 0.05) break; best.x += Math.sin(best.yaw) * 5; best.z += Math.cos(best.yaw) * 5; }
+    L.parkFree(best.x, best.z, best.yaw); return true; };
+  L.reset = () => { L.frozen = false; L.sceneCar = false; L.car.sceneDriven = false; L.radioOverride = null; L.lateSaid = false; L.mode = 'walk'; L.inCar = false; L.solo = false; L.exitPending = false; L.left = START_LEFT; L.ended = false; L.started = false; document.body.classList.remove('driving', 'solo', 'ended', 'won', 'lost'); placeCar(); L.parkFree(...L.FREE_HOME); for (const g of L.guards) g.hit = false; L.forkSaid = false; audio.ev('reset'); C.onReset?.(); };
   function finish(won) {
     if (L.ended) return; L.ended = true; L.mode = won ? 'won' : 'lost'; audio.ev('finish', { won }); document.body.classList.add('ended', won ? 'won' : 'lost');
     $('endTitle').textContent = won ? 'SNACKS ACQUIRED.' : 'CLOSED.';
@@ -387,26 +426,32 @@ export function createLevel(C) {
 
   // car update
   const fwd = new THREE.Vector3();
-  function updateCar(dt, keys) {
-    const c = L.car;
+  function updateCar(dt, keys, c = L.car) {
+    const solo = c === L.free, T = solo ? TS() : null, px = c.pos.x, pz = c.pos.z;
     let steer = (ctl.right ? 1 : 0) - (ctl.left ? 1 : 0) + (keys.ArrowRight || keys.KeyD ? 1 : 0) - (keys.ArrowLeft || keys.KeyA ? 1 : 0);
     if (ctl.tilt !== null && ctl.tilt !== undefined) steer += ctl.tilt;
     steer = clamp(steer, -1, 1); c.steer = lerp(c.steer, steer, 1 - Math.exp(-dt * 8));
-    const gas = ctl.gas || keys.ArrowUp || keys.KeyW, brake = ctl.brake || keys.ArrowDown || keys.KeyS || keys.Space;
+    const gas = !L.exitPending && (ctl.gas || keys.ArrowUp || keys.KeyW), brake = L.exitPending || ctl.brake || keys.ArrowDown || keys.KeyS || keys.Space;
     const nr = L.nearestRoad(c.pos.x, c.pos.z), onRoad = nr.d < nr.road.w / 2 + 0.8;
-    const vmax = onRoad ? (nr.road === SHORT ? 17 : 19) : 9;
-    if (gas) c.v += (c.v < 0 ? 14 : 8.5 * (1 - Math.max(0, c.v) / (vmax + 2))) * dt;
+    const onStreet = solo && !onRoad && T && T.GRID && ((T.GRID.ew || []).some(st => Math.abs(c.pos.z - st.z) < st.hw + 0.5 && c.pos.x > st.x0 - 2 && c.pos.x < st.x1 + 2) || (T.GRID.ns || []).some(st => Math.abs(c.pos.x - st.x) < st.hw + 0.5 && c.pos.z > st.z0 - 2 && c.pos.z < st.z1 + 2));
+    const vmax = onRoad ? (nr.road === SHORT ? 17 : 19) : onStreet ? 15 : 9;
+    if (L.exitPending && solo) c.v -= Math.sign(c.v) * Math.min(Math.abs(c.v), 16 * dt);   // run 12: GET OUT while moving = stop (forward or reverse), then out
+    else if (gas) c.v += (c.v < 0 ? 14 : 8.5 * (1 - Math.max(0, c.v) / (vmax + 2))) * dt;
     else if (brake) c.v -= (c.v > 0.3 ? 16 : 4) * dt;
     else c.v -= Math.sign(c.v) * Math.min(Math.abs(c.v), (1.2 + Math.abs(c.v) * 0.06) * dt);
-    c.v = clamp(c.v, -5, Math.max(vmax, c.v - 10 * dt)); if (!onRoad && c.v > vmax) c.v = lerp(c.v, vmax, 1 - Math.exp(-dt * 2));
+    c.v = clamp(c.v, -5, Math.max(vmax, c.v - 10 * dt)); if (!onRoad && !onStreet && c.v > vmax) c.v = lerp(c.v, vmax, 1 - Math.exp(-dt * 2));
     c.yaw -= c.steer * 1.25 * clamp(Math.abs(c.v) / 6, 0, 1) * Math.sign(c.v || 1) * dt * (1 - 0.25 * clamp(c.v / 19, 0, 1));
     fwd.set(Math.sin(c.yaw), 0, Math.cos(c.yaw));
     c.pos.addScaledVector(fwd, c.v * dt);
     // collisions (cacti, buildings, posts): bonk + bounce back, deadpan
     c.bonkT -= dt;
-    for (const k of colliders) { const dx = c.pos.x - k.x, dz = c.pos.z - k.z, d = Math.hypot(dx, dz), r = k.r + 1.4; if (d < r && d > 1e-4) { c.pos.x = k.x + dx / d * r; c.pos.z = k.z + dz / d * r; if (Math.abs(c.v) > 3 && c.bonkT <= 0) { c.v *= -0.25; c.hopV = 1.6; c.bonkT = 0.8; audio.ev('bonk'); toast(['(cactus)', 'Bonk.', 'The driver blinks.', '(that was a cactus)'][Math.floor(rnd() * 4)], 1.6); } else c.v *= 0.9; } }
+    for (const k of colliders) { const dx = c.pos.x - k.x, dz = c.pos.z - k.z, d = Math.hypot(dx, dz), r = k.r + 1.4; if (d < r && d > 1e-4) { c.pos.x = k.x + dx / d * r; c.pos.z = k.z + dz / d * r; if (Math.abs(c.v) > 3 && c.bonkT <= 0) { c.v *= -0.25; c.hopV = 1.6; c.bonkT = 0.8; audio.ev('bonk', { solo }); toast(solo ? ['Bonk.', 'Felt bumper. No harm.', '(the boots apologise)'][Math.floor(rnd() * 3)] : ['(cactus)', 'Bonk.', 'The driver blinks.', '(that was a cactus)'][Math.floor(rnd() * 4)], 1.6); } else c.v *= 0.9; } }
+    if (solo) { const q = c.pos.clone(); if (T) T.collide(c.pos, 1.5); const pushed = q.distanceTo(c.pos) > 0.02;
+      const o = L.car, od = Math.hypot(c.pos.x - o.pos.x, c.pos.z - o.pos.z); if (od < 3.2 && od > 1e-4) { c.pos.x = o.pos.x + (c.pos.x - o.pos.x) / od * 3.2; c.pos.z = o.pos.z + (c.pos.z - o.pos.z) / od * 3.2; }
+      if ((pushed || od < 3.2) && Math.abs(c.v) > 3 && c.bonkT <= 0) { c.v *= -0.25; c.hopV = 1.6; c.bonkT = 0.8; audio.ev('bonk', { solo }); toast(['Bonk.', 'Felt bumper. No harm.', '(the boots apologise)'][Math.floor(rnd() * 3)], 1.6); } else if (pushed) c.v *= 0.92; }
     // invisible boundary: the desert looks endless, but the car is gently turned back toward the road
-    if (nr.d > 38) { const p = nr.road.s[nr.i], k = (nr.d - 38) / nr.d; c.pos.x -= (c.pos.x - p.x) * k; c.pos.z -= (c.pos.z - p.z) * k; c.v *= 0.97; if (!L.edgeSaid) { toast('Nothing out there. Back to the road.', 2.2); L.edgeSaid = true; } } else if (nr.d < 20) L.edgeSaid = false;
+    if (solo) { if (nr.d > 38 && !(T && T.inTown(c.pos.x, c.pos.z, 25))) { c.pos.x = px; c.pos.z = pz; c.v *= 0.5; if (!L.edgeSaid) { toast('Nothing out there. Back to town or the road.', 2.2); L.edgeSaid = true; } } else if (nr.d < 20 || (T && T.inTown(c.pos.x, c.pos.z, 10))) L.edgeSaid = false; }
+    else if (nr.d > 38) { const p = nr.road.s[nr.i], k = (nr.d - 38) / nr.d; c.pos.x -= (c.pos.x - p.x) * k; c.pos.z -= (c.pos.z - p.z) * k; c.v *= 0.97; if (!L.edgeSaid) { toast('Nothing out there. Back to the road.', 2.2); L.edgeSaid = true; } } else if (nr.d < 20) L.edgeSaid = false;
     // cattle guards: rattle + small hop, a little speed lost
     for (const g of L.guards) { const d = Math.hypot(c.pos.x - g.x, c.pos.z - g.z); if (d < 2.4 && !g.hit) { g.hit = true; if (Math.abs(c.v) > 5) { c.hopV = 2.4; c.v *= 0.82; audio.ev('guard'); toast('Cattle guard. Rattle rattle.', 1.8); } } else if (d > 8) g.hit = false; }
     // tumbleweed
@@ -414,14 +459,14 @@ export function createLevel(C) {
     if (td < 2.0 && tw.push <= 0) { tw.push = 1.4; tw.pushDir = c.yaw; c.v *= 0.55; audio.ev('tumble'); toast('A tumbleweed, taking its time.', 2.2); }
     // suspension hop
     c.hopV -= 14 * dt; c.hop = Math.max(0, c.hop + c.hopV * dt); if (c.hop === 0 && c.hopV < 0) c.hopV = 0;
-    const rough = onRoad ? (nr.road === SHORT ? 0.02 : 0.008) : 0.035;
+    const rough = onRoad ? (nr.road === SHORT ? 0.02 : 0.008) : onStreet ? 0.006 : 0.035;
     c.root.position.set(c.pos.x, c.hop, c.pos.z); c.root.rotation.y = c.yaw;
     c.lean = -c.steer * 0.04 * clamp(c.v / 12, 0, 1); c.pitch = -0.02 * (gas ? 1 : 0) + 0.03 * (brake && c.v > 1 ? 1 : 0) + Math.sin(performance.now() * 0.03) * rough * clamp(c.v / 8, 0, 1);
     c.wheel.rotation.z = c.steer * 1.2;
     // fork hint
-    if (!L.forkSaid && Math.hypot(c.pos.x - 44, c.pos.z + 92) < 16) { L.forkSaid = true; toast('A fork. One way says SHORTCUT.', 2.6); }
+    if (!solo && !L.forkSaid && Math.hypot(c.pos.x - 44, c.pos.z + 92) < 16) { L.forkSaid = true; toast('A fork. One way says SHORTCUT.', 2.6); }
     // arrival
-    if (!L.scenesOwnArrival) { const [ax, az, ar] = LAYOUT.storeArrive; if (Math.hypot(c.pos.x - ax, c.pos.z - az) < ar) finish(true); } // scenes.js plays the arrival instead
+    if (!solo && !L.scenesOwnArrival) { const [ax, az, ar] = LAYOUT.storeArrive; if (Math.hypot(c.pos.x - ax, c.pos.z - az) < ar) finish(true); } // scenes.js plays the arrival instead
     return nr;
   }
   L.carFwd = fwd;
@@ -452,14 +497,18 @@ export function createLevel(C) {
       c.root.position.set(c.pos.x, c.hop, c.pos.z); c.root.rotation.y = c.yaw; c.steer = lerp(c.steer, 0, 1 - Math.exp(-dt * 6)); c.wheel.rotation.z = c.steer * 1.2;
       c.lean = lerp(c.lean || 0, 0, 1 - Math.exp(-dt * 6)); c.pitch = lerp(c.pitch || 0, 0, 1 - Math.exp(-dt * 6)); }
     else { L.car.v *= Math.exp(-dt * 3); }
-    animateBoots(dt, t);
+    { const c = L.free; if (L.mode === 'solo' && !L.frozen) { updateCar(dt, keys, c); if (L.exitPending && Math.abs(c.v) < 1.2) L.exitCar(); }
+      else { c.v = 0; c.steer = lerp(c.steer, 0, 1 - Math.exp(-dt * 6)); c.lean = lerp(c.lean || 0, 0, 1 - Math.exp(-dt * 6)); c.pitch = lerp(c.pitch || 0, 0, 1 - Math.exp(-dt * 6)); c.hopV -= 14 * dt; c.hop = Math.max(0, c.hop + c.hopV * dt); c.root.position.set(c.pos.x, c.hop, c.pos.z); c.root.rotation.y = c.yaw; c.wheel.rotation.z = c.steer * 1.2; } }
+    animateBoots(dt, t); if (L.free.model && L.free.root.visible) animateBoots(dt, t, L.free);
     { const dc = Math.hypot(wolfPos.x - L.car.pos.x, wolfPos.z - L.car.pos.z);
       const want = L.radioOverride != null ? L.radioOverride : titleUp ? 0 : L.inCar ? (L.mode === 'lost' ? 0.25 : 1) : clamp(1 - dc / 22, 0, 1) * 0.22; // loud in the car, faint from the street
       L.radioVol = want; }   // audio.js reads it every frame
+    const kE = !!(keys.KeyE || keys.Enter), kEdge = kE && !L.kE; L.kE = kE;   // run 12: edge-triggered so E can't flip in/out
     if (L.mode === 'walk') {
-      const d = Math.hypot(wolfPos.x - L.car.pos.x, wolfPos.z - L.car.pos.z);
-      if (hud.getIn) hud.getIn.style.display = d < 5 && !L.ended ? 'block' : 'none';
-      if (d < 5 && (keys.KeyE || keys.Enter)) L.enterCar();
+      const d = Math.hypot(wolfPos.x - L.car.pos.x, wolfPos.z - L.car.pos.z), df = L.free.model ? Math.hypot(wolfPos.x - L.free.pos.x, wolfPos.z - L.free.pos.z) : 1e9;
+      L.nearFree = df < 4.5 && df < d && !L.frozen; const near = L.nearFree || d < 5;
+      if (hud.getIn) { hud.getIn.style.display = near && !L.ended ? 'block' : 'none'; const tx = L.nearFree ? 'IN THE CAR' : 'GET IN'; if (hud.getIn.textContent !== tx) hud.getIn.textContent = tx; hud.getIn.classList.toggle('free', L.nearFree); }
+      if (kEdge && !L.ended) { if (L.nearFree) L.enterFree(); else if (d < 5) L.enterCar(); }
       if (hud.obj) hud.obj.textContent = 'Walk to the ride pickup, east end of the street.';
       if (hud.dist) hud.dist.textContent = Math.round(d) + ' m to pickup';
     } else if (L.mode === 'drive' && nr) {
@@ -467,18 +516,21 @@ export function createLevel(C) {
       const [ax, az] = LAYOUT.storeArrive; const onMainIdx = nr.road === MAIN ? nr.i : nr.road === SHORT ? nearestIdx(MAIN.s, [nr.road.s[nr.i].x, nr.road.s[nr.i].z]) : 0;
       const remain = Math.max(Math.hypot(L.car.pos.x - ax, L.car.pos.z - az), MAIN.len - MAIN.cum[onMainIdx]);
       if (hud.dist) hud.dist.textContent = `STORE ${Math.round(remain)} m`;
+    } else if (L.mode === 'solo') {
+      if (hud.obj) hud.obj.textContent = 'Your waddle car. Drive anywhere. GET OUT to park.';
+      if (hud.dist) hud.dist.textContent = Math.round(Math.hypot(L.free.pos.x - L.car.pos.x, L.free.pos.z - L.car.pos.z)) + ' m to pickup';
     }
   };
   // seat transform for the wolf (world)
   const _q = new THREE.Vector3();
   L.seatWorld = (out) => { L.car.root.updateMatrixWorld(); return out.copy(L.seat).applyMatrix4(L.car.body.matrixWorld); };
   // chase camera
-  L.chaseCam = (camera, dt, portrait, snap) => {
-    const c = L.car, lk = L.look || { yaw: 0, pitch: 0 }, a = c.yaw + lk.yaw, f = _q.set(Math.sin(a), 0, Math.cos(a));
+  L.chaseCam = (camera, dt, portrait, snap, c = L.car) => {
+    const lk = L.look || { yaw: 0, pitch: 0 }, a = c.yaw + lk.yaw, f = _q.set(Math.sin(a), 0, Math.cos(a));
     const dist = portrait ? 10.5 : 9, h = (portrait ? 4.4 : 3.6) + Math.max(0, -lk.pitch) * 3.5; // drag: orbit round the car / lift to look down on him
     const want = new THREE.Vector3(c.pos.x - f.x * dist, h + c.hop * 0.5, c.pos.z - f.z * dist);
     if (snap) camera.position.copy(want); else camera.position.lerp(want, 1 - Math.exp(-dt * 4));
-    const look = new THREE.Vector3(c.pos.x + f.x * 8, 2.5, c.pos.z + f.z * 8);
+    const look = new THREE.Vector3(c.pos.x + f.x * 8, 2.5, c.pos.z + f.z * 8); if (c === L.free && TS()) TS().camClamp(look, camera.position);
     camera.lookAt(look); return look;
   };
   return L;

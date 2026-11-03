@@ -101,6 +101,19 @@
   #getIn{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 64px);transform:translateX(-50%);z-index:7;display:none;border:0;border-radius:999px;padding:16px 30px;font:700 18px Futura,Avenir,sans-serif;letter-spacing:.2em;color:#24331f;background:#9fd6b8;box-shadow:0 5px 0 #4f8a6c,0 10px 24px rgba(0,0,0,.25);animation:tpulse 1.4s ease-in-out infinite}
   #drive{display:none}
   body.driving #drive{display:block} body.driving #hint{display:none}
+  /* run 12: the Wolf's own waddle car — GET OUT, SCAN, the station pill */
+  #bExit,#bScan,#soloRadio{display:none}
+  body.solo #bExit,body.solo #bScan{display:block} body.solo #bVol{display:none!important}
+  #bExit{left:calc(env(safe-area-inset-left) + 16px);bottom:calc(env(safe-area-inset-bottom) + 202px);width:96px;height:42px;border-radius:14px;font-size:12px;letter-spacing:.14em;background:#e8806a;color:#3a1418;box-shadow:0 4px 0 #a5483c}
+  #bExit:active{transform:translateY(3px);box-shadow:0 1px 0 #a5483c}
+  #bScan{left:calc(env(safe-area-inset-left) + 16px);bottom:calc(env(safe-area-inset-bottom) + 118px);width:96px;height:34px;border-radius:12px;font-size:10px;letter-spacing:.12em;background:rgba(246,178,58,.5)}
+  #soloRadio{position:fixed;z-index:7;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 118px);max-width:calc(100vw - 250px);min-width:120px;padding:6px 14px 7px;border-radius:14px;
+    background:#2b1e3ccc;color:#fff3dc;font:700 12px/1.25 Futura,Avenir,sans-serif;text-align:center;box-shadow:0 3px 0 #120a1c;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none}
+  #soloRadio b{display:block;font-size:9px;letter-spacing:.22em;color:#f6b23a;font-weight:800} #soloRadio #srName{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #soloRadio.flip #srName{animation:srFlip .45s ease} @keyframes srFlip{0%{opacity:0;transform:translateY(5px)}100%{opacity:1;transform:none}}
+  body.solo #soloRadio{display:block} body.scene #soloRadio,body.ended #soloRadio{display:none!important}
+  @media (orientation:landscape){#soloRadio{bottom:calc(env(safe-area-inset-bottom) + 30px);max-width:calc(100vw - 480px)}}
+  #getIn.free{bottom:calc(env(safe-area-inset-bottom) + 130px);background:#f6b23a;color:#3a1f10;box-shadow:0 5px 0 #b87420,0 10px 24px rgba(0,0,0,.25)}
   .dbtn{position:fixed;z-index:7;width:78px;height:78px;border-radius:50%;border:0;background:rgba(255,240,220,.28);color:#fff3dc;font:700 26px Futura,Avenir,sans-serif;box-shadow:inset 0 0 0 2px rgba(255,240,220,.55);-webkit-tap-highlight-color:transparent;touch-action:none}
   .dbtn.on{background:rgba(255,240,220,.6);color:#3a2418}
   #bL{left:calc(env(safe-area-inset-left) + 16px);bottom:calc(env(safe-area-inset-bottom) + 28px)}
@@ -184,7 +197,7 @@
 <div id="hint">DRAG TO WALK · PUSH FAR TO RUN · DRAG THE SKY TO LOOK</div>
 <div id="hud"><div id="clk">1:57:30 PM</div><div id="clkSub">STORE CLOSES 2:00 PM</div><div id="obj"></div><div id="dist"></div></div>
 <button id="getIn">GET IN</button>
-<div id="drive"><button class="dbtn" id="bL">◀</button><button class="dbtn" id="bR">▶</button><button class="dbtn" id="bBrake">BRAKE</button><button class="dbtn" id="bGas">GAS</button><button class="dbtn" id="bTilt">TILT</button><button class="dbtn" id="bVol">RADIO VOL</button><button class="dbtn" id="bHorn">HORN</button></div>
+<div id="drive"><button class="dbtn" id="bL">◀</button><button class="dbtn" id="bR">▶</button><button class="dbtn" id="bBrake">BRAKE</button><button class="dbtn" id="bGas">GAS</button><button class="dbtn" id="bTilt">TILT</button><button class="dbtn" id="bVol">RADIO VOL</button><button class="dbtn" id="bHorn">HORN</button><button class="dbtn" id="bExit">GET OUT</button></div>
 <div id="toast"></div>
 <div id="bubbles"></div>
 <div class="lb" id="lbTop"></div><div class="lb" id="lbBot"></div>

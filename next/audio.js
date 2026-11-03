@@ -358,7 +358,9 @@ A.ev = (kind, o = {}) => {
       play(pick(V.grunt), { bus: 'vox', gain: 0.55, when: ctx.currentTime + 0.3 }); loadSet(SET.car); loadSet(SET.sceneVo); A.barkT = 26 + rnd() * 10;
       setTimeout(() => line('vo_wolf_03', { retry: 4 }), 1500);                                   // "Coral ground, cobalt sky. Let's roll."
       A.radioVoT = 13; break;                                                                      // then the radio remark, once it's on
-    case 'bonk': play(pick(V.bump), { gain: 1, rate: 0.9 + rnd() * 0.15 });
+    case 'enterSolo': play('sfx_car_door_open', { gain: 0.55 }); play('sfx_car_door_shut', { gain: 1, when: ctx.currentTime + 0.6 }); loadSet(SET.car); break;
+    case 'exitSolo': play('sfx_car_door_open', { gain: 0.5 }); play('sfx_car_door_shut', { gain: 0.9, when: ctx.currentTime + 0.5 }); break;
+    case 'bonk': play(pick(V.bump), { gain: 1, rate: 0.9 + rnd() * 0.15 }); if (o.solo) break;
       if (rnd() < 0.35 && ctx.currentTime - (A.bonkVoT || -99) > 10 && !A.voice) { A.bonkVoT = ctx.currentTime; setTimeout(() => line(pickFresh(['vo_moth_13', 'vo_moth_14', 'vo_squid_11', 'vo_farmhand_10']), {}), 500); }
       else if (rnd() < 0.25 && !A.voice) setTimeout(() => moth(0.8), 600); break;
     case 'guard': for (let i = 0; i < 4; i++) play(i === 3 ? 'sfx_car_bump_01' : 'sfx_car_bump_03', { gain: i === 3 ? 0.9 : 0.55, rate: 1.1 + rnd() * 0.2, when: ctx.currentTime + i * 0.075 }); break;
@@ -432,22 +434,23 @@ A.update = (dt) => {
   P(N.rLvl.gain, want * RADIO_LV[A.radioLvl] * (outside ? 0.6 : 1) * (1 - 0.6 * tensUp), 0.15);   // the station sinks under Closing at Two P(N.rMuf.frequency, outside ? 950 : 4200, 0.15);
   P(N.cabLp.frequency, L.inCar && CK.chase ? 2200 : 18000, 0.1); P(N.cab.gain, L.inCar && CK.chase ? 0.7 : 1, 0.1);
   // engine: idle <-> rev by speed (pitch + gain); faint from the street when you're on foot
-  const sp = Math.abs(c.v || 0), k = clamp(sp / 19, 0, 1), dCar = Math.hypot(G.wolfState.pos.x - c.pos.x, G.wolfState.pos.z - c.pos.z);
-  const prox = L.inCar ? (CK.chase ? 0.8 : 1) : clamp(1 - dCar / 26, 0, 1) * 0.55;
+  const sc = L.solo ? L.free : c;   // run 12: the engine/boots you hear are the car you're in
+  const sp = Math.abs(sc.v || 0), k = clamp(sp / 19, 0, 1), dCar = Math.hypot(G.wolfState.pos.x - c.pos.x, G.wolfState.pos.z - c.pos.z);
+  const prox = L.inCar ? (CK.chase ? 0.8 : 1) : L.solo ? (L.soloChase ? 0.8 : 1) : clamp(1 - dCar / 26, 0, 1) * 0.55;
   const endK = L.ended ? 0.4 : 1;
   P(N.idle.gain, prox * endK * 0.3 * (1 - 0.65 * k), 0.08); P(N.rev.gain, prox * endK * 0.42 * k * k * (3 - 2 * k), 0.08);
   if (A.engSrc) { P(A.engSrc[0].playbackRate, 0.92 + 0.5 * k, 0.08); P(A.engSrc[1].playbackRate, 0.72 + 0.6 * k, 0.08); }
   // boot thuds: one per footfall of the waddle (body bounce = |sin(step)| -> a footfall each pi), alternating L/R
-  const fi = Math.floor(c.step / Math.PI);
+  const fi = Math.floor(sc.step / Math.PI);
   if (A.lastFoot !== fi) {
-    if (A.lastFoot != null && c.stepAmp > 0.12 && !blocking && prox > 0.04) {
+    if (A.lastFoot != null && sc.stepAmp > 0.12 && !blocking && prox > 0.04) {
       const left = (fi & 1) === 0; A.thuds = (A.thuds || 0) + 1;
-      play(left ? 'sfx_car_boot_thud_l' : 'sfx_car_boot_thud_r', { gain: (0.2 + 0.7 * c.stepAmp) * prox, rate: 0.96 + rnd() * 0.08, pan: left ? -0.25 : 0.25 });
+      play(left ? 'sfx_car_boot_thud_l' : 'sfx_car_boot_thud_r', { gain: (0.2 + 0.7 * sc.stepAmp) * prox, rate: 0.96 + rnd() * 0.08, pan: left ? -0.25 : 0.25 });
     }
     A.lastFoot = fi;
   }
   // landings after a hop (bonk, cattle guard)
-  if (c.hop > 0.02) A.hopPeak = Math.max(A.hopPeak, c.hop); else if (A.hopPeak > 0.06) { play(pick(V.bump), { gain: clamp(A.hopPeak * 2.2, 0.3, 0.9) * prox, rate: 0.85 + rnd() * 0.1 }); A.hopPeak = 0; } else A.hopPeak = 0;
+  if (sc.hop > 0.02) A.hopPeak = Math.max(A.hopPeak, sc.hop); else if (A.hopPeak > 0.06) { play(pick(V.bump), { gain: clamp(A.hopPeak * 2.2, 0.3, 0.9) * prox, rate: 0.85 + rnd() * 0.1 }); A.hopPeak = 0; } else A.hopPeak = 0;
   // voice lines (v10): the cast talks now and then while driving (replaces the v9 moth barks), plus the clock beats
   lines(dt, L, CK, blocking, sp);
   // the wolf: an idle huff when standing around on foot

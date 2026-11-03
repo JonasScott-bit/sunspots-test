@@ -515,8 +515,11 @@ const wolfState = { pos: new THREE.Vector3(LAYOUT.wolfStart[0], 0, LAYOUT.wolfSt
 // ---------------------------------------------------------------- level 1: Last Minute Snacks (roads, car, store, townsfolk, HUD)
 const level = createLevel({ scene, colliders, feltMat, rbox, makeMeltable, feltify: (r) => feltify(r), rnd, clamp, lerp, smooth, FELT,
   onEnterCar: () => { if (actWalk) { actWalk.setEffectiveWeight(0); actRun.setEffectiveWeight(0); actIdle.setEffectiveWeight(1); } wolfState.speed = 0; snapCam = true; },
+  onExitCar: (s) => { wolfState.pos.set(s.x, 0, s.z); wolfState.yaw = s.yaw; wolfState.speed = 0; camYawTarget = camYaw = s.yaw + Math.PI; manualLookT = 0; snapCam = true; },   // run 12: out of his own car
   onReset: () => { director?.reset(); moth?.reset(); wolfState.pos.set(LAYOUT.wolfStart[0], 0, LAYOUT.wolfStart[1]); wolfState.yaw = LAYOUT.wolfStart[2]; wolfState.speed = 0; camYawTarget = camYaw = 0; snapCam = true; } });
 let snapCam = false, QT = null, MM = null;
+const _sm = new THREE.Matrix4(), _sm2 = new THREE.Matrix4(), _sp = new THREE.Vector3(), _se = new THREE.Euler(0, 0, 0, 'YXZ');
+try { level.soloChase = sessionStorage.getItem('sunspots.soloChase') !== '0'; } catch (_) { level.soloChase = true; }   // his own car: chase view by default
 // first person: the moth driver's cockpit (default while driving) + the Wolf's own eyes on foot (eye button, hold 0.5 s / V)
 const cockpit = createCockpit(level, { feltMat, rbox, clamp, lerp, rnd: Math.random, patchRider }); level.cockpit = cockpit;
 let moth = null; const wolfRM = { value: 0 };
@@ -536,7 +539,7 @@ const fpL = sleeve(0.55, 0.085), fpR = sleeve(0.55, 0.085); fpArms.add(fpL, fpR)
 { const a = sleeve(0.5, 0.09), b = sleeve(0.5, 0.09); a.position.set(-0.24, 0.0, 0.02); a.rotation.set(0, -1.32, 0.15); b.position.set(0.24, 0.05, -0.02); b.rotation.set(0, 1.32, -0.15); fpCross.add(a, b); }
 const eyeBtn = document.getElementById('eyeBtn'), eyeRing = eyeBtn.querySelector('.ring'), fpFx = document.getElementById('fpFx'), hazeT = document.getElementById('hazeT');
 function setWolfGhost(on) { for (const m of wolf.userData.mats || []) { m.colorWrite = !on; m.depthWrite = !on; } }
-function toggleFP() { audio.ui('confirm'); if (level.inCar) { cockpit.setChase(!cockpit.chase); eyeBtn.classList.toggle('fp', !cockpit.chase); } else { FP.on = FP.on ? 0 : 1; eyeBtn.classList.toggle('fp', !!FP.on); } try { navigator.vibrate && navigator.vibrate(12); } catch (_) {} }
+function toggleFP() { audio.ui('confirm'); if (level.solo) { level.soloChase = !level.soloChase; try { sessionStorage.setItem('sunspots.soloChase', level.soloChase ? '1' : '0'); } catch (_) {} eyeBtn.classList.toggle('fp', !level.soloChase); } else if (level.inCar) { cockpit.setChase(!cockpit.chase); eyeBtn.classList.toggle('fp', !cockpit.chase); } else { FP.on = FP.on ? 0 : 1; eyeBtn.classList.toggle('fp', !!FP.on); } try { navigator.vibrate && navigator.vibrate(12); } catch (_) {} }
 { let holdT = null, raf = 0; const RING = 163.4;
   const fill = (x) => eyeRing.style.strokeDashoffset = RING * (1 - x);
   const step = () => { if (holdT === null) return; const x = Math.min(1, (performance.now() - holdT) / 500); fill(x);
@@ -554,6 +557,7 @@ async function loadAll() {
     'wolf_armsdown_felt.glb', 'busstop_bench.glb', 'mainst_hydrant.glb', 'mainst_car.glb',
     'mines_lantern.glb', 'busstop_rain_cloud.glb', ...TOWN_MODELS.map(n => 'town/' + n + '.glb')].map(f => load(M + f)));
   const town = Object.fromEntries(TOWN_MODELS.map((n, i) => [n, townG[i]]));
+  const car2 = car.scene.clone(true); car2.traverse(o => { if (o.isMesh) o.material = o.material.clone(); });   // run 12: the Wolf's own waddle car (own materials -> own boot uniforms)
   if (NEWTOWN) { TS = createTownscape({ scene, feltMat, makeMeltable, LOW: sunspotsLowEnd(), level }); window.__TS = TS; level.townscape = TS;
     const KIND = { bus_shelter: 'shelter', lamp: 'lamp', payphone: 'payphone', fountain: 'fountain' };
     for (const [n, x, z, ry, cr, pr] of TS.props) { const root = feltify(town[n].scene.clone(true)); root.position.set(x, 0, z); root.rotation.y = ry; scene.add(root); if (cr) colliders.push({ x, z, r: cr }); makeMeltable(root, { tint: TINT[KIND[n]] || '#ff8f86', puddle: pr || 1, puddleColor: WAX[KIND[n]] || '#f2907f' }); } }
@@ -572,6 +576,7 @@ async function loadAll() {
   { const [bx, bz, bry] = NEWTOWN ? TS.bench : [-4.6, -4.2, 0.15]; prop(bench, { h: 1.15, x: bx, z: bz, ry: bry, collide: 1.0, puddle: 1.3 }); }
   void hydrant; // the static hydrant is replaced by the rigged mainst_hydrant_spin townsperson (level.js)
   level.setBootCar(car.scene, normalize);
+  level.setBootCar(car2, normalize, level.free);
   // the real moth driver (rigged Meshy model, meshopt + 1024 webp): replaces the felt stand-in + placeholder gloves
   load(M + 'moth_driver.glb').then(g => { moth = createMoth(g, level, cockpit, { scene, patchRider, look: r => sunspotsApply(r, 'moth', 1.7), bothMats }); cockpit.useMoth(moth); window.__moth = moth; })
     .catch(e => console.warn('moth driver model failed, keeping the stand-in', e)); // the boot car is the rideshare: parked at the pickup, drivable, walks on its boots
@@ -647,7 +652,7 @@ canvas.addEventListener('pointermove', e => {
 });
 const endPtr = e => { if (e.pointerId === joyId) { joyId = null; input.x = input.y = 0; joy.style.display = 'none'; } if (e.pointerId === lookId) lookId = null; };
 canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointercancel', endPtr);
-const keys = {}; addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyM') toggleWild(); if (e.code === 'KeyV' && !e.repeat && level.mode === 'walk' && !level.frozen) toggleFP(); }); addEventListener('keyup', e => keys[e.code] = false);
+const keys = {}; addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyM') toggleWild(); if (e.code === 'KeyV' && !e.repeat && level.mode === 'walk' && !level.frozen) toggleFP(); if (e.code === 'KeyC' && !e.repeat && level.solo && !level.frozen) toggleFP(); if (e.code === 'KeyN' && !e.repeat) MM?.toggle(); }); addEventListener('keyup', e => keys[e.code] = false);
 
 // ---------------------------------------------------------------- wild mode
 let wild = Q.has('wild') ? 1 : 0, wildTarget = wild;
@@ -742,6 +747,12 @@ function frame() {
   director?.update(dt, t, { wolfPos: wolfState.pos, titleUp: !!window.__titleUp || !wolfReady || !!MAP });   // scenes: triggers + timeline
   level.update(dt, t, { wolfPos: wolfState.pos, keys, wild: w, titleUp: !!window.__titleUp || !wolfReady || !!MAP });
   town?.outside(dt); QT?.update(town); MM?.update(dt, town); wolfFootsteps(); audio.update(dt);
+  // run 12: the Wolf at the wheel of his own car
+  if (wolfReady && level.solo && !puppet.on) { const fc = level.free, ss = level.soloSeat; fc.root.updateMatrixWorld(true);
+    _sm.copy(fc.body.matrixWorld).multiply(_sm2.makeTranslation(ss.x, ss.y, ss.z)); _sm.decompose(wolf.position, wolf.quaternion, tmpV); wolf.scale.setScalar(wolfBaseScale * level.seatScale);
+    wolfState.pos.copy(wolf.position).setY(0); wolfState.yaw = fc.yaw; wolfState.speed = 0;
+    actWalk.setEffectiveWeight(0); actRun.setEffectiveWeight(0); actIdle.setEffectiveWeight(1); actIdle.timeScale = 1;
+    const body = wolf.userData.body; body.rotation.set(0, 0, Math.sin(t * 7) * 0.01 * clamp(fc.v / 10, 0, 1)); body.position.x = 0; body.scale.y = wolf.userData.sy; mixer.update(dt); }
   // wolf riding shotgun
   if (wolfReady && level.inCar && !puppet.on) {
     level.car.root.updateMatrixWorld(true); cockpit.wolfRig.matrixWorld.decompose(wolf.position, wolf.quaternion, tmpV); wolf.scale.setScalar(wolfBaseScale * level.seatScale); wolfState.pos.copy(wolf.position).setY(0);
@@ -782,6 +793,7 @@ function frame() {
     const p = wolfState.pos;
     p.x += Math.sin(wolfState.yaw) * wolfState.speed * dt; p.z += Math.cos(wolfState.yaw) * wolfState.speed * dt;
     for (const c of colliders) { const dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz), r = c.r + 0.45; if (d < r && d > 1e-4) { p.x = c.x + dx / d * r; p.z = c.z + dz / d * r; } }
+    { const fc = level.free; if (fc?.root?.visible) for (const o of [-1.1, 1.1]) { const cx = fc.pos.x + Math.sin(fc.yaw) * o, cz = fc.pos.z + Math.cos(fc.yaw) * o, dx = p.x - cx, dz = p.z - cz, d = Math.hypot(dx, dz), r = 1.1 + 0.45; if (d < r && d > 1e-4) { p.x = cx + dx / d * r; p.z = cz + dz / d * r; } } }   // run 12: his parked car is solid
     if (TS) { TS.collide(p, 0.45); if (TS.clampWalk(p)) { if (!level.edgeWalkSaid) { level.toast('Too far to walk. Catch the ride.', 2.4); level.edgeWalkSaid = true; } } else if (TS.inTown(p.x, p.z, -8)) level.edgeWalkSaid = false; }
     else { const [cx, cz] = LAYOUT.townCenter, R0 = LAYOUT.walkRadius, dx = p.x - cx, dz = p.z - cz, pr = Math.hypot(dx, dz); // invisible boundary: town on foot, the desert is for driving
       if (pr > R0) { p.x = cx + dx * R0 / pr; p.z = cz + dz * R0 / pr; if (!level.edgeWalkSaid) { level.toast('Too far to walk. Catch the ride.', 2.4); level.edgeWalkSaid = true; } } else if (pr < R0 - 6) level.edgeWalkSaid = false; }
@@ -827,13 +839,22 @@ function frame() {
   const dist = portrait ? 10.5 : 9.5, hgt = portrait ? 4.2 : 3.3;
   const wp = wolfReady ? wolf.position : wolfState.pos;
   let wantFov = portrait ? 62 : 50, wantNear = 0.1;
-  if (level.inCar !== FP.wasInCar) { FP.wasInCar = level.inCar; if (level.inCar) cockpit.chase = cockpit.savedChase(); eyeBtn.classList.toggle('fp', level.inCar ? !cockpit.chase : !!FP.on); }
+  const vst = level.inCar ? 1 : level.solo ? 2 : 0;
+  if (vst !== FP.wasInCar) { FP.wasInCar = vst; if (level.inCar) cockpit.chase = cockpit.savedChase(); eyeBtn.classList.toggle('fp', vst === 1 ? !cockpit.chase : vst === 2 ? !level.soloChase : !!FP.on); }
   else if (level.inCar && eyeBtn.classList.contains('fp') === cockpit.chase) eyeBtn.classList.toggle('fp', !cockpit.chase); // C key on desktop
   const fpDrive = level.inCar && !cockpit.chase;
   if (level.inCar) {
     if (fpDrive) { cockpit.camera(camera); wantFov = portrait ? 76 : 62; wantNear = 0.03; snapCam = false; }
     else { level.chaseCam(camera, dt, portrait, snapCam); snapCam = false; }
     if (Q.has('carside')) { const c = level.car, sd = +Q.get('carside') || 7; camera.position.set(c.pos.x + Math.cos(c.yaw) * sd + Math.sin(c.yaw) * 1.5, 1.5, c.pos.z - Math.sin(c.yaw) * sd + Math.cos(c.yaw) * 1.5); camera.lookAt(c.pos.x, 1.0, c.pos.z); } }
+  else if (level.solo) {   // run 12: his own car. Chase (default) or the Wolf's eyes from the driver seat; eye button / C toggles
+    const fc = level.free;
+    if (!level.soloChase) { fc.root.updateMatrixWorld(true); _sp.set(0.48, 1.6, 0.1).applyMatrix4(fc.body.matrixWorld); camera.position.copy(_sp);
+      _se.set(-0.07 + (fc.bodyPitch || 0) * 0.4 + (fc.pitch || 0) * 0.5, fc.yaw + Math.PI, (fc.bodyRoll || 0) * -0.33 + (fc.lean || 0) * -0.3); camera.quaternion.setFromEuler(_se);
+      wantFov = portrait ? 76 : 62; wantNear = 0.03; }
+    else level.chaseCam(camera, dt, portrait, snapCam, fc);
+    snapCam = false; fpArms.visible = fpCross.visible = false; fpFx.style.opacity = 0;
+    const hideW = !level.soloChase; if (wolfReady && hideW !== !!FP.hidden) { FP.hidden = hideW; setWolfGhost(hideW); } }
   else {
     tmpV.set(wp.x + Math.sin(camYaw) * dist, hgt, wp.z + Math.cos(camYaw) * dist);
     if (snapCam) { FP.tpPos.copy(tmpV); } else FP.tpPos.lerp(tmpV, 1 - Math.exp(-dt * 5));
@@ -987,7 +1008,7 @@ function calibrateFeet() {
   return wolf.userData.footProfile.map((r, i) => { const th = Math.max(...r) * 0.08; for (let k = 0; k < N; k++) if (r[k] < th && r[(k + N - 1) % N] >= th) return k / N; return best[i][1]; });
 }
 function wolfFootsteps() {
-  if (!wolfReady || !wolf || level.inCar || window.__titleUp) return;
+  if (!wolfReady || !wolf || level.inCar || level.solo || window.__titleUp) return;
   const u = wolf.userData; if (!u.plants) u.plants = calibrateFeet();
   const ph = u.phase || 0, p0 = u.lastPh ?? ph; u.lastPh = ph;
   const sp = puppet.on ? puppet.speed : wolfState.speed, d = ((ph - p0) % 1 + 1) % 1; if (sp < 0.3 || d === 0 || d > 0.5) return;
