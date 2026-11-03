@@ -27,7 +27,7 @@ export class Kit {
     for (let i = 0; i < n; i++) { ca[i * 3] = c[0]; ca[i * 3 + 1] = c[1]; ca[i * 3 + 2] = c[2]; }
     g.setAttribute('color', new THREE.BufferAttribute(ca, 3));
     if (!g.attributes.normal) g.computeVertexNormals();
-    planarUV(g);
+    planarUV(g, o.pat ? PAT[o.pat] : 0, o.ps || PAT_S[o.pat] || 0.2, o.pdx || 0);
     (o.glow ? this.glow : this.parts).push(g);
     if (o.lod) this.lo.push(g);
     return g;
@@ -75,13 +75,15 @@ export class Kit {
     const L = len + 2 * (o.overEnd ?? ov);
     for (const s of [-1, 1]) {
       const mx = s * (half + ov - Math.cos(ang) * sl / 2), my = y + rise - Math.sin(ang) * sl / 2;
-      if (ridgeZ) this.box(cx + mx, my - th / 2, cz, sl, th, L, roofCol, { rz: -s * ang, lod: true });
-      else this.box(cx, my - th / 2, cz + mx, L, th, sl, roofCol, { rx: s * ang, lod: true });
+      const ro = { lod: true, pat: o.rp, ps: o.rps };
+      if (ridgeZ) this.box(cx + mx, my - th / 2, cz, sl, th, L, roofCol, { ...ro, rz: -s * ang });
+      else this.box(cx, my - th / 2, cz + mx, L, th, sl, roofCol, { ...ro, rx: s * ang });
     }
     if (wallCol) { // gable-end wall triangles (the prism under the roof)
       const tri = [[-half, 0], [half, 0], [0, rise]];
-      if (ridgeZ) this.ext(tri, -len / 2, len, wallCol, { at: [cx, y, cz], lod: true });
-      else this.ext(tri, -len / 2, len, wallCol, { at: [cx, y, cz], ry: Math.PI / 2, lod: true });
+      const wo = { lod: true, pat: o.wp, ps: o.wps };
+      if (ridgeZ) this.ext(tri, -len / 2, len, wallCol, { ...wo, at: [cx, y, cz] });
+      else this.ext(tri, -len / 2, len, wallCol, { ...wo, at: [cx, y, cz], ry: Math.PI / 2 });
     }
     if (o.trim) { // fascia boards along the rakes at both gable ends
       const t = o.trimW ?? 0.22;
@@ -110,7 +112,7 @@ export class Kit {
   }
   door(x, y0, z, w, h, color, o = {}) {
     const f = o.frame || '#f2ece2';
-    this.box(x, y0, z + 0.03, w, h, 0.06, color);
+    this.box(x, y0, z + 0.03, w, h, 0.06, color, { pat: o.pat, ps: o.ps, pdx: o.pdx });
     if (o.frame !== null) { this.box(x - w / 2 - 0.06, y0, z + 0.05, 0.12, h + 0.12, 0.08, f); this.box(x + w / 2 + 0.06, y0, z + 0.05, 0.12, h + 0.12, 0.08, f); this.box(x, y0 + h, z + 0.05, w + 0.24, 0.12, 0.08, f); }
     if (o.panels) { for (const py of [0.25, 0.62]) this.box(x, y0 + h * py, z + 0.07, w * 0.7, h * 0.28, 0.02, o.panels); }
     if (o.lite) this.box(x, y0 + h * 0.62, z + 0.07, w * 0.55, h * 0.28, 0.02, o.lite);
@@ -134,7 +136,8 @@ export class Kit {
     return this;
   }
   // horizontal lap siding strips across a face facing +z at z, from x0..x1, y0..y1
-  siding(x0, x1, y0, y1, z, color, o = {}) { const step = o.step ?? 0.24; for (let y = y0 + step; y < y1 - 0.02; y += step) this.box((x0 + x1) / 2, y - 0.025, z + 0.015, x1 - x0, 0.04, 0.03, color); return this; }
+  // M5: one skin panel carrying the lap-siding pattern (was one box per board). o.base = wall colour (default: color)
+  siding(x0, x1, y0, y1, z, color, o = {}) { this.box((x0 + x1) / 2, y0, z + 0.008, x1 - x0, y1 - y0, 0.016, o.base || color, { pat: o.pat || 'siding', ps: o.step ?? 0.24 }); return this; }
   // register an axis-aligned solid (local corners) for walking collisions + camera occlusion
   solid(x0, z0, x1, z1, h = 4) { this.solids.push([x0, z0, x1, z1, h, this.M.clone()]); return this; }
   // a ready-made mesh (sign, text) placed in the current frame
@@ -153,14 +156,90 @@ export class Kit {
   }
 }
 
-function planarUV(g) {
-  const p = g.attributes.position, n = g.attributes.normal, uv = new Float32Array(p.count * 2);
+function planarUV(g, pid = 0, ps = 0.2, pdx = 0) {
+  const p = g.attributes.position, n = g.attributes.normal, uv = new Float32Array(p.count * 2), pa = new Float32Array(p.count * 4);
   for (let i = 0; i < p.count; i++) {
     const ax = Math.abs(n.getX(i)), ay = Math.abs(n.getY(i)), az = Math.abs(n.getZ(i));
     let u, v; if (ay >= ax && ay >= az) { u = p.getX(i); v = p.getZ(i); } else if (ax >= az) { u = p.getZ(i); v = p.getY(i); } else { u = p.getX(i); v = p.getY(i); }
     uv[i * 2] = u * UVS; uv[i * 2 + 1] = v * UVS;
+    if (pid) { // pattern frame: u along the surface horizontally, v "up the courses" (roofs: courses run parallel to the eave)
+      let pu = u, pv = v;
+      if (ay >= ax && ay >= az) { if (ax > az) { pu = p.getZ(i); pv = p.getX(i) * Math.sign(n.getX(i) || 1); } else { pu = p.getX(i); pv = p.getZ(i) * Math.sign(n.getZ(i) || 1); } pv = -pv; }
+      pa[i * 4] = pid; pa[i * 4 + 1] = ps; pa[i * 4 + 2] = pu + pdx; pa[i * 4 + 3] = pv;
+    }
   }
   g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  g.setAttribute('pat', new THREE.BufferAttribute(pa, 4));
+}
+
+// ---------------------------------------------------------------- M5: zero-geometry surface detail
+// Each primitive can carry a pattern ({pat:'siding'|'shingle'|'brick'|...}, ps = course size in metres). It rides in a
+// vec4 vertex attribute (id, size, u, v) and a fragment snippet shades the felt colour: board laps, shingle tabs, brick
+// + mortar, stucco swirl, battens, barrel tile, fish-scale, block, louvres, lattice. Pure brightness modulation of the
+// locked vertex colour (mortar/grout are the only extra tints), fading out with distance (fwidth) so it never shimmers.
+export const PAT = { siding: 1, shingle: 2, brick: 3, stucco: 4, batten: 5, tile: 6, scale: 7, block: 8, louver: 9, lattice: 10, metal: 11, shake: 12, panel: 13, stone: 14 };
+const PAT_S = { siding: 0.2, shingle: 0.2, brick: 0.085, stucco: 0.5, batten: 0.4, tile: 0.3, scale: 0.16, block: 0.2, louver: 0.07, lattice: 0.18, metal: 0.08, shake: 0.22, panel: 0.6, stone: 0.3 };
+const PAT_FRAG = /* glsl */`
+varying vec4 vPat;
+float pH(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float pLine(float f, float w, float fw) { float d = min(f, 1.0 - f); return 1.0 - smoothstep(w, w + fw * 1.5, d); }
+vec3 patShade(vec3 c) {
+  float id = floor(vPat.x + 0.5); if (id < 0.5) return c;
+  vec2 q = vPat.zw / vPat.y; vec2 fw2 = fwidth(q); float fw = max(fw2.x, fw2.y);
+  float fade = 1.0 - smoothstep(0.18, 0.5, fw); if (fade <= 0.0) return c;
+  float m = 1.0; vec3 tint = c; float tm = 0.0;
+  if (id < 1.5) { // lap siding: each board shadowed under the lap above, groove line
+    float f = fract(q.y), r = floor(q.y); m = (0.86 + 0.14 * smoothstep(0.0, 0.55, f)) * (0.97 + 0.06 * pH(vec2(r, 3.1)));
+    m *= 1.0 - 0.28 * pLine(f, 0.025, fw);
+  } else if (id < 2.5) { // asphalt tab shingles
+    float r = floor(q.y), f = fract(q.y); float x = q.x * 0.5 + 0.5 * mod(r, 2.0); float cx = floor(x), fx = fract(x);
+    m = 0.86 + 0.22 * pH(vec2(cx, r)); m *= 0.88 + 0.12 * smoothstep(0.0, 0.4, f);
+    m *= 1.0 - 0.35 * pLine(f, 0.03, fw); m *= 1.0 - 0.3 * pLine(fx, 0.012, fw) * step(0.3, f);
+  } else if (id < 3.5) { // brick, running bond, light mortar
+    float r = floor(q.y), f = fract(q.y); float x = q.x / 2.7 + 0.5 * mod(r, 2.0); float fx = fract(x);
+    m = 0.84 + 0.26 * pH(vec2(floor(x), r)); float mort = max(pLine(f, 0.09, fw), pLine(fx, 0.035, fw)); tint = vec3(0.78, 0.74, 0.68); tm = mort * 0.85;
+  } else if (id < 4.5) { // stucco swirl: overlapping trowel arcs
+    vec2 g = floor(q), fq = fract(q); float best = 9.0, ring = 0.0;
+    for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { vec2 o = vec2(float(i), float(j)); vec2 c2 = o + vec2(pH(g + o), pH(g + o + 7.7)); float d = length(fq - c2); if (d < best) { best = d; ring = sin(d * 26.0 + pH(g + o) * 6.0); } }
+    m = 0.95 + 0.07 * ring + 0.04 * (pH(floor(q * 6.0)) - 0.5);
+  } else if (id < 5.5) { // board & batten
+    float fx = fract(q.x); m = 1.0 - 0.18 * pLine(fx, 0.06, fw) + 0.07 * smoothstep(0.08, 0.0, abs(fx - 0.1));
+    m *= 0.97 + 0.05 * pH(vec2(floor(q.x), 1.0));
+  } else if (id < 6.5) { // barrel tile (spanish)
+    float r = floor(q.y), f = fract(q.y), fx = fract(q.x * 0.8); m = 0.72 + 0.36 * sin(fx * 3.14159); m *= 0.82 + 0.18 * smoothstep(0.0, 0.3, f); m *= 0.94 + 0.12 * pH(vec2(floor(q.x * 0.8), r));
+  } else if (id < 7.5) { // fish-scale shingles
+    float r = floor(q.y); float x = q.x + 0.5 * mod(r, 2.0); vec2 c2 = vec2(fract(x) - 0.5, fract(q.y)); float d = length(vec2(c2.x, c2.y * 1.1));
+    m = (0.88 + 0.16 * smoothstep(0.55, 0.2, d)) * (1.0 - 0.3 * smoothstep(0.42, 0.5, d) * (1.0 - smoothstep(0.5, 0.56, d))) * (0.95 + 0.1 * pH(vec2(floor(x), r)));
+  } else if (id < 8.5) { // block / cinder
+    float r = floor(q.y), f = fract(q.y); float x = q.x / 2.0 + 0.5 * mod(r, 2.0); float fx = fract(x);
+    m = 0.93 + 0.1 * pH(vec2(floor(x), r)); m *= 1.0 - 0.22 * max(pLine(f, 0.04, fw), pLine(fx, 0.02, fw));
+  } else if (id < 9.5) { // louvres (gable vents, shutters, grilles)
+    float f = fract(q.y); m = 0.62 + 0.45 * smoothstep(0.0, 0.7, f);
+  } else if (id < 10.5) { // lattice / diamond grille
+    float a = fract((q.x + q.y) * 0.5), b = fract((q.x - q.y) * 0.5); m = 1.0 - 0.5 * max(pLine(a, 0.12, fw), pLine(b, 0.12, fw));
+  } else if (id < 11.5) { // corrugated metal
+    m = 0.86 + 0.18 * sin(q.x * 6.283);
+  } else if (id < 12.5) { // wood shakes
+    float r = floor(q.y), f = fract(q.y); float x = q.x * 1.3 + pH(vec2(r, 9.0)); float cx = floor(x + 0.4 * pH(vec2(floor(x), r)));
+    m = (0.82 + 0.26 * pH(vec2(cx, r))) * (0.85 + 0.15 * smoothstep(0.0, 0.5, f)); m *= 1.0 - 0.3 * pLine(f, 0.03, fw);
+  } else if (id < 13.5) { // raised panels (doors, wainscot, storefront kick plates)
+    vec2 f = fract(q); float e = min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y)); m = 1.0 - 0.2 * (1.0 - smoothstep(0.06, 0.06 + fw, e)) + 0.06 * smoothstep(0.1, 0.16, e) * step(f.y, 0.5);
+  } else { // fieldstone
+    vec2 g = floor(q), fq = fract(q); float d1 = 9.0, d2 = 9.0; vec2 cid = g;
+    for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { vec2 o = vec2(float(i), float(j)); vec2 c2 = o + 0.15 + 0.7 * vec2(pH(g + o), pH(g + o + 3.3)); float d = length(fq - c2); if (d < d1) { d2 = d1; d1 = d; cid = g + o; } else if (d < d2) d2 = d; }
+    m = 0.82 + 0.3 * pH(cid); tint = vec3(0.7, 0.67, 0.62); tm = 0.8 * (1.0 - smoothstep(0.04, 0.04 + fw * 2.0, d2 - d1));
+  }
+  vec3 o = mix(c * m, tint, tm);
+  return mix(c, o, fade);
+}`;
+export function patInject(sh) {
+  sh.vertexShader = 'attribute vec4 pat;\nvarying vec4 vPat;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vPat = pat;');
+  sh.fragmentShader = PAT_FRAG + '\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb = patShade(diffuseColor.rgb);');
+}
+export function patternize(mat) {
+  mat.userData.pat = true;
+  const prev = mat.onBeforeCompile; mat.onBeforeCompile = (sh, r) => { prev?.call(mat, sh, r); patInject(sh); };
+  const pk = mat.customProgramCacheKey?.bind(mat); mat.customProgramCacheKey = () => (pk ? pk() : '') + '|pat'; mat.needsUpdate = true; return mat;
 }
 
 // text on a canvas -> plane mesh (signs, neon letters). Returns a Mesh facing +z.

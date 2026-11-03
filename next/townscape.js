@@ -3,7 +3,7 @@
 // Each building = one merged vertex-coloured felt mesh (+ unlit glow mesh + distance massing mesh). Colours are
 // point-sampled from the reference photos (median of a small patch, daylight side) — see PAL.
 import * as THREE from 'three';
-import { Kit, textPlane } from './townkit.js';
+import { Kit, textPlane, patternize } from './townkit.js';
 import { buildCommercial } from './townshops.js';
 import { buildStreet } from './townstreet.js';
 
@@ -42,7 +42,7 @@ export const GRID = {
 
 export function createTownscape(C) {
   const { scene, feltMat, makeMeltable, LOW } = C;
-  const mats = { felt: feltMat('#ffffff', { vertexColors: true }), glow: new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }) };
+  const mats = { felt: patternize(feltMat('#ffffff', { vertexColors: true })), glow: new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }) };
   const TS = { buildings: [], boxes: [], doors: {}, marks: {}, GRID, PAL, stats: { tris: 0 } };
   const S = PAL.street;
 
@@ -164,16 +164,16 @@ function buildHouses(TS, place) {
   place('wolf_house', 22, MN.north, 0, (k) => {
     const P = PAL.wolf, H = 5.4;
     lot(k, 20, MN.yard, P.lawn, { back: 8 });
-    k.aab(-3.2, 0, -10, 6.2, H, 0, P.wall, { lod: true }); k.solid(-3.2, -10, 6.2, 0, H + 3);
+    k.aab(-3.2, 0, -10, 6.2, H, 0, P.wall, { lod: true, pat: 'stucco' }); k.solid(-3.2, -10, 6.2, 0, H + 3);
     k.aab(-3.25, 0, -10, 6.25, 0.35, 0.04, '#d6ccbc');                            // plinth
-    k.gable(1.5, -5, 9.4, 10, H, 3.6, P.roof, P.wall, { over: 0.3, ridge: 'z' });
+    k.gable(1.5, -5, 9.4, 10, H, 3.6, P.roof, P.wall, { over: 0.3, ridge: 'z', rp: 'shingle', wp: 'stucco' });
     // the storybook swoop: a white wing whose roof line sweeps down concave to the left over the arched gate
     const sw = []; for (let i = 0; i <= 12; i++) { const t = i / 12; sw.push([-3.2 - t * 4.6, 2.3 + (H + 2.6 - 2.3) * Math.pow(1 - t, 2.2)]); }
-    k.ext([[-3.2, 0], [-7.8, 0], ...sw.slice().reverse()], -0.5, 0.5, P.wall, { lod: true });
+    k.ext([[-3.2, 0], [-7.8, 0], ...sw.slice().reverse()], -0.5, 0.5, P.wall, { lod: true, pat: 'stucco' });
     for (let i = 1; i < sw.length; i++) k.beam([sw[i - 1][0], sw[i - 1][1] + 0.08, 0.05], [sw[i][0], sw[i][1] + 0.08, 0.05], 0.22, P.roof, {}, 0.6);
     k.solid(-7.8, -0.5, -3.2, 0, 3);
     const arch = [[-6.9, 0], [-4.1, 0], [-4.1, 1.6]]; for (let i = 0; i <= 10; i++) { const a = i / 10 * Math.PI; arch.push([-5.5 + Math.cos(a) * 1.4, 1.6 + Math.sin(a) * 0.75]); }
-    k.ext(arch, 0.0, 0.08, P.gate); for (let x = -6.6; x < -4.2; x += 0.42) k.box(x, 0, 0.09, 0.05, 2.0, 0.02, '#5e3a24');
+    k.ext(arch, 0.0, 0.08, P.gate, { pat: 'batten', ps: 0.21 }); for (let x = -6.6; x < -4.2; x += 0.42) k.box(x, 0, 0.09, 0.05, 2.0, 0.02, '#5e3a24');
     // entry: raised stoop, steps, black rails, screen door, awning
     k.aab(-0.4, 0, 0, 2.2, 1.0, 1.5, '#e8dfd0'); k.steps(0.9, 3.0, 1.3, 1.0, 5, P.steps, { tread: 0.3 });
     k.rail([[0.15, 1.5, 1.0], [0.15, 3.0, 0.15]], 0.9, P.rail, { bal: 0.12 }); k.rail([[1.65, 1.5, 1.0], [1.65, 3.0, 0.15]], 0.9, P.rail, { bal: 0.12 });
@@ -182,7 +182,12 @@ function buildHouses(TS, place) {
     k.window(-1.9, 1.2, 0, 1.6, 1.5, { frame: P.wtrim, glass: '#4a4c50', blind: 0.6, blindCol: P.blind, sill: P.wall, mull: [1, 0] });
     k.window(4.0, 3.0, 0, 1.4, 1.3, { frame: P.wtrim, glass: '#4a4c50', blind: 0.5, blindCol: P.blind, sill: P.wall });
     k.window(1.5, 6.1, 0, 0.7, 0.8, { frame: P.wtrim, glass: '#4a4c50', mull: [1, 1] });
-    k.door(4.0, 0, 0, 2.7, 2.2, P.garage, { frame: P.wall, knob: P.garage }); for (let y = 0.55; y < 2.2; y += 0.55) k.box(4.0, y, 0.07, 2.6, 0.03, 0.02, '#d2cdc0');
+    k.door(4.0, 0, 0, 2.7, 2.2, P.garage, { frame: P.wall, knob: P.garage, pat: 'batten', ps: 0.34 });
+    // M5 detail: garage + crawl vents (louvred, brown), two round gable vents + ghost diamond, porch lamp, house number, brick bed edging
+    for (const u of [3.15, 4.85]) k.box(u, 0.12, 0.14, 0.5, 0.26, 0.02, '#a8735a', { pat: 'louver', ps: 0.05 }); k.box(-1.4, 0.3, 0.02, 0.32, 0.4, 0.02, '#c8ad8a', { pat: 'louver', ps: 0.05 });
+    for (const u of [1.3, 1.7]) k.cyl(u, 7.95, 0.04, 0.11, 0.08, '#c4b6a2', { rx: Math.PI / 2, seg: 8 }); k.box(1.5, 7.2, 0.01, 0.42, 0.42, 0.015, '#ddd3c3', { rz: Math.PI / 4 });
+    k.box(0.0, 2.75, 0.05, 0.1, 0.16, 0.08, '#c8a04a'); k.box(0.0, 2.3, 0.02, 0.24, 0.1, 0.02, '#2a2a2a');
+    k.aab(-3.0, 0, 0.12, -0.45, 0.2, 0.32, '#a85a42', { pat: 'brick', ps: 0.07 }); k.aab(2.2, 0, 0.12, 2.6, 0.2, 1.5, '#a85a42', { pat: 'brick', ps: 0.07 });
     walkTo(k, 4.0, 3.0, 0, MN.yard + 3.5, '#cfc6b8');                                      // driveway
     walkTo(k, 0.9, 1.2, 3.0, MN.yard, '#cfc6b8');
     for (const [x, z, s] of [[-0.9, 0.6, 1], [2.9, 0.6, 0.85], [-2.6, 0.5, 0.9]]) { k.blob(x, 0.45 * s, z, 0.75 * s, 0.55 * s, 0.55 * s, P.hydrLeaf); for (let i = 0; i < 5; i++) k.blob(x + Math.cos(i * 1.3) * 0.45 * s, 0.75 * s + (i % 2) * 0.12, z + Math.sin(i * 1.3) * 0.3, 0.26 * s, 0.24 * s, 0.24 * s, P.hydr); }
@@ -193,16 +198,22 @@ function buildHouses(TS, place) {
   place('bear_house', 0, MN.north, 0, (k) => {
     const P = PAL.bear, H = 2.9;
     lot(k, 20, MN.yard, P.lawn, { back: 8 });
-    k.aab(-6.5, 0, -11, 6.5, H, -1.2, P.wall, { lod: true }); k.solid(-6.5, -11, 6.5, 0.4, 4.5);
-    k.aab(0.2, 0, -1.2, 6.5, H, 0.4, P.wall, { lod: true });                          // garage wing steps forward
-    k.aab(-6.5, 0, -1.2, -2.4, H, 0, P.wall2);
-    k.gable(0, -6, 13, 9.8, H, 1.7, P.roof, P.wall, { over: 0.4, ridge: 'x' });
-    k.gable(3.35, -0.6, 6.3, 2.2, H, 1.9, P.roof, P.wall, { over: 0.35, ridge: 'z', trim: P.trim, overEnd: 0.25 });
-    k.gable(-4.4, -0.6, 4.2, 1.8, H, 1.3, P.roof, P.wall2, { over: 0.3, ridge: 'z', trim: P.trim, overEnd: 0.2 });
+    k.aab(-6.5, 0, -11, 6.5, H, -1.2, P.wall, { lod: true, pat: 'stucco' }); k.solid(-6.5, -11, 6.5, 0.4, 4.5);
+    k.aab(0.2, 0, -1.2, 6.5, H, 0.4, P.wall, { lod: true, pat: 'stucco' });                          // garage wing steps forward
+    k.aab(-6.5, 0, -1.2, -2.4, H, 0, P.wall2, { pat: 'stucco' });
+    k.gable(0, -6, 13, 9.8, H, 1.7, P.roof, P.wall, { over: 0.4, ridge: 'x', rp: 'shingle', wp: 'stucco' });
+    k.gable(3.35, -0.6, 6.3, 2.2, H, 1.9, P.roof, P.wall, { over: 0.35, ridge: 'z', trim: P.trim, overEnd: 0.25, rp: 'shingle', wp: 'stucco' });
+    k.gable(-4.4, -0.6, 4.2, 1.8, H, 1.3, P.roof, P.wall2, { over: 0.3, ridge: 'z', trim: P.trim, overEnd: 0.2, rp: 'shingle', wp: 'stucco' });
     k.aab(-6.6, H - 0.2, 0.0, 6.6, H, 0.55, P.trim);                                  // red fascia band
     // garage door: cream panels in a red grid
     const gx = 3.35, gw = 4.8, gh = 2.2; k.box(gx, 0, 0.42, gw + 0.2, gh + 0.1, 0.05, P.trim);
-    for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) k.box(gx - gw / 2 + gw * (i + 0.5) / 4, 0.06 + gh * j / 4, 0.46, gw / 4 - 0.14, gh / 4 - 0.12, 0.04, P.garage);
+    for (let i = 0; i < 4; i++) for (let j = 0; j < 5; j++) k.box(gx - gw / 2 + gw * (i + 0.5) / 4, 0.06 + gh * j / 5, 0.46, gw / 4 - 0.14, gh / 5 - 0.1, 0.04, P.garage);
+    // M5 detail: red louvred gable vents, window header band, red-capped chimney, brick bed edging, porch post + lamp, curb number, the leafy tree
+    k.box(3.35, H + 0.75, 0.47, 0.62, 0.48, 0.04, P.trim, { pat: 'louver', ps: 0.07 }); k.box(-4.4, H + 0.42, 0.25, 0.5, 0.4, 0.04, P.trim, { pat: 'louver', ps: 0.07 });
+    k.aab(-5.65, 2.3, 0, -3.15, 2.5, 0.1, P.trim); for (const u of [-6.3, -5.2]) k.aab(u - 0.06, 0, -3.5, u + 0.06, 5.0, -2.38, P.trim);
+    k.aab(-6.4, 4.9, -3.6, -5.1, 5.12, -2.3, P.trim); k.aab(-6.0, 5.12, -3.2, -5.5, 5.4, -2.7, '#9a948c');
+    k.aab(-6.4, 0, 0.35, -2.5, 0.28, 0.6, '#b44a44', { pat: 'brick', ps: 0.07 }); k.aab(-0.25, 0, -1.2, -0.05, 2.9, 0.35, P.trim); k.box(0.45, 1.95, 0.42, 0.1, 0.16, 0.06, '#e8e0c8');
+    for (const [x, y, z, r] of [[-5.2, 1.6, 0.9, 1.1], [-4.6, 2.6, 0.7, 0.9], [-5.5, 3.2, 0.5, 0.7], [-4.9, 0.8, 1.2, 0.8]]) k.blob(x, y, z, r, r * 1.1, r * 0.8, '#3f6a34', { detail: 1 });
     k.door(-1.4, 0, -1.2, 1.0, 2.1, P.door, { frame: P.trim }); k.mark('door_living90', -1.4, 1.6);
     k.aab(-2.4, 0, -1.2, -0.2, 0.18, 0.3, '#d9cfc4');
     k.window(-4.4, 1.0, 0, 2.0, 1.2, { frame: P.trim, glass: P.curtain, mull: [1, 0], sill: P.trim });
@@ -216,13 +227,16 @@ function buildHouses(TS, place) {
   place('lynx_house', -22, MN.north, 0, (k) => {
     const P = PAL.lynx, H = 2.8;
     lot(k, 20, MN.yard, P.lawn, { back: 8 });
-    k.aab(-7, 0, -10, 7, H, 0, P.wall, { lod: true }); k.solid(-7, -10, 7, 0.6, 4.2);
-    k.aab(-7, 0, 0, -1.6, H, 0.6, P.wall);
-    k.siding(-7, 7, 0.2, H, 0, '#e6ddd0'); k.siding(-7, -1.6, 0.2, H, 0.6, '#e6ddd0');
-    k.gable(0, -5, 14, 10, H, 1.6, P.roof, P.wall, { over: 0.45, ridge: 'x' });
-    k.gable(-4.3, 0.0, 5.4, 1.4, H, 1.5, P.roof, P.wall, { over: 0.35, ridge: 'z', trim: P.yellow, overEnd: 0.3 });
+    k.aab(-7, 0, -10, 7, H, 0, P.wall, { lod: true, pat: 'siding', ps: 0.21 }); k.solid(-7, -10, 7, 0.6, 4.2);
+    k.aab(-7, 0, 0, -1.6, H, 0.6, P.wall, { pat: 'siding', ps: 0.21 });
+        k.gable(0, -5, 14, 10, H, 1.6, P.roof, P.wall, { over: 0.45, ridge: 'x', rp: 'shingle', wp: 'siding', wps: 0.21 });
+    k.gable(-4.3, 0.0, 5.4, 1.4, H, 1.5, P.roof, P.wall, { over: 0.35, ridge: 'z', trim: P.yellow, overEnd: 0.3, rp: 'shingle', wp: 'siding', wps: 0.21 });
     k.aab(-7.1, H - 0.22, 0, 7.1, H, 0.12, P.yellow);
-    k.door(-4.3, 0, 0.6, 3.9, 2.2, P.garage, { frame: P.yellow, knob: P.garage }); for (let y = 0.55; y < 2.2; y += 0.55) k.box(-4.3, y, 0.67, 3.8, 0.03, 0.02, '#e8cf88');
+    k.door(-4.3, 0, 0.6, 3.9, 2.2, P.garage, { frame: P.yellow, knob: P.garage });
+    // M5 detail: the garage door's two X braces, yellow louvred gable vent, flue pipe, porch post, red stoop, wall vent, porch lamp
+    for (const u of [-5.7, -2.9]) { k.beam([u - 0.45, 1.55, 0.68], [u + 0.45, 2.05, 0.68], 0.04, '#e3c47c', {}, 0.02); k.beam([u + 0.45, 1.55, 0.68], [u - 0.45, 2.05, 0.68], 0.04, '#e3c47c', {}, 0.02); }
+    k.box(-4.3, H + 0.75, 0.72, 0.6, 0.32, 0.04, P.yellow, { pat: 'louver', ps: 0.06 }); k.cyl(1.6, H + 0.6, -3.2, 0.12, 1.5, '#b4b2ae', { seg: 8 }); k.cyl(1.6, H + 2.05, -3.2, 0.17, 0.12, '#a4a29e', { seg: 8 });
+    k.box(1.05, 0, 0.12, 0.14, H, 0.14, P.yellow); k.aab(-0.25, 0, 0, 1.1, 0.22, 0.7, P.path); k.box(-0.95, 1.2, 0.02, 0.2, 0.14, 0.02, '#ece4d6', { pat: 'louver', ps: 0.035 }); k.box(1.1, 1.75, 0.2, 0.1, 0.18, 0.08, '#4a4440');
     k.door(0.4, 0, 0, 0.95, 2.05, P.door, { frame: P.yellow }); k.mark('door_lynx', 0.4, 1.4);
     for (const x of [2.8, 5.4]) k.window(x, 1.0, 0, 1.5, 1.2, { frame: '#f2ece0', glass: '#3c4248', shutters: P.yellow, shW: 0.45, mull: [1, 0] });
     walkTo(k, -4.3, 4.0, 0.6, MN.yard + 3.5, '#d8cdbf');
@@ -239,13 +253,15 @@ function buildHouses(TS, place) {
   place('crow_house', -62, MN.north, 0, (k) => {
     const P = PAL.crow, H = 3.0;
     lot(k, 20, MN.yard, '#8a8f62', { back: 8 });
-    k.aab(-4, 0, -10, 4, H, 0, P.wall, { lod: true }); k.solid(-4, -10, 4, 2.4, 4.5);
-    k.gable(0, -5, 8, 10, H, 2.8, P.mainRoof, P.gable, { over: 0.35, ridge: 'z', trim: P.green, trimW: 0.26 });
+    k.aab(-4, 0, -10, 4, H, 0, P.wall, { lod: true, pat: 'siding', ps: 0.2 }); k.solid(-4, -10, 4, 2.4, 4.5);
+    k.gable(0, -5, 8, 10, H, 2.8, P.mainRoof, P.gable, { over: 0.35, ridge: 'z', trim: P.green, trimW: 0.26, rp: 'shingle', wp: 'shake', wps: 0.2 });
     k.window(0, H + 0.6, 0.05, 0.75, 0.75, { frame: P.green, glass: '#3e3a3a', ft: 0.12, mull: [1, 1] });
     // porch: pink floor at 0.7, green posts + rails, shed roof of pinkish shingle
     k.aab(-4, 0, 0, 4, 0.7, 2.4, P.porch); k.aab(-4.05, 0, 2.3, 4.05, 0.7, 2.45, P.green);
     for (const x of [-3.85, -1.3, 1.3, 3.85]) k.box(x, 0.7, 2.25, 0.2, 2.15, 0.2, P.post);
-    k.box(0, 2.82, 1.25, 8.6, 0.16, 2.8, P.roof, { rx: 0.18 }); k.aab(-4.3, 2.55, 2.55, 4.3, 2.78, 2.7, P.green);
+    k.box(0, 2.82, 1.25, 8.6, 0.16, 2.8, P.roof, { rx: 0.18, pat: 'shingle', ps: 0.18 });
+    // M5 detail: green lattice skirt under the porch, green corner boards, gable-window trim head
+    k.aab(-3.95, 0.05, 2.46, 3.95, 0.62, 2.48, '#2a6a4a', { pat: 'lattice', ps: 0.16 }); for (const u of [-4, 4]) k.box(u, 0, 0.02, 0.18, H, 0.08, P.green); k.box(0, H + 1.5, 0.12, 1.1, 0.12, 0.12, P.green); k.aab(-4.3, 2.55, 2.55, 4.3, 2.78, 2.7, P.green);
     for (const [a, b] of [[-3.85, -1.3], [1.3, 3.85]]) k.rail([[a, 2.25, 0.7], [b, 2.25, 0.7]], 0.85, P.rail, { bal: 0.13 });
     k.steps(0, 3.9, 2.6, 0.7, 3, P.steps, { tread: 0.5 });
     k.door(0, 0.7, 0, 0.95, 2.05, P.door, { frame: P.green, lite: '#3e3a3a' }); k.mark('door_crow', 0, 4.4);
@@ -260,13 +276,14 @@ function buildHouses(TS, place) {
   place('heron_house', -84, MN.north, 0, (k) => {
     const P = PAL.heron;
     lot(k, 20, MN.yard, '#8a8f62', { back: 8 });
-    k.aab(-0.6, 0, -11, 5.4, 5.0, 0, P.siding, { lod: true }); k.solid(-5.4, -11, 5.4, 1.4, 7.5);
-    k.gable(2.4, -5.5, 6.0, 11, 5.0, 3.0, P.roof, P.siding, { over: 0.35, ridge: 'z', trim: P.trim, trimW: 0.16 });
-    k.aab(-5.4, 0, -10, -0.6, 3.0, 1.4, P.siding, { lod: true });
-    k.gable(-3.0, -4.3, 4.8, 11.4, 3.0, 2.3, P.roof, P.siding, { over: 0.3, ridge: 'z', trim: P.trim, trimW: 0.14 });
-    for (let y = 0.25; y < 4.9; y += 0.22) k.box(2.4, y, 0.015, 6.0, 0.04, 0.03, P.shingle);
-    for (let y = 0.25; y < 2.95; y += 0.22) k.box(-3.0, y, 1.415, 4.8, 0.04, 0.03, P.shingle);
-    k.door(2.4, 0, 0, 2.7, 2.25, P.garage, { frame: P.trim, knob: P.garage }); for (let y = 0.55; y < 2.25; y += 0.55) k.box(2.4, y, 0.07, 2.6, 0.03, 0.02, '#d8d0c4');
+    k.aab(-0.6, 0, -11, 5.4, 5.0, 0, P.siding, { lod: true, pat: 'shake', ps: 0.22 }); k.solid(-5.4, -11, 5.4, 1.4, 7.5);
+    k.gable(2.4, -5.5, 6.0, 11, 5.0, 3.0, P.roof, P.siding, { over: 0.35, ridge: 'z', trim: P.trim, trimW: 0.16, rp: 'shingle', wp: 'shake', wps: 0.22 });
+    k.aab(-5.4, 0, -10, -0.6, 3.0, 1.4, P.siding, { lod: true, pat: 'shake', ps: 0.22 });
+    k.gable(-3.0, -4.3, 4.8, 11.4, 3.0, 2.3, P.roof, P.siding, { over: 0.3, ridge: 'z', trim: P.trim, trimW: 0.14, rp: 'shingle', wp: 'shake', wps: 0.22 });
+    k.door(2.4, 0, 0, 2.7, 2.25, P.garage, { frame: P.trim, knob: P.garage, pat: 'panel', ps: 0.5625, pdx: 0.2 });
+    // M5 detail: white corner boards + belly band, little shed hood over the garage window, porch lamp
+    for (const u of [-0.6, 5.4]) k.box(u, 0, 0.03, 0.16, 5.0, 0.08, P.trim); for (const u of [-5.4, -0.6]) k.box(u, 0, 1.43, 0.16, 3.0, 0.08, P.trim);
+    k.aab(-0.6, 2.75, 0, 5.4, 2.9, 0.12, P.trim); k.box(2.4, 4.45, 0.25, 1.9, 0.08, 0.5, P.roof, { rx: 0.3 }); k.box(-1.0, 2.2, 1.48, 0.1, 0.18, 0.08, '#2a2a2a');
     k.window(2.4, 3.1, 0, 1.4, 1.2, { frame: P.trim, glass: '#3a3e46', mull: [1, 0] });
     k.window(-4.1, 1.1, 1.4, 0.9, 1.3, { frame: P.trim, glass: '#3a3e46', mull: [0, 1] });
     k.aab(-3.0, 0, 1.4, -1.2, 0.9, 2.4, P.steps); k.steps(-2.1, 4.0, 1.4, 0.9, 4, P.steps, { tread: 0.4 });
@@ -281,12 +298,14 @@ function buildHouses(TS, place) {
   place('gecko_house', -122, MN.north, 0, (k) => {
     const P = PAL.gecko, H = 2.8;
     lot(k, 20, MN.yard, '#8f8a5a', { back: 8 });
-    k.aab(-3.5, 0.5, -8, 3.5, H + 0.5, 0, P.wall, { lod: true }); k.aab(-3.5, 0, -8, 3.5, 0.5, 0, '#c8b4a8'); k.solid(-3.5, -8, 3.5, 2.2, 4.5);
-    k.siding(-3.5, 3.5, 0.6, H + 0.5, 0, '#d8b09e');
-    k.gable(0, -4, 7, 8, H + 0.5, 2.2, P.roof, P.wall, { over: 0.4, ridge: 'z', trim: P.fascia, trimW: 0.34 });
+    k.aab(-3.5, 0.5, -8, 3.5, H + 0.5, 0, P.wall, { lod: true, pat: 'siding', ps: 0.2 }); k.aab(-3.5, 0, -8, 3.5, 0.5, 0, '#c8b4a8'); k.solid(-3.5, -8, 3.5, 2.2, 4.5);
+    k.gable(0, -4, 7, 8, H + 0.5, 2.2, P.roof, P.wall, { over: 0.4, ridge: 'z', trim: P.fascia, trimW: 0.34, rp: 'shingle', wp: 'siding', wps: 0.2 });
     k.aab(-3.5, 0, 0, 3.5, 0.5, 2.0, '#c9b7a8');
     for (const x of [-3.3, 3.3]) k.box(x, 0.5, 1.85, 0.16, 2.4, 0.16, P.fascia);
-    k.box(0, 2.95, 1.0, 7.4, 0.14, 2.2, P.roof, { rx: 0.12 }); k.aab(-3.7, 2.75, 2.05, 3.7, 2.95, 2.15, P.fascia);
+    k.box(0, 2.95, 1.0, 7.4, 0.14, 2.2, P.roof, { rx: 0.12, pat: 'shingle', ps: 0.18 });
+    // M5 detail: pink skirt boards, white corner boards, gable louvre, porch lamp
+    k.aab(-3.52, 0, -8, 3.52, 0.5, 0.02, '#d4a898', { pat: 'batten', ps: 0.3 }); for (const u of [-3.5, 3.5]) k.box(u, 0.5, 0.03, 0.14, H, 0.08, P.fascia);
+    k.box(0, H + 1.15, 0.03, 0.55, 0.4, 0.04, P.fascia, { pat: 'louver', ps: 0.06 }); k.box(0.7, 2.25, 0.06, 0.1, 0.16, 0.08, '#3a3a3a'); k.aab(-3.7, 2.75, 2.05, 3.7, 2.95, 2.15, P.fascia);
     k.pickets([-3.3, 1.9], [-0.8, 1.9], 0.85, P.rail, { gap: 0.12, rails: [0.1, 0.78], y0: 0.5 }); k.pickets([0.8, 1.9], [3.3, 1.9], 0.85, P.rail, { gap: 0.12, rails: [0.1, 0.78], y0: 0.5 });
     k.steps(0, 3.4, 1.5, 0.5, 3, P.steps, { tread: 0.47 });
     k.door(0, 0.5, 0, 0.9, 2.0, '#efe6dc', { frame: P.fascia, lite: '#5a4a4a' }); k.mark('door_gecko', 0, 3.9);
@@ -300,9 +319,9 @@ function buildHouses(TS, place) {
   place('ram_house', 22, MN.south, Math.PI, (k) => {
     const P = PAL.ram, H = 3.0;
     lot(k, 20, MN.yard, P.lawn, { back: 8 });
-    k.aab(-4.5, 0.6, -11, 4.5, H + 0.6, -2.0, P.wall, { lod: true }); k.aab(-4.5, 0, -11, 4.5, 0.6, 0, '#d8b070'); k.solid(-4.5, -11, 4.5, 0, 5);
-    k.aab(-4.5, 0.6, -2.0, -3.9, H + 0.6, 0, P.wall); k.aab(3.9, 0.6, -2.0, 4.5, H + 0.6, 0, P.wall);
-    k.gable(0, -5.5, 9, 11, H + 0.6, 2.6, P.roof, P.wall, { over: 0.35, ridge: 'z', trim: P.trim, trimW: 0.26 });
+    k.aab(-4.5, 0.6, -11, 4.5, H + 0.6, -2.0, P.wall, { lod: true, pat: 'stucco' }); k.aab(-4.5, 0, -11, 4.5, 0.6, 0, '#d8b070', { pat: 'block', ps: 0.2 }); k.solid(-4.5, -11, 4.5, 0, 5);
+    k.aab(-4.5, 0.6, -2.0, -3.9, H + 0.6, 0, P.wall, { pat: 'stucco' }); k.aab(3.9, 0.6, -2.0, 4.5, H + 0.6, 0, P.wall, { pat: 'stucco' });
+    k.gable(0, -5.5, 9, 11, H + 0.6, 2.6, P.roof, P.wall, { over: 0.35, ridge: 'z', trim: P.trim, trimW: 0.26, rp: 'shingle', wp: 'stucco' });
     k.aab(-4.6, H + 0.38, -0.1, 4.6, H + 0.6, 0.06, P.trim);
     for (let i = 0; i < 6; i++) k.box(0, H + 1.05 + i * 0.13, 0.04, 1.3 - i * 0.14, 0.06, 0.04, P.vent); k.box(0, H + 0.95, 0.02, 1.45, 0.92, 0.02, P.trim);
     k.aab(-4.5, 0.55, -2.0, 4.5, 0.62, 0, '#c8b8a0');                                  // porch floor
@@ -321,17 +340,20 @@ function buildHouses(TS, place) {
   place('anteater_house', 0, MN.south, Math.PI, (k) => {
     const P = PAL.anteater, H = 3.0;
     lot(k, 20, MN.yard, P.lawn, { back: 8 });
-    k.aab(-4.6, 0, -11, 4.2, H, -0.0, P.wall, { lod: true }); k.solid(-4.6, -11, 4.2, 1.6, 6);
-    k.gable(-0.8, -5.5, 7.6, 11, H, 3.6, P.roof, P.wall, { over: 0.3, ridge: 'z', trim: P.trim, trimW: 0.2 });
-    k.aab(1.8, 0, 0, 4.2, 3.2, 1.6, P.wall, { lod: true });
-    k.gable(3.0, 0.8, 2.4, 1.6, 3.2, 2.0, P.roof, P.wall, { over: 0.15, ridge: 'z', trim: P.trim, trimW: 0.16, overEnd: 0.12 });
+    k.aab(-4.6, 0, -11, 4.2, H, -0.0, P.wall, { lod: true, pat: 'stucco' }); k.solid(-4.6, -11, 4.2, 1.6, 6);
+    k.gable(-0.8, -5.5, 7.6, 11, H, 3.6, P.roof, P.wall, { over: 0.3, ridge: 'z', trim: P.trim, trimW: 0.2, rp: 'shingle', wp: 'stucco' });
+    k.aab(1.8, 0, 0, 4.2, 3.2, 1.6, P.wall, { lod: true, pat: 'stucco' });
+    k.gable(3.0, 0.8, 2.4, 1.6, 3.2, 2.0, P.roof, P.wall, { over: 0.15, ridge: 'z', trim: P.trim, trimW: 0.16, overEnd: 0.12, rp: 'shingle', wp: 'stucco' });
+    // M5 detail: crawl-space vents, house numbers by the arch, little side window in the entry tower, stucco chimney cap
+    for (const u of [-3.4, 0.6]) k.box(u, 0.15, 0.02, 0.4, 0.22, 0.02, '#8a968e', { pat: 'louver', ps: 0.045 }); k.box(3.75, 2.2, 1.62, 0.16, 0.3, 0.02, '#3a4a46');
+    k.window(3.0, 3.5, 1.6, 0.35, 0.5, { frame: P.trim, glass: '#3c4444', ft: 0.06 });
     const ar = [[2.4, 0], [3.6, 0], [3.6, 1.6]]; for (let i = 0; i <= 10; i++) { const a = i / 10 * Math.PI; ar.push([3.0 + Math.cos(a) * 0.6, 1.6 + Math.sin(a) * 0.62]); }
     k.ext(ar.map(([x, y]) => [x, y + 0.6]), 1.6, 0.03, '#2a3a38');
     k.steps(3.0, 2.9, 1.6, 0.6, 3, P.steps, { tread: 0.43 }); k.aab(2.2, 0, 1.6, 3.8, 0.6, 2.9 - 1.29, P.steps);
     k.mark('door_anteater', 3.0, 3.4);
     k.window(-1.0, 0.9, 0, 2.6, 1.9, { frame: P.wframe, glass: '#3c4444', mull: [4, 3], mt: 0.04, ft: 0.14, sill: P.trim });
     k.window(-0.8, 4.0, 0, 0.6, 0.8, { frame: P.trim, glass: '#3c4444' });
-    k.aab(-4.9, 0, -6.6, -4.1, 6.4, -5.4, P.chimney, { lod: true }); k.aab(-5.0, 6.3, -6.7, -4.0, 6.5, -5.3, '#b8c4b8');
+    k.aab(-4.9, 0, -6.6, -4.1, 6.4, -5.4, P.chimney, { lod: true, pat: 'stucco' }); k.aab(-5.0, 6.3, -6.7, -4.0, 6.5, -5.3, '#b8c4b8');
     for (let i = 0; i < 4; i++) k.cyl(-2.8, 0.03 + i * 0.05, 2.6, 0.45 - i * 0.07, 0.05, P.hose, { seg: 12, open: true });
     k.cyl(-2.8, 0, 2.6, 0.06, 0.25, P.hose, { seg: 6 });
     walkTo(k, 3.0, 1.4, 2.9, MN.yard, '#cfc6b4');
@@ -349,17 +371,17 @@ function buildResidential(TS, place) {
     let x = -19.75;
     const cornice = (x0, x1, y, c, deep = 0.5, dent) => { k.aab(x0 - 0.1, y, FZ, x1 + 0.1, y + 0.55, FZ + deep, c); k.aab(x0 - 0.15, y + 0.5, FZ, x1 + 0.15, y + 0.7, FZ + deep + 0.12, c);
       if (dent) for (let u = x0 + 0.15; u < x1 - 0.1; u += 0.32) k.box(u, y - 0.16, FZ + deep * 0.6, 0.14, 0.16, 0.12, dent); };
-    const body = (x0, x1, h, c) => { k.aab(x0, 0, FZ - D, x1, h, FZ, c, { lod: true }); k.solid(x0, FZ - D, x1, FZ, h); };
+    const body = (x0, x1, h, c, pat, ps) => { k.aab(x0, 0, FZ - D, x1, h, FZ, c, { lod: true, pat, ps }); k.solid(x0, FZ - D, x1, FZ, h); };
     const S = []; // [width, fn(x0, x1, xc)]
     // 1. brownstone: rosy brown, heavy cornice + window hoods, arched garden-level windows
-    S.push([6.4, (x0, x1, xc) => { const H = 4 * fh + 0.4; body(x0, x1, H, A.brown); cornice(x0, x1, H - 0.7, A.brownTrim, 0.55, A.brownTrim);
+    S.push([6.4, (x0, x1, xc) => { const H = 4 * fh + 0.4; body(x0, x1, H, A.brown, 'brick', 0.09); cornice(x0, x1, H - 0.7, A.brownTrim, 0.55, A.brownTrim);
       for (let f = 1; f < 4; f++) for (const u of [-1.5, 1.5]) { k.window(xc + u, f * fh + 0.7, FZ, 1.15, 1.75, { frame: '#3c4638', glass: '#3a3c3c', mull: [0, 1], sill: A.brownTrim, blind: 0.35, blindCol: '#e6e0d4' });
         k.box(xc + u, f * fh + 2.55, FZ + 0.12, 1.6, 0.22, 0.24, A.brownTrim); }
       for (const u of [-1.5, 1.5]) { const ar = [[-0.6, 0], [0.6, 0], [0.6, 1.2]]; for (let i = 0; i <= 8; i++) { const a = i / 8 * Math.PI; ar.push([Math.cos(a) * 0.6, 1.2 + Math.sin(a) * 0.55]); }
         k.ext(ar, FZ + 0.01, 0.05, '#3a3c3c', { at: [xc + u, 0.6, 0] }); }
-      k.aab(x0, 0, FZ, x1, 0.6, FZ + 0.15, '#9a7464'); k.pickets([x0 + 0.2, -0.4], [x1 - 0.2, -0.4], 0.9, '#2a2622', { gap: 0.14, pw: 0.03 }); }]);
+      k.aab(x0, 0, FZ, x1, 0.6, FZ + 0.15, '#9a7464', { pat: 'block', ps: 0.3 }); k.pickets([x0 + 0.2, -0.4], [x1 - 0.2, -0.4], 0.9, '#2a2622', { gap: 0.14, pw: 0.03 }); }]);
     // 2. tan Victorian: vertical board siding, dark red trim bands + frames, stone stoop with white rails, double door
-    S.push([5.0, (x0, x1, xc) => { const H = 4 * fh + 0.2; body(x0, x1, H, A.vict); for (let u = x0 + 0.25; u < x1; u += 0.25) k.box(u, 0.6, FZ + 0.02, 0.04, H - 0.9, 0.03, '#958a76');
+    S.push([5.0, (x0, x1, xc) => { const H = 4 * fh + 0.2; body(x0, x1, H, A.vict, 'batten', 0.22);
       for (let f = 1; f <= 4; f++) k.aab(x0, f * fh - 0.15, FZ, x1, f * fh + 0.1, FZ + 0.12, A.victTrim);
       cornice(x0, x1, H - 0.6, A.victTrim, 0.6, '#3a1a1c'); k.aab(xc - 1.4, H, FZ - 3, xc + 1.4, H + 1.3, FZ - 1.5, A.victTrim);
       for (let f = 1; f < 4; f++) { k.window(xc, f * fh + 0.6, FZ, 1.3, 2.0, { frame: A.victTrim, ft: 0.16, glass: '#3c3a40', mull: [0, 1] }); k.box(xc, f * fh + 2.62, FZ + 0.1, 1.9, 0.26, 0.2, A.victTrim); }
@@ -367,8 +389,7 @@ function buildResidential(TS, place) {
       k.aab(xc - 1.6, 0, FZ, xc, 1.2, FZ + 0.6, '#9a4a40'); k.steps(xc - 0.8, 0, 1.5, 1.2, 6, '#9a4a40', { tread: 0.33 });
       for (const s of [-1, 1]) k.rail([[xc - 0.8 + s * 0.8, FZ + 0.6, 1.2], [xc - 0.8 + s * 0.8, -0.1, 0.1]], 0.9, '#f0ece4', { bal: 0.14 }); k.mark('door_apt_vict', xc - 0.8, 0.6); }]);
     // 3. cream stone modern: block joints, black frames, black balcony w/ planters, black front fence, penthouse box
-    S.push([5.0, (x0, x1, xc) => { const H = 4 * fh + 0.6; body(x0, x1, H, A.cream);
-      for (let y = 0.5; y < H; y += 0.5) k.box(xc, y, FZ + 0.015, x1 - x0, 0.03, 0.02, '#cfcdc2'); for (let y = 0; y < H - 0.5; y += 1.0) for (let u = x0 + ((y / 1.0) % 2 ? 0.6 : 1.2); u < x1; u += 1.2) k.box(u, y + 0.5, FZ + 0.015, 0.03, 0.5, 0.02, '#cfcdc2');
+    S.push([5.0, (x0, x1, xc) => { const H = 4 * fh + 0.6; body(x0, x1, H, A.cream, 'block', 0.5);
       k.aab(x0, H - 0.6, FZ, x1, H, FZ + 0.25, '#efeee8'); k.aab(xc - 2.0, H, FZ - 5, xc + 2.0, H + 2.4, FZ - 2, '#dad8d0');
       for (let f = 1; f < 4; f++) k.window(xc, f * fh + 0.5, FZ, 1.9, 1.9, { frame: A.black, ft: 0.12, glass: '#3a4040', mull: [1, 0] });
       k.aab(xc - 1.3, fh + 0.3, FZ, xc + 1.3, fh + 0.45, FZ + 0.6, A.black); for (let u = xc - 1.25; u <= xc + 1.3; u += 0.12) k.box(u, fh + 0.45, FZ + 0.58, 0.03, 0.9, 0.03, A.black);
@@ -378,8 +399,8 @@ function buildResidential(TS, place) {
       for (let u = x0 + 0.1; u < x1; u += 0.16) if (Math.abs(u - (xc - 0.9)) > 0.7) k.box(u, 0, -0.3, 0.03, 0.95, 0.03, A.black); k.beam([x0, 0.95, -0.3], [x1, 0.95, -0.3], 0.05, A.black);
       k.blob(xc + 1.2, 0.4, -1.4, 1.0, 0.5, 0.8, '#3a6a32'); }]);
     // 4. sage clapboard, white-column porch over a brick basement (THE MOTH'S)
-    S.push([7.6, (x0, x1, xc) => { const B = 2.4, H = B + 3 * fh + 0.4; body(x0, x1, H, A.sage); k.siding(x0, x1, B, H - 0.7, FZ, '#93a7a6', { step: 0.22 });
-      k.aab(x0, 0, FZ, x1, B, FZ + 0.08, '#7a3a34'); cornice(x0, x1, H - 0.75, A.white, 0.45, A.white);
+    S.push([7.6, (x0, x1, xc) => { const B = 2.4, H = B + 3 * fh + 0.4; body(x0, x1, H, A.sage); k.siding(x0, x1, B, H - 0.7, FZ, '#93a7a6', { step: 0.2, base: A.sage });
+      k.aab(x0, 0, FZ, x1, B, FZ + 0.08, '#7a3a34', { pat: 'brick', ps: 0.085 }); cornice(x0, x1, H - 0.75, A.white, 0.45, A.white);
       for (let f = 0; f < 3; f++) for (const u of [-2.3, 0, 2.3]) { if (f === 0 && u === 2.3) continue; k.window(xc + u, B + f * fh + 0.7, FZ, 1.0, 1.6, { frame: A.white, ft: 0.13, glass: '#3a4242', mull: [1, 1], mt: 0.035 }); k.box(xc + u, B + f * fh + 2.42, FZ + 0.1, 1.5, 0.2, 0.2, A.white); }
       for (const u of [-2.3, 0]) k.window(xc + u, 0.4, FZ, 1.0, 1.4, { frame: '#2a2622', glass: '#2e3030', grille: '#1e1a1a' });
       k.door(xc + 2.3, B, FZ, 1.0, 2.3, '#5a2a26', { frame: A.white, lite: '#3a3a3a' }); k.mark('door_moth', xc + 2.6, 0.4);
@@ -390,19 +411,19 @@ function buildResidential(TS, place) {
       for (let u = x0 + 0.1; u < x1 - 1.8; u += 0.15) k.box(u, 0, -0.2, 0.03, 1.0, 0.03, '#1e1a1a'); k.beam([x0, 1.0, -0.2], [x1 - 1.8, 1.0, -0.2], 0.05, '#1e1a1a');
       k.aab(x0 - 0.5, H - 2, FZ - 3, x0 + 0.5, H + 0.9, FZ - 2, '#a0523e'); }]);
     // 5. butter-yellow brick, green cornice, white lintels, two-up windows, green door with a transom
-    S.push([5.2, (x0, x1, xc) => { const H = 3 * fh + 0.5; body(x0, x1, H, '#d9c48a'); for (let y = 0.3; y < H - 0.6; y += 0.3) k.box(xc, y, FZ + 0.012, x1 - x0, 0.02, 0.02, '#c8b277');
+    S.push([5.2, (x0, x1, xc) => { const H = 3 * fh + 0.5; body(x0, x1, H, '#d9c48a', 'brick', 0.085);
       cornice(x0, x1, H - 0.6, '#3f6a4a', 0.5, '#3f6a4a');
       for (let f = 0; f < 3; f++) for (const u of [-1.3, 1.3]) { if (f === 0 && u < 0) continue; k.window(xc + u, f * fh + 0.8, FZ, 1.1, 1.6, { frame: '#f2ece0', glass: '#3a3e3c', mull: [0, 1], sill: '#f2ece0' }); k.box(xc + u, f * fh + 2.45, FZ + 0.08, 1.4, 0.18, 0.16, '#f2ece0'); }
       k.door(xc - 1.3, 0.45, FZ, 1.0, 2.2, '#3f6a4a', { frame: '#f2ece0', panels: '#4c7a56' }); k.window(xc - 1.3, 2.8, FZ, 1.0, 0.35, { frame: '#f2ece0', glass: '#4a4a3a' });
       k.steps(xc - 1.3, FZ + 0.9, 1.4, 0.45, 3, '#bcb4a6', { tread: 0.3 }); k.box(xc + 1.3, 0, FZ + 0.4, 1.4, 0.35, 0.6, '#b0703e'); for (let i = 0; i < 4; i++) k.blob(xc + 0.8 + i * 0.33, 0.45, FZ + 0.4, 0.2, 0.2, 0.2, i % 2 ? '#d04a5a' : '#f0d040'); }]);
     // 6. pink stucco with a white two-storey bay window and a terracotta parapet
-    S.push([5.4, (x0, x1, xc) => { const H = 3 * fh + 0.6; body(x0, x1, H, '#e7b3a6'); k.aab(x0, H - 0.4, FZ, x1, H, FZ + 0.18, '#b8603e'); for (let u = x0; u < x1; u += 0.3) k.cyl(u + 0.15, H - 0.05, FZ + 0.12, 0.13, 0.24, '#c06a44', { seg: 6, rz: Math.PI / 2 });
-      k.aab(xc - 0.3, fh * 0.9, FZ, xc + 2.4, 3 * fh - 0.1, FZ + 0.9, '#e7b3a6'); for (let f = 1; f < 3; f++) { k.window(xc + 1.05, f * fh + 0.5, FZ + 0.9, 1.6, 1.7, { frame: '#f6f2ea', ft: 0.12, glass: '#3a3c40', mull: [1, 0] }); k.aab(xc - 0.3, f * fh + 0.25, FZ, xc + 2.4, f * fh + 0.35, FZ + 1.0, '#f6f2ea'); }
+    S.push([5.4, (x0, x1, xc) => { const H = 3 * fh + 0.6; body(x0, x1, H, '#e7b3a6', 'stucco'); k.aab(x0, H - 0.4, FZ, x1, H, FZ + 0.18, '#b8603e'); for (let u = x0; u < x1; u += 0.3) k.cyl(u + 0.15, H - 0.05, FZ + 0.12, 0.13, 0.24, '#c06a44', { seg: 6, rz: Math.PI / 2 });
+      k.aab(xc - 0.3, fh * 0.9, FZ, xc + 2.4, 3 * fh - 0.1, FZ + 0.9, '#e7b3a6', { pat: 'stucco' }); for (let f = 1; f < 3; f++) { k.window(xc + 1.05, f * fh + 0.5, FZ + 0.9, 1.6, 1.7, { frame: '#f6f2ea', ft: 0.12, glass: '#3a3c40', mull: [1, 0] }); k.aab(xc - 0.3, f * fh + 0.25, FZ, xc + 2.4, f * fh + 0.35, FZ + 1.0, '#f6f2ea'); }
       for (let f = 1; f < 3; f++) k.window(xc - 1.6, f * fh + 0.6, FZ, 0.9, 1.6, { frame: '#f6f2ea', glass: '#3a3c40', mull: [0, 1] });
       k.door(xc - 1.4, 0.3, FZ, 1.1, 2.2, '#2a5a6a', { frame: '#f6f2ea', panels: '#346a7a' }); k.window(xc + 1.1, 0.9, FZ, 1.6, 1.3, { frame: '#f6f2ea', glass: '#3a3c40', grille: '#2a2a2a' });
       k.aab(xc - 2.1, 0, FZ, xc - 0.7, 0.3, FZ + 0.7, '#d8c4b8'); k.mark('door_apt_pink', xc - 1.4, -0.6); }]);
     // 7. oxblood brick walk-up, cream cornice, white lintels + sills, black iron stoop rail
-    S.push([4.9, (x0, x1, xc) => { const H = 4 * fh + 0.2; body(x0, x1, H, '#9a4a3c'); for (let y = 0.3; y < H - 0.6; y += 0.3) k.box(xc, y, FZ + 0.012, x1 - x0, 0.02, 0.02, '#874034');
+    S.push([4.9, (x0, x1, xc) => { const H = 4 * fh + 0.2; body(x0, x1, H, '#9a4a3c', 'brick', 0.085);
       cornice(x0, x1, H - 0.7, '#e8e0d0', 0.6, '#e8e0d0');
       for (let f = 1; f < 4; f++) for (const u of [-1.2, 1.2]) { k.window(xc + u, f * fh + 0.7, FZ, 1.0, 1.7, { frame: '#e8e2d6', glass: '#323436', mull: [0, 1], sill: '#e8e0d0' }); k.box(xc + u, f * fh + 2.5, FZ + 0.09, 1.3, 0.22, 0.18, '#e8e0d0'); }
       k.door(xc + 1.0, 1.0, FZ, 1.1, 2.3, '#2a2422', { frame: '#e8e0d0', lite: '#4a4a48' }); k.window(xc - 1.2, 1.3, FZ, 1.0, 1.5, { frame: '#e8e2d6', glass: '#323436', grille: '#1a1a1a' });
@@ -465,20 +486,20 @@ function buildResidential(TS, place) {
     { const pts = [L(-196, 62), L(-200, 70), L(-205, 80), L(-208, 88), [0, 9], [0, 3]]; for (let i = 1; i < pts.length; i++) { const [a, b] = [pts[i - 1], pts[i]]; const n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 2);
       for (let j = 0; j < n; j++) { const t = (j + 0.5) / n; k.box(a[0] + (b[0] - a[0]) * t, 0.02, a[1] + (b[1] - a[1]) * t, 2.8, 0.03, 2.3, P.gravel, { ry: Math.atan2(b[0] - a[0], b[1] - a[1]) }); } } }
     // farmhouse: 1.5 storeys, ridge parallel to the street, centred shed dormer
-    k.aab(-5.5, 0, -7, 5.5, H, 0, P.house, { lod: true }); k.solid(-5.5, -7, 5.5, 0, 7);
-    k.gable(0, -3.5, 11, 7, H, 3.4, P.roof, P.house, { over: 0.35, ridge: 'x' }); k.siding(-5.5, 5.5, 0.4, H, 0, '#dcdcd8', { step: 0.24 });
-    k.aab(-1.6, H + 0.4, -2.4, 1.6, H + 1.9, -0.6, P.house); k.box(0, H + 1.9, -1.4, 3.6, 0.16, 2.4, P.roof, { rx: 0.18 });
+    k.aab(-5.5, 0, -7, 5.5, H, 0, P.house, { lod: true, pat: 'siding', ps: 0.24 }); k.solid(-5.5, -7, 5.5, 0, 7);
+    k.gable(0, -3.5, 11, 7, H, 3.4, P.roof, P.house, { over: 0.35, ridge: 'x', rp: 'shingle', wp: 'siding', wps: 0.24 }); k.siding(-5.5, 5.5, 0.4, H, 0, '#dcdcd8', { step: 0.24, base: P.house });
+    k.aab(-1.6, H + 0.4, -2.4, 1.6, H + 1.9, -0.6, P.house, { pat: 'siding', ps: 0.24 }); k.box(0, H + 1.9, -1.4, 3.6, 0.16, 2.4, P.roof, { rx: 0.18, pat: 'shingle' });
     k.window(0, H + 0.7, -0.6, 2.2, 0.9, { frame: '#f6f6f2', glass: '#3a3e44', mull: [2, 0] });
     k.door(0.9, 0, 0, 0.95, 2.1, P.door, { frame: '#f6f6f2', panels: '#a8443e' }); k.steps(0.9, 0.6, 1.4, 0.3, 2, '#c8c4bc', { tread: 0.3 }); k.mark('door_farm', 0.9, 1.6);
     for (const u of [-4.2, -2.4, 3.0, 4.6]) k.window(u, 0.9, 0, 0.8, 1.5, { frame: '#f6f6f2', glass: '#3a3e44', mull: [1, 1], mt: 0.03, shutters: P.shutter, shW: 0.36 });
     for (const u of [-3.2, 3.2]) k.window(u, H + 0.25, 0.25, 0.6, 0.9, { frame: '#f6f6f2', glass: '#3a3e44', shutters: P.shutter, shW: 0.3 });
-    k.aab(1.8, 0, -4.4, 2.6, H + 4.4, -3.6, '#a84a3e', { lod: true });
+    k.aab(1.8, 0, -4.4, 2.6, H + 4.4, -3.6, '#a84a3e', { lod: true, pat: 'brick', ps: 0.085 });
     // the ell (red metal roof, skylight) and its chimney
-    k.aab(5.5, 0, -6.5, 12, 2.7, -0.8, P.house, { lod: true }); k.gable(8.75, -3.65, 6.5, 5.7, 2.7, 1.7, '#9a3e36', P.house, { over: 0.3, ridge: 'x' }); k.box(9.2, 3.1, -2.4, 1.2, 0.05, 0.9, '#a8b8c8', { rx: 0.55 });
-    k.aab(10.0, 0, -5.0, 10.7, 5.4, -4.3, '#a84a3e'); k.window(8.0, 0.9, -0.8, 1.4, 1.2, { frame: '#f6f6f2', glass: '#3a3e44', mull: [2, 0] }); k.solid(5.5, -6.5, 12, -0.8, 5);
+    k.aab(5.5, 0, -6.5, 12, 2.7, -0.8, P.house, { lod: true, pat: 'siding', ps: 0.24 }); k.gable(8.75, -3.65, 6.5, 5.7, 2.7, 1.7, '#9a3e36', P.house, { over: 0.3, ridge: 'x', rp: 'metal', rps: 0.12, wp: 'siding', wps: 0.24 }); k.box(9.2, 3.1, -2.4, 1.2, 0.05, 0.9, '#a8b8c8', { rx: 0.55 });
+    k.aab(10.0, 0, -5.0, 10.7, 5.4, -4.3, '#a84a3e', { pat: 'brick', ps: 0.085 }); k.window(8.0, 0.9, -0.8, 1.4, 1.2, { frame: '#f6f6f2', glass: '#3a3e44', mull: [2, 0] }); k.solid(5.5, -6.5, 12, -0.8, 5);
     // red barn: two garage doors, white trim, pale metal roof, flower bed
-    k.aab(17, 0, -9, 27, 4.2, 0, P.barn, { lod: true }); k.solid(17, -9, 27, 0, 8); k.gable(22, -4.5, 10, 9, 4.2, 3.0, '#e4e4e6', P.barn, { over: 0.3, ridge: 'x' });
-    for (const u of [19.6, 24.4]) { k.door(u, 0, 0, 3.2, 2.7, '#8f2c2c', { frame: P.barnTrim, knob: '#2a2a2a' }); k.beam([u - 1.5, 0.1, 0.1], [u + 1.5, 2.6, 0.1], 0.1, P.barnTrim); k.beam([u + 1.5, 0.1, 0.1], [u - 1.5, 2.6, 0.1], 0.1, P.barnTrim); }
+    k.aab(17, 0, -9, 27, 4.2, 0, P.barn, { lod: true, pat: 'batten', ps: 0.3 }); k.solid(17, -9, 27, 0, 8); k.gable(22, -4.5, 10, 9, 4.2, 3.0, '#e4e4e6', P.barn, { over: 0.3, ridge: 'x', rp: 'metal', rps: 0.14, wp: 'batten', wps: 0.3 });
+    for (const u of [19.6, 24.4]) { k.door(u, 0, 0, 3.2, 2.7, '#8f2c2c', { frame: P.barnTrim, knob: '#2a2a2a', pat: 'batten', ps: 0.2 }); k.beam([u - 1.5, 0.1, 0.1], [u + 1.5, 2.6, 0.1], 0.1, P.barnTrim); k.beam([u + 1.5, 0.1, 0.1], [u - 1.5, 2.6, 0.1], 0.1, P.barnTrim); }
     for (const u of [17.05, 26.95]) k.box(u, 0, 0.02, 0.14, 4.2, 0.06, P.barnTrim); k.window(22, 5.0, 0.0, 0.9, 0.9, { frame: P.barnTrim, glass: '#2a2626' });
     for (let u = 18; u < 26; u += 0.5) k.blob(u, 0.3, 0.7, 0.3, 0.3, 0.3, (Math.round(u * 2) % 3) ? '#d05a8a' : '#e8c040');
     k.cyl(28.5, 0, 2.0, 0.12, 7.5, '#6a5040', { seg: 6 });                                    // the yard light pole

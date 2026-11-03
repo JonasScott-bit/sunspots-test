@@ -9,6 +9,7 @@ import { createMoth } from './moth.js';
 import { createDirector } from './scenes.js';
 import { createTown } from './town.js';
 import { createTownscape } from './townscape.js';
+import { patInject } from './townkit.js';
 import { createQuickTravel } from './quicktravel.js';
 import { audio } from './audio.js';
 import { sunspotsApply, sunspotsEnabled, setSunspotsLook, sunspotsLookOn, bothMats, sunspotsLowEnd } from './sunspots_material.js';
@@ -110,7 +111,9 @@ const MELT_VERT = /* glsl */`
   transformed = (uFromRoot * vec4(transformed, 1.0)).xyz;
 `;
 function patchMelt(mat, u) {
+  const pat = !!mat.userData.pat; // town felt (townkit patterns: siding / shingles / brick ...) keeps its surface detail
   mat.onBeforeCompile = (sh) => {
+    if (pat) patInject(sh);
     Object.assign(sh.uniforms, u, G);
     sh.vertexShader = 'uniform float uMelt,uMinY,uHeight,uSeed,uTime,uBend;uniform vec2 uCenter;uniform mat4 uToRoot,uFromRoot;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n' + MELT_VERT);
     if (sh.fragmentShader) {
@@ -120,7 +123,7 @@ function patchMelt(mat, u) {
         diffuseColor.rgb = mix(diffuseColor.rgb, wildCol, uWild * 0.86);`);
     }
   };
-  mat.customProgramCacheKey = () => 'melt';
+  mat.customProgramCacheKey = () => pat ? 'melt|pat' : 'melt';
   return mat;
 }
 function meltUniforms(geo, tint, seedv, box, toRoot) {
