@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { Kit, textPlane } from './townkit.js';
 import { buildCommercial } from './townshops.js';
+import { buildStreet } from './townstreet.js';
 
 // ---------------------------------------------------------------- locked palettes (sampled from exterior_refs/*.jpg)
 export const PAL = {
@@ -147,6 +148,7 @@ export function createTownscape(C) {
 
   buildHouses(TS, place); buildResidential(TS, place); buildCommercial(TS, place);
   for (const [n, d] of Object.entries(TS.marks)) if (n.startsWith('door_')) TS.doors[n.slice(5)] = { ...d, built: true };
+  buildStreet(TS, place);
   return TS;
 }
 
