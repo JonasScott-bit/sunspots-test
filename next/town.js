@@ -1414,7 +1414,8 @@ export function createTown(ctx) {
   const DONE = { sock: 6, num: 7, air: 7, bulb: 5, adv: 5 };
   const DONE_MSG = { sock: '. Lost Socks board unlocked.', num: '. Plate 11W.', air: '. Ratings doubled (both the Bear).', bulb: '. Lamp-Bulb got a standing ovation from one car.', adv: '. Party of four. The adventure is ongoing.' };
   function step(m, n) { S[m] = n; save(); if (n === 1) toast(TITLE[m] + ' — new errand'); if (n === DONE[m]) setTimeout(() => toast(TITLE[m] + ' — done' + DONE_MSG[m]), 600); hud(); }
-  const errands = () => ['adv', 'sock', 'num', 'air', 'bulb'].filter(m => S[m] > 0 && S[m] < DONE[m]);
+  const MLIST = ['adv', 'sock', 'num', 'air', 'bulb'];   // run 13: extendable (missions13.js pushes horse/call/route)
+  const errands = () => MLIST.filter(m => S[m] > 0 && S[m] < DONE[m]);
   // run 12: where each errand step sends the Wolf (for the minimap / full map)
   const TGT = { sock: [0, 'laundromat', 'laundromat', 'post', 'fence', 'laundromat'], num: [0, 'dmv', 'dmv', 'post', 'dmv', 'dmv', 'dmv'],
     bulb: [0, 'motel', 'pool', 'motel', 'drivein'], adv: [0, 'diner', 'diner', 'diner', 'fence'], air: [0, 'yard', 'yard', 'thrift', 'bowl', 'thrift', 'ksun'] };
@@ -1632,6 +1633,7 @@ export function createTown(ctx) {
   }
   T.stats = () => Object.fromEntries(Object.entries(T.rooms).map(([k, A]) => [k, { tris: A.tris, animating: 1 + A.anim.length + (A.extraRigs || 0), rigEvals: 1 + A.anim.length + (A.extraRigs ? 2 : 0) }]));
   Object.defineProperty(T, 'diner', { get: () => DN && Object.assign(DN.test, { S: { adv: S.adv, party: S.party, ord: S.ord }, D: DN }) });
+  T.M = { OBJ, TITLE, DONE, DONE_MSG, TGT, S, MLIST, step, save, toast, hud, errands, outSay: (L) => outSay(L) };   // run 13: mission API for missions13.js
   T.state = S; T.enter = enter; T.exit = exit; T.talk = (id) => { const A = T.rooms[T.active]; talk(A?.who.find(w => w.id === id)); }; T.talkOutside = talkOutside;
   T.placeholders = () => [...placeholders]; Object.defineProperty(T, 'tvQA', { get: () => LTV && Object.assign(LTV.test, { active: !!T.tv, phase: LTV.phase }) }); Object.defineProperty(T, 'bowl', { get: () => BW && Object.assign(BW.test, { active: !!T.lane, last: BW.last, tris: BW.tris, B: BW }) }); T.next = () => { if (T.active) nextLine(); else nextOut(); };
   const _p = new THREE.Vector3(), _b = new THREE.Box3();

@@ -112,7 +112,7 @@ export function installTalk({ T, level, TS, wolfState }) {
     ['fridge', /house_fridge/, 2.4], ['mailbox', /mailbox/, 1.6], ['window', /window_box/, 1.0], ['payphone', /payphone/, 2.4], ['hydrant', /hydrant/, 1.5],
     ['couch', /diner_couch/, 1.3, { x: 29.4, z: 51.6 }], ['stove', /diner_stove/, 1.4, { x: 31.4, z: 50.0 }], ['squid', /banana_squid/, 2.1], ['farmhand', /farmhand/, 2.2], ['wrench', /wrench/, 2.0],
   ];
-  const n = {};
+  const n = {}; T.talkN = n;
   for (const [key, re, h, fix] of SPEAK) {
     const pos = () => { const c = castBy(re); return c ? c.holder.position : fix || null; };
     T.addSpot({ id: 'talk_' + key, get x() { return pos()?.x ?? 1e5; }, get z() { return pos()?.z ?? 1e5; }, r: 2.4, label: 'TALK TO ' + CHATTER[key][0],
@@ -135,6 +135,7 @@ export function installTalk({ T, level, TS, wolfState }) {
   T.tick.push((dt) => {
     // bubble follow + queue
     if (B.t > 0) { B.t -= dt; const cam = window.__sunspots?.camera, p = typeof B.at === 'function' ? B.at() : B.at;
+      const wp = level.solo && level.free?.pos ? level.free.pos : wolfState.pos; if (p && Math.hypot(wp.x - p.x, wp.z - p.z) > 14) { B.t = 0; B.q = []; }   // walked away: the line ends
       if (cam && p && !T.active) { v.x = p.x; v.y = B.h + 0.35; v.z = p.z; const e = cam.matrixWorldInverse.elements, pe = cam.projectionMatrix.elements;
         const cx = e[0] * v.x + e[4] * v.y + e[8] * v.z + e[12], cy = e[1] * v.x + e[5] * v.y + e[9] * v.z + e[13], cz = e[2] * v.x + e[6] * v.y + e[10] * v.z + e[14];
         if (cz < -0.3) { const sx = (pe[0] * cx / -cz) * 0.5 + 0.5, sy = 0.5 - (pe[5] * cy / -cz) * 0.5; el.style.left = Math.max(80, Math.min(innerWidth - 80, sx * innerWidth)) + 'px'; el.style.top = Math.max(70, Math.min(innerHeight - 60, sy * innerHeight)) + 'px'; el.style.visibility = 'visible'; }

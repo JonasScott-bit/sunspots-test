@@ -14,6 +14,7 @@ import { createQuickTravel } from './quicktravel.js';
 import { createMinimap } from './minimap.js';
 import { createHorse } from './horse.js';   // run 13: the town's one horse (statue) + welcome signs
 import { dressTown, installTalk } from './towntalk.js';   // run 13: billboards, flyers, lore, chatter
+import { installMissions } from './missions13.js';   // run 13: THE ONE HORSE, KSUN CALL-IN, PAPER ROUTE
 import { audio } from './audio.js';
 import { sunspotsApply, sunspotsEnabled, setSunspotsLook, sunspotsLookOn, bothMats, sunspotsLowEnd } from './sunspots_material.js';
 window.__SUNSPOTS_VERSION = 'v9-next';
@@ -966,6 +967,7 @@ loadAll().then(() => {
   town = createTown({ renderer, mainScene: scene, load: (u) => load(u), normalize, feltMat, level, wolfState, colliders, audio, townscape: TS, horse: HORSE,
     onEnter: () => { clearInput(); if (FP.on) toggleFP?.(); }, onExit: () => { clearInput(); clock.getDelta(); } });
   if (TS) try { window.__talk = installTalk({ T: town, level, TS, wolfState }); } catch (e) { console.warn('talk failed', e); }
+  if (TS && town) try { installMissions({ T: town, TS, level, wolfState, horse: HORSE, scene, feltMat }); } catch (e) { console.warn('missions13 failed', e); }
   if (TS) QT = createQuickTravel({ TS, level, wolfState, LAYOUT, onJump: (y) => { clearInput(); camYawTarget = camYaw = y + Math.PI; snapCam = true; } }); window.__qt = QT;
   if (TS && QT) { MM = createMinimap({ TS, level, wolfState, QT, town, audio }); window.__minimap = MM; }
   if (Q.get('room')) { const go = () => { if (window.__titleUp || !wolfReady) { setTimeout(go, 200); return; } town.enter(Q.get('room')); }; go(); }

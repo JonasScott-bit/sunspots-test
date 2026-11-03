@@ -62,7 +62,8 @@ export function createMinimap({ TS, level, wolfState, QT, town, audio }) {
   }
 
   // ---------------------------------------------------------------- places
-  const doorPos = (k) => { if (k === 'fence') return { x: -86.5, z: 18.5 }; if (k === 'bus') { const s = TS.busStops?.[0]; return s && { x: s.x, z: s.z }; } const d = TS.doors?.[k] || (TS.spots?.[k]?.map && TS.spots[k]); return d && { x: d.x, z: d.z }; };
+  // run 13: any TS.spots key can be an errand target (only .map spots are listed as places)
+  const doorPos = (k) => { if (k === 'fence') return { x: -86.5, z: 18.5 }; if (k === 'bus') { const s = TS.busStops?.[0]; return s && { x: s.x, z: s.z }; } const d = TS.doors?.[k] || TS.spots?.[k]; return d && { x: d.x, z: d.z }; };
   const names = {}; for (const [, l] of QT.PLACES || []) for (const [k, n] of l) names[k] = n;
   Object.assign(names, NAME_OF, { fence: "Crow's collection" }); for (const [k, v] of Object.entries(TS.spots || {})) if (v.map && !names[k]) names[k] = v.map;
   const places = [...Object.keys(TS.doors || {}), ...Object.keys(TS.spots || {}).filter(k => TS.spots[k].map && !TS.doors[k])].map(k => ({ k, ...doorPos(k), name: names[k] || k, room: ROOMS.includes(k), game: !!GAMES[k], home: !!HOMES[k], spot: !TS.doors?.[k] && !!TS.spots?.[k]?.map }));
