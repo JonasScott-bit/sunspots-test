@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { sunspotsApply } from './sunspots_material.js';
 import { audio } from './audio.js';
+import { gesturer, castOffsets, CAST_POOL, PROP_POOL } from './idles.js';   // run 15
 
 // ------------------------------------------------------------------ layout (metres; -z = north, toward the sun)
 export const LAYOUT = {
@@ -349,8 +350,10 @@ export function createLevel(C) {
       }
       // deadpan idle: breathing + slow weight shift (bind pose); the hydrant turns very slowly on the spot
       const idle = 1 - (c.w || 0);
-      c.body.scale.y = c.sy * (1 + idle * 0.014 * Math.sin(t * 1.9 + c.ph));
-      c.body.rotation.z = idle * 0.025 * Math.sin(t * 0.5 + c.ph) + (1 - c.gentle) * (c.w || 0) * 0.035 * Math.sin(t * 6 + c.ph); // gentle walkers waddle a little
+      c.G ||= gesturer(c.spin ? PROP_POOL : CAST_POOL, 'street'); c.G.update(dt, idle); const go = castOffsets(c.G, t);   // run 15: random idle gestures
+      c.body.scale.y = c.sy * (1 + idle * 0.014 * Math.sin(t * 1.9 + c.ph)) * go.sy;
+      c.body.rotation.z = idle * 0.025 * Math.sin(t * 0.5 + c.ph) + (1 - c.gentle) * (c.w || 0) * 0.035 * Math.sin(t * 6 + c.ph) + go.rz; // gentle walkers waddle a little
+      c.body.rotation.x = go.rx; if (!c.spin) c.body.rotation.y = go.ry;
       if (c.spin) h.rotation.y += dt * 0.35;
       if (c.mixer) c.mixer.update(dt);
     }

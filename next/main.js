@@ -18,6 +18,8 @@ import { dressTown, installTalk } from './towntalk.js';   // run 13: billboards,
 import { installMissions } from './missions13.js';
 import { installHeron } from './heron14.js';
 import { installLivingWorld } from './livingworld.js';   // run 14 (D)
+import { wolfIdle } from './idles.js';   // run 15
+let WIDLE = null;
 import { installCarnRides } from './carnrides.js';   // run 14b: ride the rides, play the midway   // run 13: THE ONE HORSE, KSUN CALL-IN, PAPER ROUTE
 import { createCarnival, createCalliope } from './carnival.js';   // run 14: the One Horse Fair (east edge of town)
 import { audio } from './audio.js';
@@ -29,6 +31,7 @@ const SHOT = Q.has('shot');
 const NEWTOWN = !Q.has('oldtown'); // run 11: real-scale town (townscape.js); ?oldtown = the run-10 square
 let TS = null;
 const MAP = Q.get('map'); // QA: ?map=town|route -> top-down orthographic layout render
+const DTMAX = Math.min(0.25, +(Q.get('dtmax') || 0.05));   // QA: ?dtmax=0.2 lets a slow box cover more sim time (idle capture)
 const QCAM = Q.get('cam') ? Q.get('cam').split(',').map(Number) : null; // QA: ?cam=x,y,z,tx,ty,tz (mutable via window.__qcam for multi-shot QA)
 if (QCAM) window.__qcam = QCAM;
 const lerp = THREE.MathUtils.lerp, clamp = THREE.MathUtils.clamp;
@@ -629,6 +632,7 @@ async function loadAll() {
   const hb = wm.getObjectByName('Head');
   wolf.userData.feet = ['LeftFoot', 'RightFoot'].map(n => wm.getObjectByName(n)).filter(Boolean);
   if (hb) wolf.userData.head = { bone: hb, bind: hb.quaternion.clone(), q: new THREE.Quaternion(), e: new THREE.Euler(), yaw: 0, tilt: 0 };
+  { const bones = {}; wm.traverse(o => { if (o.isBone) bones[o.name] = o; }); WIDLE = wolfIdle({ root: wolf, bones }); } // run 15: random gestures every 4-12 s
   await castP;
   wolfReady = true;
 }
@@ -715,7 +719,7 @@ function adaptDPR() {
 function frame() {
   if (window.__titleUp) { clock.getDelta(); ftLast = performance.now(); requestAnimationFrame(frame); return; } // title screen owns the GPU
   adaptDPR();
-  const dt = Math.min(clock.getDelta(), 0.05); const t = clock.elapsedTime; G.uTime.value = t;
+  const dt = Math.min(clock.getDelta(), DTMAX); const t = clock.elapsedTime; G.uTime.value = t;
   if (town?.active) { town.update(dt, t); renderer.render(town.scene, town.camera); requestAnimationFrame(frame); return; } // inside a room: town hidden + paused
 
   // wild transition (~2s)
@@ -832,15 +836,14 @@ function frame() {
     mixer.update(dt);
     const hd = wolf.userData.head;
     if (hd) {
-      // deadpan glance cycle (~9 s): hold centre, look slowly left, hold, centre, look right, hold. Fades out as he moves.
-      const c = (t % 9) / 9, sm = (a, b, x) => smooth(clamp((x - a) / (b - a), 0, 1));
-      const g = (sm(0.18, 0.30, c) - sm(0.42, 0.52, c)) * 0.32 - (sm(0.62, 0.72, c) - sm(0.86, 0.96, c)) * 0.26;
+      // run 15: the constant 9 s glance cycle is gone; the head only leads into turns. Idle variety comes from WIDLE (idles.js)
       const k = 1 - Math.exp(-dt * 5);
-      hd.yaw = lerp(hd.yaw, g * idle - wolf.userData.turn * 0.05 * move, k);
-      hd.tilt = lerp(hd.tilt, idle * 0.05 * Math.sin(t * 0.4), k);
+      hd.yaw = lerp(hd.yaw, -wolf.userData.turn * 0.05 * move, k);
+      hd.tilt = lerp(hd.tilt, idle * 0.03 * Math.sin(t * 0.31), k);
       hd.e.set(hd.tilt * 0.4, hd.yaw, hd.tilt); hd.q.setFromEuler(hd.e);
       hd.bone.quaternion.multiply(hd.q);
     }
+    if (WIDLE) try { WIDLE.apply(dt, t, PET?.mounted || FP.on ? 0 : smooth(clamp(1 - sp / 0.5, 0, 1))); } catch (e) { console.warn('idles', e); WIDLE = null; }
     // camera auto-follows behind travel direction unless the player recently dragged the sky
     manualLookT -= dt;
     if (manualLookT <= 0 && sp > 1 && !FP.on) { let d = (wolfState.yaw + Math.PI) - camYawTarget; d = Math.atan2(Math.sin(d), Math.cos(d)); camYawTarget += d * (1 - Math.exp(-dt * 0.8)); }

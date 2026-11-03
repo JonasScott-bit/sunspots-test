@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { textPlane } from './townkit.js';
 import { GRID } from './townscape.js';
+import { gesturer, palGesture, PAL_POOL } from './idles.js';   // run 15
 
 const TAU = Math.PI * 2, R = Math.random, pick = (a) => a[Math.floor(R() * a.length)];
 const wrapA = (a) => { while (a > Math.PI) a -= TAU; while (a < -Math.PI) a += TAU; return a; };
@@ -56,6 +57,8 @@ export function installLivingWorld({ T, TS, level, wolfState, scene, camera, fel
     u.arms[0].rotation.x = -Math.sin(u.ph) * sw * 0.8; u.arms[1].rotation.x = Math.sin(u.ph) * sw * 0.8;
     u.torso.position.y = 0.78 * u.h + (spd > 0.05 ? Math.abs(Math.sin(u.ph)) * 0.05 : Math.sin(u.ph) * 0.012);
     u.hd.position.y = u.torso.position.y + 0.6 * u.h; u.hd.rotation.z = Math.sin(u.ph * 0.5) * 0.06;
+    u.hd.rotation.x = u.hd.rotation.y = 0; u.arms[0].rotation.z = -0.15; u.arms[1].rotation.z = 0.15;   // run 15: random idle gestures when standing
+    u.G ||= gesturer(PAL_POOL, 'pal'); u.G.update(dt, spd > 0.05 ? 0 : 1); palGesture(u, u.G, t);
   }
   const talkArms = (g, t) => { const u = g.userData; u.arms[0].rotation.x = -0.8 + Math.sin(t * 7) * 0.5; u.arms[1].rotation.x = -0.4 + Math.cos(t * 5) * 0.4; };
 

@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gesturer, HORSE_POOL } from './idles.js';   // run 15
 
 export const HORSE_MODEL = { pet: null, statue: null };   // e.g. 'models/bear_horse.glb' once Meshy is topped up
 { const Q = new URLSearchParams(location.search); if (Q.get('petglb')) HORSE_MODEL.pet = Q.get('petglb'); if (Q.get('statueglb')) HORSE_MODEL.statue = Q.get('statueglb'); }
@@ -196,6 +197,16 @@ export function createPetHorse(C0) {
     const bob = Math.abs(Math.sin(P.ph * Math.PI * 2)) * (0.025 + 0.07 * gal) * move;
     H.body.position.y = bob + Math.sin(t * 1.6) * 0.004; H.body.rotation.z = Math.sin(P.ph * Math.PI * 2) * 0.05 * gal * move + (1 - move) * Math.sin(t * 0.45) * 0.015;
     for (const L of H.legs) L.position.y = HIP + bob * 0.6;
+    { P.G ||= gesturer(HORSE_POOL, 'horse'); const G = P.G.update(dt, P.mounted ? 0 : 1 - move), k = G.k, p = G.p;   // run 15: random idle gestures
+      H.body.rotation.x = 0; H.body.rotation.y = 0;
+      if (G.name && k > 0.002) switch (G.name) {
+        case 'snort': H.body.rotation.x = Math.max(0, Math.sin(p * Math.PI * 3)) * 0.035 * k; break;
+        case 'dip': H.body.rotation.x = 0.06 * k; break;
+        case 'shake': H.body.rotation.z += Math.sin(t * 22) * 0.03 * k; break;
+        case 'lean': H.body.rotation.z += 0.03 * k; break;
+        case 'look': H.body.rotation.y = Math.sin(p * Math.PI * 2) * 0.12 * k; break;
+        case 'paw': H.legs[0].rotation.z += -Math.max(0, Math.sin(p * Math.PI * 4)) * 0.45 * k; break;
+      } }
     for (const e of H.eyes) e.pup.position.x = 0.004 + Math.sin(t * 2.7 + e.s + sp) * 0.006 * (1 + 2 * w);   // googly wobble
     P.bob = bob * SC;
   };

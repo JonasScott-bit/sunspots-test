@@ -6,6 +6,7 @@
 // Models are referenced by their existing paths (town2/cake_lo.glb, shake_lo.glb, fuzzy_peach_lo.glb) so updated GLBs drop in.
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { gesturer, castOffsets, CAST_POOL } from './idles.js';   // run 15
 
 const TRIO = [
   { id: 'cake', file: 'town2/cake_lo.glb', look: 'cake', h: 1.15, name: 'CAKE' },
@@ -71,6 +72,8 @@ export function createDiner(K) {
     if (c.id === 'peach') { const ph = w ? w.time / w.getClip().duration * Math.PI * 4 : 0; sy += 0.075 * c.moving * Math.cos(ph) + 0.014 * (1 - c.moving) * Math.sin(t * 1.7); }
     else sy += 0.008 * Math.sin(t * 1.5 + c.def.h * 9);
     if (c.pop > 0) { c.pop = Math.max(0, c.pop - dt); const e = 0.9 - c.pop; sy += -0.22 * Math.cos(e * 20) * Math.exp(-e * 5) * (c.id === 'peach' ? 1 : 0.5); }
+    c.G ||= gesturer(CAST_POOL, 'diner'); c.G.update(dt, c.hop ? 0 : 1 - c.moving); const go = castOffsets(c.G, t);   // run 15: random idle gestures over the idle clip
+    sy *= go.sy; c.sq.rotation.set(go.rx, go.ry, go.rz); c.sq.position.y = go.y * (c.def.h || 1);
     const sx = 1 / Math.sqrt(Math.max(0.5, sy)); c.sq.scale.set(sx, sy, sx);
   }
   function hopTick(c, dt) {   // scripted arcs (hop off a stool, slide down the counter)

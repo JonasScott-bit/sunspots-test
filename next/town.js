@@ -8,6 +8,7 @@ import { sunspotsApply, sunspotsLowEnd } from './sunspots_material.js';
 import { createBowling } from './bowling.js';   // run 8: playable lane at Gutter Bowl
 import { createLivingTV } from './livingtv.js'; // run 9: TV night on Bear's couch (living90)
 import { framedPainting } from './bearwall.js';   // run 9b: Scott's paintings on Bear's walls
+import { gesturer, castOffsets, CAST_POOL, PROP_POOL } from './idles.js';   // run 15: idle variety
 import { createDiner } from './diner.js';   // run 10: the Diner trio, ORDER, mission Table For Four, party followers
 import { createPool, createHoops, larryByrd } from './minigames.js';   // run 11 (M4): playable pool (Pool Hall) + shoot-around vs Larry Byrd (the court)
 
@@ -126,10 +127,12 @@ export function createTown(ctx) {
   }
   const ph = (name, o) => { placeholders.add(name); o.userData.placeholder = name; return o; };
   function restMotion(root, kind, h) { // 'breathe' (standing characters) or 'bob' (legless props); runs on the inner root so room code can still move/rotate the wrap
-    const y0 = root.position.y, sy = root.scale.y, ph = Math.random() * 6.28;
-    return kind === 'bob'
-      ? (t) => { root.position.y = y0 + h * 0.012 * (0.5 + 0.5 * Math.sin(t * 1.6 + ph)); root.rotation.z = 0.03 * Math.sin(t * 0.9 + ph); }
-      : (t) => { root.scale.y = sy * (1 + 0.012 * Math.sin(t * 1.9 + ph)); root.rotation.z = 0.02 * Math.sin(t * 0.5 + ph); };
+    const y0 = root.position.y, sy = root.scale.y, sx0 = root.scale.x, sz0 = root.scale.z, rx0 = root.rotation.x, ry0 = root.rotation.y, ph = Math.random() * 6.28;
+    const G = gesturer(kind === 'bob' ? PROP_POOL : CAST_POOL, kind === 'bob' ? 'prop' : 'cast'); let lt = null;   // run 15: a random gesture every 4-12 s
+    return (t) => { const dt = lt == null ? 0 : Math.min(0.1, Math.max(0, t - lt)); lt = t; G.update(dt, 1); const o = castOffsets(G, t);
+      root.rotation.x = rx0 + o.rx; root.rotation.y = ry0 + o.ry; root.scale.x = sx0 * o.sx; root.scale.z = sz0 * o.sx;
+      if (kind === 'bob') { root.position.y = y0 + h * (0.012 * (0.5 + 0.5 * Math.sin(t * 1.6 + ph)) + o.y); root.rotation.z = 0.03 * Math.sin(t * 0.9 + ph) + o.rz; root.scale.y = sy * o.sy; }
+      else { root.position.y = y0 + h * o.y; root.scale.y = sy * (1 + 0.012 * Math.sin(t * 1.9 + ph)) * o.sy; root.rotation.z = 0.02 * Math.sin(t * 0.5 + ph) + o.rz; } };
   }
   async function glb(file, h, look = 'object', opt = {}) {
     const g = await load(M + file); const root = g.scene; root.traverse(o => { if (o.isMesh) { o.castShadow = !LOW; o.receiveShadow = !LOW; if (o.isSkinnedMesh) o.frustumCulled = false; } });
