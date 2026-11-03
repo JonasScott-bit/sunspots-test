@@ -65,6 +65,9 @@ export const CHAR_LOOK = {
   moth:     { cloth: [[0.02, 0.05, 0.4, 0.25], NONE], fur: 0.9, hard: NONE, hardLum: 0.08, ns: 0.45 },             // tan felt fuzz, coral overalls
   squid:    { cloth: [[0.02, 0.05, 0.35, 0.12], NONE], fur: 0.0, hard: NONE, hardLum: 0.1, ns: 0.5 },                                          // banana squid: smooth yellow clay
   farmhand: { cloth: [[0.0, 0.5, 0.25, 0.08], NONE], fur: 0.0, hard: [0.085, 0.035, 0.15, 0.4], hardLum: 0.1, ns: 0.5 },    // plaid shirt + pants felt; skin tones clay
+  cake:     { cloth: [[0.07, 0.06, 0.0, 0.74], NONE], fur: 0.0, hard: NONE, hardLum: 0.1, ns: 0.5 },                          // diner trio: cream frosting (+ cream arms/legs) felt; sponge, jam, sneakers, candle clay
+  shake:    { cloth: [NONE, [0.07, 0.08, 0.0, 0.75]], fur: 0.0, hard: NONE, hardLum: 0.1, ns: 0.5, maxSat2: 0.28 },         // whipped-cream quiff felt (low-sat cream); pink glass, cherry, straw clay
+  peach:    { cloth: NONE2(), fur: 0.9, hard: [0.16, 0.07, 0.25, 0.15], hardLum: 0.08, ns: 0.5 },                           // fuzzy peach skin + ice-cream hat felt; green leaf + dark eyes clay
   feltobj:  { cloth: NONE2(), fur: 0.9, hard: NONE, hardLum: 0.06, ns: 0.5 },                                       // fabric props (sock, booth upholstery): all felt
   object:   { cloth: NONE2(), fur: 0.0, hard: NONE, hardLum: 0.0, ns: 0.5 },                                         // props / walking objects: matte clay
 };
@@ -105,7 +108,7 @@ export function applySunspotsLook(root, opts = {}) {
       uFibreFreq: { value: opts.fibreFreq ?? 2.6 }, uClayFreq: { value: opts.clayFreq ?? 2.2 }, // tiles per metre (256px tile)
       uFlatten: { value: opts.flatten ?? 0.55 }, uBumpCloth: { value: opts.bumpCloth ?? 1.2 }, uBumpClay: { value: opts.bumpClay ?? 0.5 },
       uRim: { value: opts.rim ?? 0.62 }, uSheen: { value: opts.sheen ?? 1.0 }, uSpeck: { value: opts.speck ?? 0.35 },
-      uCloth0: { value: new THREE.Vector4(...cloth[0]) }, uCloth1: { value: new THREE.Vector4(...cloth[1]) }, uClothMaxSat2: { value: opts.maxSat2 ?? 0.42 },
+      uCloth0: { value: new THREE.Vector4(...cloth[0]) }, uCloth1: { value: new THREE.Vector4(...cloth[1]) }, uClothMaxSat2: { value: opts.maxSat2 ?? cl.maxSat2 ?? 0.42 },
       uRimSky: { value: new THREE.Color(opts.rimSky || '#a9b8d6') },
       uDebug: { value: opts.debug || 0 },
       uFur: { value: opts.fur ?? cl.fur ?? 0 }, uHard: { value: new THREE.Vector4(...(opts.hard || cl.hard || NONE)) }, uHardLum: { value: opts.hardLum ?? cl.hardLum ?? 0 },
