@@ -64,6 +64,9 @@ key.shadow.mapSize.set(1024, 1024);
 const sc = key.shadow.camera; sc.left = -24; sc.right = 24; sc.top = 24; sc.bottom = -24; sc.near = 1; sc.far = 120;
 key.shadow.bias = -0.0008; key.shadow.normalBias = 0.03; key.shadow.radius = 4;
 scene.add(key, key.target);
+// run 11 M6: shadowless, near-horizontal neutral fill from the back-right so north-facing (south-side) fronts and the farm's east face aren't backlit;
+// low elevation keeps ground/roof colours (lit from above) essentially unchanged
+const fill = new THREE.DirectionalLight('#f4f5ff', NEWTOWN ? 3.2 : 0); fill.position.set(26, 5, -30); scene.add(fill, fill.target);
 const KEY_OFFSET = new THREE.Vector3(-30, 34, 30); // warm light from front-left like the concept art: lit fronts, shadows fall back-right
 
 // ---------------------------------------------------------------- felt texture (procedural speckle)
@@ -704,8 +707,8 @@ function frame() {
   scene.background.lerpColors(PAL.sky[0], PAL.sky[1], w);
   scene.fog.color.lerpColors(PAL.fog[0], PAL.fog[1], w);
   groundMat.color.lerpColors(PAL.ground[0], PAL.ground[1], w);
-  hemi.color.lerpColors(PAL.hemiSky[0], PAL.hemiSky[1], w); hemi.groundColor.copy(groundMat.color).lerp(col.set(TONE ? '#e0704e' : '#f6c4a2'), (TONE ? 0.8 : 0.6) * (1 - w));
-  key.color.lerpColors(PAL.key[0], PAL.key[1], w); key.intensity = lerp(2.3, 1.6, w);
+  hemi.color.lerpColors(PAL.hemiSky[0], PAL.hemiSky[1], w); hemi.groundColor.copy(groundMat.color).lerp(col.set(TONE ? '#e0704e' : NEWTOWN ? '#e6e2da' : '#f6c4a2'), (TONE ? 0.8 : NEWTOWN ? 0.8 : 0.6) * (1 - w)); // M6: near-neutral ground bounce on walls so whites read white, not pink
+  key.color.lerpColors(PAL.key[0], PAL.key[1], w); key.intensity = lerp(2.3, 1.6, w); if (NEWTOWN) fill.intensity = lerp(3.2, 1.4, w);
   discMat.color.lerpColors(PAL.sun[0], PAL.sun[1], w);
   lidMat.color.copy(discMat.color).multiplyScalar(0.9);
   halo.material.color.set('#ffcf6a').lerp(col.set('#ff7a3a'), w); halo.material.opacity = lerp(0.18, 0.75, w); halo.scale.setScalar(lerp(1, 1.25, w));
