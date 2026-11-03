@@ -288,6 +288,7 @@ body.ingame #cgame{display:block}
   CR.cam = (cam, dt, portrait) => {
     if (CR.game) { cam.position.copy(CR.game.cam); if (portrait) { _v.subVectors(CR.game.cam, CR.game.look).multiplyScalar(0.35); cam.position.add(_v); } cam.lookAt(CR.game.look); return true; }
     if (!CR.ride || CR.bump || !CR.seatM) return false; const R = C.rides[CR.ride]; _cp.setFromMatrixPosition(CR.seatM);
+    const pl = R.cam === 'pod' && CR.podLook?.(); if (pl) { _look.lerpVectors(_cp, pl, 0.5); cam.position.set(_look.x + 2.2, _look.y + 1.4, _look.z + 7.5); cam.lookAt(_look); return true; }   // run 14c: look across at whoever is in the next pod
     if (R.cam === 'pod') { // over the shoulder out of the gondola, toward town
       cam.position.set(_cp.x + 1.7, _cp.y + 1.9, _cp.z + 2.6); _look.set(_cp.x - 9, _cp.y - 1.5, _cp.z + 9); cam.lookAt(_look); return true; }
     orbitA += dt * 0.14; const rad = (RIDE_CFG[CR.ride].rad || 17) * (portrait ? 1.25 : 1); cam.position.set(R.x + Math.sin(orbitA) * rad, 7.5, R.z + Math.cos(orbitA) * rad); _look.set(_cp.x, _cp.y + 0.8, _cp.z); cam.lookAt(_look); return true;

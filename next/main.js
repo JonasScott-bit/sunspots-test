@@ -16,6 +16,7 @@ import { createHorse } from './horse.js';
 import { createPetHorse, PET_NAME } from './horses.js';   // horses: GRAVY, Bear's rideable pet horse   // run 13: the town's one horse (statue) + welcome signs
 import { dressTown, installTalk } from './towntalk.js';   // run 13: billboards, flyers, lore, chatter
 import { installMissions } from './missions13.js';
+import { installHeron } from './heron14.js';
 import { installCarnRides } from './carnrides.js';   // run 14b: ride the rides, play the midway   // run 13: THE ONE HORSE, KSUN CALL-IN, PAPER ROUTE
 import { createCarnival, createCalliope } from './carnival.js';   // run 14: the One Horse Fair (east edge of town)
 import { audio } from './audio.js';
@@ -850,7 +851,7 @@ function frame() {
     rideK = THREE.MathUtils.clamp(rideK + (PET.mounted ? dt : -dt) / 0.5, 0, 1); }
   // run 14b: carnival rides + midway games (the Wolf sits in a seat, or stands at a booth)
   if (CR) { if (CR.busy && (level.mode !== 'walk' || puppet.on || town?.active)) CR.exit();
-    CR.update(dt, t, w); if (wolfReady && CR.seatM) seatWolf(CR.seatM, CR.pose, t); else if (wolfReady && CR.game) standIdle(dt); }
+    CR.update(dt, t, w); HERON?.update(dt); if (wolfReady && CR.seatM) seatWolf(CR.seatM, CR.pose, t); else if (wolfReady && CR.game) standIdle(dt); }
   camYaw += (camYawTarget - camYaw) * (1 - Math.exp(-dt * 6));
   const portrait = innerHeight > innerWidth;
   const dist = portrait ? 10.5 : 9.5, hgt = portrait ? 4.2 : 3.3;
@@ -986,6 +987,7 @@ loadAll().then(() => {
   if (TS && town && CARN) try { CR = installCarnRides({ CARN, T: town, TS, level, wolfState, scene, camera, feltMat, audio, fpOff: () => { if (FP.on) toggleFP?.(); }, onSeat: () => { if (wolfReady) measureHip(); }, isBusyElse: () => !!PET?.mounted }); window.__cr = CR;
     if (PET) { const m0 = PET.mount; PET.mount = () => CR.busy ? false : m0(); }
     const r0 = town.riding; town.riding = () => !!(r0?.() || CR.busy); } catch (e) { console.warn('carnrides failed', e); }
+  if (CR) try { HERON = installHeron({ CR, CARN, T: town, TS, scene, feltMat }); window.__heron = HERON; } catch (e) { console.warn('heron failed', e); }
   if (TS) QT = createQuickTravel({ TS, level, wolfState, LAYOUT, onJump: (y) => { clearInput(); camYawTarget = camYaw = y + Math.PI; snapCam = true; } }); window.__qt = QT;
   if (TS && QT) { MM = createMinimap({ TS, level, wolfState, QT, town, audio }); window.__minimap = MM; }
   if (Q.get('room')) { const go = () => { if (window.__titleUp || !wolfReady) { setTimeout(go, 200); return; } town.enter(Q.get('room')); }; go(); }
