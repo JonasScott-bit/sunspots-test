@@ -8,6 +8,7 @@ import { sunspotsApply, sunspotsLowEnd } from './sunspots_material.js';
 import { createBowling } from './bowling.js';   // run 8: playable lane at Gutter Bowl
 import { createLivingTV } from './livingtv.js'; // run 9: TV night on Bear's couch (living90)
 import { framedPainting } from './bearwall.js';   // run 9b: Scott's paintings on Bear's walls
+import { createDiner } from './diner.js';   // run 10: the Diner trio, ORDER, mission Table For Four, party followers
 
 const M = './models/';
 const ROOMS = {
@@ -336,8 +337,9 @@ export function createTown(ctx) {
       // back bar: fluted stainless, Formica top; grill + hood; urns, mixer, cups, register
       const bb = skin(box(5.4, 0.95, 0.5, '#ffffff', 0.02), cvTex(256, 64, (g, w, h) => steelTex(g, 0, 0, w, h, 4, false))); at(bb, -1.3, 0, -2.72); G.add(bb);
       const bbt = box(5.5, 0.05, 0.56, '#7fc8c6', 0.02); at(bbt, -1.3, 0.95, -2.72); G.add(bbt);
-      const [stove, bear, gecko, booth] = await Promise.all([glb('town2/stove.glb', 1.6), glb('town2/bear_lo.glb', 1.85, 'bear', { rest: 'breathe' }),
-        glb('town2/gecko_lo.glb', 1.05, 'gecko', { rest: 'breathe' }), glb('town2/booth_prop.glb', 1.25, 'feltobj')]);
+      // run 10: the Diner trio (diner.js) took the counter. To stay under 60k tris, Bear + Gecko moved out (Bear's booth is still "saved") and the
+      // booth GLB became a code-built red-vinyl booth.
+      const [stove] = await Promise.all([glb('town2/stove.glb', 1.6)]);
       at(stove, -1.6, 0, -2.35, 0.25); G.add(stove);
       const hood = box(1.5, 0.32, 0.62, STEEL[0], 0.03); at(hood, -1.6, 2.15, -2.68); G.add(hood); const flue = box(0.4, 0.62, 0.3, STEEL[2], 0.02); at(flue, -1.6, 2.45, -2.82); G.add(flue);
       for (const x of [-0.5, -0.12]) { const u = new THREE.Group(); u.add(cyl(0.13, 0.14, 0.55, STEEL[0], 12)); const lid = cyl(0.04, 0.13, 0.08, STEEL[2], 12); lid.position.y = 0.55; u.add(lid);
@@ -350,7 +352,6 @@ export function createTown(ctx) {
       const reg = new THREE.Group(); reg.add(box(0.36, 0.22, 0.34, STEEL[2], 0.03)); const keys = box(0.34, 0.06, 0.2, '#2a2220', 0.02); keys.position.set(0, 0.22, 0.04); keys.rotation.x = 0.4; reg.add(keys);
       const tag = sign('THANK YOU', 0.3, 0.1, '#fff3dc', RED, 0.7); tag.position.set(0, 0.42, 0.0); reg.add(tag); at(reg, 1.15, 0.98, -2.72); G.add(reg);
       // counter top things
-      at(gecko, -0.25, 1.08, -0.95, 0.15); G.add(gecko);   // upright, standing on the counter next to the pie
       const pieCase = ph('pie case', new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.45, 0.5), new THREE.MeshStandardMaterial({ color: '#e8f6fa', transparent: true, opacity: 0.28, roughness: 1 })));
       at(pieCase, 0.6, 1.31, -0.95); G.add(pieCase); const pcb = box(0.74, 0.04, 0.54, STEEL[0], 0.01); at(pcb, 0.6, 1.08, -0.95); G.add(pcb); const pct = box(0.74, 0.03, 0.54, STEEL[0], 0.01); at(pct, 0.6, 1.53, -0.95); G.add(pct);
       const pie = ph('pie', cyl(0.2, 0.22, 0.09, '#d98a3a', 16)); at(pie, 0.6, 1.12, -0.95); G.add(pie);
@@ -380,17 +381,21 @@ export function createTown(ctx) {
       const eo = sign('EMPLOYEES ONLY', 0.5, 0.1, '#1e1c22', '#f4f1ea', 0.7); eo.position.set(0, 1.1, 0.035); door.add(eo);
       door.position.set(-3.96, 0, -1.9); door.rotation.y = Math.PI / 2; G.add(door);
       // booths along the window wall + a tableside jukebox wallbox
-      at(booth, 3.1, 0, -2.0, -Math.PI / 2); G.add(booth); at(bear, 2.6, 0, -0.6, -0.5); G.add(bear);
+      const booth = new THREE.Group(); { const t = box(1.05, 0.05, 0.75, '#f2efe6', 0.02); t.position.y = 0.74; booth.add(t); const tr = box(1.07, 0.03, 0.77, STEEL[0], 0.01); tr.position.y = 0.72; booth.add(tr);
+        const leg = cyl(0.05, 0.12, 0.72, STEEL[0], 8); booth.add(leg);
+        for (const sx of [-1, 1]) { const seat = box(0.5, 0.16, 1.15, RED, 0.05); seat.position.set(sx * 0.78, 0.3, 0); booth.add(seat); const base = box(0.5, 0.3, 1.1, '#6b1c30', 0.03); base.position.set(sx * 0.78, 0, 0); booth.add(base);
+          const back = box(0.18, 0.75, 1.15, RED, 0.06); back.position.set(sx * 1.05, 0.42, 0); booth.add(back); const pip = box(0.2, 0.03, 1.17, '#f6efe0', 0.01); pip.position.set(sx * 1.05, 1.16, 0); booth.add(pip); }
+        const res = sign('RESERVED', 0.3, 0.12, '#fff3dc', RED, 0.6); res.position.set(0, 0.86, 0); res.rotation.x = -0.3; booth.add(res); }
+      at(booth, 3.1, 0, -1.35, 0); G.add(booth); ph('diner booth (felt, code-built)', booth);
       const juke = new THREE.Group(); juke.add(box(0.14, 0.24, 0.3, STEEL[0], 0.04)); const jf = pane(0.26, 0.15, cvTex(128, 80, (g, w, h) => { g.fillStyle = '#f6efe0'; g.fillRect(0, 0, w, h); g.fillStyle = RED; for (let i = 0; i < 5; i++) g.fillRect(8, 8 + i * 14, w - 16, 6); }, 1, 1, 0.3));
       jf.rotation.y = -Math.PI / 2; jf.position.set(-0.075, 0.13, 0); juke.add(jf); at(juke, 3.9, 1.05, -1.2); G.add(juke); ph('jukebox wallbox', juke);
       A.wolfSpot = [-0.2, 1.6];
-      A.anim = []; A.proc = [gecko, bear];
+      A.anim = []; A.proc = [];
       A.who = [
         { id: 'stove', label: 'STOVE', o: stove, talk: () => S.coffee % 2 ? [['STOVE', 'Soup\'s on.'], ['WOLF', 'On what?'], ['STOVE', 'On.']] : [['STOVE', 'Think about soup.'], ['WOLF', 'I\'ll have the—'], ['STOVE', 'Think about it.']] },
         { id: 'coffee', label: 'COFFEE', o: cup, talk: () => { S.coffee++; return [['STOVE', 'Refill.'], ['', `Refill number ${S.coffee}. You haven't had any.`]]; } },
-        { id: 'gecko', label: 'GECKO', o: gecko, talk: () => [['GECKO', 'I was on the ceiling since 7 AM.'], ['GECKO', 'Came down for the pie.'], ['WOLF', 'It\'s for display.'], ['GECKO', 'So am I, man.']] },
         { id: 'menu', label: 'MENU', o: menu, talk: () => [['MENU', '1. The Menu.'], ['WOLF', 'What\'s on the menu?'], ['STOVE', 'The menu.']] },
-        { id: 'bear', label: 'BEAR', o: bear, talk: () => [['BEAR', 'This booth is saved.'], ['WOLF', 'For who?'], ['BEAR', 'For the booth.']] },
+        { id: 'booth', label: 'BOOTH', o: booth, talk: () => [['', 'A little card on the table: RESERVED.'], ['WOLF', 'For who?'], ['CAKE', 'For the booth.'], ['SHAKE', 'Bear saved it. Bear\'s at home.']] },
         { id: 'chair', label: 'STOOL', o: stools[2], talk: () => [['', 'The stool blinks.'], ['WOLF', '...'], ['', 'You blink first.']] },
         { id: 'pie', label: 'PIE', o: pie, talk: () => [['STOVE', 'That pie is for display.'], ['WOLF', 'Can I have a slice?'], ['STOVE', 'Of the display?']] },
         { id: 'toaster', label: 'TOASTER', o: toaster, talk: () => { pt.t = 3; audio.ui?.('confirm'); return [['TOAST', toastQ()]]; } },
@@ -399,6 +404,7 @@ export function createTown(ctx) {
         { id: 'door', label: 'KITCHEN DOOR', o: door, chip: false, talk: () => [['', 'EMPLOYEES ONLY.'], ['', 'Through the porthole: a kitchen. A wolf in it looks back at you.'], ['STOVE', 'That\'s the other shift.']] },
         { id: 'juke', label: 'JUKEBOX', o: juke, chip: false, talk: () => [['', 'B-7: "Think About Soup" (instrumental).'], ['', 'Every button is B-7.']] },
       ];
+      await diner().build(G, A, { stove, cup, coffee });   // run 10 (diner.js): Cake, Shake + Fuzzy Peach, the ORDER bell + menu sheet, the opening mission
       playhouse(A);
     },
     async laundromat(G, A) {
@@ -1176,21 +1182,22 @@ export function createTown(ctx) {
       'Find the Crow\'s collection by the road', 'Bring the sock back to the Laundromat', ''],
     num: ['', 'Take a number', 'Wait. Or try Window 1', 'Mail yourself a letter (Post Office)', 'Back to the DMV: vision test', 'Wait for 99', 'Go to Window 1', ''],
     bulb: ['', 'Find a new projector bulb (the Motel leaves the light on)', 'Find a light to leave on instead (the Motel Pool; the lifeguard says swim first)', 'Bring the pool light to the Motel', 'Take Lamp-Bulb to the Drive-In projector', ''],
+    adv: ['', 'Order something at the Diner counter (tap ORDER)', 'Turn the menu over. Order the back.', 'Leave the Diner (your party follows)', 'Show the Crow the napkin map (by the road, west fence)', ''],
     air: ['', 'Find rabbit ears at Crow\'s Yard (dig the junk)', 'Put the antenna on the Fence-Stool (Crow insists)', 'Buy it back at Second Sun Thrift',
       'Win $2 at Gutter Bowl (rent shoes at the control desk, bowl a frame)', 'Pay the Thrift two dollars', 'Bring the rabbit ears to TV-Head (KSUN)', ''],
   };
-  const TITLE = { sock: 'ODD SOCK OUT', num: 'TAKE A NUMBER', air: 'DEAD AIR', bulb: 'LEAVE THE LIGHT ON' };
-  const DONE = { sock: 6, num: 7, air: 7, bulb: 5 };
-  const DONE_MSG = { sock: '. Lost Socks board unlocked.', num: '. Plate 11W.', air: '. Ratings doubled (both the Bear).', bulb: '. Lamp-Bulb got a standing ovation from one car.' };
+  const TITLE = { sock: 'ODD SOCK OUT', num: 'TAKE A NUMBER', air: 'DEAD AIR', bulb: 'LEAVE THE LIGHT ON', adv: 'TABLE FOR FOUR' };
+  const DONE = { sock: 6, num: 7, air: 7, bulb: 5, adv: 5 };
+  const DONE_MSG = { sock: '. Lost Socks board unlocked.', num: '. Plate 11W.', air: '. Ratings doubled (both the Bear).', bulb: '. Lamp-Bulb got a standing ovation from one car.', adv: '. Party of four. The adventure is ongoing.' };
   function step(m, n) { S[m] = n; save(); if (n === 1) toast(TITLE[m] + ' — new errand'); if (n === DONE[m]) setTimeout(() => toast(TITLE[m] + ' — done' + DONE_MSG[m]), 600); hud(); }
-  const errands = () => ['sock', 'num', 'air', 'bulb'].filter(m => S[m] > 0 && S[m] < DONE[m]);
+  const errands = () => ['adv', 'sock', 'num', 'air', 'bulb'].filter(m => S[m] > 0 && S[m] < DONE[m]);
   function hud() {
     let s = errands().map(m => { let o = OBJ[m][S[m]]; if (m === 'sock' && S[m] === 4 && !S.hubcap) o += '\n   (the Crow trades — check the Post Office parcels)'; return TITLE[m] + ' · ' + o; }).join('\n');
     if (errands().length) s += '\n(clock on hold while you run errands)'; $('townObj').textContent = s; const to = $('townObj'), hd = $('hud'); to.style.top = (!document.body.classList.contains('room') && hd) ? (hd.getBoundingClientRect().bottom + 8) + 'px' : '';
   }
   function save() { try { sessionStorage.setItem('ss_town1', JSON.stringify(S)); } catch (e) { } }
   try { if (new URLSearchParams(location.search).has('fresh')) sessionStorage.removeItem('ss_town1'); Object.assign(S, JSON.parse(sessionStorage.getItem('ss_town1') || '{}')); } catch (e) { }
-  { const q = new URLSearchParams(location.search).get('mstep'); if (q) for (const kv of q.split(',')) { const [k, v] = kv.split(':'); if (k in DONE) S[k] = +v; } } // QA: ?mstep=sock:3,num:4
+  { const q = new URLSearchParams(location.search).get('mstep'); if (q) for (const kv of q.split(',')) { const [k, v] = kv.split(':'); if (k in DONE) S[k] = +v; if (S.adv >= 3) S.party = 1; } } // QA: ?mstep=sock:3,num:4 (adv:3+ also gives you the party)
   const toast = (m, sec = 3.5) => level?.toast ? level.toast(m, sec) : null;
 
   // ------------------------------------------------------------------ dialogue (reuses the scene subtitle UI)
@@ -1227,10 +1234,11 @@ export function createTown(ctx) {
     ctx.onEnter?.(); T.active = key; T.scene = A.scene; document.body.classList.add('room'); $('roomName').textContent = ROOMS[key].name;
     A.setAir?.(); A.wolf.position.copy(A.wolfHome); A.wolf.rotation.y = -0.6; T.focus = null; T.goal = null; chipsFor(A); hud(); resize();
     renderer.compile(A.scene, T.camera); await wait(120); curtain.classList.remove('shut'); T.busy = false;
-    window.__town.lastEnter = { room: key, tris: A.tris, animating: 1 + A.anim.length };
+    window.__town.lastEnter = { room: key, tris: A.tris, animating: 1 + A.anim.length + (A.extraRigs || 0), rigEvals: 1 + A.anim.length + (A.extraRigs ? 2 : 0) };
+    A.onEnter?.();
   }
   async function exit() {
-    if (T.busy || !T.active) return; T.busy = true; audio.ui?.('tick');
+    if (T.busy || !T.active) return; T.busy = true; audio.ui?.('tick'); T.rooms[T.active]?.onExit?.();
     curtain.querySelector('b').textContent = 'MAIN STREET'; curtain.classList.add('shut'); await wait(560);
     if (T.lane) { T.lane.end(); T.lane = null; T.camera = roomCam; }
     if (T.tv) { T.tv.end(); T.tv = null; T.focus = null; T.goal = null; }
@@ -1273,13 +1281,14 @@ export function createTown(ctx) {
   }
   function talkOutside() {
     audio.ui?.('tick'); let L;
-    if (S.sock === 4 && S.hubcap) { step('sock', 5); S.hubcap = false; S.sock2 = true; save(); L = [['CROW', 'It\'s in the collection.'], ['CROW', 'One sock. Mustard. Undeliverable.'], ['', 'You trade the felt hubcap.'], ['CROW', 'A fine hubcap. Soft.'], ['', 'Got: one sock.']]; }
+    if (S.adv === 4) L = diner().crow();
+    else if (S.sock === 4 && S.hubcap) { step('sock', 5); S.hubcap = false; S.sock2 = true; save(); L = [['CROW', 'It\'s in the collection.'], ['CROW', 'One sock. Mustard. Undeliverable.'], ['', 'You trade the felt hubcap.'], ['CROW', 'A fine hubcap. Soft.'], ['', 'Got: one sock.']]; }
     else if (S.sock === 4) L = [['CROW', 'It\'s in the collection.'], ['CROW', 'Trades only. I collect hubcaps.'], ['WOLF', 'The car has boots.'], ['CROW', 'Then you have a problem.']];
     else L = [['CROW', 'Everything here is in the collection.'], ['CROW', 'Including you, if you stand there long enough.']];
     outLines = L.slice(); nextOut();
   }
   let outLines = [], outT = 0;
-  function nextOut() { const l = outLines.shift(); if (!l) { sub.classList.remove('on'); return; } subName.textContent = l[0] ? l[0] + ' ' : ''; subText.textContent = l[1]; sub.classList.add('on'); outT = 1.4 + l[1].length * 0.045; }
+  function nextOut() { const l = outLines.shift(); if (!l) { sub.classList.remove('on'); return; } try { l[2]?.(); } catch (e) { console.warn(e); } subName.textContent = l[0] ? l[0] + ' ' : ''; subText.textContent = l[1]; sub.classList.add('on'); outT = 1.4 + l[1].length * 0.045; }
 
   // ------------------------------------------------------------------ per-frame
   const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
@@ -1310,6 +1319,10 @@ export function createTown(ctx) {
     else if (VIEW.pan) { VIEW.x += (THREE.MathUtils.clamp(w.position.x, -VIEW.pan, VIEW.pan) - VIEW.x) * Math.min(1, dt * 2.5); placeCam(); }
     common(dt);
   };
+  // ------------------------------------------------------------------ run 10: the Diner adventure (diner.js)
+  let DN = null;
+  function diner() { if (DN) return DN; DN = createDiner({ glb, at, box, cyl, sign, feltMat, audio, LOW, S, save, step, mainScene, wolfState, level, sub, say: (L) => say(L),
+    clearChips: () => { chips.innerHTML = ''; }, refreshChips: () => T.active && chipsFor(T.rooms[T.active]) }); return DN; }
   // ------------------------------------------------------------------ run 8: the playable lane (bowling.js). Walk up -> swoop + LANE n title card -> behind-the-Wolf lane view
   let BW = null;
   function bowling() { if (BW) return BW;
@@ -1339,7 +1352,9 @@ export function createTown(ctx) {
     T.swoop = { t: 0, dur: 0.75, p0: roomCam.position.clone(), l0: tmp.clone(), p1: new THREE.Vector3(lx + 0.15, 1.55, w.position.z + 2.0), l1: new THREE.Vector3(lx, 0.45, -3.6), f0: roomCam.fov };
     await wait(780); await B.cover('Lane ' + S.lane, 'GUTTER BOWL · SHOES ON · NO TAB');
     T.swoop = null; B.begin(w, S.lane); T.lane = B; T.scene = B.scene; T.camera = B.camera; await wait(260); await B.uncover(); T.busy = false; }
+  let outT0 = 0;
   T.outside = (dt) => {   // called every town frame (walk mode): door prompts, the Crow, held clock, errand timers
+    outT0 += dt; if (S.party) diner().outside(dt, outT0, !T.active && level?.mode === 'walk' && !document.body.classList.contains('scene'));   // run 10: the party follows the Wolf
     if (!level || level.mode !== 'walk' || level.frozen || document.body.classList.contains('scene')) { btn.style.display = 'none'; near = null; return; }
     const p = wolfState.pos; near = null; let best = 2.4;
     for (const d of DOORS) { const dd = Math.hypot(p.x - d.x, p.z - d.z); if (dd < best) { best = dd; near = d; } }
@@ -1352,7 +1367,8 @@ export function createTown(ctx) {
   function common(dt) {   // errand timer runs anywhere (rooms or town): Pocket Watch calls 99 at 1:59
     if (S.num === 5 && S.waitT > 0) { S.waitT -= dt; if (S.waitT <= 0) { step('num', 6); toast('POCKET WATCH (from somewhere): "Now serving 99." It\'s 1:59.', 4); T.rooms.dmv?.setNow?.(99); } }
   }
-  T.stats = () => Object.fromEntries(Object.entries(T.rooms).map(([k, A]) => [k, { tris: A.tris, animating: 1 + A.anim.length }]));
+  T.stats = () => Object.fromEntries(Object.entries(T.rooms).map(([k, A]) => [k, { tris: A.tris, animating: 1 + A.anim.length + (A.extraRigs || 0), rigEvals: 1 + A.anim.length + (A.extraRigs ? 2 : 0) }]));
+  Object.defineProperty(T, 'diner', { get: () => DN && Object.assign(DN.test, { S: { adv: S.adv, party: S.party, ord: S.ord }, D: DN }) });
   T.state = S; T.enter = enter; T.exit = exit; T.talk = (id) => { const A = T.rooms[T.active]; talk(A?.who.find(w => w.id === id)); }; T.talkOutside = talkOutside;
   T.placeholders = () => [...placeholders]; Object.defineProperty(T, 'tvQA', { get: () => LTV && Object.assign(LTV.test, { active: !!T.tv, phase: LTV.phase }) }); Object.defineProperty(T, 'bowl', { get: () => BW && Object.assign(BW.test, { active: !!T.lane, last: BW.last, tris: BW.tris, B: BW }) }); T.next = () => { if (T.active) nextLine(); else nextOut(); };
   const _p = new THREE.Vector3(), _b = new THREE.Box3();
