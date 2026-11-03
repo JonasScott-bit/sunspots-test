@@ -15,6 +15,14 @@ export const LAYOUT = {
   spots: { bus_stop: [-8, -0.6], fountain_s: [2.5, 1.2], diner_door: [1.5, -7.3], payphone: [8.2, -2.6], lamp: [10.5, 1.6], adobe_w: [-14.5, -6.6],
     adobe_e: [17.5, -0.5], road_w: [-20, 11.5], parked_car: [10, 12.2], wolf_gate: [-6.5, 18.5] },
 };
+// run 11: the real-scale town (townscape.js). The Wolf now lives on Mesa Lane; townsfolk walk Main St. ?oldtown = run-10 square.
+export const NEWTOWN = !new URLSearchParams(location.search).has('oldtown');
+if (NEWTOWN) Object.assign(LAYOUT, {
+  townCenter: [-90, 2], walkRadius: 220,
+  wolfHouse: [22, 47, 0], wolfStart: [23.2, 53.2, 2.25],     // on his front walk, Mesa Lane; Main St + the pickup are a short walk north-east
+  spots: { bus_stop: [30, 0.6], fountain_s: [19, 0.8], diner_door: [-23, 0.6], payphone: [9.6, 13.6], lamp: [0, 13.8], adobe_w: [-14, 0.8],
+    adobe_e: [27, 13.5], road_w: [-30, 13.6], parked_car: [12, 1.0], wolf_gate: [-5, 0.6] },
+});
 // main road: town street (west end -> pickup) then a winding desert road north to the store
 const MAIN_PTS = [[-46, 7.5], [-24, 7.2], [0, 7], [26, 7], [44, 3], [56, -30], [48, -75], [40, -110], [92, -138], [140, -168], [172, -222], [176, -278], [150, -340], [110, -402], [60, -470],
   [85, -560], [62, -650], [100, -735], [76, -820], [104, -900], [92, -960], [90, -1000]];
@@ -67,9 +75,11 @@ export function createLevel(C) {
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.setAttribute('normal', new THREE.Float32BufferAttribute(new Float32Array(pos.length).map((_, k) => k % 3 === 1 ? 1 : 0), 3));
     const m = new THREE.Mesh(g, mat); m.receiveShadow = true; scene.add(m); return m;
   }
-  ribbon(MAIN, edgeMat, ROAD_W + 1.6, 0.012, 0.6); ribbon(MAIN, roadMat, ROAD_W, 0.02);
+  { // new town: Main St is real asphalt (townscape.js) -> the felt desert road starts where Main St ends (x 44)
+    const i0 = NEWTOWN ? Math.max(0, nearestIdx(MAIN.s, [44, 3]) - 1) : 0, M = i0 ? { ...MAIN, s: MAIN.s.slice(i0), cum: MAIN.cum.slice(i0) } : MAIN;
+    ribbon(M, edgeMat, ROAD_W + 1.6, 0.012, 0.6); ribbon(M, roadMat, ROAD_W, 0.02); }
   ribbon(SHORT, edgeMat, SHORT_W + 1.2, 0.013, 0.5); ribbon(SHORT, shortMat, SHORT_W, 0.024, 0.25);
-  ribbon(DRIVEWAY, roadMat, 3.0, 0.021, 0.15);
+  if (!NEWTOWN) ribbon(DRIVEWAY, roadMat, 3.0, 0.021, 0.15);
   // centre tyre ruts (darker felt stripes) along the desert stretch
   { const rutMat = feltMat('#a05e34', { polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6 }); L.roadMats.push([rutMat, '#a05e34']);
     for (const off of [-1.3, 1.3]) { const s = MAIN.s.slice(nearestIdx(MAIN.s, [44, 3])).map(v => v.clone()); const p = { s: [], cum: [] };
@@ -280,11 +290,11 @@ export function createLevel(C) {
   async function loadCast(load, normalize) {
     const M = './models/cast/';
     const spec = [
-      ['house_fridge_walking', { h: 2.0, x: -7.4, z: 25.2, ry: Math.PI + 0.35, still: true, cr: 0.6 }],     // by the Wolf's door
-      ['diner_couch', { h: 0.95, x: -14.6, z: 24.4, ry: Math.PI * 0.92, prop: true, cr: 1.1 }],           // couch in the front yard
-      ['diner_stove', { h: 1.05, x: -16.7, z: 26.0, ry: Math.PI * 0.85, prop: true, cr: 0.6 }],           // stove beside it
-      ['mainst_payphone_blockhead_walking', { h: 2.0, x: 7.9, z: -4.6, ry: 0.25, still: true, cr: 0.5 }], // stands by the payphone
-      ['mainst_hydrant_spin_walking', { h: 1.15, x: 4.6, z: 2.2, ry: -0.5, still: true, cr: 0.45, spin: true }],
+      ['house_fridge_walking', NEWTOWN ? { h: 2.0, x: 18.6, z: 50.6, ry: 0.35, still: true, cr: 0.6 } : { h: 2.0, x: -7.4, z: 25.2, ry: Math.PI + 0.35, still: true, cr: 0.6 }],     // by the Wolf's door
+      ['diner_couch', NEWTOWN ? { h: 0.95, x: 29.4, z: 51.6, ry: 0.12, prop: true, cr: 1.1 } : { h: 0.95, x: -14.6, z: 24.4, ry: Math.PI * 0.92, prop: true, cr: 1.1 }],           // couch in the front yard
+      ['diner_stove', NEWTOWN ? { h: 1.05, x: 31.4, z: 50.0, ry: -0.25, prop: true, cr: 0.6 } : { h: 1.05, x: -16.7, z: 26.0, ry: Math.PI * 0.85, prop: true, cr: 0.6 }],           // stove beside it
+      ['mainst_payphone_blockhead_walking', NEWTOWN ? { h: 2.0, x: 8.6, z: 14.3, ry: Math.PI - 0.25, still: true, cr: 0.5 } : { h: 2.0, x: 7.9, z: -4.6, ry: 0.25, still: true, cr: 0.5 }], // stands by the payphone
+      ['mainst_hydrant_spin_walking', NEWTOWN ? { h: 1.15, x: 6.6, z: 1.4, ry: 0.4, still: true, cr: 0.45, spin: true } : { h: 1.15, x: 4.6, z: 2.2, ry: -0.5, still: true, cr: 0.45, spin: true }],
       ['wanderer_banana_squid_walking', { h: 1.7, wander: true, spot: 0 }],
       ['wanderer_shovel_farmhand_walking', { h: 1.8, wander: true, spot: 4 }],
       ['wanderer_wrench_walking', { h: 1.6, wander: true, spot: 7 }],

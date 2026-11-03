@@ -44,10 +44,14 @@ const DOORS = [
   { room: 'pool', x: 32.9, z: -4.2, sign: 'MOTEL POOL' },         // adobe_b (30,-6), side
   { room: 'drivein', x: 24.0, z: 15.5, sign: 'EYE-MAX DRIVE-IN' }, // felt screen south of the east road
 ];
-const DRIVEIN = { x: 24.0, z: 19.0 }; // the outdoor Eye-Max screen (felt placeholder)
-const FENCE = { x: -15, z: 10.8 }; // the Crow's roadside collection (fence-stool), south of the town street
+let DRIVEIN = { x: 24.0, z: 19.0 }; // the outdoor Eye-Max screen (felt placeholder)
+let FENCE = { x: -15, z: 10.8 }; // the Crow's roadside collection (fence-stool), south of the town street
 
 export function createTown(ctx) {
+  // run 11: the real-scale town moves every door / outdoor spot onto its building (townscape.js marks)
+  const TSC = ctx.townscape;
+  if (TSC) { for (const d of DOORS) { const m = TSC.doors[d.room]; if (m) { d.x = m.x; d.z = m.z; d.ry = m.ry; if (m.built) d.sign = null; else if (!d.sign) d.sign = ROOMS[d.room].name.replace('THE ', ''); } }
+    if (TSC.spots.fence) Object.assign(FENCE, TSC.spots.fence); if (TSC.spots.drivein) Object.assign(DRIVEIN, TSC.spots.drivein); }
   const { renderer, mainScene, load, normalize, feltMat, level, wolfState, audio = {} } = ctx;
   const LOW = sunspotsLowEnd();
   const T = { active: null, scene: null, camera: new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 80), rooms: {}, busy: false };
@@ -1255,14 +1259,14 @@ export function createTown(ctx) {
       for (let i = 0; i < 4; i++) { const h = ph('hubcaps (collection)', cyl(0.24, 0.24, 0.04, ['#c9c9c0', '#a8b0b8', '#d9c9a0', '#b8b8b0'][i], 14)); h.rotation.x = Math.PI / 2 - 0.3; h.position.set(-0.8 + i * 0.12, 0.26 + i * 0.02, -0.4 - i * 0.05); g.add(h); }
       const s = sign('THE COLLECTION\ntrades only', 1.1, 0.42, '#fff3dc', '#3a1f2a', 0.5); s.position.set(-0.4, 1.35, -0.55); g.add(s);
       const pole = cyl(0.03, 0.03, 1.2, '#7a5a4a', 6); pole.position.set(-0.4, 0, -0.6); g.add(pole);
-      at(g, FENCE.x, 0, FENCE.z, Math.PI); mainScene.add(g); crowSpot = { x: FENCE.x, z: FENCE.z, label: 'TALK TO CROW' };
+      at(g, FENCE.x, 0, FENCE.z, FENCE.ry ?? Math.PI); mainScene.add(g); crowSpot = { x: FENCE.x, z: FENCE.z, label: 'TALK TO CROW' };
       ctx.colliders?.push({ x: FENCE.x, z: FENCE.z, r: 0.8 });
       { const di = new THREE.Group(); const sc = ph('Eye-Max screen (outside, felt)', box(6.0, 3.2, 0.25, '#f6efe0', 0.06)); sc.position.y = 1.4; di.add(sc);   // the outdoor Eye-Max screen (south of the east road)
         for (const x of [-2.6, 2.6]) { const p = cyl(0.12, 0.14, 1.5, '#7a5a4a', 6); p.position.x = x; di.add(p); }
         const face = sunPic(5.6, 2.8, 'EYE-MAX · INTERMISSION', '#3a1f2a'); face.position.set(0, 3.0, -0.14); face.rotation.y = Math.PI; di.add(face);
         const mq = sign('EYE-MAX DRIVE-IN', 3.4, 0.5, '#2a1f2a', '#ff6fae', 0.7); mq.position.set(0, 4.85, -0.14); mq.rotation.y = Math.PI; di.add(mq);
-        di.position.set(DRIVEIN.x, 0, DRIVEIN.z); mainScene.add(di); ctx.colliders?.push({ x: DRIVEIN.x - 2.6, z: DRIVEIN.z, r: 0.4 }, { x: DRIVEIN.x + 2.6, z: DRIVEIN.z, r: 0.4 }); }
-      { const hs = new THREE.Group(), HX = 3.0, HZ = 23.2;   // Bear's house: a felt 1990s ranch (beige siding, brown gable roof, burgundy door, green shutters, satellite dish, mailbox)
+        di.position.set(DRIVEIN.x, 0, DRIVEIN.z); if (DRIVEIN.ry != null) di.rotation.y = DRIVEIN.ry; if (DRIVEIN.scale) di.scale.setScalar(DRIVEIN.scale); mainScene.add(di); ctx.colliders?.push({ x: DRIVEIN.x - 2.6, z: DRIVEIN.z, r: 0.4 }, { x: DRIVEIN.x + 2.6, z: DRIVEIN.z, r: 0.4 }); }
+      if (!TSC) { const hs = new THREE.Group(), HX = 3.0, HZ = 23.2;   // Bear's house: a felt 1990s ranch (beige siding, brown gable roof, burgundy door, green shutters, satellite dish, mailbox)
         const sid = box(5.2, 2.5, 3.6, '#e2d2b0', 0.05); hs.add(sid); for (let i = 1; i < 9; i++) { const l = box(5.24, 0.03, 3.64, '#cdbb96', 0.01); l.position.y = i * 0.27; hs.add(l); }
         const rs = new THREE.Shape([[-2.1, 0], [2.1, 0], [0, 1.2]].map(([x, y]) => new THREE.Vector2(x, y))); const rg = new THREE.ExtrudeGeometry(rs, { depth: 5.7, bevelEnabled: false }); rg.translate(0, 0, -2.85);
         const roof = new THREE.Mesh(rg, feltMat('#6a4a3a')); roof.rotation.y = Math.PI / 2; roof.position.y = 2.5; roof.castShadow = !LOW; hs.add(roof);
@@ -1276,7 +1280,7 @@ export function createTown(ctx) {
         ph('Bear\'s house (felt 1990s ranch)', hs); hs.position.set(HX, 0, HZ); mainScene.add(hs); ctx.colliders?.push({ x: HX - 1.3, z: HZ, r: 1.9 }, { x: HX + 1.3, z: HZ, r: 1.9 }); }
       for (const d of DOORS) if (d.sign) { const sg = new THREE.Group(); const p = cyl(0.04, 0.04, 1.9, '#5a3a3a', 6); const b = sign(d.sign, 1.3, 0.34, '#fff3dc', '#3a1f2a'); b.position.y = 1.85; sg.add(p, b);
         const bk = b.clone(); bk.rotation.y = Math.PI; bk.position.z = -0.01; sg.add(bk);
-        sg.position.set(d.x + 1.0, 0, d.z); sg.lookAt(2, 0, 4); mainScene.add(sg); }
+        if (d.ry != null) { sg.position.set(d.x + Math.cos(d.ry) * 1.4, 0, d.z - Math.sin(d.ry) * 1.4); sg.rotation.y = d.ry; } else { sg.position.set(d.x + 1.0, 0, d.z); sg.lookAt(2, 0, 4); } mainScene.add(sg); }
     } catch (e) { console.warn('town: outside props failed', e); }
   }
   function talkOutside() {

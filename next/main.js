@@ -8,14 +8,19 @@ import { createCockpit } from './cockpit.js';
 import { createMoth } from './moth.js';
 import { createDirector } from './scenes.js';
 import { createTown } from './town.js';
+import { createTownscape } from './townscape.js';
+import { createQuickTravel } from './quicktravel.js';
 import { audio } from './audio.js';
-import { sunspotsApply, sunspotsEnabled, setSunspotsLook, sunspotsLookOn, bothMats } from './sunspots_material.js';
+import { sunspotsApply, sunspotsEnabled, setSunspotsLook, sunspotsLookOn, bothMats, sunspotsLowEnd } from './sunspots_material.js';
 window.__SUNSPOTS_VERSION = 'v9-next';
 
 const Q = new URLSearchParams(location.search);
 const SHOT = Q.has('shot');
+const NEWTOWN = !Q.has('oldtown'); // run 11: real-scale town (townscape.js); ?oldtown = the run-10 square
+let TS = null;
 const MAP = Q.get('map'); // QA: ?map=town|route -> top-down orthographic layout render
-const QCAM = Q.get('cam') ? Q.get('cam').split(',').map(Number) : null; // QA: ?cam=x,y,z,tx,ty,tz
+const QCAM = Q.get('cam') ? Q.get('cam').split(',').map(Number) : null; // QA: ?cam=x,y,z,tx,ty,tz (mutable via window.__qcam for multi-shot QA)
+if (QCAM) window.__qcam = QCAM;
 const lerp = THREE.MathUtils.lerp, clamp = THREE.MathUtils.clamp;
 const smooth = t => t * t * (3 - 2 * t);
 let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -314,7 +319,7 @@ function feltify(root) {
 }
 let dinerMelt, neonSpec = null;
 function placeTown(models) {
-  for (const [name, x, z, ry, cr, pr] of TOWN) {
+  for (const [name, x, z, ry, cr, pr] of (NEWTOWN ? [] : TOWN)) {
     const src = models[name]; const root = feltify(src.scene.clone(true));
     const ex = src.scene.children[0]?.userData?.sunspots || {};
     root.position.set(x, 0, z); root.rotation.y = ry; scene.add(root);
@@ -340,7 +345,7 @@ function placeFarCacti(gltf) {
     let x, z;
     if (i < 110) { const r = 30 + Math.pow(rnd(), 1.3) * 330, a = rnd() * Math.PI * 2; x = Math.cos(a) * r; z = Math.sin(a) * r; }
     else { const k = Math.floor(rnd() * M.s.length), side = rnd() < 0.5 ? -1 : 1, off = 14 + Math.pow(rnd(), 1.4) * 170; const a = M.s[Math.max(0, k - 1)], b = M.s[Math.min(M.s.length - 1, k + 1)]; const tl = Math.hypot(b.x - a.x, b.z - a.z) || 1; x = M.s[k].x - (b.z - a.z) / tl * off * side; z = M.s[k].z + (b.x - a.x) / tl * off * side; }
-    const rd = level.distToRoad(x, z); if (rd < 10 || Math.hypot(x - 2, z - 6) < 34) continue;
+    const rd = level.distToRoad(x, z); if (rd < 10 || (NEWTOWN ? TS.inTown(x, z, 25) : Math.hypot(x - 2, z - 6) < 34)) continue;
     const r = rd;
     q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rnd() * 6.28);
     const s = 0.75 + rnd() * 0.8;
@@ -503,7 +508,7 @@ const wolfState = { pos: new THREE.Vector3(LAYOUT.wolfStart[0], 0, LAYOUT.wolfSt
 const level = createLevel({ scene, colliders, feltMat, rbox, makeMeltable, feltify: (r) => feltify(r), rnd, clamp, lerp, smooth, FELT,
   onEnterCar: () => { if (actWalk) { actWalk.setEffectiveWeight(0); actRun.setEffectiveWeight(0); actIdle.setEffectiveWeight(1); } wolfState.speed = 0; snapCam = true; },
   onReset: () => { director?.reset(); moth?.reset(); wolfState.pos.set(LAYOUT.wolfStart[0], 0, LAYOUT.wolfStart[1]); wolfState.yaw = LAYOUT.wolfStart[2]; wolfState.speed = 0; camYawTarget = camYaw = 0; snapCam = true; } });
-let snapCam = false;
+let snapCam = false, QT = null;
 // first person: the moth driver's cockpit (default while driving) + the Wolf's own eyes on foot (eye button, hold 0.5 s / V)
 const cockpit = createCockpit(level, { feltMat, rbox, clamp, lerp, rnd: Math.random, patchRider }); level.cockpit = cockpit;
 let moth = null; const wolfRM = { value: 0 };
@@ -541,6 +546,9 @@ async function loadAll() {
     'wolf_armsdown_felt.glb', 'busstop_bench.glb', 'mainst_hydrant.glb', 'mainst_car.glb',
     'mines_lantern.glb', 'busstop_rain_cloud.glb', ...TOWN_MODELS.map(n => 'town/' + n + '.glb')].map(f => load(M + f)));
   const town = Object.fromEntries(TOWN_MODELS.map((n, i) => [n, townG[i]]));
+  if (NEWTOWN) { TS = createTownscape({ scene, feltMat, makeMeltable, LOW: sunspotsLowEnd(), level }); window.__TS = TS; level.townscape = TS;
+    const KIND = { bus_shelter: 'shelter', lamp: 'lamp', payphone: 'payphone', fountain: 'fountain' };
+    for (const [n, x, z, ry, cr, pr] of TS.props) { const root = feltify(town[n].scene.clone(true)); root.position.set(x, 0, z); root.rotation.y = ry; scene.add(root); if (cr) colliders.push({ x, z, r: cr }); makeMeltable(root, { tint: TINT[KIND[n]] || '#ff8f86', puddle: pr || 1, puddleColor: WAX[KIND[n]] || '#f2907f' }); } }
   placeTown(town); placeFarCacti(town.cactus_far); level.placeRoadCacti(town);
   const castP = level.loadCast(load, normalize);
   if (neonSpec) { // hot-pink neon: ring around the ball sign + strip along the roof lip
@@ -553,14 +561,14 @@ async function loadAll() {
   }
 
   // dressing: Meshy characters/props standing about the square
-  prop(bench, { h: 1.15, x: -4.6, z: -4.2, ry: 0.15, collide: 1.0, puddle: 1.3 });
+  { const [bx, bz, bry] = NEWTOWN ? TS.bench : [-4.6, -4.2, 0.15]; prop(bench, { h: 1.15, x: bx, z: bz, ry: bry, collide: 1.0, puddle: 1.3 }); }
   void hydrant; // the static hydrant is replaced by the rigged mainst_hydrant_spin townsperson (level.js)
   level.setBootCar(car.scene, normalize);
   // the real moth driver (rigged Meshy model, meshopt + 1024 webp): replaces the felt stand-in + placeholder gloves
   load(M + 'moth_driver.glb').then(g => { moth = createMoth(g, level, cockpit, { scene, patchRider, look: r => sunspotsApply(r, 'moth', 1.7), bothMats }); cockpit.useMoth(moth); window.__moth = moth; })
     .catch(e => console.warn('moth driver model failed, keeping the stand-in', e)); // the boot car is the rideshare: parked at the pickup, drivable, walks on its boots
   prop(lantern, { h: 1.0, x: 8.3, z: 0.4, ry: -0.8, collide: 0.4, puddle: 0.7 });
-  const rc = prop(rain, { h: 2.6, x: -10.6, z: -2.6, ry: 0.6, collide: 0.5, puddle: 1.0 });
+  const rc = prop(rain, { h: 2.6, x: NEWTOWN ? 35.6 : -10.6, z: NEWTOWN ? -0.6 : -2.6, ry: 0.6, collide: 0.5, puddle: 1.0 });
 
   // Wolf
   wolf = new THREE.Group();
@@ -725,7 +733,7 @@ function frame() {
   // level (clock, car, townsfolk, obstacles)
   director?.update(dt, t, { wolfPos: wolfState.pos, titleUp: !!window.__titleUp || !wolfReady || !!MAP });   // scenes: triggers + timeline
   level.update(dt, t, { wolfPos: wolfState.pos, keys, wild: w, titleUp: !!window.__titleUp || !wolfReady || !!MAP });
-  town?.outside(dt); wolfFootsteps(); audio.update(dt);
+  town?.outside(dt); QT?.update(town); wolfFootsteps(); audio.update(dt);
   // wolf riding shotgun
   if (wolfReady && level.inCar && !puppet.on) {
     level.car.root.updateMatrixWorld(true); cockpit.wolfRig.matrixWorld.decompose(wolf.position, wolf.quaternion, tmpV); wolf.scale.setScalar(wolfBaseScale * level.seatScale); wolfState.pos.copy(wolf.position).setY(0);
@@ -754,7 +762,7 @@ function frame() {
     if (keys.KeyW || keys.ArrowUp) iy = -1; if (keys.KeyS || keys.ArrowDown) iy = 1; if (keys.KeyA || keys.ArrowLeft) ix = -1; if (keys.KeyD || keys.ArrowRight) ix = 1;
     if (keys.ShiftLeft) { ix *= 1; iy *= 1; } else if (!input.x && !input.y && (ix || iy)) { const l = Math.hypot(ix, iy); ix *= 0.6 / l; iy *= 0.6 / l; }
     const mag = Math.min(1, Math.hypot(ix, iy));
-    const target = mag < 0.08 ? 0 : (mag > 0.75 ? 7.2 : 2.6 * (mag / 0.75) + 0.6);
+    const target = mag < 0.08 ? 0 : (mag > 0.75 ? (NEWTOWN ? 8.4 : 7.2) : 2.6 * (mag / 0.75) + 0.6); // run 11: a touch quicker for the bigger town
     wolfState.speed = lerp(wolfState.speed, target, 1 - Math.exp(-dt * 8));
     if (mag > 0.08) {
       const fx = Math.sin(camYaw), fz = Math.cos(camYaw); // camera forward (on ground) = -(fx,fz)
@@ -766,7 +774,8 @@ function frame() {
     const p = wolfState.pos;
     p.x += Math.sin(wolfState.yaw) * wolfState.speed * dt; p.z += Math.cos(wolfState.yaw) * wolfState.speed * dt;
     for (const c of colliders) { const dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz), r = c.r + 0.45; if (d < r && d > 1e-4) { p.x = c.x + dx / d * r; p.z = c.z + dz / d * r; } }
-    { const [cx, cz] = LAYOUT.townCenter, R0 = LAYOUT.walkRadius, dx = p.x - cx, dz = p.z - cz, pr = Math.hypot(dx, dz); // invisible boundary: town on foot, the desert is for driving
+    if (TS) { TS.collide(p, 0.45); if (TS.clampWalk(p)) { if (!level.edgeWalkSaid) { level.toast('Too far to walk. Catch the ride.', 2.4); level.edgeWalkSaid = true; } } else if (TS.inTown(p.x, p.z, -8)) level.edgeWalkSaid = false; }
+    else { const [cx, cz] = LAYOUT.townCenter, R0 = LAYOUT.walkRadius, dx = p.x - cx, dz = p.z - cz, pr = Math.hypot(dx, dz); // invisible boundary: town on foot, the desert is for driving
       if (pr > R0) { p.x = cx + dx * R0 / pr; p.z = cz + dz * R0 / pr; if (!level.edgeWalkSaid) { level.toast('Too far to walk. Catch the ride.', 2.4); level.edgeWalkSaid = true; } } else if (pr < R0 - 6) level.edgeWalkSaid = false; }
     wolf.position.copy(p); wolf.rotation.set(0, wolfState.yaw, 0); wolf.scale.setScalar(wolfBaseScale);
     // anim blend
@@ -821,7 +830,7 @@ function frame() {
     tmpV.set(wp.x + Math.sin(camYaw) * dist, hgt, wp.z + Math.cos(camYaw) * dist);
     if (snapCam) { FP.tpPos.copy(tmpV); } else FP.tpPos.lerp(tmpV, 1 - Math.exp(-dt * 5));
     camTarget.set(wp.x, portrait ? 2.6 : 2.75, wp.z);
-    camera.position.copy(FP.tpPos); camera.lookAt(camTarget); FP.tpQ.copy(camera.quaternion);
+    camera.position.copy(FP.tpPos); if (TS) TS.camClamp(camTarget, camera.position); camera.lookAt(camTarget); FP.tpQ.copy(camera.quaternion);
     // the Wolf's eyes: quick smooth blend (~0.35 s), free look, gentle walk bob (a bit more in Wild)
     FP.k = clamp(FP.k + (FP.on ? 1 : -1) * dt / 0.35, 0, 1); if (snapCam) FP.k = FP.on; snapCam = false;
     const e = smooth(FP.k);
@@ -888,7 +897,7 @@ function frame() {
   }
 
   if (MAP) { // top-down layout render for the level map
-    if (!mapCam) { const town = MAP === 'town', asp = innerWidth / innerHeight; const [cx, cz, hz] = town ? [4, 6, 34] : [62, -495, 560]; const hx = hz * asp;
+    if (!mapCam) { const town = MAP === 'town', asp = innerWidth / innerHeight; const [cx, cz, hz] = town ? (NEWTOWN ? (Q.get('mapc') ? Q.get('mapc').split(',').map(Number) : [-90, 2, 140]) : [4, 6, 34]) : [62, -495, 560]; const hx = hz * asp;
       mapCam = new THREE.OrthographicCamera(-hx, hx, hz, -hz, 1, 3000); mapCam.position.set(cx, 1000, cz); mapCam.up.set(0, 0, -1); mapCam.lookAt(cx, 0, cz);
       window.__mapView = { cx, cz, hx, hz }; sun.visible = false; scene.fog.near = 1e5; scene.fog.far = 2e5; for (const m of level.spotMarkers) m.visible = true;
       document.body.classList.add('map'); const sc2 = key.shadow.camera; sc2.left = sc2.bottom = town ? -40 : -40; sc2.right = sc2.top = 40; sc2.updateProjectionMatrix(); }
@@ -896,7 +905,8 @@ function frame() {
     renderer.render(scene, mapCam); requestAnimationFrame(frame); return;
   }
   cockpit.renderMirror(renderer, scene);
-  renderer.render(scene, camera);
+  if (TS) TS.update(camera);
+  renderer.render(scene, camera); if (SHOT || QCAM) window.__tris = renderer.info.render.triangles;
   requestAnimationFrame(frame);
 }
 
@@ -920,8 +930,9 @@ loadAll().then(() => {
     director.init().then(() => { if (Q.get('scene')) debugScene(Q.get('scene')); }).catch(e => console.warn('scenes failed to load', e));
   }
   const clearInput = () => { for (const k in keys) keys[k] = false; input.x = input.y = 0; joyId = null; lookId = null; joy.style.display = 'none'; };
-  town = createTown({ renderer, mainScene: scene, load: (u) => load(u), normalize, feltMat, level, wolfState, colliders, audio,
+  town = createTown({ renderer, mainScene: scene, load: (u) => load(u), normalize, feltMat, level, wolfState, colliders, audio, townscape: TS,
     onEnter: () => { clearInput(); if (FP.on) toggleFP?.(); }, onExit: () => { clearInput(); clock.getDelta(); } });
+  if (TS) QT = createQuickTravel({ TS, level, wolfState, LAYOUT, onJump: (y) => { clearInput(); camYawTarget = camYaw = y + Math.PI; snapCam = true; } }); window.__qt = QT;
   if (Q.get('room')) { const go = () => { if (window.__titleUp || !wolfReady) { setTimeout(go, 200); return; } town.enter(Q.get('room')); }; go(); }
   window.__ready = true;
 }).catch(e => { document.getElementById('err').style.display = 'block'; document.getElementById('err').textContent = 'Load error: ' + e.message; console.error(e); });
