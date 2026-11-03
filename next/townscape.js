@@ -104,7 +104,7 @@ export function createTownscape(C) {
       const d = _cp.distanceTo(b.c) - b.r, near = d < b.lodNear;
       if (b.detail) b.detail.visible = near || !b.lo; if (b.lo) b.lo.visible = !near;
       if (b.glow) b.glow.visible = d < 260;
-      if (b.extras.length) { const v = d < 110; if (b.extrasOn !== v) { b.extrasOn = v; for (const e of b.extras) e.visible = v || !!e.userData.far; } }
+      if (b.extras.length) { const v = d < 110, nv = d < 60; if (b.extrasOn !== v || b.extrasNear !== nv) { b.extrasOn = v; b.extrasNear = nv; for (const e of b.extras) e.visible = (e.userData.near ? nv : v) || !!e.userData.far; } }
     }
   };
   // walking collisions against building footprints (axis-aligned)

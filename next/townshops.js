@@ -74,14 +74,14 @@ function carGeo() {
   for (const s of [-1, 1]) { t.box(s * 0.68, 0.5, -2.66, 0.3, 0.2, 0.04, '#f6ecc8'); t.box(s * 0.72, 0.55, 2.66, 0.18, 0.24, 0.04, '#c8463f'); }
   for (const [x, z] of [[-1.0, -1.65], [1.0, -1.65], [-1.0, 1.7], [1.0, 1.7]]) {
     const xo = x < 0 ? x + 0.24 : x;                                                                 // rz=pi/2 cylinders grow toward -x
-    t.cyl(xo, 0.34, z, 0.34, 0.24, '#1e1a1c', { rz: Math.PI / 2, seg: 8 }); t.cyl(xo + (x < 0 ? -0.23 : 0.01), 0.34, z, 0.2, 0.02, '#f2efe6', { rz: Math.PI / 2, seg: 8 }); }
+    t.cyl(xo, 0.34, z, 0.34, 0.24, '#1e1a1c', { rz: Math.PI / 2, seg: 6 }); t.cyl(xo + (x < 0 ? -0.23 : 0.01), 0.34, z, 0.2, 0.02, '#f2efe6', { rz: Math.PI / 2, seg: 6 }); }
   return (_carGeo = { body: mergeGeometries(b.parts, false), trim: mergeGeometries(t.parts, false) });
 }
 export function carFleet(k, mat, cars) {
   const g = carGeo(), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1), c = new THREE.Color();
   const body = new THREE.InstancedMesh(g.body, mat, cars.length), trim = new THREE.InstancedMesh(g.trim, mat, cars.length);
   cars.forEach(([x, z, ry, hex], i) => { m4.compose(new THREE.Vector3(x, 0, z), q.setFromAxisAngle(up, ry), one); body.setMatrixAt(i, m4); trim.setMatrixAt(i, m4); c.set(hex); c.setRGB(Math.min(1, c.r * COLOR_GAIN.v), Math.min(1, c.g * COLOR_GAIN.v), Math.min(1, c.b * COLOR_GAIN.v)); body.setColorAt(i, c); });
-  for (const m of [body, trim]) { m.castShadow = m.receiveShadow = true; m.computeBoundingSphere(); k.put(m, 0, 0, 0); }
+  for (const m of [body, trim]) { m.castShadow = m === body; m.receiveShadow = true; m.computeBoundingSphere(); m.userData.near = true; k.put(m, 0, 0, 0); }   // trim sits inside the body's shadow: skip its shadow pass
   for (const [x, z, ry] of cars) { const a = Math.abs(Math.sin(ry)) > 0.5; k.solid(x - (a ? 2.7 : 1.0), z - (a ? 1.0 : 2.7), x + (a ? 2.7 : 1.0), z + (a ? 1.0 : 2.7), 1.5); }
 }
 
