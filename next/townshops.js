@@ -71,8 +71,17 @@ function buildMainNorth(place) {
     const band = (y0, h, c, o = {}) => { k.aab(-X, y0, CZ, X, y0 + h, FZ + (o.out || 0), c, o); for (const s of [-1, 1]) k.cyl(s * X, y0, CZ, R + (o.out || 0), h, c, { seg: 16, ...o }); };
     band(0, 1.0, P.base, { lod: true, pat: 'panel', ps: 0.5 }); band(1.0, 0.06, P.neon, { glow: true, out: 0.04 }); band(1.06, 1.5, P.glass, { glow: true }); band(2.56, 0.45, P.header, { lod: true });
     band(2.72, 0.07, P.neon, { glow: true, out: 0.05 });
-    k.aab(-X, 3.0, CZ, X, 3.65, FZ + 0.8, P.fascia, { lod: true }); for (const s of [-1, 1]) k.cyl(s * X, 3.0, CZ, R + 0.8, 0.65, P.fascia, { seg: 18 });
+    // M6: deep red roof band (wraps the front, both curves and the sides) with a dark lip, warm-lit soffit and a neon edge — diner_01.jpg
+    k.aab(-X, 2.95, CZ, X, 3.85, FZ + 0.8, P.fascia, { lod: true }); for (const s of [-1, 1]) k.cyl(s * X, 2.95, CZ, R + 0.8, 0.9, P.fascia, { seg: 18 });
+    for (const s of [-1, 1]) { k.aab(s * 8.25, 2.95, -16.2, s * 9.05, 3.85, CZ, P.fascia, { lod: true }); k.aab(s * 8.25, 2.88, -16.1, s * 9.0, 2.95, CZ, '#ffc27a', { glow: true }); }
+    k.aab(-X - 0.2, 3.85, CZ, X + 0.2, 3.95, FZ + 0.85, P.fasciaDk); for (const s of [-1, 1]) k.cyl(s * X, 3.85, CZ, R + 0.85, 0.1, P.fasciaDk, { seg: 18 });
+    k.aab(-X, 2.88, FZ, X, 2.95, FZ + 0.78, '#ffc27a', { glow: true }); for (const s of [-1, 1]) k.cyl(s * X, 2.88, CZ, R + 0.78, 0.07, '#ffc27a', { seg: 18, glow: true });
     k.aab(-X, 2.93, FZ + 0.74, X, 3.0, FZ + 0.8, P.neon, { glow: true });
+    // wraparound glass continues down both sides, with the neon strip under it and mullions
+    for (const s of [-1, 1]) { const x = s * 8.25, zA = CZ, zB = -12.5;
+      k.aab(x, 0, zB, x + s * 0.02, 1.0, zA, P.base, { pat: 'panel', ps: 0.5 }); k.aab(x, 1.0, zB, x + s * 0.06, 1.08, zA, P.neon, { glow: true });
+      k.aab(x, 1.08, zB, x + s * 0.03, 2.56, zA, P.glass, { glow: true }); k.aab(x, 2.56, zB, x + s * 0.03, 2.88, zA, P.header);
+      for (let z = zA - 0.6; z > zB; z -= 1.2) k.box(x + s * 0.05, 1.08, z, 0.06, 1.48, 0.08, P.mull); }
     // mullions round the glass (straight run + the two curves)
     for (let x = -X + 0.6; x < X; x += 1.2) if (Math.abs(x - 0.25) > 0.8) k.box(x, 1.06, FZ + 0.04, 0.08, 1.5, 0.06, P.mull);
     for (const s of [-1, 1]) for (let i = 1; i < 4; i++) { const a = i / 4 * Math.PI / 2; k.box(s * (X + Math.sin(a) * (R + 0.03)), 1.06, CZ + Math.cos(a) * (R + 0.03), 0.08, 1.5, 0.08, P.mull, { ry: s * a }); }
@@ -81,12 +90,20 @@ function buildMainNorth(place) {
     k.mark('door_diner', 0.25, 0.5);
     sign(k, 'OPEN 24 HRS', -4.6, 2.2, FZ + 0.12, 1.6, 0.36, { fg: '#ff4a6a', glow: true });
     // rooftop sign: two neon rows on a red board on steel legs
-    k.aab(-5.5, 3.8, -6.6, 2.5, 8.9, -6.3, P.signBg); k.aab(-5.65, 3.8, -6.65, 2.65, 3.95, -6.25, P.fasciaDk);
+    k.aab(-5.5, 3.95, -6.6, 2.5, 8.9, -6.3, P.signBg); k.aab(-5.65, 3.95, -6.65, 2.65, 4.1, -6.25, P.fasciaDk);
+    k.cyl(2.5, 6.42, -6.6, 2.47, 0.28, P.signBg, { rx: Math.PI / 2, seg: 16 }); // rounded right end like the ref board
+    for (const [a, b] of [[[-5.5, 8.9], [2.5, 8.9]], [[-5.5, 3.98], [2.5, 3.98]], [[-5.5, 3.98], [-5.5, 8.9]]]) k.beam([a[0], a[1], -6.22], [b[0], b[1], -6.22], 0.1, P.neon, { glow: true });
     for (const x of [-4.6, 1.6]) k.beam([x, 3.6, -8.8], [x, 6.5, -6.6], 0.14, '#3a3a3a');
     sign(k, 'SUNSPOT', -1.5, 7.65, -6.24, 7.6, 1.9, { fg: P.signFg, stroke: P.signStroke, glow: true, fit: 0.9, family: '"Arial Black", Impact, Futura, sans-serif' });
     sign(k, 'DINER', -1.5, 5.25, -6.24, 6.4, 2.2, { fg: P.signFg, stroke: P.signStroke, glow: true, fit: 0.92, family: '"Arial Black", Impact, Futura, sans-serif' });
     // patio
     for (const x of [-6.2, -3.2, 3.6, 6.4]) tableSet(k, x, -1.4, P.steel, P.fascia);
+    // M6: more sidewalk bistro tables (round tops, dark metal chairs) along the front and round both sides, as in diner_01.jpg
+    const bistro = (x, z, n = 2) => { k.cyl(x, 0, z, 0.05, 0.74, '#2e2a28', { seg: 5 }); k.cyl(x, 0.72, z, 0.38, 0.04, '#5a4a40', { seg: 10 });
+      for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2 + 0.4, cx = x + Math.cos(a) * 0.62, cz = z + Math.sin(a) * 0.62;
+        k.box(cx, 0, cz, 0.36, 0.46, 0.36, '#2e2a28', { ry: -a }); k.box(cx + Math.cos(a) * 0.17, 0.46, cz + Math.sin(a) * 0.17, 0.05, 0.42, 0.36, '#2e2a28', { ry: -a }); } };
+    for (const x of [-4.7, 5.0]) bistro(x, -0.6, 3);
+    for (const s of [-1, 1]) for (const z of [-5.0, -7.6, -10.2]) bistro(s * 10.0, z, 2);
   }, { foot: [14, 12] });
 
   // ---------------------------------------------------------------- LAUNDROMAT under brick apartments (x -12..6)
@@ -275,24 +292,35 @@ function buildStore(place) {
 function buildStrip(TS, place) {
   // ---------------------------------------------------------------- GUTTER BOWL (x -45..-8), real size: 37 m frontage, 40 m deep
   place('bowl', -26.5, -70.5, 0, (k) => {
-    const P = PALC.bowl, FZ = -5.5, H = 8;
+    const P = PALC.bowl, FZ = -5.5, H = 6.6;
     k.aab(-18.5, 0, -45, 18.5, H, FZ, P.wall, { lod: true, pat: 'stucco', ps: 0.7 }); k.aab(-18.6, H, -45.1, 18.6, H + 0.3, FZ + 0.1, P.cap, { lod: true }); k.solid(-18.5, -45, 18.5, FZ, H);
     // stepped zig-zag block relief (the ref's long tan wall)
-    for (let r = 0; r < 9; r++) { const y = 0.9 + r * 0.72, ph = r % 6 < 3 ? r % 6 : 6 - r % 6;
+    for (let r = 0; r < 8; r++) { const y = 0.9 + r * 0.66, ph = r % 6 < 3 ? r % 6 : 6 - r % 6;
       for (let x = -18 + ph * 0.9; x < -3; x += 5.4) k.box(x + 0.6, y, FZ + 0.06, 1.2, 0.36, 0.14, P.block); }
     for (let y = 1.0; y < H; y += 1.44) k.aab(-18.5, y, FZ, -3, y + 0.04, FZ + 0.03, P.wallSh);
-    sign(k, 'Gutter Bowl', -11.5, 5.6, FZ + 0.2, 11, 2.3, { fg: P.script, family: SCRIPT, fit: 0.86, far: true });
-    // the entrance canopy: long cream band on thin columns, dark glass, stone wall, "Cocktail Bar"
-    k.aab(-3.5, 3.4, FZ, 17.8, 3.62, -0.3, P.canopy); k.aab(-3.5, 3.62, -0.6, 17.8, 4.05, -0.25, P.band); k.aab(-3.5, 3.3, -0.62, 17.8, 3.4, -0.25, P.canopy);
-    for (let x = -2.5; x < 17.5; x += 4) k.cyl(x, 0, -0.9, 0.07, 3.4, P.canopy, { seg: 6 });
+    sign(k, 'Gutter Bowl', -12, 5.3, FZ + 0.2, 10, 1.9, { fg: P.script, family: SCRIPT, fit: 0.86, far: true });
+    // the sprawling Googie canopy (ref: Sepulveda Bowl): a deep flat roof sweeping well past the entrance, cream soffit,
+    // thick dark fascia with a row of light dots, V-shaped folded-plate fins at the west end and a fan of tall fins to the east
+    const CX0 = -5.6, CX1 = 23.4, CZ = 1.6, CY = 4.1;
+    k.aab(CX0, CY, FZ, CX1, CY + 0.06, CZ, P.band); k.aab(CX0, CY + 0.06, FZ, CX1, CY + 0.3, CZ - 0.2, P.canopy);
+    k.aab(CX0 - 0.1, CY - 0.2, CZ - 0.22, CX1 + 0.1, CY + 0.95, CZ, P.canopy); k.aab(CX0 - 0.1, CY - 0.28, CZ - 0.22, CX1 + 0.1, CY - 0.2, CZ + 0.02, P.band);
+    for (const x of [CX0 - 0.1, CX1 - 0.12]) k.aab(x, CY - 0.2, FZ, x + 0.22, CY + 0.95, CZ, P.canopy);
+    for (let x = CX0 + 0.5; x < CX1 - 0.3; x += 0.85) k.cyl(x, CY + 0.37, CZ + 0.005, 0.13, 0.02, P.dot, { rx: Math.PI / 2, seg: 6 });
+    for (let x = CX0 + 0.6; x < CX1; x += 3.2) k.aab(x, CY + 0.07, FZ + 0.2, x + 0.06, CY + 0.075, CZ - 0.3, '#ffe2a8', { glow: true });
+    for (let x = 2.5; x < 17; x += 4.5) k.cyl(x, 0, CZ - 0.5, 0.07, CY, P.canopy, { seg: 6 });
     k.aab(-3, 0, FZ + 0.02, 10, 3.3, FZ + 0.06, P.glass); for (let x = -3; x <= 10; x += 1.3) k.box(x, 0, FZ + 0.08, 0.07, 3.3, 0.05, '#c8b8a0');
     k.aab(-1.3, 0, FZ + 0.06, 1.3, 2.4, FZ + 0.1, '#f2c88a', { glow: true }); k.mark('door_bowl', 0, 0.5);
     k.aab(10, 0, FZ, 17.6, 3.3, FZ + 0.3, P.stone, { pat: 'stone', ps: 0.4 }); for (let i = 0; i < 22; i++) k.box(10.4 + (i * 2.37) % 7, 0.2 + ((i * 1.31) % 2.9), FZ + 0.31, 0.5 + (i % 3) * 0.15, 0.28, 0.04, P.stone2);
     sign(k, 'Cocktail Bar', 4.0, 2.2, FZ + 0.12, 4.6, 1.0, { fg: P.band, family: SCRIPT, fit: 0.8 });
-    // folded-plate fins (dark, dotted) at both canopy ends
-    for (const [x0, n] of [[-6.2, 4], [13.2, 6]]) for (let i = 0; i < n; i++) { const x = x0 + i * 0.95, t = i % 2 ? 0.55 : -0.55;
-      k.box(x, 0, -0.9, 0.95, 5.4 + (i % 2) * 0.5, 0.08, P.fin, { ry: t });
-      for (let j = 0; j < 5; j++) k.box(x, 0.8 + j * 0.95, -0.9 + Math.sign(Math.cos(t)) * 0.05, 0.12, 0.12, 0.1, P.dot, { ry: t }); }
+    // west end: two folded-plate V's standing in front of the fascia, dotted
+    for (const vx of [-4.6, -1.6]) for (const s of [-1, 1]) {
+      k.ext([[vx + s * 0.08, 0], [vx + s * 0.4, 0], [vx + s * 1.5, 6.6], [vx + s * 0.7, 6.6]], CZ + 0.05, 0.1, P.fin);
+      for (let j = 0; j < 6; j++) { const t = (0.6 + j * 1.0) / 6.6; k.box(vx + s * (0.24 + t * 0.85), 0.6 + j * 1.0, CZ + 0.16, 0.13, 0.13, 0.03, P.dot); } }
+    // east end: a fan of six tall leaning blades running front-to-back, stepping down to the east
+    for (let i = 0; i < 6; i++) { const x = 17.9 + i * 1.1, top = 8.2 - i * 0.4;
+      k.ext([[-(CZ - 0.5), 0], [-(CZ + 0.1), 0], [-(CZ + 1.0), top], [-(CZ - 1.5), top - 0.5]], 0, 0.12, P.fin, { ry: Math.PI / 2, at: [x, 0, 0] });
+      for (let j = 0; j < 6; j++) k.box(x + 0.06, 0.7 + j * (top - 1.2) / 6, CZ - 0.2 + j * 0.12, 0.18, 0.13, 0.13, P.dot); }
+    k.solid(17.8, CZ - 1.2, 23.6, CZ + 0.3, 6);
     // the sign tower: twin white poles, the tilted yellow trapezoid, two red discs
     for (const x of [-7.6, -6.4]) k.cyl(x, 0, -1.4, 0.18, 17, P.pole, { seg: 8 });
     k.frame(-7, 0, -1.2, 0.18, (f) => { f.ext([[-3.1, 0], [3.1, 0], [1.9, -5.4], [-1.9, -5.4]], -0.2, 0.25, P.signY, { at: [0, 18.8, 0] });
