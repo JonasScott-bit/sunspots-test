@@ -54,7 +54,7 @@ export const CLOTH_PRESETS = {
 //   hardLum: anything darker than this is clay (noses, pupils, claws)  ns: Meshy normal-map strength (folds/wrinkles)
 const NONE = [0, 0, 9, 9];
 export const CHAR_LOOK = {
-  wolf:     { cloth: [[0.055, 0.075, 0.35, 0.18], NONE], preflat: true, fur: 0.9, hard: NONE, hardLum: 0.16, ns: 0.4 },          // grey felt head/tail, orange sweater, coral pants; black nose = clay
+  wolf:     { cloth: [[0.055, 0.075, 0.35, 0.18], NONE], preflat: true, fur: 0.9, hard: NONE, hardLum: 0.16, ns: 0.4, region: true }, // v4 (cast/locked/wolf_v4_photo.jpg): region map in the MR texture R channel -> directional fur, puffy fleece sweater, rib cuffs, corduroy pants
   bear:     { cloth: [[0.97, 0.06, 0.3, 0.1], [0.48, 0.07, 0.2, 0.1]], fur: 0.85, hard: NONE, hardLum: 0.12, ns: 0.45 }, // maroon sweater, teal pants, brown felt fur
   crow:     { cloth: [[0.30, 0.10, 0.25, 0.1], [0.11, 0.07, 0.3, 0.2]], fur: 0.8, hard: NONE, hardLum: 0.03, ns: 0.45 }, // green sweater, mustard pants, black felt feathers; beak clay
   lynx:     { cloth: [[0.48, 0.08, 0.25, 0.1], [0.09, 0.06, 0.12, 0.45]], fur: 0.85, hard: NONE, hardLum: 0.1, ns: 0.45 },   // teal turtleneck, beige flares
@@ -75,6 +75,7 @@ function NONE2() { return [NONE, NONE]; }
 
 const GLSL_COMMON = /* glsl */`
 uniform sampler2D uNoise; uniform float uNScale, uFibreFreq, uClayFreq, uFlatten, uBumpCloth, uBumpClay, uRim, uSheen, uSpeck, uClothMaxSat2;
+uniform float uDetFreq, uCordFreq, uRibFreq, uFurAniso;
 uniform vec4 uCloth0, uCloth1, uHard; uniform vec3 uRimSky; uniform float uFur, uHardLum, uClothBySat, uShell, uShellCut, uYMin, uYH; uniform vec3 uYFelt; uniform vec2 uYClay;
 varying vec3 vSsObj; varying vec3 vSsObjN;
 vec3 ssRgb2hsv(vec3 c){ vec4 K=vec4(0.,-1./3.,2./3.,-1.); vec4 p=mix(vec4(c.bg,K.wz),vec4(c.gb,K.xy),step(c.b,c.g)); vec4 q=mix(vec4(p.xyw,c.r),vec4(c.r,p.yzx),step(p.x,c.r)); float d=q.x-min(q.w,q.y); float e=1e-6; return vec3(abs(q.z+(q.w-q.y)/(6.*d+e)),d/(q.x+e),q.x); }
@@ -96,7 +97,8 @@ export function applySunspotsLook(root, opts = {}) {
     const m0 = o.material; if (!m0 || m0.userData?.ss) return; // already converted
     o.geometry.computeBoundingBox(); const bb = o.geometry.boundingBox; const H = Math.max(bb.max.y - bb.min.y, 1e-6);
     const ns = opts.normalScale ?? cl.ns ?? 0.6;
-    const P = { color: m0.color.clone(), map: m0.map, normalMap: m0.normalMap, normalScale: new THREE.Vector2(ns, ns), roughness: 0.9, metalness: 0, side: m0.side,
+    const region = !!(opts.region ?? cl.region) && !!m0.roughnessMap; // per-region material map (MR texture: R = region id, G = roughness)
+    const P = { color: m0.color.clone(), map: m0.map, normalMap: m0.normalMap, normalScale: new THREE.Vector2(ns, ns), roughness: region ? 1.0 : 0.9, roughnessMap: region ? m0.roughnessMap : null, metalness: 0, side: m0.side,
       emissive: m0.emissive ? m0.emissive.clone() : new THREE.Color(0), emissiveMap: m0.emissiveMap || null, emissiveIntensity: m0.emissiveIntensity ?? 1,
       transparent: m0.transparent, opacity: m0.opacity, alphaTest: m0.alphaTest, alphaMap: m0.alphaMap || null, depthWrite: m0.depthWrite, vertexColors: m0.vertexColors };
     const m = mode === 'physical'
@@ -113,6 +115,7 @@ export function applySunspotsLook(root, opts = {}) {
       uDebug: { value: opts.debug || 0 },
       uFur: { value: opts.fur ?? cl.fur ?? 0 }, uHard: { value: new THREE.Vector4(...(opts.hard || cl.hard || NONE)) }, uHardLum: { value: opts.hardLum ?? cl.hardLum ?? 0 },
       uClothBySat: { value: opts.clothBySat ?? cl.clothBySat ?? 0 }, uShell: { value: 0 }, uShellCut: { value: 0.55 },
+      uDetFreq: { value: opts.detFreq ?? 6.0 }, uCordFreq: { value: opts.cordFreq ?? 190.0 }, uRibFreq: { value: opts.ribFreq ?? 150.0 }, uFurAniso: { value: opts.furAniso ?? 0.16 },
       uYMin: { value: bb.min.y }, uYH: { value: H }, uYFelt: { value: new THREE.Vector3(...(cl.yFelt || [0, 0, 0])) }, uYClay: { value: new THREE.Vector2(...(cl.yClay || [2, 2])) },
     };
     m.userData.ss = U;
@@ -165,6 +168,37 @@ export function applySunspotsLook(root, opts = {}) {
   float ssFoot = length(fwidth(ssP * uFibreFreq)) * 256.0; float ssLod = 1.0 - smoothstep(2.5, 7.0, ssFoot); // fade detail when sub-pixel
   // 4) albedo: felt = lighter fibre tips / darker roots; clay = dark specks + light flecks + soft lumps
   float ssFel = mix(0.80, 1.14, ssNf.r);
+  float ssRimK = 1.0, ssRoughK = 1.0, ssH = ssNf.r;
+  #ifdef SS_REGION
+  { // per-region materials (MR map R channel: fur 40 | sweater 110 | cuff 150 | pants 190 | hard 240); +3 triplanar fetches +1 map fetch
+    float rid = texture2D(roughnessMap, vRoughnessMapUv).r * 255.0;
+    float wFur = 1.0 - smoothstep(14.0, 30.0, abs(rid - 40.0)), wSw = 1.0 - smoothstep(14.0, 30.0, abs(rid - 110.0));
+    float wCf = 1.0 - smoothstep(10.0, 22.0, abs(rid - 150.0)), wPa = 1.0 - smoothstep(14.0, 30.0, abs(rid - 190.0)), wHd = smoothstep(205.0, 228.0, rid);
+    float wO = max(0.0, 1.0 - wFur - wSw - wCf - wPa - wHd); // filtered texels between two ids -> neutral felt (no black seams)
+    float wS = max(wFur + wSw + wCf + wPa + wO, 1e-3);
+    ssCloth = 1.0 - wHd;
+    // fur: short strands combed along the form -- down the body/tail, back along the head + snout (anisotropic triplanar)
+    float yf = (vSsObj.y - uYMin) / uYH; float zf = vSsObj.z / uYH;
+    float hf = max(smoothstep(0.76, 0.80, yf), smoothstep(0.64, 0.68, yf) * smoothstep(0.09, 0.13, zf));
+    vec3 an = mix(vec3(1.0), mix(vec3(1.0, uFurAniso, 1.0), vec3(1.0, 1.0, uFurAniso), hf), wFur / wS);
+    vec4 ssD = ssTri(ssP * uDetFreq * an + 0.53, ssW);
+    // corduroy / rib: vertical wales = stripes across the horizontal surface coordinate (legs + sleeves hang vertically in bind pose)
+    float th = mix(ssP.x, ssP.z, smoothstep(0.42, 0.58, ssW.x / max(ssW.x + ssW.z, 1e-3))); // narrow switch: straight wales, no phase-blend moire
+    float cLod = (1.0 - smoothstep(0.25, 0.6, fwidth(th * uCordFreq))) * (1.0 - ssW.y);
+    float ridge = mix(0.66, pow(abs(sin(3.14159 * th * uCordFreq)), 0.5), cLod);
+    float rLod = (1.0 - smoothstep(0.25, 0.6, fwidth(th * uRibFreq))) * (1.0 - ssW.y);
+    float rib = mix(0.6, smoothstep(0.15, 0.85, abs(sin(3.14159 * th * uRibFreq))), rLod);
+    float fFur = mix(0.74, 1.15, ssD.r) * mix(0.96, 1.03, ssNf.r);
+    float fSw = mix(0.90, 1.06, smoothstep(0.2, 0.8, ssD.b)) * mix(0.84, 1.10, ssD.r);
+    float fCf = mix(0.86, 1.04, rib) * mix(0.93, 1.05, ssNf.r);
+    float fPa = mix(0.88, 1.04, ridge) * mix(0.94, 1.05, ssNf.r);
+    ssFel = (wFur * fFur + wSw * fSw + wCf * fCf + wPa * fPa + wO * ssFel) / wS;
+    ssH = (wFur * ssD.r * 0.9 + wSw * (ssD.b * 0.9 + ssD.r * 0.55) + wCf * (rib * 0.55 + ssNf.r * 0.2) + wPa * (ridge * 0.42 + ssNf.r * 0.18) + wO * ssNf.r) / wS;
+    ssRimK = (wFur * 1.1 + wSw * 1.2 + wCf * 1.0 + wPa * mix(0.55, 0.95, ridge) + wO) / wS;
+    ssRoughK = mix(1.0, mix(1.0, 0.84, ridge), wPa / wS);
+    ssLod = max(ssLod, 0.35); // keep some fleece/fur grain at game distance (mips handle aliasing)
+  }
+  #endif
   float ssCla = (1.0 - uSpeck * ssNc.g * ssLod) * (1.0 + 0.22 * ssNc.a * ssLod) * mix(0.94, 1.05, ssNc.b);
   diffuseColor.rgb = ssBase * mix(ssCla, mix(1.0, ssFel, ssLod), ssCloth);
   #ifdef SS_SHELL
@@ -173,10 +207,10 @@ export function applySunspotsLook(root, opts = {}) {
   if (uDebug > 0.5) diffuseColor.rgb = vec3(ssCloth);`)
         .replace('#include <normal_fragment_maps>', /* glsl */`
   #include <normal_fragment_maps>
-  { float h = mix(ssNc.b * 0.6 + ssNc.g * 0.4, ssNf.r, ssCloth);
+  { float h = mix(ssNc.b * 0.6 + ssNc.g * 0.4, ssH, ssCloth);
     float bs = mix(uBumpClay, uBumpCloth, ssCloth) * ssLod;
     normal = ssBump(-vViewPosition, normal, vec2(dFdx(h), dFdy(h)) * bs, faceDirection); }`)
-        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = mix(0.93, 1.0, ssCloth);')
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n#ifdef SS_REGION\n roughnessFactor = texelRoughness.g * ssRoughK;\n#else\n roughnessFactor = mix(0.93, 1.0, ssCloth);\n#endif')
         .replace('#include <lights_physical_fragment>', /* glsl */`
   #include <lights_physical_fragment>
   #ifdef USE_SHEEN
@@ -186,14 +220,15 @@ export function applySunspotsLook(root, opts = {}) {
   // 5) fuzz halo: soft fresnel rim, cloth strong, clay faint (fakes back-scattered fibres; the 'cheap sheen')
   { float nv = clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0); float fr = pow(1.0 - nv, 2.6);
     vec3 rimC = mix(uRimSky * mix(0.5, 1.0, ssCloth), min(ssBase * 2.2 + 0.05, vec3(1.0)), mix(0.85, 0.6, ssCloth));
-    outgoingLight += rimC * fr * uRim * mix(0.10, 1.0, ssCloth) * mix(1.0, ssFel, ssCloth); }
+    outgoingLight += rimC * fr * uRim * ssRimK * mix(0.10, 1.0, ssCloth) * mix(1.0, ssFel, ssCloth); }
   if (uDebug > 0.5) outgoingLight = vec3(ssCloth); if (uDebug > 1.5) outgoingLight = vec3(ssNf.r); if (uDebug > 2.5) outgoingLight = normal*0.5+0.5; if (uDebug > 3.5) outgoingLight = ssBase; if (uDebug > 4.5) outgoingLight = ssDbg;
   #include <opaque_fragment>`);
     };
     const preflat = opts.preflat ?? cl.preflat ?? !!m0.userData?.handflat; // albedo already hand-flattened (tools/flatten_atlas.py / handflat.py set material extras.handflat): skip the blur passes (they bleed across UV islands)
     if (opts.lite) m.defines = { ...(m.defines || {}), SS_LITE: '' };
     if (preflat) m.defines = { ...(m.defines || {}), SS_PREFLAT: '' };
-    m.customProgramCacheKey = () => 'sunspots|' + mode + (opts.lite ? '|lite' : '') + (preflat ? '|flat' : '');
+    if (region) m.defines = { ...(m.defines || {}), SS_REGION: '' };
+    m.customProgramCacheKey = () => 'sunspots|' + mode + (opts.lite ? '|lite' : '') + (preflat ? '|flat' : '') + (region ? '|region' : '');
     o.material = m; mats.push(m);
     if (opts.shell) mats.push(addShell(o, m, opts.shell, U));
     o.userData.ssPair = [m0, m]; // [original, sunspots] for the low-end runtime fallback (setSunspotsLook)
