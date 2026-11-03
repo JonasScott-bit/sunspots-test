@@ -12,7 +12,8 @@ import { createTownscape } from './townscape.js';
 import { patInject } from './townkit.js';
 import { createQuickTravel } from './quicktravel.js';
 import { createMinimap } from './minimap.js';
-import { createHorse } from './horse.js';   // run 13: the town's one horse (statue) + welcome signs
+import { createHorse } from './horse.js';
+import { createPetHorse, PET_NAME } from './horses.js';   // horses: GRAVY, Bear's rideable pet horse   // run 13: the town's one horse (statue) + welcome signs
 import { dressTown, installTalk } from './towntalk.js';   // run 13: billboards, flyers, lore, chatter
 import { installMissions } from './missions13.js';   // run 13: THE ONE HORSE, KSUN CALL-IN, PAPER ROUTE
 import { createCarnival, createCalliope } from './carnival.js';   // run 14: the One Horse Fair (east edge of town)
@@ -661,7 +662,7 @@ canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointerca
 const keys = {}; addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyM') toggleWild(); if (e.code === 'KeyV' && !e.repeat && level.mode === 'walk' && !level.frozen) toggleFP(); if (e.code === 'KeyC' && !e.repeat && level.solo && !level.frozen) toggleFP(); if (e.code === 'KeyN' && !e.repeat) MM?.toggle(); }); addEventListener('keyup', e => keys[e.code] = false);
 
 // ---------------------------------------------------------------- wild mode
-let CARN = null;   // run 14
+let CARN = null, PET = null, rideK = 0, rideHip = 0;   // run 14
 let wild = Q.has('wild') ? 1 : 0, wildTarget = wild;
 const wildBtn = document.getElementById('wildBtn');
 function toggleWild() { wildTarget = wildTarget ? 0 : 1; audio.wild(!!wildTarget); wildBtn.classList.toggle('on', !!wildTarget); wildBtn.textContent = wildTarget ? 'SUNSHINE' : 'WILD'; }
@@ -788,7 +789,7 @@ function frame() {
     if (keys.KeyW || keys.ArrowUp) iy = -1; if (keys.KeyS || keys.ArrowDown) iy = 1; if (keys.KeyA || keys.ArrowLeft) ix = -1; if (keys.KeyD || keys.ArrowRight) ix = 1;
     if (keys.ShiftLeft) { ix *= 1; iy *= 1; } else if (!input.x && !input.y && (ix || iy)) { const l = Math.hypot(ix, iy); ix *= 0.6 / l; iy *= 0.6 / l; }
     const mag = Math.min(1, Math.hypot(ix, iy));
-    const target = mag < 0.08 ? 0 : (mag > 0.75 ? (NEWTOWN ? 8.4 : 7.2) : 2.6 * (mag / 0.75) + 0.6); // run 11: a touch quicker for the bigger town
+    const target = PET?.mounted ? PET.target(PET.whoa ? 0 : mag) : mag < 0.08 ? 0 : (mag > 0.75 ? (NEWTOWN ? 8.4 : 7.2) : 2.6 * (mag / 0.75) + 0.6); // run 11: a touch quicker for the bigger town
     wolfState.speed = lerp(wolfState.speed, target, 1 - Math.exp(-dt * 8));
     if (mag > 0.08) {
       const fx = Math.sin(camYaw), fz = Math.cos(camYaw); // camera forward (on ground) = -(fx,fz)
@@ -841,6 +842,11 @@ function frame() {
     manualLookT -= dt;
     if (manualLookT <= 0 && sp > 1 && !FP.on) { let d = (wolfState.yaw + Math.PI) - camYawTarget; d = Math.atan2(Math.sin(d), Math.cos(d)); camYawTarget += d * (1 - Math.exp(-dt * 0.8)); }
   }
+  // horses: Bear's horse follows the Wolf while mounted; the Wolf sits in the saddle (idle clip + straddle bones, no extra mixer)
+  if (PET) { if (PET.mounted && (level.mode !== 'walk' || puppet.on || town?.active)) PET.dismount(true);
+    if (PET.whoa && wolfState.speed < 1.2) PET.dismount();
+    PET.update(dt, t, w, wolfState); if (wolfReady && PET.mounted) seatRider(t);
+    rideK = THREE.MathUtils.clamp(rideK + (PET.mounted ? dt : -dt) / 0.5, 0, 1); }
   camYaw += (camYawTarget - camYaw) * (1 - Math.exp(-dt * 6));
   const portrait = innerHeight > innerWidth;
   const dist = portrait ? 10.5 : 9.5, hgt = portrait ? 4.2 : 3.3;
@@ -863,9 +869,9 @@ function frame() {
     snapCam = false; fpArms.visible = fpCross.visible = false; fpFx.style.opacity = 0;
     const hideW = !level.soloChase; if (wolfReady && hideW !== !!FP.hidden) { FP.hidden = hideW; setWolfGhost(hideW); } }
   else {
-    tmpV.set(wp.x + Math.sin(camYaw) * dist, hgt, wp.z + Math.cos(camYaw) * dist);
+    const rk2 = smooth(rideK), dist2 = dist + 2.2 * rk2; tmpV.set(wp.x + Math.sin(camYaw) * dist2, hgt + 1.4 * rk2, wp.z + Math.cos(camYaw) * dist2);
     if (snapCam) { FP.tpPos.copy(tmpV); } else FP.tpPos.lerp(tmpV, 1 - Math.exp(-dt * 5));
-    camTarget.set(wp.x, portrait ? 2.6 : 2.75, wp.z);
+    camTarget.set(wp.x, (portrait ? 2.6 : 2.75) + 1.1 * rk2, wp.z);
     camera.position.copy(FP.tpPos); if (TS) TS.camClamp(camTarget, camera.position); camera.lookAt(camTarget); FP.tpQ.copy(camera.quaternion);
     // the Wolf's eyes: quick smooth blend (~0.35 s), free look, gentle walk bob (a bit more in Wild)
     FP.k = clamp(FP.k + (FP.on ? 1 : -1) * dt / 0.35, 0, 1); if (snapCam) FP.k = FP.on; snapCam = false;
@@ -971,6 +977,7 @@ loadAll().then(() => {
   if (TS) try { window.__talk = installTalk({ T: town, level, TS, wolfState }); } catch (e) { console.warn('talk failed', e); }
   if (TS && town) try { installMissions({ T: town, TS, level, wolfState, horse: HORSE, scene, feltMat }); } catch (e) { console.warn('missions13 failed', e); }
   if (TS) try { CARN = createCarnival({ scene, feltMat, TS, colliders, LOW: sunspotsLowEnd() }); CARN.music = createCalliope(audio); window.__carn = CARN; } catch (e) { console.warn('carnival failed', e); }
+  if (TS) try { PET = createPetHorse({ scene, TS, feltMat, LOW: sunspotsLowEnd(), colliders, audio }); installRiding(); window.__pet = PET; } catch (e) { console.warn('pet horse failed', e); }
   if (TS) QT = createQuickTravel({ TS, level, wolfState, LAYOUT, onJump: (y) => { clearInput(); camYawTarget = camYaw = y + Math.PI; snapCam = true; } }); window.__qt = QT;
   if (TS && QT) { MM = createMinimap({ TS, level, wolfState, QT, town, audio }); window.__minimap = MM; }
   if (Q.get('room')) { const go = () => { if (window.__titleUp || !wolfReady) { setTimeout(go, 200); return; } town.enter(Q.get('room')); }; go(); }
@@ -1018,10 +1025,56 @@ function calibrateFeet() {
   return wolf.userData.footProfile.map((r, i) => { const th = Math.max(...r) * 0.08; for (let k = 0; k < N; k++) if (r[k] < th && r[(k + N - 1) % N] >= th) return k / N; return best[i][1]; });
 }
 function wolfFootsteps() {
-  if (!wolfReady || !wolf || level.inCar || level.solo || window.__titleUp) return;
+  if (!wolfReady || !wolf || level.inCar || level.solo || PET?.mounted || window.__titleUp) return;
   const u = wolf.userData; if (!u.plants) u.plants = calibrateFeet();
   const ph = u.phase || 0, p0 = u.lastPh ?? ph; u.lastPh = ph;
   const sp = puppet.on ? puppet.speed : wolfState.speed, d = ((ph - p0) % 1 + 1) % 1; if (sp < 0.3 || d === 0 || d > 0.5) return;
   for (const q of u.plants) if (((q - p0) % 1 + 1) % 1 > 0 && ((q - p0) % 1 + 1) % 1 <= d) { u.steps = (u.steps || 0) + 1; audio.step(Math.abs(sp)); }
 }
 window.__sunspots = { puppet, get director() { return director; }, DEBUG, toggleWild, toggleFP, FP, cockpit, input, keys, get wild() { return wild; }, scene, camera, level, wolfState };
+
+// ---------------------------------------------------------------- horses: riding GRAVY (Bear's horse). RIDE at the horse, DISMOUNT like GET OUT
+const _rq = new THREE.Quaternion(), _re = new THREE.Euler(), _rv = new THREE.Vector3();
+function seatRider(t) {
+  PET.seatMatrix(_sm); _sm.decompose(_rv, _rq, tmpV);
+  wolf.position.set(_rv.x, _rv.y - rideHip, _rv.z); wolf.rotation.set(0, wolfState.yaw, 0); wolf.scale.setScalar(wolfBaseScale);
+  actWalk.setEffectiveWeight(0); actRun.setEffectiveWeight(0); actIdle.setEffectiveWeight(1); actIdle.timeScale = 1; mixer.update(0);
+  const u = wolf.userData, body = u.body, gal = THREE.MathUtils.clamp((wolfState.speed - 6) / 5, 0, 1);
+  body.rotation.set(0.1 + 0.12 * gal, 0, Math.sin(t * 6) * 0.015 * gal); body.position.x = 0;
+  if (!u.rideBones) { const b = (n) => body.getObjectByName(n); u.rideBones = { lu: b('LeftUpLeg'), ru: b('RightUpLeg'), ll: b('LeftLeg'), rl: b('RightLeg'), la: b('LeftArm'), ra: b('RightArm'), lf: b('LeftForeArm'), rf: b('RightForeArm') }; }
+  const R = u.rideBones, P = window.__rideTune || { hip: -1.25, out: 0.42, knee: 1.35, arm: 0.9, fore: -0.5 };
+  const rot = (bn, x, y, z) => { if (!bn) return; _re.set(x, y, z); _rq.setFromEuler(_re); bn.quaternion.multiply(_rq); };
+  rot(R.lu, P.hip, 0, P.out); rot(R.ru, P.hip, 0, -P.out); rot(R.ll, P.knee, 0, 0); rot(R.rl, P.knee, 0, 0);
+  rot(R.la, P.arm, 0, 0); rot(R.ra, P.arm, 0, 0); rot(R.lf, 0, P.fore, 0); rot(R.rf, 0, -P.fore, 0);
+  wolf.updateMatrixWorld(true);
+}
+function installRiding() {
+  const cols = [{ x: 0, z: 0, r: 0.5 }, { x: 0, z: 0, r: 0.5 }]; colliders.push(...cols);
+  const syncCols = () => { const fx = Math.sin(PET.yaw), fz = Math.cos(PET.yaw); cols.forEach((c, i) => { if (PET.mounted) { c.x = 1e5; return; } const o = i ? -0.55 : 0.55; c.x = PET.pos.x + fx * o; c.z = PET.pos.z + fz * o; }); };
+  syncCols();
+  const btn = document.createElement('button'); btn.id = 'bDismount'; btn.className = 'dbtn'; btn.textContent = 'DISMOUNT';
+  const st = document.createElement('style'); st.textContent = `#bDismount{display:none;position:fixed;left:calc(env(safe-area-inset-left) + 16px);bottom:calc(env(safe-area-inset-bottom) + 202px);width:112px;height:42px;border-radius:14px;border:0;font:800 12px/1 system-ui,sans-serif;letter-spacing:.14em;background:#e8806a;color:#3a1418;box-shadow:0 4px 0 #a5483c;z-index:30;touch-action:manipulation}
+body.riding #bDismount{display:block} body.riding.scene #bDismount{display:none} #bDismount:active{transform:translateY(3px);box-shadow:0 1px 0 #a5483c}`;
+  document.head.appendChild(st); document.body.appendChild(btn);
+  let mountedAt = 0;
+  btn.addEventListener('pointerdown', (e) => { e.stopPropagation(); }); btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); PET.dismount(); });
+  addEventListener('keydown', (e) => { if ((e.code === 'KeyF' || e.code === 'KeyE') && !e.repeat && PET.mounted && performance.now() - mountedAt > 400) PET.dismount(); });
+  PET.mount = () => { if (PET.mounted || level.mode !== 'walk' || level.frozen || !wolfReady) return false;
+    wolf.updateMatrixWorld(true); const hb = wolf.userData.body.getObjectByName('Hips'); rideHip = hb ? hb.getWorldPosition(_rv).y - wolf.position.y : 0.9 * wolfBaseScale;
+    wolfState.pos.set(PET.pos.x, 0, PET.pos.z); wolfState.yaw = PET.yaw; wolfState.speed = 0; PET.mounted = true; PET.whoa = false; PET.rides++; mountedAt = performance.now();
+    camYawTarget = PET.yaw + Math.PI; document.body.classList.add('riding'); syncCols(); audio.ui?.('confirm'); return true; };
+  PET.dismount = (force) => { if (!PET.mounted) return false;
+    if (!force && wolfState.speed > 1.2) { if (!PET.whoa) level.toast?.('Whoa, ' + PET_NAME + '…', 1.2); PET.whoa = true; return false; }
+    PET.mounted = false; PET.whoa = false; PET.speed = 0; syncCols(); document.body.classList.remove('riding');
+    const lx = Math.cos(PET.yaw), lz = -Math.sin(PET.yaw), fx = Math.sin(PET.yaw), fz = Math.cos(PET.yaw); let spot = null;
+    for (const [ox, oz] of [[-lx * 1.3, -lz * 1.3], [lx * 1.3, lz * 1.3], [-fx * 1.9, -fz * 1.9], [fx * 1.9, fz * 1.9]]) { const p = new THREE.Vector3(PET.pos.x + ox, 0, PET.pos.z + oz), q = p.clone(); if (TS) TS.collide(q, 0.45);
+      let hit = q.distanceTo(p) > 0.05; for (const k of colliders) if (k !== cols[0] && k !== cols[1] && Math.hypot(p.x - k.x, p.z - k.z) < k.r + 0.45) hit = true; if (!hit) { spot = p; break; } }
+    if (!spot) { spot = new THREE.Vector3(PET.pos.x - lx * 1.3, 0, PET.pos.z - lz * 1.3); if (TS) { TS.collide(spot, 0.45); TS.clampWalk(spot); } }
+    wolfState.pos.copy(spot); wolfState.speed = 0; wolf.position.copy(spot); wolf.userData.body.rotation.set(0, 0, 0); syncCols();
+    if (!force) audio.ui?.('confirm'); return true; };
+  const say1 = [['BEAR (from the window)', 'That\'s Gravy. Take him out. He gets bored.'], ['WOLF', 'Hi, Gravy.'], ['', 'Gravy looks at you with both eyes. Separately.']];
+  const sayN = [[['', 'Gravy is ready. Gravy was born ready.']], [['WOLF', 'Same old horse.'], ['', 'Gravy blinks one googly eye.']], [['', 'Gravy has been waiting. Gravy does a lot of waiting.']], [['BEAR (from the window)', 'Bring him back by supper.']]];
+  const spot = town?.addSpot?.({ id: 'gravy', x: PET.pos.x, z: PET.pos.z, r: 2.5, on: () => !PET.mounted, label: 'RIDE ' + PET_NAME, act: () => { const first = PET.rides === 0; PET.mount(); return first ? say1 : sayN[PET.rides % sayN.length]; } });
+  if (town) town.riding = () => PET.mounted;
+  const _upd = PET.update; PET.update = (dt, t, w, ws) => { _upd(dt, t, w, ws); if (spot) { spot.x = PET.pos.x; spot.z = PET.pos.z; } if (!PET.mounted && PET.speed < 0.05) syncCols(); };
+}

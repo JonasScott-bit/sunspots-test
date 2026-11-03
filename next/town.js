@@ -1618,10 +1618,10 @@ export function createTown(ctx) {
     outT0 += dt; if (S.party) diner().outside(dt, outT0, !T.active && level?.mode === 'walk' && !document.body.classList.contains('scene'));   // run 10: the party follows the Wolf
     if (level?.mode === 'solo') { btn.style.display = 'none'; near = null; if (errands().length) { if (S.held == null) S.held = level.left; level.left = S.held; } else S.held = null; common(dt); return; }   // run 12: errands hold the clock in his own car too
     if (!level || level.mode !== 'walk' || level.frozen || document.body.classList.contains('scene')) { btn.style.display = 'none'; near = null; return; }
-    const p = wolfState.pos; near = null; let best = 2.4;
-    for (const d of DOORS) { const dd = Math.hypot(p.x - d.x, p.z - d.z); if (dd < best) { best = dd; near = d; } }
-    if (crowSpot) { const dd = Math.hypot(p.x - crowSpot.x, p.z - crowSpot.z); if (dd < 2.6 && dd < best + 0.3) near = crowSpot; }
-    for (const sp of OUT) { if (sp.on && !sp.on()) continue; const dd = Math.hypot(p.x - sp.x, p.z - sp.z); if (dd < (sp.r || 2.6) && dd < best + 0.3) { best = dd; near = sp; } }   // run 13: statue, chatter, mission spots
+    const p = wolfState.pos; near = null; let best = 2.4; const riding = !!T.riding?.();   // run 14: on Bear's horse, only ride-aware spots
+    if (!riding) for (const d of DOORS) { const dd = Math.hypot(p.x - d.x, p.z - d.z); if (dd < best) { best = dd; near = d; } }
+    if (crowSpot && !riding) { const dd = Math.hypot(p.x - crowSpot.x, p.z - crowSpot.z); if (dd < 2.6 && dd < best + 0.3) near = crowSpot; }
+    for (const sp of OUT) { if ((sp.on && !sp.on()) || (riding && !sp.ride)) continue; const dd = Math.hypot(p.x - sp.x, p.z - sp.z); if (dd < (sp.r || 2.6) && dd < best + 0.3) { best = dd; near = sp; } }   // run 13: statue, chatter, mission spots
     if (near && near.act && typeof near.label === 'function') near._l = near.label();
     btn.style.display = near ? 'block' : 'none'; if (near) btn.textContent = near.room ? 'ENTER ' + ROOMS[near.room].name.replace('THE ', '') : (near._l || near.label);
     if (errands().length) { if (S.held == null) S.held = level.left; level.left = S.held; } else S.held = null;

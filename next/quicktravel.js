@@ -20,7 +20,7 @@ export function createQuickTravel({ TS, level, wolfState, LAYOUT, onJump }) {
   const PLACES = [
     ['Main St', [['bus', 'Bus stop', 'ride pickup'], ['diner', 'Diner'], ['laundromat', 'Laundromat'], ['post', 'Post Office'], ['dmv', 'DMV'], ['thrift', 'Thrift'], ['ksun', 'KSUN'], ['yard', "Crow's Yard"], ['statue', 'Horse Statue', 'town square'], ['moth', "Moth's place", 'apartment row']]],
     ['Neon Strip', [['bowl', 'Gutter Bowl'], ['motel', 'Motel'], ['pool', 'Motel Pool'], ['drivein', 'Drive-in'], ['poolhall', 'Pool Hall', 'eight-ball'], ['court', 'The Court', 'hoops']]],
-    ['Homes', [['wolf', 'Home', "the Wolf's"], ['living90', "Bear's"], ['lynx', "Lynx's"], ['crow', "Crow's"], ['heron', "Heron's"], ['gecko', "Gecko's"], ['ram', "Ram's"], ['anteater', "Anteater's"], ['mansion', 'The Mansion', 'Vulture + Larry Byrd'], ['farm', 'The Farm']]],
+    ['Homes', [['wolf', 'Home', "the Wolf's"], ['living90', "Bear's"], ['bearhorse', 'Gravy', "Bear's horse"], ['lynx', "Lynx's"], ['crow', "Crow's"], ['heron', "Heron's"], ['gecko', "Gecko's"], ['ram', "Ram's"], ['anteater', "Anteater's"], ['mansion', 'The Mansion', 'Vulture + Larry Byrd'], ['farm', 'The Farm']]],
     ['One Horse Fair', [['carnival', 'Fair gate', 'east edge · parking'], ['c_midway', 'Midway games', 'darts · balloons · rings'], ['c_wheel', 'Sky Wheel'], ['c_bustler', 'The Bustler'], ['c_rhumba', 'The Rhumba'], ['c_bump', 'Bump City', 'bumper cars']]],
   ];
   const where = (k) => {
