@@ -4,6 +4,7 @@
 // point-sampled from the reference photos (median of a small patch, daylight side) — see PAL.
 import * as THREE from 'three';
 import { Kit, textPlane } from './townkit.js';
+import { buildCommercial } from './townshops.js';
 
 // ---------------------------------------------------------------- locked palettes (sampled from exterior_refs/*.jpg)
 export const PAL = {
@@ -15,7 +16,7 @@ export const PAL = {
   heron: { siding: '#d8d2c6', shingle: '#c6bfb2', roof: '#cab2a1', garage: '#ece6dc', steps: '#da442c', drive: '#908684', gravel: '#9a8f8f', door: '#2c3447', fence: '#d4916a', rail: '#1e1e22', trim: '#f2eee6' },
   ram: { wall: '#f0c887', trim: '#b88272', vent: '#2a1a12', steps: '#a29e92', bowl: '#d9683a', lawn: '#b5a85a', door: '#1e1a1a', iron: '#1a1616', roof: '#6a5a52' },
   gecko: { wall: '#eac5b2', fascia: '#efe6dc', steps: '#d04d4e', block: '#bfb2a6', rail: '#f2ece4', roof: '#7a6a66', poleY: '#e8c43a', poleB: '#1e1a1a' },
-  anteater: { wall: '#d4e2d2', roof: '#a8a49a', trim: '#3f8a86', steps: '#dc6065', wframe: '#f0f2ea', hose: '#3f8a5a', chimney: '#cbd8cc', lawn: '#9a966c' },
+  anteater: { wall: '#c2e6cd', roof: '#a8a49a', trim: '#3f8a86', steps: '#dc6065', wframe: '#f0f2ea', hose: '#3f8a5a', chimney: '#c4dccb', lawn: '#9a966c' },
   apt: { brown: '#b38877', brownTrim: '#8a6152', vict: '#a49884', victTrim: '#5a2a2c', cream: '#e3e2d8', black: '#2a2826', sage: '#a2b6b5', white: '#f2f0ea', column: '#e8ece8' },
   farm: { house: '#ededeb', shutter: '#2a2a28', roof: '#5a5a5c', door: '#b55049', barn: '#8a2a2a', barnTrim: '#efe9e0', gravel: '#ded4c9', lawn: '#6a8a3a' },
   mansion: { white: '#f2f1ee', dark: '#3a3f4a', gold: '#ffc060', glass: '#f1c895', glassCool: '#9fb4c8', flower: '#c0409a', car: '#141214', plaza: '#8a91ac', stair: '#e6ebf0' },
@@ -102,7 +103,7 @@ export function createTownscape(C) {
       const d = _cp.distanceTo(b.c) - b.r, near = d < b.lodNear;
       if (b.detail) b.detail.visible = near || !b.lo; if (b.lo) b.lo.visible = !near;
       if (b.glow) b.glow.visible = d < 260;
-      if (b.extras.length) { const v = d < 110; if (b.extrasOn !== v) { b.extrasOn = v; for (const e of b.extras) e.visible = v; } }
+      if (b.extras.length) { const v = d < 110; if (b.extrasOn !== v) { b.extrasOn = v; for (const e of b.extras) e.visible = v || !!e.userData.far; } }
     }
   };
   // walking collisions against building footprints (axis-aligned)
@@ -136,7 +137,7 @@ export function createTownscape(C) {
   const plan = { diner: [-23, -1.0, 0], laundromat: [-3, -1.0, 0], post: [19, -1.0, 0], dmv: [-61, -1.0, 0], thrift: [-82.5, -1.0, 0], ksun: [-125, -1.0, 0],
     yard: [-86.5, 15.0, Math.PI], bowl: [-26.5, -70.0, 0], motel: [-74, -70.0, 0], pool: [-60, -70.0, 0], drivein: [17, -70.0, 0] };
   for (const [r, [x, z, ry]] of Object.entries(plan)) TS.doors[r] = { x, z, ry, built: false };
-  TS.spots = { fence: { x: -86.5, z: 18.5, ry: Math.PI }, drivein: { x: 17, z: -112, ry: Math.PI } };
+  TS.spots = { fence: { x: -86.5, z: 18.5, ry: Math.PI }, drivein: { x: 17, z: -112, ry: Math.PI, hide: true } };
   TS.props = [ // [town model, x, z, ry, collider r, puddle r]
     ['bus_shelter', 32.5, -0.2, 0, 1.7, 2.3], ['payphone', 9.4, 14.6, Math.PI, 0.5, 0.9],
     ...[-170, -146, -122, -98, -74, -50, -26, -2, 22].flatMap(x => [['lamp', x + 4, 1.6, 0, 0.35, 0.8], ['lamp', x - 8, 12.4, Math.PI, 0.35, 0.8]]),
@@ -144,7 +145,7 @@ export function createTownscape(C) {
   TS.bench = [28.6, 0.2, 0];
   TS.busStops = [{ name: 'MAIN ST', x: 31, z: 1.2 }];
 
-  buildHouses(TS, place); buildResidential(TS, place);
+  buildHouses(TS, place); buildResidential(TS, place); buildCommercial(TS, place);
   for (const [n, d] of Object.entries(TS.marks)) if (n.startsWith('door_')) TS.doors[n.slice(5)] = { ...d, built: true };
   return TS;
 }

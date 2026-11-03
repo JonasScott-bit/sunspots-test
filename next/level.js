@@ -203,6 +203,7 @@ export function createLevel(C) {
   // -------------------------------------------------------------- convenience store (felt blockout, glowing sign, big 2:00 clock)
   { const [sx, sz] = LAYOUT.store; const g = group(sx, sz, 0);
     const W = 16, D = 9, H = 4.6;
+    if (!NEWTOWN) { // run 11: the townscape builds the EXACT store from the ref here (townshops.js buildStore)
     add(g, rbox(W, H, D, 0.5, '#f2b98a'), 0, 0, 0);
     add(g, rbox(W + 0.6, 0.55, D + 0.6, 0.2, '#e79f6e'), 0, H - 0.1, 0);                           // roof trim
     add(g, rbox(W + 1.2, 0.25, 3.2, 0.1, '#e7c494'), 0, 3.35, D / 2 + 1.4);                         // awning
@@ -217,6 +218,7 @@ export function createLevel(C) {
     const glowTex = canvasTex(128, 64, (c) => { const gr = c.createRadialGradient(64, 32, 4, 64, 32, 64); gr.addColorStop(0, 'rgba(255,255,255,.9)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = gr; c.fillRect(0, 0, 128, 64); });
     const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: '#ff5fb4', transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
     glow.scale.set(17, 5, 1); glow.position.set(sx, H + 1.6, sz + D / 2 - 0.6); scene.add(glow); L.storeGlow = glow;
+    }
     // big clock on a felt tower beside the store: frozen at 2:00 (closing time)
     const clockTex = canvasTex(512, 512, (c, w) => { c.fillStyle = '#f6e8c8'; c.beginPath(); c.arc(256, 256, 250, 0, 7); c.fill(); c.lineWidth = 18; c.strokeStyle = '#a2302a'; c.stroke();
       c.fillStyle = '#3a2418'; c.font = 'bold 54px Futura, Avenir, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';

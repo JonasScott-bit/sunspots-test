@@ -1261,7 +1261,7 @@ export function createTown(ctx) {
       const pole = cyl(0.03, 0.03, 1.2, '#7a5a4a', 6); pole.position.set(-0.4, 0, -0.6); g.add(pole);
       at(g, FENCE.x, 0, FENCE.z, FENCE.ry ?? Math.PI); mainScene.add(g); crowSpot = { x: FENCE.x, z: FENCE.z, label: 'TALK TO CROW' };
       ctx.colliders?.push({ x: FENCE.x, z: FENCE.z, r: 0.8 });
-      { const di = new THREE.Group(); const sc = ph('Eye-Max screen (outside, felt)', box(6.0, 3.2, 0.25, '#f6efe0', 0.06)); sc.position.y = 1.4; di.add(sc);   // the outdoor Eye-Max screen (south of the east road)
+      if (!DRIVEIN.hide) { const di = new THREE.Group(); const sc = ph('Eye-Max screen (outside, felt)', box(6.0, 3.2, 0.25, '#f6efe0', 0.06)); sc.position.y = 1.4; di.add(sc);   // the outdoor Eye-Max screen (south of the east road)
         for (const x of [-2.6, 2.6]) { const p = cyl(0.12, 0.14, 1.5, '#7a5a4a', 6); p.position.x = x; di.add(p); }
         const face = sunPic(5.6, 2.8, 'EYE-MAX · INTERMISSION', '#3a1f2a'); face.position.set(0, 3.0, -0.14); face.rotation.y = Math.PI; di.add(face);
         const mq = sign('EYE-MAX DRIVE-IN', 3.4, 0.5, '#2a1f2a', '#ff6fae', 0.7); mq.position.set(0, 4.85, -0.14); mq.rotation.y = Math.PI; di.add(mq);

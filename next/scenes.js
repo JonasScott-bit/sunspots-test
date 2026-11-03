@@ -321,9 +321,10 @@ export function createDirector(ctx) {
   const label = (txt, bg, fg, w = 512, h = 200, font = 'bold 120px Futura, Avenir, sans-serif', sub) => canvasTex(w, h, (c) => { c.fillStyle = bg; c.fillRect(0, 0, w, h); c.fillStyle = fg; c.textAlign = 'center'; c.textBaseline = 'middle'; c.font = font; c.fillText(txt, w / 2, sub ? h * 0.38 : h / 2); if (sub) { c.font = 'italic 44px Futura, Avenir, sans-serif'; c.fillText(sub, w / 2, h * 0.75); } });
   function buildStoreProps() {
     const A = ANCHORS.store(), g = new THREE.Group(); g.position.set(A.x, 0, A.z); scene.add(g);
+    const NT = !new URLSearchParams(location.search).has('oldtown'); if (NT) g.scale.x = 0.6; // run 11: the EXACT store's door is ~1.2 m wide
     const dark = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 2.6), new THREE.MeshBasicMaterial({ color: '#1e1626' })); dark.position.set(0, 1.3, 0.09); g.add(dark);
     const hinge = new THREE.Group(); hinge.position.set(-1.0, 0, 0.14); g.add(hinge);
-    const panel = rbox(2.0, 2.5, 0.1, 0.05, '#6a4430'); panel.position.set(1.0, 0, 0); hinge.add(panel);
+    const panel = rbox(2.0, 2.5, 0.1, 0.05, NT ? '#ead9ce' : '#6a4430'); panel.position.set(1.0, 0, 0); hinge.add(panel);
     const glass = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 1.05), feltMat('#2c3b52')); glass.position.set(1.0, 1.72, 0.056); hinge.add(glass);
     const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.34, 10), feltMat('#d9a441')); handle.position.set(1.78, 1.12, 0.1); hinge.add(handle);
     const bolt = rbox(0.16, 0.06, 0.05, 0.02, '#d9a441'); bolt.position.set(1.72, 1.32, 0.09); hinge.add(bolt);

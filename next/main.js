@@ -47,6 +47,7 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 const TONE = Q.get('tone') === 'neutral';
 renderer.toneMapping = TONE ? THREE.NeutralToneMapping : THREE.NoToneMapping; if (TONE) renderer.toneMappingExposure = 1.1;
 if (TONE) PAL.hemiSky[0] = new THREE.Color('#aebcdc');
+if (NEWTOWN && !TONE) { PAL.hemiSky[0] = new THREE.Color('#e6e0d4'); PAL.hemiSky[1] = new THREE.Color('#cdb8d8'); } // run 11: near-neutral sky fill so white paint reads white, not lilac
 
 const scene = new THREE.Scene();
 scene.background = PAL.sky[0].clone();
