@@ -149,6 +149,7 @@ export function createTownscape(C) {
   buildHouses(TS, place); buildResidential(TS, place); buildCommercial(TS, place);
   for (const [n, d] of Object.entries(TS.marks)) if (n.startsWith('door_')) TS.doors[n.slice(5)] = { ...d, built: true };
   buildStreet(TS, place);
+  for (const [n, d] of Object.entries(TS.marks)) if (n.startsWith('door_') && !TS.doors[n.slice(5)]) TS.doors[n.slice(5)] = { ...d, built: true };   // run 11 (M4): door marks placed by the street dressing (the court)
   return TS;
 }
 

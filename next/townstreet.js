@@ -229,8 +229,8 @@ export function buildStreet(TS, place) {
   for (const [x, z, ry, o] of fillers) { const ok = !TS.boxes.some(b => x > b.x0 + 0.5 && x < b.x1 - 0.5 && Math.abs(z - (b.z0 + b.z1) / 2) < (b.z1 - b.z0) / 2 + 2); if (!ok) continue;
     place('filler_' + (o.sign || 'x').split(/\W/)[0].toLowerCase() + '_' + Math.round(x), x, z, ry, (k) => filler(k, o)); }
 
-  // ---- run 11 (M4): THE CHAIN-LINK COURT (Neon Strip south, west of Big Al's): one hoop, cracked asphalt, Larry Byrd inside. Front (gate) faces the strip.
-  place('court', -99, -52.5, Math.PI, (k) => {
+  // ---- run 11 (M4): THE CHAIN-LINK COURT (Palm St, west side, north of KSUN): one hoop, cracked asphalt, Larry Byrd inside. Gate faces Palm St.
+  place('court', -108, -26, Math.PI / 2, (k) => {   // on Palm St's west side between the chain-link corner and KSUN; gate faces the street (+x)
     k.aab(-7, 0, -13.6, 7, 0.06, -0.4, '#5d5a5e');                                   // asphalt pad
     k.aab(-2.4, 0.06, -13.4, 2.4, 0.075, -7.6, '#c9584a'); k.aab(-2.3, 0.07, -13.3, 2.3, 0.08, -7.7, '#5d5a5e');   // painted key (outline)
     k.aab(-6.9, 0.06, -0.62, 6.9, 0.07, -0.5, '#efe2c4');                             // half-court line

@@ -294,6 +294,7 @@ export function createLevel(C) {
     const spec = [
       ['house_fridge_walking', NEWTOWN ? { h: 2.0, x: 18.6, z: 50.6, ry: 0.35, still: true, cr: 0.6 } : { h: 2.0, x: -7.4, z: 25.2, ry: Math.PI + 0.35, still: true, cr: 0.6 }],     // by the Wolf's door
       ['diner_couch', NEWTOWN ? { h: 0.95, x: 29.4, z: 51.6, ry: 0.12, prop: true, cr: 1.1 } : { h: 0.95, x: -14.6, z: 24.4, ry: Math.PI * 0.92, prop: true, cr: 1.1 }],           // couch in the front yard
+      ...(NEWTOWN ? [['../town2/mailbox', { h: 1.25, x: 26.4, z: 55.2, ry: Math.PI, still: true, cr: 0.4 }], ['../town2/window_box', { h: 0.55, x: 16.2, z: 48.2, ry: 0, still: true, cr: 0.4 }]] : []),   // run 11 (M4): object characters outside — the Wolf's mailbox at the curb, a window-box by the front window
       ['diner_stove', NEWTOWN ? { h: 1.05, x: 31.4, z: 50.0, ry: -0.25, prop: true, cr: 0.6 } : { h: 1.05, x: -16.7, z: 26.0, ry: Math.PI * 0.85, prop: true, cr: 0.6 }],           // stove beside it
       ['mainst_payphone_blockhead_walking', NEWTOWN ? { h: 2.0, x: 8.6, z: 14.3, ry: Math.PI - 0.25, still: true, cr: 0.5 } : { h: 2.0, x: 7.9, z: -4.6, ry: 0.25, still: true, cr: 0.5 }], // stands by the payphone
       ['mainst_hydrant_spin_walking', NEWTOWN ? { h: 1.15, x: 6.6, z: 1.4, ry: 0.4, still: true, cr: 0.45, spin: true } : { h: 1.15, x: 4.6, z: 2.2, ry: -0.5, still: true, cr: 0.45, spin: true }],

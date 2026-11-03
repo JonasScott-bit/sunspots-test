@@ -9,6 +9,7 @@ import { createBowling } from './bowling.js';   // run 8: playable lane at Gutte
 import { createLivingTV } from './livingtv.js'; // run 9: TV night on Bear's couch (living90)
 import { framedPainting } from './bearwall.js';   // run 9b: Scott's paintings on Bear's walls
 import { createDiner } from './diner.js';   // run 10: the Diner trio, ORDER, mission Table For Four, party followers
+import { createPool, createHoops, larryByrd } from './minigames.js';   // run 11 (M4): playable pool (Pool Hall) + shoot-around vs Larry Byrd (the court)
 
 const M = './models/';
 const ROOMS = {
@@ -28,6 +29,14 @@ const ROOMS = {
   // run 7 (room bible): new home rooms
   living90:   { name: 'BEAR\'S LIVING ROOM', wall: '#e6d8bc', trim: '#2f5a3e', floor: '#d8c7a6', floor2: '#c8b796', light: '#fff0d8', real: true },   // real place: mid-90s family room
   drivein:    { name: 'EYE-MAX DRIVE-IN',   wall: '#2a2440', trim: '#ff6fae', floor: '#6a5a5a', floor2: '#5e4f4f', light: '#ffe6c8' },
+  // run 11 (M4): the Neon Strip pool hall + the chain-link court; five home rooms (object characters at home)
+  poolhall:   { name: 'POOL · BILLIARDS',     wall: '#2f4a3e', trim: '#c9a24a', floor: '#7a2a2a', floor2: '#5e1f22', light: '#ffe8c0', W: 10, D: 6.5 },
+  court:      { name: 'THE CHAIN-LINK COURT', wall: '#c9925f', trim: '#8a8c88', floor: '#5d5a5e', floor2: '#55525a', light: '#ffe2b8', real: true, W: 9, D: 7 },
+  wolf:       { name: 'THE WOLF\'S KITCHEN',   wall: '#f2e6c0', trim: '#e0705a', floor: '#f6efe0', floor2: '#e0705a', light: '#fff2dc' },
+  heron:      { name: 'HERON\'S BATHROOM',     wall: '#f6c6d6', trim: '#2a2440', floor: '#f6efe0', floor2: '#2a2440', light: '#f0f6ff' },
+  lynx:       { name: 'LYNX\'S BEDROOM',       wall: '#c6d6f0', trim: '#6b3a22', floor: '#9a6a4a', floor2: '#8a5a3e', light: '#ffeccc' },
+  gecko:      { name: 'GECKO\'S LAUNDRY ROOM', wall: '#d6e8c0', trim: '#6aa4b8', floor: '#e8e2cf', floor2: '#c9b9a0', light: '#f2fff0' },
+  crow:       { name: 'CROW\'S GARAGE',        wall: '#b8a888', trim: '#7a5a3a', floor: '#8a8a84', floor2: '#7a7a74', light: '#fff0d0' },
 };
 // outside: which building is which (diner door is LAYOUT.spots.diner_door; the three adobes face the square)
 const DOORS = [
@@ -43,6 +52,14 @@ const DOORS = [
   { room: 'motel', x: 28.8, z: -2.8, sign: 'MOTEL · NO VACANCY' }, // adobe_b (30,-6), front
   { room: 'pool', x: 32.9, z: -4.2, sign: 'MOTEL POOL' },         // adobe_b (30,-6), side
   { room: 'drivein', x: 24.0, z: 15.5, sign: 'EYE-MAX DRIVE-IN' }, // felt screen south of the east road
+  // run 11 (M4): positions come from townscape.js door marks (door_poolhall, door_court, door_<house>); these x/z are only fallbacks
+  { room: 'poolhall', x: -12.0, z: -53.1, sign: null },
+  { room: 'court', x: -107.0, z: -26.0, sign: null },
+  { room: 'wolf', x: 22.9, z: 50.6, sign: null },
+  { room: 'lynx', x: -21.6, z: 48.4, sign: null },
+  { room: 'crow', x: -62.0, z: 51.4, sign: null },
+  { room: 'heron', x: -86.1, z: 51.6, sign: null },
+  { room: 'gecko', x: -122.0, z: 50.9, sign: null },
 ];
 let DRIVEIN = { x: 24.0, z: 19.0 }; // the outdoor Eye-Max screen (felt placeholder)
 let FENCE = { x: -15, z: 10.8 }; // the Crow's roadside collection (fence-stool), south of the town street
@@ -415,8 +432,22 @@ export function createTown(ctx) {
       const [washer, sock, glove, ant] = await Promise.all([glb('town2/washing_machine.glb', 1.3), glb('town2/argyle_sock.glb', 0.95, 'feltobj'),
         glb('town2/rubber_glove.glb', 0.55), glb('town2/anteater_lo.glb', 1.55, 'anteater')]);
       at(washer, -2.7, 0, -2.3, 0.15); G.add(washer); washer.userData.x0 = -2.7;
-      for (let i = 0; i < 2; i++) { const m = ph('washers (extra)', box(1.0, 1.15, 0.95, '#f4f0e6', 0.12)); at(m, -1.2 + i * 1.25, 0, -2.4); G.add(m);
-        const door = cyl(0.3, 0.3, 0.04, '#9ccbd8', 18); door.rotation.x = Math.PI / 2; door.position.set(-1.2 + i * 1.25, 0.62, -1.9); G.add(door); }
+      // run 11 (M4) refresh: real front-loaders (control strip, coin slot, chrome-ringed porthole with a felt load inside), stacked dryers above, tiled wall + COIN-OP price board
+      const LOADS = ['#e98a8a', '#9fd6b8', '#f2d27a', '#8a9fd6'];
+      const loader = (x, y, z, k, dry) => { const m = new THREE.Group(); m.add(box(1.0, 1.0, 0.9, dry ? '#e8e4d8' : '#f4f0e6', 0.1)); const cp = box(0.96, 0.18, 0.06, '#c9c4b4', 0.02); cp.position.set(0, 0.8, 0.43); m.add(cp);
+        for (const dx of [-0.3, -0.18]) { const kn = cyl(0.035, 0.035, 0.03, '#3a3a3a', 8); kn.rotation.x = Math.PI / 2; kn.position.set(dx, 0.89, 0.47); m.add(kn); } const coin = box(0.12, 0.08, 0.03, '#8a8c88', 0.01); coin.position.set(0.3, 0.85, 0.47); m.add(coin);
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.035, 6, 20), feltMat('#c9ccc8')); ring.position.set(0, 0.42, 0.46); m.add(ring); const glass = cyl(0.25, 0.25, 0.02, '#9ccbd8', 18); glass.rotation.x = Math.PI / 2; glass.position.set(0, 0.42, 0.45); m.add(glass);
+        const load = new THREE.Mesh(new THREE.SphereGeometry(0.17, 8, 6), feltMat(LOADS[k % 4])); load.scale.z = 0.4; load.position.set(0, 0.36, 0.4); m.add(load); at(m, x, y, z); G.add(m); return m; };
+      const loaders = [loader(-1.2, 0, -2.4, 0), loader(0.05, 0, -2.4, 1)]; ph('washers (extra)', loaders[0]);
+      for (let i = 0; i < 3; i++) loader(-2.6 + i * 1.25, 1.62, -2.45, i + 2, true);
+      const tw = new THREE.Mesh(new THREE.PlaneGeometry(8.3, 1.4), texMat(cvTex(256, 44, (g, w, h) => { for (let y = 0; y < h; y += 11) for (let x = 0; x < w; x += 11) { g.fillStyle = (x / 11 + y / 11) % 2 ? '#f6efe0' : '#bfe0e2'; g.fillRect(x + 0.5, y + 0.5, 10, 10); } }, 1, 1))); tw.position.set(0, 0.7, -2.97); G.add(tw);
+      const prices = sign('COIN-OP\nWASH 25¢ · DRY 10¢\nFOLD: FREE (BUT JUDGED)', 1.5, 0.75, '#2a4a5a', '#fff3dc', 0.62); at(prices, 0.6, 2.75, -2.96); G.add(prices);
+      for (const x of [-2.0, 1.4]) { const fl = box(1.6, 0.06, 0.18, '#fffbe8', 0.02); fl.material.emissive = new THREE.Color('#fffbe8'); fl.material.emissiveIntensity = 0.6; at(fl, x, 3.05, -0.6); G.add(fl); }
+      const cart = new THREE.Group(); cart.add(box(0.6, 0.5, 0.45, '#c9ccc8', 0.03)); const pole = cyl(0.015, 0.015, 0.7, '#8a8c88', 6); pole.position.set(0.25, 0.5, -0.2); cart.add(pole); const rod = cyl(0.015, 0.015, 0.5, '#8a8c88', 6); rod.rotation.z = Math.PI / 2; rod.position.set(0.25, 1.2, -0.2); cart.add(rod);
+      const hang = box(0.35, 0.4, 0.02, '#e98a8a', 0.02); hang.position.set(0.25, 0.8, -0.2); cart.add(hang); const pile = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 6), feltMat('#d9c9e0')); pile.scale.y = 0.4; pile.position.y = 0.5; cart.add(pile);
+      for (const [a, b] of [[-0.25, -0.18], [0.25, -0.18], [-0.25, 0.18], [0.25, 0.18]]) { const w = cyl(0.04, 0.04, 0.03, '#2a2a2a', 8); w.rotation.z = Math.PI / 2; w.position.set(a, -0.04, b); cart.add(w); } cart.position.y = 0.05; at(cart, 1.1, 0.05, 0.9, -0.3); G.add(cart);
+      const chairs = new THREE.Group(); for (let i = 0; i < 3; i++) { const c = new THREE.Group(); const st = box(0.42, 0.06, 0.42, ['#f2a03a', '#3a9a8a', '#f2a03a'][i], 0.05); st.position.y = 0.42; c.add(st); const bk = box(0.42, 0.42, 0.06, ['#f2a03a', '#3a9a8a', '#f2a03a'][i], 0.05); bk.position.set(0, 0.46, -0.2); c.add(bk); for (const [a, b] of [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]]) { const l = cyl(0.015, 0.015, 0.42, '#8a8c88', 5); l.position.set(a, 0, b); c.add(l); } c.position.x = i * 0.5; chairs.add(c); }
+      at(chairs, 3.0, 0, -1.6, -Math.PI / 2); G.add(chairs);
       const table = ph('folding table', box(1.6, 0.85, 0.8, '#e8c48a', 0.04)); at(table, 1.7, 0, -0.6); G.add(table);
       for (let i = 0; i < 3; i++) { const t = box(0.38, 0.06, 0.3, ['#e98a8a', '#9fd6b8', '#f2d27a'][i], 0.02); at(t, 1.2 + i * 0.32, 0.85 + i * 0.06, -0.55); G.add(t); }
       at(glove, 2.15, 0.85, -0.5, -0.5); G.add(glove);
@@ -445,7 +476,10 @@ export function createTown(ctx) {
           const a = [['ANTEATER', 'I smell something.'], ['ANTEATER', 'It\'s gossip.'], ['WOLF', 'It\'s fabric softener.']];
           if (S.sock === 2) { step('sock', 3); return [...a, ['ANTEATER', 'Wool went east. To the Post Office.'], ['ANTEATER', 'It smelled nervous.']]; }
           return a; } },
-        { id: 'glove', label: 'RUBBER GLOVE', o: glove, talk: () => [['', 'The Rubber Glove grades your folding.'], ['', 'It holds up one finger.'], ['WOLF', 'Out of what?'], ['RUBBER GLOVE', 'One.']] },
+        { id: 'glove', label: 'FOLD (RUBBER GLOVE)', o: glove, talk: () => { A.folds = (A.folds || 0) + 1; const sc = [1, 1, 3, 1, 4, 1][(A.folds - 1) % 6];   // run 11 (M4): folding gets graded, every time
+          return A.folds === 1 ? [['', 'You fold a shirt. The Rubber Glove grades your folding.'], ['', 'It holds up one finger.'], ['WOLF', 'Out of what?'], ['RUBBER GLOVE', 'One.']]
+            : [['', `You fold shirt number ${A.folds}.`], ['RUBBER GLOVE', sc > 1 ? `${sc} fingers. Don't let it go to your head.` : 'One finger.'], ...(sc === 4 ? [['RUBBER GLOVE', 'That\'s my best grade. I don\'t have a thumb.']] : [])]; } },
+        { id: 'chairs', label: 'CHAIRS', o: chairs, talk: () => [['', 'Three plastic chairs bolted together.'], ['', 'You sit in the middle one.'], ['', 'The dryers above you go round. You watch for a while.']] },
         { id: 'vend', label: 'VENDING', o: vend, talk: () => [['', 'SMALLER DETERGENT — $1.'], ['', 'It\'s the same box. It\'s just further away.']] },
         { id: 'change', label: 'CHANGE MACHINE', o: change, talk: () => [['', 'You put in a dollar.'], ['', 'It gives you smaller change.'], ['', 'A dollar. Smaller.']] },
         { id: 'board', label: 'LOST SOCKS', o: board, talk: () => S.sock >= 6 ? [['', 'LOST SOCKS board: one reunion pinned up.'], ['', 'Everyone else is still missing. Nobody is looking.']] : [['', 'LOST SOCKS. If found, don\'t tell them.']] },
@@ -1178,6 +1212,192 @@ export function createTown(ctx) {
         { id: 'taxi', label: 'TAXI', o: taxi, talk: () => [['', 'The meter says $11.11.'], ['', 'It has said $11.11 for a long time.'], ['MOTH', 'Don\'t touch the meter. It\'s concentrating.']] },
       ];
     },
+    // ================================================================== run 11 (M4): pool hall, the chain-link court, five home rooms
+    async poolhall(G, A) {   // POOL · BILLIARDS (Neon Strip): three felt tables under green shades, cue rack, jukebox, a bar. Table 2 is playable (minigames.js createPool)
+      const W = 10, [peach, shake] = await Promise.all([glb('town2/fuzzy_peach_lo.glb', 1.45, 'object', { rest: 'breathe' }), glb('town2/shake_lo.glb', 1.5, 'object', { rest: 'breathe' })]);
+      const wp = new THREE.Mesh(new THREE.PlaneGeometry(W + 0.3, 3.2), texMat(cvTex(512, 160, (g, w, h) => { g.fillStyle = '#2f4a3e'; g.fillRect(0, 0, w, h); g.fillStyle = '#284034'; for (let x = 0; x < w; x += 16) g.fillRect(x, 0, 7, h * 0.62);
+        g.fillStyle = '#6b3a22'; g.fillRect(0, h * 0.62, w, h * 0.38); g.fillStyle = '#c9a24a'; g.fillRect(0, h * 0.6, w, 4); g.fillStyle = '#5a3020'; for (let x = 0; x < w; x += 64) g.fillRect(x, h * 0.66, 3, h * 0.34); }, 1, 1))); wp.position.set(0, 1.6, -A.D / 2 + 0.02); G.add(wp);
+      const table = (x, z, ry, play) => { const t = new THREE.Group(); const top = box(2.5, 0.14, 1.4, '#6b3a22', 0.05); top.position.y = 0.66; t.add(top); const bed = box(2.24, 0.04, 1.12, play ? '#2f7d5a' : '#2a6e50', 0.01); bed.position.y = 0.79; t.add(bed);
+        for (const [a, b] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const l = box(0.16, 0.68, 0.16, '#5a3020', 0.03); l.position.set(a * 1.05, 0, b * 0.55); t.add(l); }
+        for (const [a, b] of [[-1.12, -0.56], [1.12, -0.56], [-1.12, 0.56], [1.12, 0.56], [0, -0.58], [0, 0.58]]) { const p = cyl(0.06, 0.06, 0.02, '#120c0a', 10); p.position.set(a, 0.8, b); t.add(p); }
+        const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.38, 0.22, 14, 1, true), feltMat('#2f6a4a', { side: THREE.DoubleSide, emissive: new THREE.Color('#2f4a2a'), emissiveIntensity: 0.3 })); shade.position.set(0, 2.15, 0); t.add(shade);
+        const cord = cyl(0.01, 0.01, 1.1, '#2a2a2a', 4); cord.position.y = 2.25; t.add(cord); const glow = new THREE.Mesh(new THREE.CircleGeometry(0.15, 12), new THREE.MeshBasicMaterial({ color: '#fff2c8' })); glow.rotation.x = Math.PI / 2; glow.position.y = 2.05; t.add(glow);
+        if (!play) { [[0.4, 0.1, '#f2c230'], [0.6, -0.2, '#c9382e'], [-0.3, 0.3, '#2f55a8'], [-0.7, -0.1, '#f3efe2']].forEach(([bx, bz, c]) => { const b = new THREE.Mesh(new THREE.SphereGeometry(0.034, 10, 8), feltMat(c)); b.position.set(bx, 0.845, bz); t.add(b); }); }
+        else { const rack = new THREE.Group(); [[0, 0], [0.06, -0.035], [0.06, 0.035], [0.12, -0.07], [0.12, 0], [0.12, 0.07], [0.18, -0.035], [0.18, 0.035], [0.24, 0]].forEach(([bx, bz], i) => { const b = new THREE.Mesh(new THREE.SphereGeometry(0.034, 10, 8), feltMat(['#f2c230', '#2f55a8', '#c9382e', '#f2c230', '#6a3f8a', '#e07a2e', '#2f7a4a', '#7a2a2a', '#231f22'][i])); b.position.set(0.45 + bx, 0.845, bz); rack.add(b); }); t.add(rack);
+          const cb = new THREE.Mesh(new THREE.SphereGeometry(0.034, 10, 8), feltMat('#f3efe2')); cb.position.set(-0.56, 0.845, 0); t.add(cb); const cue = cyl(0.012, 0.02, 1.45, '#d9b47a', 6); cue.rotation.z = Math.PI / 2 - 0.05; cue.position.set(-0.62, 0.9, 0.05); t.add(cue); }
+        at(t, x, 0, z, ry); G.add(t); return t; };
+      table(-3.2, -1.3, 0, false); const play = table(0.6, -0.2, 0, true); table(3.8, -1.4, 0.1, false);
+      const rack = new THREE.Group(); const rb = box(1.6, 0.14, 0.12, '#5a3020', 0.02); rb.position.y = 0.9; rack.add(rb); const rt = rb.clone(); rt.position.y = 2.3; rack.add(rt);
+      for (let i = 0; i < 8; i++) { const c = cyl(0.012, 0.02, 1.45, ['#d9b47a', '#c9a06a', '#e0c08a'][i % 3], 6); c.position.set(-0.7 + i * 0.2, 0.9, 0.02); c.rotation.z = (i % 2 ? 1 : -1) * 0.02; rack.add(c); } at(rack, -2.6, 0, -A.D / 2 + 0.12); G.add(rack);
+      const chalk = new THREE.Group(); chalk.add(box(1.3, 0.9, 0.05, '#2a2a28', 0.02)); const cfr = box(1.42, 0.06, 0.08, '#6b3a22', 0.02); cfr.position.y = -0.03; chalk.add(cfr);
+      const ct = cvTex(256, 180, (g, w, h) => { g.fillStyle = '#2a2a28'; g.fillRect(0, 0, w, h); g.fillStyle = 'rgba(243,239,226,.85)'; g.font = '700 26px "Comic Sans MS",cursive'; g.textAlign = 'center'; g.fillText('WINNER STAYS', w / 2, 40); g.font = '22px "Comic Sans MS",cursive'; g.fillText('9-BALL · FELT RULES', w / 2, 78); g.fillText('HOUSE BEST: ' + (S.poolBest || '—'), w / 2, 118); g.fillText('NO MASSÉ (PLEASE)', w / 2, 156); }, 1, 1);
+      const cboard = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.82), texMat(ct)); cboard.position.set(0, 0.45, 0.03); chalk.add(cboard); at(chalk, 1.2, 1.35, -A.D / 2 + 0.06); G.add(chalk); 
+      const juke = new THREE.Group(); juke.add(box(0.9, 1.3, 0.6, '#c9382e', 0.12)); const arch = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.6, 16, 1, false, 0, Math.PI), feltMat('#f2c230', { emissive: new THREE.Color('#f2a030'), emissiveIntensity: 0.35 })); arch.rotation.set(Math.PI / 2, 0, Math.PI / 2); arch.position.set(0, 1.3, 0); juke.add(arch);
+      const jg = sign('SELECT', 0.6, 0.3, '#fff3dc', '#c9382e', 0.5); jg.position.set(0, 0.85, 0.31); juke.add(jg); at(juke, 4.4, 0, 0.9, -1.2); G.add(juke);
+      const bar = new THREE.Group(); bar.add(box(0.7, 1.05, 2.6, '#6b3a22', 0.05)); const btop = box(0.85, 0.07, 2.8, '#c9a24a', 0.02); btop.position.y = 1.05; bar.add(btop);
+      for (let i = 0; i < 3; i++) { const st = new THREE.Group(); st.add(cyl(0.03, 0.05, 0.7, '#8a8c88', 6)); const seat = cyl(0.2, 0.2, 0.1, '#c9382e', 12); seat.position.y = 0.7; st.add(seat); at(st, 0.65, 0, -0.9 + i * 0.9); bar.add(st); }
+      at(bar, -4.4, 0, 0.9); G.add(bar); at(shake, -4.55, 1.12, 0.3, 0.9); G.add(shake);
+      const neon = sign('POOL', 1.1, 0.42, '#1c1412', '#ff6fae', 0.75); neon.material.emissive = new THREE.Color('#ff6fae'); neon.material.emissiveMap = neon.material.map; neon.material.emissiveIntensity = 0.9; at(neon, 3.6, 2.45, -A.D / 2 + 0.05); G.add(neon);
+      const rules = sign('NO GAMBLING\n(MUCH)', 0.9, 0.42, '#efe2c4', '#3a1f2a', 0.5); at(rules, -0.9, 2.3, -A.D / 2 + 0.05); G.add(rules);
+      at(peach, 2.6, 0, 0.6, -0.7); G.add(peach);
+      A.wolfSpot = [-1.2, 1.6]; A.anim = []; A.proc = [peach, shake]; A.view = { lw: 5.4, pw: 4.4, h: 2.3 }; A.bounds = [-4.4, 4.4, -1.0, 2.4];
+      A.who = [
+        { id: 'table', label: 'RACK \'EM (PLAY)', o: play, talk: () => [['FUZZY PEACH', 'Table two. The level one.'], ['FUZZY PEACH', 'Nine balls. Sink them all. Fewer shots, better.'], ['', 'You chalk the cue.', () => startGame(A, poolGame())]] },
+        { id: 'peach', label: 'FUZZY PEACH', o: peach, talk: () => S.poolBest ? [['FUZZY PEACH', `${S.poolBest} shots. I\'ve seen worse.`], ['FUZZY PEACH', 'Mostly mine.']] : [['FUZZY PEACH', 'I don\'t hustle.'], ['FUZZY PEACH', 'I\'m just soft and I wait.'], ['WOLF', 'That\'s hustling.'], ['FUZZY PEACH', 'That\'s ripening.']] },
+        { id: 'shake', label: 'MILKSHAKE', o: shake, talk: () => [['MILKSHAKE', 'We only serve one drink.'], ['WOLF', 'Which?'], ['MILKSHAKE', 'Me. Don\'t.']] },
+        { id: 'juke', label: 'JUKEBOX', o: juke, talk: () => [['', 'You pick B-7.'], ['', 'It plays the sound of a pool break.'], ['', 'Then applause. For nobody.']] },
+        { id: 'chalk', label: 'CHALKBOARD', o: chalk, talk: () => [['', 'WINNER STAYS.'], ['', S.poolBest ? 'HOUSE BEST: ' + S.poolBest + ' shots. It\'s in your handwriting.' : 'HOUSE BEST: — (nobody\'s cleared it)']] },
+        { id: 'cues', label: 'CUE RACK', o: rack, talk: () => [['', 'Eight house cues. All a little bent.'], ['', 'Bent the same way. It\'s the house style.']] },
+      ];
+    },
+    async court(G, A) {   // THE CHAIN-LINK COURT (Palm St, west side): one hoop, cracked asphalt, Larry Byrd. Shoot-around = minigames.js createHoops
+      const sc = G.parent; if (sc) { sc.background = new THREE.Color('#e9a46a'); }
+      const fl = new THREE.Mesh(new THREE.BoxGeometry(A.W + 0.4, 0.2, A.D + 0.2), texMat(cvTex(512, 384, (g, w, h) => { g.fillStyle = '#5d5a5e'; g.fillRect(0, 0, w, h); for (let i = 0; i < 4000; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.08)'; g.fillRect(Math.random() * w, Math.random() * h, 2, 2); }
+        g.strokeStyle = 'rgba(243,239,226,.7)'; g.lineWidth = 5; g.strokeRect(w / 2 - 70, 0, 140, 170); g.beginPath(); g.arc(w / 2, 170, 56, 0, Math.PI); g.stroke(); g.beginPath(); g.arc(w / 2, 20, 210, 0.15, Math.PI - 0.15); g.stroke();
+        g.strokeStyle = 'rgba(20,18,20,.55)'; g.lineWidth = 2; for (let i = 0; i < 10; i++) { g.beginPath(); let x = Math.random() * w, y = Math.random() * h; g.moveTo(x, y); for (let k = 0; k < 5; k++) { x += (Math.random() - 0.5) * 60; y += (Math.random() - 0.5) * 60; g.lineTo(x, y); } g.stroke(); } }, 1, 1)));
+      fl.position.y = -0.1; fl.receiveShadow = true; G.add(fl);
+      const fT = cvTex(64, 64, (g, w, h) => { g.clearRect(0, 0, w, h); g.strokeStyle = '#b8bab4'; g.lineWidth = 3; g.beginPath(); g.moveTo(0, 0); g.lineTo(w, h); g.moveTo(w, 0); g.lineTo(0, h); g.stroke(); }, 30, 9);
+      const fm = new THREE.MeshStandardMaterial({ map: fT, transparent: true, alphaTest: 0.35, side: THREE.DoubleSide, roughness: 0.8 });
+      const fence = (w, x, z, ry) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, 3), fm); m.position.set(x, 1.5, z); m.rotation.y = ry; G.add(m); for (let i = 0; i <= Math.round(w / 2.5); i++) { const p = cyl(0.035, 0.035, 3.05, '#8a8c88', 6); const f = i / Math.round(w / 2.5) - 0.5; p.position.set(x + Math.cos(ry) * f * w, 0, z - Math.sin(ry) * f * w); G.add(p); } };
+      fence(A.W, 0, -A.D / 2, 0); fence(A.D, -A.W / 2, 0, Math.PI / 2); fence(A.D, A.W / 2, 0, -Math.PI / 2);
+      const sky = new THREE.Mesh(new THREE.PlaneGeometry(40, 14), texMat(cvTex(256, 128, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#f2b27a'); gr.addColorStop(0.7, '#f6d2a0'); gr.addColorStop(0.71, '#c9925f'); gr.addColorStop(1, '#b8804f'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+        g.fillStyle = '#9a6a5a'; g.beginPath(); g.moveTo(0, h * 0.71); for (let x = 0; x <= w; x += 16) g.lineTo(x, h * (0.6 + Math.sin(x * 0.05) * 0.05)); g.lineTo(w, h * 0.71); g.fill(); }, 1, 1), 0.4)); sky.position.set(0, 5, -A.D / 2 - 6); G.add(sky);
+      const hoop = new THREE.Group(); hoop.add(cyl(0.08, 0.09, 3.5, '#3f5f6e', 10)); const armh = box(0.12, 0.12, 0.9, '#3f5f6e', 0.02); armh.position.set(0, 3.25, 0.45); hoop.add(armh);
+      const bb = sign('NO DUNKING\n(ON LARRY)', 1.8, 1.05, '#efe2c4', '#c9584a', 0.3); bb.position.set(0, 3.42, 0.95); hoop.add(bb); const bbk = box(1.84, 1.09, 0.05, '#d9c9a4', 0.01); bbk.position.set(0, 2.895, 0.91); hoop.add(bbk);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.229, 0.014, 6, 24), feltMat('#e06a2a')); rim.rotation.x = Math.PI / 2; rim.position.set(0, 3.05, 1.33); hoop.add(rim);
+      const net = cyl(0.15, 0.22, 0.42, '#d8d8d2', 12); net.material.transparent = true; net.material.opacity = 0.6; net.position.set(0, 2.62, 1.33); hoop.add(net);
+      at(hoop, 0, 0, -A.D / 2 + 0.4); G.add(hoop);
+      const larry = larryByrd(feltMat); at(larry, 2.6, 0, 0.2, -0.6); G.add(larry);
+      const ballR = new THREE.Group(); ballR.add(box(0.9, 0.5, 0.4, '#8a8c88', 0.03)); [[-0.25, '#d96a2a'], [0.05, '#d96a2a'], [0.3, '#c95a2a']].forEach(([x, c]) => { const b = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), feltMat(c)); b.position.set(x, 0.62, 0); ballR.add(b); }); at(ballR, -3.2, 0, -1.4, 0.3); G.add(ballR);
+      const bench = box(2.0, 0.45, 0.45, '#8a5a3a', 0.04); at(bench, -3.0, 0, 1.0, Math.PI / 2); G.add(bench);
+      const cooler = box(0.6, 0.45, 0.4, '#2f7ab8', 0.08); at(cooler, -2.9, 0.45, 0.3); G.add(cooler);
+      const hours = sign('COURT CLOSES AT DARK\nit\'s always dark somewhere', 1.6, 0.5, '#fff3dc', '#3a1f2a', 0.45); at(hours, -2.4, 1.9, -A.D / 2 + 0.06); G.add(hours);
+      A.wolfSpot = [-0.6, 1.5]; A.anim = []; A.view = { lw: 4.8, pw: 4.0, h: 2.6, look: -0.6 };
+      A.tick = (dt, t) => { const hd = larry.userData.head; if (hd) hd.rotation.x = Math.sin(t * 2.2) * 0.12; larry.position.y = Math.abs(Math.sin(t * 3.1)) * 0.03; };
+      A.who = [
+        { id: 'hoop', label: 'SHOOT AROUND (PLAY)', o: hoop, talk: () => [['LARRY BYRD', 'Around the world. Five spots, two shots each.'], ['LARRY BYRD', 'Then me. Most buckets wins.'], ['', 'Larry tosses you the ball.', () => startGame(A, hoopsGame())]] },
+        { id: 'larry', label: 'LARRY BYRD', o: larry, talk: () => S.hoops ? [['LARRY BYRD', `Last time: you ${S.hoops.w}, me ${S.hoops.l}.`], ['LARRY BYRD', S.hoops.w > S.hoops.l ? 'I was injured. Emotionally.' : 'Classic Larry.']] : [['LARRY BYRD', 'Larry Byrd. Two Rs, one Y.'], ['WOLF', 'Like the—'], ['LARRY BYRD', 'Like the bird. I am a bird.'], ['LARRY BYRD', 'Vulture. Shooting guard.']] },
+        { id: 'cooler', label: 'COOLER', o: cooler, talk: () => [['', 'The cooler has one orange slice in it.'], ['LARRY BYRD', 'Halftime. From 1987.']] },
+        { id: 'rack', label: 'BALL RACK', o: ballR, talk: () => [['', 'Three basketballs. Two are flat.'], ['', 'The third is just shy.']] },
+        { id: 'hours', label: 'SIGN', o: hours, talk: () => [['', 'COURT CLOSES AT DARK.'], ['', 'It\'s always dark somewhere.']] },
+      ];
+    },
+    // ---- the five home rooms (object characters at home). Each has a small chore with its own little state.
+    async wolf(G, A) {   // WOLF'S KITCHEN: fridge, stove, phone, plaid box — chore: MAKE BREAKFAST
+      const [fridge, stove, phone, plaid] = await Promise.all([glb('cast/house_fridge_walking.glb', 1.95, 'object', { rest: 'breathe' }), glb('town2/stove.glb', 1.05), glb('hf2/phone.glb', 0.5, 'object', { rest: 'bob' }), glb('hf2/plaid_box.glb', 0.7, 'object', { rest: 'bob' })]);
+      const wp = new THREE.Mesh(new THREE.PlaneGeometry(8.3, 3.2), texMat(cvTex(256, 128, (g, w, h) => { g.fillStyle = '#f2e6c0'; g.fillRect(0, 0, w, h); g.fillStyle = '#e0705a'; for (let y = 6; y < h * 0.55; y += 22) for (let x = (y / 22 % 2) * 11; x < w; x += 22) { g.beginPath(); g.arc(x, y, 3, 0, 7); g.fill(); }
+        for (let y = h * 0.55; y < h; y += 10) for (let x = 0; x < w; x += 10) { g.fillStyle = ((x + y) / 10) % 2 ? '#f6efe0' : '#bfe0d0'; g.fillRect(x, y, 10, 10); } }, 1, 1))); wp.position.set(0, 1.6, -2.98); G.add(wp);
+      const counter = box(2.6, 0.9, 0.62, '#9fd6c0', 0.04); at(counter, -1.0, 0, -2.6); G.add(counter); const ctop = box(2.7, 0.06, 0.68, '#f6efe0', 0.02); at(ctop, -1.0, 0.9, -2.6); G.add(ctop);
+      const upper = box(2.6, 0.7, 0.36, '#9fd6c0', 0.04); at(upper, -1.0, 1.75, -2.78); G.add(upper);
+      const win = new THREE.Group(); win.add(box(1.0, 0.8, 0.06, '#f6efe0', 0.02)); const gl = box(0.86, 0.66, 0.04, '#a8d0e0', 0.01); gl.position.set(0, 0.07, 0.02); win.add(gl); at(win, 2.4, 1.3, -2.95); G.add(win);
+      const tbl = new THREE.Group(); const tt = cyl(0.55, 0.55, 0.05, '#e0705a', 18); tt.position.y = 0.74; tbl.add(tt); tbl.add(cyl(0.05, 0.08, 0.74, '#c9c9c0', 8)); at(tbl, 1.4, 0, 0.3); G.add(tbl);
+      for (const [x, z] of [[0.7, 0.5], [2.1, 0.2]]) { const ch = new THREE.Group(); const s = cyl(0.2, 0.2, 0.08, '#f2c230', 12); s.position.y = 0.45; ch.add(s, cyl(0.02, 0.02, 0.45, '#c9c9c0', 6)); at(ch, x, 0, z); G.add(ch); }
+      const plate = cyl(0.16, 0.14, 0.02, '#f6efe0', 14); at(plate, 1.4, 0.79, 0.3); G.add(plate);
+      const eggs = new THREE.Group(); const w1 = cyl(0.07, 0.07, 0.012, '#fff8ea', 10), y1 = cyl(0.03, 0.03, 0.02, '#f2b632', 8); eggs.add(w1, y1); const ba = box(0.18, 0.02, 0.05, '#c9584a', 0.01); ba.position.set(0.02, 0.01, 0.07); eggs.add(ba); at(eggs, 1.4, 0.81, 0.3); eggs.visible = false; G.add(eggs);
+      const pan = new THREE.Group(); pan.add(cyl(0.16, 0.14, 0.05, '#2a2a2a', 12)); const hdl = box(0.3, 0.03, 0.04, '#2a2a2a', 0.01); hdl.position.set(0.3, 0.02, 0); pan.add(hdl);
+      at(fridge, -3.2, 0, -2.3, 0.3); at(stove, 0.9, 0, -2.55, 0); G.add(fridge, stove); at(pan, 0.82, 1.06, -2.5); G.add(pan);
+      at(phone, -0.4, 0.96, -2.6, 0.2); at(plaid, -1.9, 0.96, -2.55, 0.4); G.add(phone, plaid);
+      const note = sign('TO DO:\n1 EGGS (FRIDGE)\n2 PAN (STOVE)\n3 PLATE IT', 0.7, 0.62, '#fff3dc', '#3a1f2a', 0.62); at(note, -2.9, 1.5, -2.0, 0.35); note.position.z = -1.88; G.add(note);
+      A.cook = 0; A.wolfSpot = [0.4, 1.6]; A.anim = []; A.proc = [fridge, phone, plaid];
+      A.tick = (dt, t) => { if (A.sizzle > 0) { A.sizzle -= dt; pan.position.y = 1.06 + Math.abs(Math.sin(t * 30)) * 0.01; } };
+      A.who = [
+        { id: 'fridge', label: 'FRIDGE', o: fridge, talk: () => { if (A.cook === 0) { A.cook = 1; return [['FRIDGE', 'Close the door, you\'re letting the cold out.'], ['WOLF', 'I haven\'t opened it.'], ['FRIDGE', 'Pre-emptively.'], ['', 'Got: two eggs. (TO DO 1/3)']]; }
+          return Math.random() < 0.5 ? [['FRIDGE', 'I\'m running.'], ['WOLF', 'Then go catch yourself.'], ['FRIDGE', 'I\'ve heard it.']] : [['FRIDGE', 'My brother\'s out on the lawn.'], ['WOLF', 'Why?'], ['FRIDGE', 'He walks. I don\'t ask.']]; } },
+        { id: 'stove', label: 'STOVE', o: stove, talk: () => { if (A.cook === 1) { A.cook = 2; A.sizzle = 2.2; return [['', 'You crack the eggs into the pan.'], ['STOVE', 'Sssss.'], ['STOVE', 'That\'s me. Not the eggs.'], ['', 'Breakfast is cooking. (TO DO 2/3)']]; }
+          return A.cook === 0 ? [['STOVE', 'I\'m hot.'], ['WOLF', 'You\'re off.'], ['STOVE', 'I\'m hot in general.']] : [['STOVE', 'Done. Like a dinner. But breakfast.']]; } },
+        { id: 'plate', label: 'PLATE', o: plate, talk: () => { if (A.cook === 2) { A.cook = 3; eggs.visible = true; return [['', 'Two eggs, sunny side up. One strip of felt bacon.'], ['PLAID BOX', 'Plated. Very professional.'], ['', 'Breakfast: done. (TO DO 3/3)']]; }
+          return A.cook >= 3 ? [['', 'The eggs look at you.'], ['', 'Sunny side up. Always.']] : [['', 'An empty plate.'], ['', 'Check the TO DO list on the fridge.']]; } },
+        { id: 'phone', label: 'PHONE', o: phone, talk: () => A.cook >= 3 ? [['PHONE', 'Ring ring.'], ['WOLF', 'Hello?'], ['PHONE', 'It\'s me. The phone. Your eggs are getting cold.']] : [['PHONE', 'Ring.'], ['WOLF', 'You\'re ringing yourself.'], ['PHONE', 'Somebody has to.']] },
+        { id: 'plaid', label: 'PLAID BOX', o: plaid, talk: () => [['PLAID BOX', 'I hold the cereal.'], ['WOLF', 'There\'s no cereal.'], ['PLAID BOX', 'I hold the idea of cereal.']] },
+      ];
+    },
+    async heron(G, A) {   // HERON'S BATHROOM: toilet, sink, plunger-glasses — chore: THE CLOG
+      const [toilet, sink, plunger] = await Promise.all([glb('hf2/toilet.glb', 0.85), glb('hf2/sink.glb', 1.0), glb('hf2/plunger_glasses.glb', 0.95, 'object', { rest: 'bob' })]);
+      const tile = new THREE.Mesh(new THREE.PlaneGeometry(8.3, 3.2), texMat(cvTex(256, 128, (g, w, h) => { for (let y = 0; y < h; y += 12) for (let x = 0; x < w; x += 12) { g.fillStyle = y < h * 0.5 ? '#f6c6d6' : ((x + y) / 12 % 2 ? '#2a2440' : '#f6efe0'); g.fillRect(x + 0.5, y + 0.5, 11, 11); } g.fillStyle = '#2a2440'; g.fillRect(0, h * 0.5 - 3, w, 4); }, 1, 1))); tile.position.set(0, 1.6, -2.98); G.add(tile);
+      const tub = new THREE.Group(); tub.add(box(1.8, 0.6, 0.85, '#f6efe0', 0.2)); const water = box(1.6, 0.05, 0.65, '#9fd6e8', 0.02); water.position.y = 0.52; tub.add(water); for (const x of [-0.75, 0.75]) { const f = cyl(0.06, 0.04, 0.12, '#c9a24a', 6); f.position.set(x, -0.08, 0.3); tub.add(f); }
+      const curtain = box(0.04, 1.8, 0.9, '#f2c230', 0.02); curtain.position.set(0.95, 0.6, 0); tub.add(curtain); at(tub, -2.8, 0.08, -2.4); G.add(tub);
+      at(toilet, 0.3, 0, -2.55, 0); at(sink, 2.3, 0, -2.6, 0); at(plunger, -0.9, 0, -1.0, 0.4); G.add(toilet, sink, plunger);
+      const mirror = box(0.8, 1.0, 0.04, '#cfe6ec', 0.04); at(mirror, 2.3, 1.35, -2.96); G.add(mirror); const mf = box(0.9, 1.1, 0.03, '#c9a24a', 0.04); at(mf, 2.3, 1.3, -2.98); G.add(mf);
+      const mat = cyl(0.55, 0.55, 0.02, '#2a9d9a', 20); mat.scale.z = 0.6; at(mat, 0.3, 0.005, -1.6); G.add(mat);
+      const duck = new THREE.Group(); const db = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), feltMat('#f2c230')); db.scale.set(1.3, 0.8, 1); duck.add(db); const dh = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), feltMat('#f2c230')); dh.position.set(0.08, 0.08, 0); duck.add(dh); const bk = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.06, 6), feltMat('#e07a2e')); bk.rotation.z = -Math.PI / 2; bk.position.set(0.15, 0.07, 0); duck.add(bk); at(duck, -2.6, 0.72, -2.4); G.add(duck);
+      A.clog = 0; A.wolfSpot = [-0.8, 1.6]; A.anim = []; A.proc = [plunger];
+      A.tick = (dt, t) => { if (A.plunge > 0) { A.plunge -= dt; toilet.rotation.z = Math.sin(t * 28) * 0.03; toilet.position.y = Math.abs(Math.sin(t * 14)) * 0.02; if (A.plunge <= 0) { toilet.rotation.z = 0; toilet.position.y = 0; } } duck.position.y = 0.72 + Math.sin(t * 1.4) * 0.01; };
+      A.who = [
+        { id: 'toilet', label: 'TOILET', o: toilet, talk: () => { if (A.clog === 0) { A.clog = 1; return [['TOILET', 'I\'m not clogged.'], ['TOILET', 'I\'m thinking.'], ['WOLF', 'About what?'], ['TOILET', 'A sock. Possibly argyle.'], ['', 'Chore: fix the clog. Ask the Plunger.']]; }
+          if (A.clog === 2) { A.clog = 3; A.plunge = 2.0; return [['', 'Plunger-Glasses gets to work. Glasses first.'], ['TOILET', 'Oh. OH.'], ['', 'Something felt goes back the way it came.'], ['TOILET', 'Much clearer.'], ['', 'Chore done: the clog.']]; }
+          return A.clog >= 3 ? [['TOILET', 'Thank you for your service.'], ['TOILET', 'Please flush on your way out. Of my life.']] : [['TOILET', 'Still thinking.']]; } },
+        { id: 'plunger', label: 'PLUNGER-GLASSES', o: plunger, talk: () => { if (A.clog === 1) { A.clog = 2; return [['PLUNGER-GLASSES', 'I need to see the problem.'], ['', 'It adjusts its glasses.'], ['PLUNGER-GLASSES', 'I see the problem. Take me to the toilet.']]; }
+          return A.clog >= 3 ? [['PLUNGER-GLASSES', 'I\'m a professional.'], ['PLUNGER-GLASSES', 'Professionals don\'t talk about the work.']] : [['PLUNGER-GLASSES', 'I\'m short-sighted.'], ['PLUNGER-GLASSES', 'And long-handled.']]; } },
+        { id: 'sink', label: 'SINK', o: sink, talk: () => [['SINK', 'Drip.'], ['WOLF', 'You should get that looked at.'], ['SINK', 'Drip. (It\'s how I talk.)']] },
+        { id: 'duck', label: 'RUBBER DUCK', o: duck, talk: () => [['', 'The rubber duck is felt.'], ['', 'It does not float. It has made peace with that.']] },
+      ];
+    },
+    async lynx(G, A) {   // LYNX'S BEDROOM: lamp-bulb, lantern, eye chair — chore: LIGHTS OUT
+      const [lamp, lantern, chair] = await Promise.all([glb('hf2/lamp_bulb.glb', 1.15, 'object', { rest: 'bob' }), glb('hf2/lantern.glb', 0.6, 'object', { rest: 'bob' }), glb('town2/eye_chair.glb', 1.1)]);
+      const wp = new THREE.Mesh(new THREE.PlaneGeometry(8.3, 3.2), texMat(cvTex(256, 128, (g, w, h) => { g.fillStyle = '#c6d6f0'; g.fillRect(0, 0, w, h); g.fillStyle = '#f2d27a'; for (let i = 0; i < 40; i++) { const x = Math.random() * w, y = Math.random() * h * 0.9; g.beginPath(); for (let k = 0; k < 5; k++) { const a = k * 2.513 - 1.57; g.lineTo(x + Math.cos(a) * 4, y + Math.sin(a) * 4); const b = a + 1.256; g.lineTo(x + Math.cos(b) * 1.8, y + Math.sin(b) * 1.8); } g.fill(); } }, 1, 1))); wp.position.set(0, 1.6, -2.98); G.add(wp);
+      const bed = new THREE.Group(); bed.add(box(1.6, 0.45, 2.1, '#8a5a3a', 0.05)); const mat = box(1.5, 0.2, 2.0, '#f6efe0', 0.08); mat.position.y = 0.45; bed.add(mat);
+      const quilt = box(1.56, 0.08, 1.4, '#e0705a', 0.04); quilt.position.set(0, 0.63, 0.3); bed.add(quilt); for (let i = 0; i < 4; i++) { const q = box(1.58, 0.085, 0.08, '#f2c230', 0.02); q.position.set(0, 0.63, -0.2 + i * 0.34); bed.add(q); }
+      const pil = box(1.1, 0.16, 0.4, '#fff8ea', 0.08); pil.position.set(0, 0.65, -0.75); bed.add(pil); const hb = box(1.7, 1.1, 0.1, '#6b3a22', 0.05); hb.position.set(0, 0, -1.05); bed.add(hb); at(bed, -1.2, 0, -1.7); G.add(bed);
+      const ns = box(0.55, 0.6, 0.45, '#6b3a22', 0.04); at(ns, 0.4, 0, -2.5); G.add(ns); at(lamp, 0.4, 0.6, -2.5, -0.3); G.add(lamp);
+      const dresser = box(1.3, 0.95, 0.5, '#9a6a4a', 0.04); at(dresser, 2.6, 0, -2.6); G.add(dresser); at(lantern, 2.4, 0.95, -2.6, -0.4); G.add(lantern);
+      const rug = cyl(0.9, 0.9, 0.02, '#5a4a8a', 22); rug.scale.z = 0.65; at(rug, 1.4, 0.005, 0.1); G.add(rug); at(chair, 2.2, 0, 0.0, -0.9); G.add(chair);
+      const win = new THREE.Group(); win.add(box(1.0, 1.0, 0.06, '#f6efe0', 0.02)); const gl = box(0.86, 0.86, 0.04, '#2a2a5a', 0.01); gl.position.set(0, 0.07, 0.02); win.add(gl); const moon = cyl(0.12, 0.12, 0.01, '#fff3c0', 14); moon.rotation.x = Math.PI / 2; moon.position.set(0.2, 0.7, 0.06); win.add(moon); at(win, -3.0, 1.2, -2.95); G.add(win);
+      const sc = G.parent, hemi = sc?.children.find(o => o.isHemisphereLight), key = sc?.children.find(o => o.isDirectionalLight); const base = [hemi?.intensity ?? 1, key?.intensity ?? 1];
+      const glowL = new THREE.PointLight('#ffe0a0', 0, 3.5); glowL.position.set(0.4, 1.6, -2.3); G.add(glowL);
+      A.off = { lamp: false, lantern: false, chair: false }; A.wolfSpot = [0.6, 1.5]; A.anim = []; A.proc = [lamp, lantern];
+      const dark = () => { const n = Object.values(A.off).filter(Boolean).length; if (hemi) hemi.intensity = base[0] * (1 - n * 0.22); if (key) key.intensity = base[1] * (1 - n * 0.25); glowL.intensity = n === 3 ? 0 : 0.6; return n; };
+      A.setAir = () => { A.off = { lamp: false, lantern: false, chair: false }; dark(); chair.scale.y = 1; };
+      const done = () => dark() === 3 ? [['', 'Lights out. (3/3)'], ['LYNX (from the hall)', 'Finally. Goodnight, room.'], ['EYE CHAIR', '(one eye still open)']] : [['', `Lights out: ${dark()}/3.`]];
+      A.who = [
+        { id: 'lamp', label: 'LAMP-BULB', o: lamp, talk: () => { if (!A.off.lamp) { A.off.lamp = true; return [['LAMP-BULB', 'I\'ve been left on my whole life.'], ['WOLF', 'Bedtime.'], ['LAMP-BULB', '...okay. Just a little dim.'], ...done()]; } return [['LAMP-BULB', '(dimly) I\'m resting my filament.']]; } },
+        { id: 'lantern', label: 'LANTERN', o: lantern, talk: () => { if (!A.off.lantern) { A.off.lantern = true; return [['LANTERN', 'I\'m for camping.'], ['WOLF', 'You\'re on a dresser.'], ['LANTERN', 'I\'m camping on a dresser.'], ['', 'It turns itself down anyway.'], ...done()]; } return [['LANTERN', '(low) Ghost stories later.']]; } },
+        { id: 'chair', label: 'EYE CHAIR', o: chair, talk: () => { if (!A.off.chair) { A.off.chair = true; chair.scale.y = 0.97; return [['EYE CHAIR', 'I don\'t sleep. I watch.'], ['WOLF', 'Watch with your eye closed.'], ['EYE CHAIR', 'That\'s called sleeping.'], ['EYE CHAIR', 'Fine.'], ...done()]; } return [['EYE CHAIR', '(watching, with the eye closed)']]; } },
+        { id: 'bed', label: 'BED', o: bed, talk: () => dark() === 3 ? [['', 'You lie down on the felt quilt.'], ['', 'It\'s very quiet.'], ['EYE CHAIR', '(watching)']] : [['', 'You can\'t sleep with the lights on.'], ['', 'Everyone in this room is a light.']] },
+      ];
+    },
+    async gecko(G, A) {   // GECKO'S LAUNDRY ROOM: washer, argyle sock (the cousin) — chore: DO A LOAD
+      const [washer, sock] = await Promise.all([glb('town2/washing_machine.glb', 1.25, 'object', { rest: 'bob' }), glb('town2/argyle_sock.glb', 0.8, 'feltobj')]);
+      const wp = new THREE.Mesh(new THREE.PlaneGeometry(8.3, 3.2), texMat(cvTex(256, 128, (g, w, h) => { g.fillStyle = '#d6e8c0'; g.fillRect(0, 0, w, h); g.fillStyle = '#c0d6a8'; for (let x = 0; x < w; x += 16) g.fillRect(x, 0, 2, h); g.fillStyle = '#f6efe0'; g.fillRect(0, h * 0.6, w, h * 0.4); for (let y = h * 0.6; y < h; y += 8) { g.fillStyle = '#e8dcc0'; g.fillRect(0, y, w, 1); } }, 1, 1))); wp.position.set(0, 1.6, -2.98); G.add(wp);
+      at(washer, -1.4, 0, -2.4, 0); G.add(washer); washer.userData.x0 = -1.4; const dryer = box(0.95, 1.1, 0.85, '#f6efe0', 0.1); at(dryer, -0.2, 0, -2.45); G.add(dryer); const dd = cyl(0.3, 0.3, 0.04, '#9a9a90', 16); dd.rotation.x = Math.PI / 2; dd.position.set(-0.2, 0.6, -2.0); G.add(dd);
+      const shelf = box(2.4, 0.06, 0.35, '#9a6a4a', 0.02); at(shelf, -0.8, 1.9, -2.8); G.add(shelf); [['#2f7ab8', 0.6, -1.8], ['#f2c230', 0.45, -1.2], ['#e0705a', 0.5, -0.5]].forEach(([c, h, x]) => { const b = box(0.32, h, 0.24, c, 0.05); at(b, x, 1.96, -2.8); G.add(b); });
+      const line = cyl(0.008, 0.008, 3.2, '#efe2c4', 4); line.rotation.z = Math.PI / 2; line.position.set(1.8, 2.2, -1.6); G.add(line);
+      const hung = []; [['#e0705a', 0.6], ['#6aa4b8', 1.3], ['#f2c230', 2.0], ['#8a4fc0', 2.7]].forEach(([c, x]) => { const t = box(0.4, 0.45, 0.02, c, 0.02); at(t, x, 1.75, -1.6); t.visible = false; G.add(t); hung.push(t); });
+      const basket = new THREE.Group(); basket.add(cyl(0.32, 0.26, 0.42, '#c9a06a', 12)); const pile = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8), feltMat('#d9c9e0')); pile.scale.y = 0.45; pile.position.y = 0.42; basket.add(pile); at(basket, 1.0, 0, -0.4); G.add(basket);
+      at(sock, 2.2, 0, 0.3, -0.5); G.add(sock);
+      A.load = 0; A.wolfSpot = [0.2, 1.5]; A.anim = []; A.spin = 0;
+      A.tick = (dt, t) => { if (A.spin > 0) { A.spin -= dt; washer.position.x = washer.userData.x0 + Math.sin(t * 60) * 0.025; washer.rotation.z = Math.sin(t * 47) * 0.02; if (A.spin <= 0) { washer.position.x = washer.userData.x0; washer.rotation.z = 0; } } };
+      A.who = [
+        { id: 'basket', label: 'LAUNDRY BASKET', o: basket, talk: () => { if (A.load === 0) { A.load = 1; return [['', 'One basket. Four shirts and one opinion.'], ['', 'Chore: do a load. Into the washer.']]; } return A.load >= 3 ? [['', 'Empty. For now.']] : [['', 'The basket is waiting.']]; } },
+        { id: 'washer', label: 'WASHER', o: washer, talk: () => { if (A.load === 1) { A.load = 2; A.spin = 2.4; pile.visible = false; return [['WASHER', 'Spin.'], ['WASHER', 'My cousin at the laundromat says hi.'], ['WASHER', 'He only says one word. "East."'], ['', 'Wash done. Hang it on the line.']]; }
+          return A.load >= 2 ? [['WASHER', 'Rinse.'], ['WASHER', 'That\'s a whole conversation for me.']] : [['WASHER', 'Empty. Load me.']]; } },
+        { id: 'line', label: 'CLOTHESLINE', o: line, talk: () => { if (A.load === 2) { A.load = 3; hung.forEach(h => h.visible = true); pile.visible = true; pile.scale.setScalar(0.4); return [['', 'You hang four shirts.'], ['', 'They dry instantly. It\'s the desert.'], ['', 'Chore done: one load.']]; } return A.load >= 3 ? [['', 'Four dry shirts. Crispy.']] : [['', 'An empty clothesline.']]; } },
+        { id: 'sock', label: 'ARGYLE SOCK (COUSIN)', o: sock, talk: () => [['ARGYLE SOCK', 'Different sock. Same pattern.'], ['ARGYLE SOCK', 'Argyle runs in the family.'], ['WOLF', 'Your cousin is at the laundromat.'], ['ARGYLE SOCK', 'We don\'t talk. We\'re a pair of singles.']] },
+      ];
+    },
+    async crow(G, A) {   // CROW'S GARAGE: wheelbarrow, pliers — chore: FIX THE BIKE
+      const [barrow, pliers] = await Promise.all([glb('hf2/wheelbarrow.glb', 0.8), glb('hf2/pliers.glb', 0.6, 'object', { rest: 'bob' })]);
+      const wp = new THREE.Mesh(new THREE.PlaneGeometry(8.3, 3.2), texMat(cvTex(256, 128, (g, w, h) => { g.fillStyle = '#b8a888'; g.fillRect(0, 0, w, h); g.fillStyle = '#a89878'; for (let y = 0; y < h; y += 9) g.fillRect(0, y, w, 2); g.fillStyle = '#c9a06a'; g.fillRect(w * 0.35, h * 0.2, w * 0.3, h * 0.45);
+        g.fillStyle = '#3a2a1a'; for (let i = 0; i < 40; i++) g.fillRect(w * 0.35 + 6 + (i % 10) * 7.4, h * 0.2 + 6 + Math.floor(i / 10) * 13, 2, 2); }, 1, 1))); wp.position.set(0, 1.6, -2.98); G.add(wp);
+      const bench = box(2.4, 0.9, 0.7, '#7a5a3a', 0.03); at(bench, 0, 0, -2.6); G.add(bench); const vise = box(0.25, 0.2, 0.2, '#3f5f6e', 0.03); at(vise, -0.9, 0.9, -2.5); G.add(vise);
+      at(pliers, 0.6, 0.9, -2.5, 0.3); G.add(pliers);
+      const tools = new THREE.Group(); [[-0.3, '#8a8c88', 0.4], [-0.1, '#c9382e', 0.3], [0.1, '#8a8c88', 0.5], [0.3, '#2f55a8', 0.35]].forEach(([x, c, h]) => { const t = box(0.06, h, 0.03, c, 0.01); t.position.set(x, -h, 0); tools.add(t); }); at(tools, 0, 2.2, -2.94); G.add(tools);
+      const bike = new THREE.Group(); const wheel = (x) => { const w = new THREE.Mesh(new THREE.TorusGeometry(0.33, 0.03, 6, 20), feltMat('#2a2a2a')); w.position.set(x, 0.36, 0); bike.add(w); const hub = cyl(0.04, 0.04, 0.06, '#c9c9c0', 6); hub.rotation.x = Math.PI / 2; hub.position.set(x, 0.36, -0.03); bike.add(hub); return w; };
+      const wf = wheel(0.55), wr = wheel(-0.55); const fr = (a, b) => { const v = new THREE.Vector3(...b).sub(new THREE.Vector3(...a)); const m = cyl(0.025, 0.025, v.length(), '#c9382e', 6); m.position.set(...a); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), v.clone().normalize()); bike.add(m); };
+      fr([-0.55, 0.36, 0], [0, 0.7, 0]); fr([0, 0.7, 0], [0.5, 0.75, 0]); fr([0.55, 0.36, 0], [0.5, 0.85, 0]); fr([-0.55, 0.36, 0], [0, 0.36, 0]); fr([0, 0.36, 0], [0, 0.75, 0]);
+      const seat = box(0.22, 0.05, 0.1, '#2a2a2a', 0.02); seat.position.set(0, 0.78, 0); bike.add(seat); const bar = cyl(0.02, 0.02, 0.45, '#c9c9c0', 6); bar.rotation.x = Math.PI / 2; bar.position.set(0.5, 0.88, 0); bike.add(bar);
+      wf.rotation.z = 0.0; bike.rotation.z = 0; at(bike, -1.6, 0, 0.2, 0.3); G.add(bike); wf.scale.set(1, 0.7, 1);   // the front wheel is taco'd
+      at(barrow, 1.9, 0, 0.1, -0.7); G.add(barrow);
+      const car = box(2.0, 0.7, 1.2, '#2f7a6a', 0.25); at(car, 2.6, 0, -1.4, 0.1); G.add(car); const cover = box(2.1, 0.12, 1.3, '#c9b9a0', 0.05); at(cover, 2.6, 0.7, -1.4, 0.1); G.add(cover);
+      A.fix = 0; A.wolfSpot = [-0.2, 1.6]; A.anim = []; A.proc = [pliers]; A.view = { look: -0.4 };
+      A.tick = (dt) => { if (A.fix >= 2) { wf.rotation.z -= dt * 3; wr.rotation.z -= dt * 3; } };
+      A.who = [
+        { id: 'bike', label: 'BIKE', o: bike, talk: () => { if (A.fix === 0) { A.fix = 1; return [['', 'The front wheel is bent like a taco.'], ['', 'Chore: fix the bike. Something here grips.']]; } if (A.fix === 1) return [['', 'Still a taco. Find a grip.']]; return [['', 'The wheels spin. Not toward anywhere. Just spin.']]; } },
+        { id: 'pliers', label: 'PLIERS', o: pliers, talk: () => { if (A.fix === 1) { A.fix = 2; wf.scale.set(1, 1, 1); return [['PLIERS', 'I\'m a pair.'], ['WOLF', 'You\'re one pliers.'], ['PLIERS', 'Pliers is plural. I\'m a pair of one.'], ['', 'Pliers bends the wheel round.'], ['', 'Chore done: the bike.']]; }
+          return [['PLIERS', 'I grip.'], ['PLIERS', 'It\'s a lifestyle.']]; } },
+        { id: 'barrow', label: 'WHEELBARROW', o: barrow, talk: () => [['WHEELBARROW', 'One wheel. Two handles.'], ['WHEELBARROW', 'I\'ve never been anywhere on my own.'], ['WOLF', 'Crow pushes you?'], ['WHEELBARROW', 'Crow fills me. Then sits in me.']] },
+        { id: 'car', label: 'COVERED CAR', o: car, talk: () => [['', 'A car under a tarp. Teal, probably.'], ['', 'A tag on the tarp: "THE COLLECTION. DO NOT."']] },
+      ];
+    },
   };
 
   // ------------------------------------------------------------------ missions
@@ -1217,7 +1437,7 @@ export function createTown(ctx) {
   // ------------------------------------------------------------------ build / enter / exit
   async function build(key) {
     if (T.rooms[key]) return T.rooms[key];
-    const R = ROOMS[key], sc = new THREE.Scene(), A = { key, scene: sc, who: [], anim: [] };
+    const R = ROOMS[key], sc = new THREE.Scene(), A = { key, scene: sc, who: [], anim: [], W: R.W || 8, D: R.D || 6 };
     sc.background = new THREE.Color('#24161f');
     const hemi = new THREE.HemisphereLight(R.light, '#5a3a3a', 1.35); sc.add(hemi);
     const k = new THREE.DirectionalLight(R.light, 2.0); k.position.set(3.5, 7, 6); k.target.position.set(0, 0.8, -0.5); sc.add(k, k.target);
@@ -1350,6 +1570,23 @@ export function createTown(ctx) {
   function livingTVIdle(dt, t) { if (LTV && !T.tv) LTV.idle(dt, t); }
   async function startTV(A) {
     if (T.busy || T.tv || T.lane) return; T.busy = true; await wait(700); chips.innerHTML = ''; const L = livingTV(); T.focus = null; T.goal = null; T.look = null; T.tv = L; await L.begin(A); T.busy = false; }
+  // run 11 (M4): the two minigames (minigames.js) plug in like the bowling lane: own scene + camera as T.lane, DONE button returns to the room
+  let PG = null, HG = null;
+  function poolGame() { if (PG) return PG;
+    PG = createPool({ feltMat, audio, say: (L) => say(L), onLeave: () => leaveGame(),
+      onDone: (r) => { const nb = !S.poolBest || r.shots < S.poolBest; if (nb) S.poolBest = r.shots; save();
+        return nb ? [['FUZZY PEACH', `${r.shots} shots. That\'s the house best now.`], ['FUZZY PEACH', 'I\'ll put it on the chalkboard. In your handwriting.']] : [['FUZZY PEACH', `${r.shots}. House best is still ${S.poolBest}.`]]; } });
+    return PG; }
+  function hoopsGame() { if (HG) return HG;
+    HG = createHoops({ feltMat, audio, say: (L) => say(L), onLeave: () => leaveGame(), onDone: (r) => { S.hoops = { w: r.wolf, l: r.larry }; save(); return null; } });
+    return HG; }
+  async function startGame(A, G) {
+    if (T.busy || T.lane || T.active !== A.key) return; T.busy = true; chips.innerHTML = ''; curtain.querySelector('b').textContent = ROOMS[A.key].name; curtain.classList.add('shut'); await wait(560);
+    T.focus = null; T.goal = null; G.begin(); T.lane = G; T.scene = G.scene; T.camera = G.camera; G.update?.(0, 0); renderer.compile(G.scene, G.camera); await wait(120); curtain.classList.remove('shut'); T.busy = false; }
+  async function leaveGame() {
+    const A = T.rooms[T.active]; if (!A) { T.lane = null; T.camera = roomCam; return; } T.busy = true; curtain.querySelector('b').textContent = ROOMS[A.key].name; curtain.classList.add('shut'); await wait(560);
+    T.lane = null; T.scene = A.scene; T.camera = roomCam; T.focus = null; T.goal = null; T.look = null; resize(); chipsFor(A); await wait(120); curtain.classList.remove('shut'); T.busy = false; }
+  Object.defineProperty(T, 'games', { get: () => ({ pool: PG && Object.assign(PG.test, { active: T.lane === PG }), hoops: HG && Object.assign(HG.test, { active: T.lane === HG }), start: (k) => { const A = T.rooms[T.active]; if (A) return startGame(A, k === 'pool' ? poolGame() : hoopsGame()); } }) });
   async function startLane(A) {
     if (T.busy || T.lane) return; T.busy = true; const B = bowling(), w = A.wolf; chips.innerHTML = '';
     const lx = w.position.x; B.laneX = lx; tmp.set(VIEW.x, 1.35, VIEW.look);
