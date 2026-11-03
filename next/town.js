@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { sunspotsApply, sunspotsLowEnd } from './sunspots_material.js';
 import { createBowling } from './bowling.js';   // run 8: playable lane at Gutter Bowl
+import { createLivingTV } from './livingtv.js'; // run 9: TV night on Bear's couch (living90)
 
 const M = './models/';
 const ROOMS = {
@@ -817,6 +818,13 @@ export function createTown(ctx) {
       ec.add(vhs);
       const tv = ph('27" CRT', new THREE.Group()); tv.add(box(0.78, 0.62, 0.55, '#2c2c30', 0.06)); const scr = sunPic(0.6, 0.45, 'CH. 2', '#3a5a7a'); scr.position.set(-0.04, 0.32, 0.28); tv.add(scr);
       const tvb = box(0.1, 0.4, 0.02, '#3a3a3e', 0.005); tvb.position.set(0.31, 0.12, 0.27); tv.add(tvb); tv.position.set(0, 0.76, 0.0); ec.add(tv);
+      // run 9 hint: a yellow sticky note on the bezel with a TV Guide doodle (a little sun on the cover) and four numbers
+      const note = pane(0.1, 0.1, cvTex(128, 128, (g, w, h) => { g.fillStyle = '#f7e36a'; g.fillRect(0, 0, w, h); g.fillStyle = 'rgba(0,0,0,0.06)'; g.fillRect(0, 0, w, 16);
+        g.strokeStyle = '#2a3a8a'; g.lineWidth = 3; g.lineCap = 'round'; g.strokeRect(22, 22, 50, 64); g.font = '700 16px "Comic Sans MS", "Marker Felt", cursive'; g.fillStyle = '#c23a35'; g.fillText('TV', 30, 42);
+        g.beginPath(); g.arc(47, 64, 10, 0, 7); g.stroke(); for (let i = 0; i < 8; i++) { const a = i * 0.785; g.beginPath(); g.moveTo(47 + Math.cos(a) * 13, 64 + Math.sin(a) * 13); g.lineTo(47 + Math.cos(a) * 18, 64 + Math.sin(a) * 18); g.stroke(); }
+        g.fillStyle = '#2a3a8a'; g.font = '700 21px "Comic Sans MS", "Marker Felt", cursive'; g.save(); g.translate(64, 108); g.rotate(-0.06); g.textAlign = 'center'; g.fillText('19 · 90 ?', 0, 0); g.restore();
+        g.beginPath(); g.moveTo(80, 30); g.lineTo(104, 50); g.moveTo(104, 30); g.lineTo(80, 50); g.stroke(); }, 1, 1, 0));
+      note.position.set(-0.33, 0.07, 0.282); note.rotation.z = 0.14; tv.add(note);
       const vcr = new THREE.Group(); vcr.add(box(0.7, 0.1, 0.4, '#1e1e22', 0.01)); const clockC = document.createElement('canvas'); clockC.width = 64; clockC.height = 24;
       const cgx = clockC.getContext('2d'); const vt = new THREE.CanvasTexture(clockC); vt.colorSpace = THREE.SRGBColorSpace;
       const drawV = (on) => { cgx.fillStyle = '#0e1a14'; cgx.fillRect(0, 0, 64, 24); if (on) { cgx.fillStyle = '#5aff9a'; cgx.font = '700 18px monospace'; cgx.textAlign = 'center'; cgx.textBaseline = 'middle'; cgx.fillText('1:59', 32, 13); } vt.needsUpdate = true; };
@@ -842,25 +850,41 @@ export function createTown(ctx) {
       const afg = skin(box(1.1, 0.06, 0.5, '#ffffff', 0.02), cvTex(128, 64, (g, w, h) => { const cs = ['#7a4a2a', '#e2a23a', '#efe2c4', '#c9583a', '#5a6a3a']; for (let y = 0; y < h; y += 8) { g.fillStyle = cs[(y / 8) % 5]; g.beginPath(); for (let x = 0; x <= w; x += 8) g.lineTo(x, y + ((x / 8) % 2 ? 6 : 0)); for (let x = w; x >= 0; x -= 8) g.lineTo(x, y + 8 + ((x / 8) % 2 ? 6 : 0)); g.fill(); } }));
       afg.position.set(0.45, 0.95, -0.4); afg.rotation.x = -0.9; sofa.add(afg);
       const pil = box(0.4, 0.36, 0.14, BURG, 0.07); pil.position.set(-0.85, 0.6, -0.05); pil.rotation.set(-0.2, 0.3, 0.2); sofa.add(pil);
-      at(sofa, 3.25, 0, 0.0, -Math.PI / 2); G.add(sofa);
+      // run 9 re-layout: the sofa now faces the TV head-on across the coffee table (the classic mid-'90s family-room square)
+      at(sofa, EX, 0, 1.45, Math.PI); G.add(sofa);
+      const remote = box(0.06, 0.03, 0.2, '#1e1e22', 0.01); at(remote, EX + 1.2, 0.68, 1.32, 0.25); G.add(remote);   // the REAL remote, on the arm
+      const held = box(0.05, 0.03, 0.19, '#1e1e22', 0.01); held.geometry.translate(0, -0.015, 0.06); held.visible = false; G.add(held);   // the one in the Wolf's paw (third person / feeds)
+      const sunspot = new THREE.Group(); { const c = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 12), feltMat('#e0b52a')); sunspot.add(c);   // the hidden collectible (CH. 1990)
+        c.material.emissive = new THREE.Color('#7a5208'); c.material.emissiveIntensity = 0.6;
+        for (let i = 0; i < 10; i++) { const r = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.05, 6), feltMat('#c98f16')); const a = i / 10 * Math.PI * 2; r.position.set(Math.cos(a) * 0.088, Math.sin(a) * 0.088, 0); r.rotation.z = a - Math.PI / 2; sunspot.add(r); }
+        for (const sx of [-0.022, 0.022]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.008, 6, 4), feltMat('#3a2410')); e.position.set(sx, 0.012, 0.064); sunspot.add(e); } }
+      // the 4th wall (behind the couch): only shown while you're ON the couch (first person + the TV feeds); the room view stays a cutaway
+      const front = pane(8, 4.0, cvTex(512, 256, (g, w, h) => { g.fillStyle = '#e6d8bc'; g.fillRect(0, 0, w, h); g.fillStyle = 'rgba(150,110,70,0.12)'; for (let x = 0; x < w; x += 12) g.fillRect(x, 0, 4, h * 0.7);
+        g.fillStyle = '#2f5a3e'; g.fillRect(0, h * 0.72, w, h * 0.28); g.fillStyle = 'rgba(0,0,0,0.12)'; for (let x = 0; x < w; x += 9) g.fillRect(x, h * 0.72, 3, h * 0.28); g.fillStyle = '#7a5230'; g.fillRect(0, h * 0.70, w, 5); g.fillRect(0, h - 6, w, 6);
+        g.fillStyle = '#6b4526'; g.fillRect(70, 24, 66, 112); g.fillStyle = '#8a5d36'; g.fillRect(74, 28, 58, 104); g.fillStyle = '#c9a24a'; g.beginPath(); g.arc(126, 84, 3, 0, 7); g.fill();   // the hall door
+        g.fillStyle = '#5a3a20'; g.fillRect(300, 50, 90, 64); g.fillStyle = '#9fd6e8'; g.fillRect(306, 56, 78, 52); g.fillStyle = '#e0b52a'; g.beginPath(); g.arc(345, 82, 14, 0, 7); g.fill(); }, 1, 1, 0));
+      front.position.set(0, 2.0, 2.98); front.rotation.y = Math.PI; front.visible = false; G.add(front);
+      const sofaT = box(1.7, 0.92, 0.34, OAK, 0.02); at(sofaT, EX - 0.1, 0, 2.2); G.add(sofaT);   // the console table behind the couch (every '90s family room had one)
+      const pot = cyl(0.09, 0.07, 0.2, '#b65a3a', 10); at(pot, EX + 0.55, 0.92, 2.2); G.add(pot); const fern = cyl(0.14, 0.05, 0.22, '#3f7a3a', 7); at(fern, EX + 0.55, 1.08, 2.2); G.add(fern);
+      at(sunspot, EX - 0.45, 1.04, 2.2, Math.PI * 0.8); sunspot.rotation.x = -0.15; sunspot.visible = !!S.sunspot1990; G.add(sunspot);
       // burgundy recliner angled at the TV
       const rec = ph('burgundy recliner', new THREE.Group()); const rb = (w, h, d, x, y, z, rx = 0) => { const m = box(w, h, d, BURG, 0.1); m.position.set(x, y, z); m.rotation.x = rx; rec.add(m); return m; };
       rb(0.85, 0.45, 0.85, 0, 0, 0); rb(0.85, 0.85, 0.3, 0, 0.35, -0.36, -0.15); rb(0.18, 0.62, 0.85, -0.45, 0, 0); rb(0.18, 0.62, 0.85, 0.45, 0, 0); rb(0.7, 0.15, 0.3, 0, 0.3, 0.42);
       const lev = box(0.03, 0.18, 0.05, '#2a2220', 0.01); lev.position.set(0.55, 0.3, 0.2); rec.add(lev);
-      at(rec, -2.75, 0, 0.5, 2.35); G.add(rec);
+      at(rec, -2.75, 0, 0.25, 2.3); G.add(rec);
       // oak coffee table: remotes, TV Guide, potpourri; end table + brass lamp (pleated shade) + cordless phone
       const ct = ph('oak coffee table', new THREE.Group()); const top = box(1.2, 0.07, 0.62, OAK, 0.03); top.position.y = 0.38; ct.add(top);
       for (const [x, z] of [[-0.52, -0.24], [0.52, -0.24], [-0.52, 0.24], [0.52, 0.24]]) { const l = cyl(0.035, 0.03, 0.38, OAK2, 6); l.position.set(x, 0, z); ct.add(l); }
       const tvg = sign('TV GUIDE', 0.2, 0.27, '#c23a35', '#fff3dc', 0.4); tvg.rotation.x = -Math.PI / 2; tvg.rotation.z = 0.3; tvg.position.set(-0.25, 0.455, 0.05); ct.add(tvg);
-      const rem = box(0.06, 0.03, 0.2, '#1e1e22', 0.01); rem.position.set(0.15, 0.45, -0.1); rem.rotation.y = 0.5; ct.add(rem);
+      const rem = box(0.06, 0.03, 0.2, '#1e1e22', 0.01); rem.position.set(0.15, 0.45, -0.1); rem.rotation.y = 0.5; rem.visible = !S.decoyGone; ct.add(rem);
       const bowl = cyl(0.14, 0.08, 0.08, '#c9a27a', 12); bowl.position.set(0.35, 0.45, 0.1); ct.add(bowl); const pp = cyl(0.12, 0.12, 0.02, '#b85a6a', 10); pp.position.set(0.35, 0.52, 0.1); ct.add(pp);
-      at(ct, 1.75, 0, 0.1, Math.PI / 2); G.add(ct);
-      const et = box(0.55, 0.6, 0.55, OAK, 0.03); at(et, 3.3, 0, -1.7); G.add(et);
+      at(ct, EX, 0, 0.15, 0); G.add(ct);
+      const et = box(0.55, 0.6, 0.55, OAK, 0.03); at(et, EX + 1.72, 0, 1.55); G.add(et);
       const lamp = ph('brass lamp', new THREE.Group()); lamp.add(cyl(0.1, 0.13, 0.05, BRASS, 12)); const lst = cyl(0.025, 0.025, 0.5, BRASS, 6); lamp.add(lst); const urn = cyl(0.08, 0.1, 0.22, BRASS, 10); urn.position.y = 0.06; lamp.add(urn);
       const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.24, 0.3, 16, 1, true), feltMat('#f6efdc')); shade.material.side = THREE.DoubleSide; shade.material.emissive.set('#ffe8b0'); shade.material.emissiveIntensity = 0.5; shade.position.y = 0.6; lamp.add(shade);
-      at(lamp, 3.35, 0.6, -1.78); G.add(lamp);
+      at(lamp, EX + 1.78, 0.6, 1.66); G.add(lamp);
       const phone = ph('cordless phone', new THREE.Group()); phone.add(box(0.14, 0.05, 0.18, '#ece6da', 0.02)); const hs = box(0.06, 0.04, 0.2, '#ece6da', 0.02); hs.position.set(0, 0.05, 0); hs.rotation.x = 0.2; phone.add(hs);
-      const ant = cyl(0.006, 0.006, 0.12, '#2a2a2a', 4); ant.position.set(0.02, 0.07, -0.08); phone.add(ant); at(phone, 3.15, 0.6, -1.55, -0.4); G.add(phone);
+      const ant = cyl(0.006, 0.006, 0.12, '#2a2a2a', 4); ant.position.set(0.02, 0.07, -0.08); phone.add(ant); at(phone, EX + 1.6, 0.6, 1.42, 0.5); G.add(phone);
       // ceiling fan: oak blades, brass housing, light kit
       const fan = ph('ceiling fan', new THREE.Group()); const rod = cyl(0.02, 0.02, 0.35, BRASS, 6); rod.position.y = -0.35; fan.add(rod); const hub = cyl(0.12, 0.1, 0.14, BRASS, 12); hub.position.y = -0.45; fan.add(hub);
       const glass = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), feltMat('#fff3d8')); glass.material.emissive.set('#ffe8b0'); glass.material.emissiveIntensity = 0.6; glass.position.y = -0.45; fan.add(glass);
@@ -872,14 +896,19 @@ export function createTown(ctx) {
       print.rotation.y = -Math.PI / 2; print.position.set(3.96, 1.95, 0.0); G.add(print); const pf = box(0.03, 0.85, 1.1, BRASS, 0.01); pf.position.set(3.985, 1.52, 0.0); G.add(pf);
       const [bear] = await Promise.all([glb('town2/bear_lo.glb', 1.85, 'bear', { rest: 'breathe' })]);
       at(bear, 2.05, 0, 1.25, -1.1); G.add(bear);
-      A.wolfSpot = [-0.6, 1.8]; A.anim = []; A.proc = [bear]; A.vcrT = 0;
-      A.tick = (dt, t) => { blades.rotation.y += dt * 1.6; const on = (t % 1.2) < 0.7; if (on !== A.vcrOn) { A.vcrOn = on; drawV(on); } };
+      A.wolfSpot = [1.75, 2.15]; A.anim = []; A.proc = [bear]; A.vcrT = 0;
+      A.tvRig = { scr, scrW: 0.6, scrH: 0.45, bear, remote, held, sunspot, decoy: rem, seatW: new THREE.Vector3(EX, 0.72, 1.47), seatB: new THREE.Vector3(EX + 0.76, 0.74, 1.47), frontWall: front,
+        lampFlicker: (k) => { shade.material.emissiveIntensity = 0.5 * k; }, fanStop: false };
+      A.tick = (dt, t) => { if (!A.tvRig.fanStop) blades.rotation.y += dt * 1.6; const on = (t % 1.2) < 0.7; if (on !== A.vcrOn) { A.vcrOn = on; drawV(on); } livingTVIdle(dt, t); };
       A.who = [
         { id: 'bear', label: 'BEAR', o: bear, talk: () => [['BEAR', 'Welcome to my home.'], ['BEAR', 'That\'s the couch. I\'m the comfortable one, but it\'s close.'], ['WOLF', 'Can I sit?'], ['BEAR', 'It\'s been sat in.']] },
-        { id: 'tv', label: 'TV', o: tv, talk: () => [['', 'Twenty-seven inches. Channel 2.'], ['TV', 'KSUN. Today: the sun. Tonight: the sun, but later.'], ['BEAR', 'The other channels are also Channel 2.']] },
+        { id: 'tv', label: 'TV', o: tv, talk: () => [['', 'Twenty-seven inches. Channel 2.'], ['TV', 'KSUN. Today: the sun. Tonight: the sun, but later.'], ['BEAR', 'The remote is on the arm of the couch. Grab it. Sit.']] },
         { id: 'vcr', label: 'VCR', o: vcr, talk: () => [['', 'The VCR blinks 1:59.'], ['BEAR', 'It\'s the only clock in town that agrees with the DMV.'], ['WOLF', 'Did you set it?'], ['BEAR', 'Nobody sets a VCR.']] },
         { id: 'couch', label: 'COUCH', o: sofa, talk: () => [['', 'Floral. Overstuffed. It exhales when you look at it.'], ['', 'Somewhere inside: the remote, eleven dollars, a sock.'], ['', 'Not THE sock.']] },
-        { id: 'remote', label: 'REMOTE', o: rem, talk: () => [['BEAR', 'That\'s the decoy remote.'], ['BEAR', 'The real one is in the couch.'], ['BEAR', 'Everything is in the couch.']] },
+        { id: 'remote', label: 'REMOTE', o: remote, talk: () => [['', 'The real remote. On the arm of the couch, where it lives.'], ['BEAR', 'Oh. TV night.'], ['', 'Got: the remote.', () => startTV(A)]] },
+        { id: 'decoy', label: 'DECOY', o: rem, chip: false, talk: () => S.decoyGone ? [['', 'Where the decoy remote was: a small, warm dent.']] : [['BEAR', 'That\'s the decoy remote.'], ['BEAR', 'The real one is on the arm of the couch.'], ['BEAR', 'Someone has been after the decoy for years.']] },
+        { id: 'note', label: 'STICKY NOTE', o: note, chip: false, talk: () => [['', 'A sticky note on the TV. A doodle of a TV Guide with a little sun on the cover.'], ['', 'Under it, in Bear handwriting: "19 · 90 ?" and an X.'], ['BEAR', 'Don\'t.']] },
+        { id: 'guide', label: 'TV GUIDE', o: tvg, chip: false, talk: () => [['', 'This week\'s TV GUIDE. Every listing says "The Sun."'], ['', 'Channel 4 is all commercials. Channel 7 is the Crow. Channel 9 is this room.'], ['', 'One page has been torn out.']] },
         { id: 'lamp', label: 'LAMP', o: lamp, chip: false, talk: () => [['', 'Brass. Pleated shade. Three-way bulb.'], ['', 'It only does the first way.']] },
         { id: 'recliner', label: 'RECLINER', o: rec, chip: false, talk: () => [['BEAR', 'Don\'t pull the lever.'], ['WOLF', 'What happens?'], ['BEAR', 'You live there now.']] },
         { id: 'phone', label: 'CORDLESS', o: phone, chip: false, talk: () => [['', 'A cordless phone. Its antenna is extended for no reason.'], ['BEAR', 'In case the sun calls.']] },
@@ -1193,6 +1222,7 @@ export function createTown(ctx) {
     if (T.busy || !T.active) return; T.busy = true; audio.ui?.('tick');
     curtain.querySelector('b').textContent = 'MAIN STREET'; curtain.classList.add('shut'); await wait(560);
     if (T.lane) { T.lane.end(); T.lane = null; T.camera = roomCam; }
+    if (T.tv) { T.tv.end(); T.tv = null; T.focus = null; T.goal = null; }
     sub.classList.remove('on'); lines = []; document.body.classList.remove('room'); T.active = null; T.scene = null; ctx.onExit?.(); hud();
     await wait(120); curtain.classList.remove('shut'); T.busy = false;
   }
@@ -1252,6 +1282,7 @@ export function createTown(ctx) {
   T.update = (dt, t) => {
     const A = T.rooms[T.active]; if (!A) return;
     if (T.lane) { T.lane.update(dt, t); if (lines.length || sub.classList.contains('on')) { lineT -= dt; if (lineT <= 0) nextLine(); } common(dt); return; }
+    if (T.tv) { A.tick?.(dt, t); for (const o of A.proc || []) o.proc?.(t); T.tv.update(dt, t); if (lines.length || sub.classList.contains('on')) { lineT -= dt; if (lineT <= 0) nextLine(); } common(dt); return; }
     A.tick?.(dt, t);
     for (const o of A.anim) o.mixer?.update(dt);
     for (const o of A.proc || []) o.proc?.(t);
@@ -1282,6 +1313,15 @@ export function createTown(ctx) {
         T.scene = A.scene; T.camera = roomCam; T.focus = null; T.goal = null; T.look = null; T.swoop = null; resize(); chipsFor(A); await wait(150); await BW.uncover(); T.busy = false;
         say(mid ? [['RAM', 'You left in the middle of a frame.'], ['RAM', 'Bold.']] : [['ROLLER SKATE (from the desk)', 'Shoes come back to the desk.'], ['ROLLER SKATE (from the desk)', 'Eventually.']]); } });
     return BW; }
+  // ------------------------------------------------------------------ run 9: TV night in living90 (livingtv.js). Grab the remote -> cast sits on the couch -> first-person remote
+  let LTV = null;
+  function livingTV() { if (LTV) return LTV;
+    LTV = createLivingTV({ renderer, feltMat, audio, LOW, say: (L) => say(L), glb, S, save, camera: roomCam,
+      onLeave: () => { const A = T.rooms.living90; T.tv = null; T.focus = null; T.goal = null; T.look = null; if (A && T.active === 'living90') { resize(); chipsFor(A); say([['BEAR', 'Leave it on Channel 2 for the next guy.'], ['WOLF', 'There is no next guy.'], ['BEAR', 'There\'s always a next guy.']]); } } });
+    return LTV; }
+  function livingTVIdle(dt, t) { if (LTV && !T.tv) LTV.idle(dt, t); }
+  async function startTV(A) {
+    if (T.busy || T.tv || T.lane) return; T.busy = true; await wait(700); chips.innerHTML = ''; const L = livingTV(); T.focus = null; T.goal = null; T.look = null; T.tv = L; await L.begin(A); T.busy = false; }
   async function startLane(A) {
     if (T.busy || T.lane) return; T.busy = true; const B = bowling(), w = A.wolf; chips.innerHTML = '';
     const lx = w.position.x; B.laneX = lx; tmp.set(VIEW.x, 1.35, VIEW.look);
@@ -1303,10 +1343,10 @@ export function createTown(ctx) {
   }
   T.stats = () => Object.fromEntries(Object.entries(T.rooms).map(([k, A]) => [k, { tris: A.tris, animating: 1 + A.anim.length }]));
   T.state = S; T.enter = enter; T.exit = exit; T.talk = (id) => { const A = T.rooms[T.active]; talk(A?.who.find(w => w.id === id)); }; T.talkOutside = talkOutside;
-  T.placeholders = () => [...placeholders]; Object.defineProperty(T, 'bowl', { get: () => BW && Object.assign(BW.test, { active: !!T.lane, last: BW.last, tris: BW.tris, B: BW }) }); T.next = () => { if (T.active) nextLine(); else nextOut(); };
+  T.placeholders = () => [...placeholders]; Object.defineProperty(T, 'tvQA', { get: () => LTV && Object.assign(LTV.test, { active: !!T.tv, phase: LTV.phase }) }); Object.defineProperty(T, 'bowl', { get: () => BW && Object.assign(BW.test, { active: !!T.lane, last: BW.last, tris: BW.tris, B: BW }) }); T.next = () => { if (T.active) nextLine(); else nextOut(); };
   const _p = new THREE.Vector3(), _b = new THREE.Box3();
   renderer.domElement.addEventListener('pointerdown', (e) => {   // tap a character / prop in the room (or tap to advance the line)
-    if (!T.active || T.busy || T.lane) return; const A = T.rooms[T.active];
+    if (!T.active || T.busy || T.lane || T.tv) return; const A = T.rooms[T.active];
     if (sub.classList.contains('on') && lines.length) { nextLine(); return; }
     let best = null, bd = 90;
     for (const w of A.who) { _b.setFromObject(w.o); _b.getCenter(_p).project(T.camera); const x = (_p.x + 1) / 2 * innerWidth, y = (1 - _p.y) / 2 * innerHeight; const d = Math.hypot(x - e.clientX, y - e.clientY); if (d < bd) { bd = d; best = w; } }
