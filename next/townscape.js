@@ -30,14 +30,14 @@ export const GRID = {
   ew: [ // name, centre z, x0, x1, half width
     { n: 'main', z: 7, x0: -182, x1: 44, hw: 5 },
     { n: 'strip', z: -61, x0: -124, x1: 52, hw: 5 },
-    { n: 'mesa', z: 62, x0: -196, x1: 44, hw: 4 },
+    { n: 'mesa', z: 62, x0: -196, x1: 76, hw: 4 },   // run 14: Mesa Rd now runs on to the One Horse Fair
   ],
   ns: [
     { n: 'sun', x: -40, z0: -69.5, z1: 69.5, hw: 5 },
     { n: 'palm', x: -100, z0: -69.5, z1: 69.5, hw: 4.5 },
     { n: 'east', x: 36, z0: 12, z1: 58, hw: 4 },
   ],
-  walkRect: [-238, -134, 58, 138], // x0, z0, x1, z1 — the town on foot
+  walkRect: [-238, -134, 152, 138],   // run 14: x1 58 -> 152 (the carnival) // x0, z0, x1, z1 — the town on foot
 };
 
 export function createTownscape(C) {

@@ -15,6 +15,7 @@ import { createMinimap } from './minimap.js';
 import { createHorse } from './horse.js';   // run 13: the town's one horse (statue) + welcome signs
 import { dressTown, installTalk } from './towntalk.js';   // run 13: billboards, flyers, lore, chatter
 import { installMissions } from './missions13.js';   // run 13: THE ONE HORSE, KSUN CALL-IN, PAPER ROUTE
+import { createCarnival, createCalliope } from './carnival.js';   // run 14: the One Horse Fair (east edge of town)
 import { audio } from './audio.js';
 import { sunspotsApply, sunspotsEnabled, setSunspotsLook, sunspotsLookOn, bothMats, sunspotsLowEnd } from './sunspots_material.js';
 window.__SUNSPOTS_VERSION = 'v9-next';
@@ -660,6 +661,7 @@ canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointerca
 const keys = {}; addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyM') toggleWild(); if (e.code === 'KeyV' && !e.repeat && level.mode === 'walk' && !level.frozen) toggleFP(); if (e.code === 'KeyC' && !e.repeat && level.solo && !level.frozen) toggleFP(); if (e.code === 'KeyN' && !e.repeat) MM?.toggle(); }); addEventListener('keyup', e => keys[e.code] = false);
 
 // ---------------------------------------------------------------- wild mode
+let CARN = null;   // run 14
 let wild = Q.has('wild') ? 1 : 0, wildTarget = wild;
 const wildBtn = document.getElementById('wildBtn');
 function toggleWild() { wildTarget = wildTarget ? 0 : 1; audio.wild(!!wildTarget); wildBtn.classList.toggle('on', !!wildTarget); wildBtn.textContent = wildTarget ? 'SUNSHINE' : 'WILD'; }
@@ -751,7 +753,7 @@ function frame() {
   // level (clock, car, townsfolk, obstacles)
   director?.update(dt, t, { wolfPos: wolfState.pos, titleUp: !!window.__titleUp || !wolfReady || !!MAP });   // scenes: triggers + timeline
   level.update(dt, t, { wolfPos: wolfState.pos, keys, wild: w, titleUp: !!window.__titleUp || !wolfReady || !!MAP });
-  HORSE?.update(dt, t, w); town?.outside(dt); QT?.update(town); MM?.update(dt, town); wolfFootsteps(); audio.update(dt);
+  HORSE?.update(dt, t, w); CARN?.update(dt, t, w, wolfState.pos); town?.outside(dt); QT?.update(town); MM?.update(dt, town); wolfFootsteps(); audio.update(dt);
   // run 12: the Wolf at the wheel of his own car
   if (wolfReady && level.solo && !puppet.on) { const fc = level.free, ss = level.soloSeat; fc.root.updateMatrixWorld(true);
     _sm.copy(fc.body.matrixWorld).multiply(_sm2.makeTranslation(ss.x, ss.y, ss.z)); _sm.decompose(wolf.position, wolf.quaternion, tmpV); wolf.scale.setScalar(wolfBaseScale * level.seatScale);
@@ -968,6 +970,7 @@ loadAll().then(() => {
     onEnter: () => { clearInput(); if (FP.on) toggleFP?.(); }, onExit: () => { clearInput(); clock.getDelta(); } });
   if (TS) try { window.__talk = installTalk({ T: town, level, TS, wolfState }); } catch (e) { console.warn('talk failed', e); }
   if (TS && town) try { installMissions({ T: town, TS, level, wolfState, horse: HORSE, scene, feltMat }); } catch (e) { console.warn('missions13 failed', e); }
+  if (TS) try { CARN = createCarnival({ scene, feltMat, TS, colliders, LOW: sunspotsLowEnd() }); CARN.music = createCalliope(audio); window.__carn = CARN; } catch (e) { console.warn('carnival failed', e); }
   if (TS) QT = createQuickTravel({ TS, level, wolfState, LAYOUT, onJump: (y) => { clearInput(); camYawTarget = camYaw = y + Math.PI; snapCam = true; } }); window.__qt = QT;
   if (TS && QT) { MM = createMinimap({ TS, level, wolfState, QT, town, audio }); window.__minimap = MM; }
   if (Q.get('room')) { const go = () => { if (window.__titleUp || !wolfReady) { setTimeout(go, 200); return; } town.enter(Q.get('room')); }; go(); }

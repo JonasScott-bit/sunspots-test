@@ -11,7 +11,7 @@ const NAME_OF = { wolf: 'Home', apt_vict: 'Victorian apts', apt_pink: 'Pink apts
 
 export function createMinimap({ TS, level, wolfState, QT, town, audio }) {
   const S = PAL.street, G = TS.GRID;
-  const X0 = -245, X1 = 65, Z0 = -145, Z1 = 145, PPM = 3;
+  const X0 = -245, X1 = 158, Z0 = -145, Z1 = 145, PPM = 3;
   const css = document.createElement('style');
   css.textContent = `
   #mmap{position:fixed;z-index:5;right:calc(env(safe-area-inset-right) + 14px);top:calc(env(safe-area-inset-top) + 108px);width:104px;height:104px;border-radius:50%;
@@ -41,6 +41,7 @@ export function createMinimap({ TS, level, wolfState, QT, town, audio }) {
     g.fillStyle = '#e3c79b'; g.fillRect(0, 0, base.width, base.height);
     const [wx0, wz0, wx1, wz1] = G.walkRect; { const [a, b] = P(wx0, wz0), [c, d] = P(wx1, wz1); g.fillStyle = '#e9d1a8'; g.fillRect(a, b, c - a, d - b); }
     for (let i = 0; i < 9000; i++) { g.fillStyle = rnd() < 0.5 ? 'rgba(170,120,70,.13)' : 'rgba(255,245,225,.22)'; g.fillRect(rnd() * base.width, rnd() * base.height, 1 + rnd() * 2, 1 + rnd() * 2); }
+    for (const r of TS.mapRects || []) { const [a, b] = P(r.x0, r.z0), [c, d] = P(r.x1, r.z1); g.fillStyle = r.col; g.fillRect(a, b, c - a, d - b); }   // run 14: the fair grounds + lot
     const rect = (x0, z0, x1, z1, col) => { const [a, b] = P(Math.min(x0, x1), Math.min(z0, z1)), [c, d] = P(Math.max(x0, x1), Math.max(z0, z1)); g.fillStyle = col; g.fillRect(a, b, c - a, d - b); };
     const W = 3.5;
     for (const s of G.ew) rect(s.x0, s.z - s.hw - W, s.x1, s.z + s.hw + W, S.walk);
