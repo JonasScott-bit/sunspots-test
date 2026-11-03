@@ -6,6 +6,7 @@
 // the 256x192 feed renders every other frame only while a feed channel is on.
 import * as THREE from 'three';
 import { TVSet, registerChannelType } from './tvchannel.js';
+import { handPrims, thumbPrims, thumbInit, thumbAim, thumbStep, slideFor, buttonDepth } from './paw_core.js';   // run 9b: felt paw that really holds the remote
 
 // ------------------------------------------------------------------ channel types (registered once, globally)
 class CanvasChannel {
@@ -223,17 +224,24 @@ export function createLivingTV({ renderer, feltMat, audio, LOW, say, glb, S, sav
     ledGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(gc), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); ledGlow.scale.setScalar(0.05); ledGlow.position.set(0, 0.116, 0.006); rem.add(ledGlow);
     btns = [];
     for (const [id, x, y, w, h, bg, fg, lab] of BTN) { const side = feltMat(bg), top = new THREE.MeshStandardMaterial({ map: LBL(lab, bg, fg), roughness: 0.85, emissive: '#000000' });
-      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.006), [side, side, side, side, top, side]); m.position.set(x, y, 0.015); m.userData = { id, z0: 0.015, top, pressT: 0 }; rem.add(m); btns.push(m); }
-    // the paw: palm behind the bottom of the remote, curled fingers on the left edge, thumb on the right edge; orange felt sleeve going off-screen
-    const fur = feltMat('#8e8a96'), fur2 = feltMat('#77737f'), sleeve = feltMat('#e07b28'), cuff = feltMat('#b85a1c');
-    const sph = (r, mat, x, y, z, sx = 1, sy = 1, sz = 1) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); rem.add(m); return m; };
-    sph(0.04, fur, 0.004, -0.083, -0.02, 1.05, 1.15, 0.75);
-    for (let i = 0; i < 4; i++) sph(0.0125, i % 2 ? fur : fur2, -0.036, -0.06 - i * 0.017, 0.004, 0.9, 0.75, 1.1);
-    for (let i = 0; i < 3; i++) sph(0.011, fur2, -0.02 + i * 0.002, -0.066 - i * 0.017, 0.014, 0.9, 0.7, 0.5);
-    const th = sph(0.012, fur, 0.033, -0.07, 0.01, 0.85, 1.9, 0.85); th.rotation.z = -0.25;
-    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.046, 0.34, 14), sleeve); arm.position.set(0.05, -0.24, -0.085); arm.rotation.set(-0.55, 0, 0.32); rem.add(arm);
-    const cf = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.038, 0.03, 14), cuff); cf.position.set(0.016, -0.11, -0.03); cf.rotation.copy(arm.rotation); rem.add(cf);
-    sph(0.03, fur, 0.012, -0.112, -0.032, 1, 1, 0.9);   // wrist
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.006), [side, side, side, side, top, side]); m.position.set(x, y, 0.015); m.userData = { id, z0: 0.015, top, pressT: 0, x, y, w, h }; rem.add(m); btns.push(m); }
+    // run 9b: the Wolf's paw, rebuilt from paw_core.js primitives (proved interpenetration-free by bw_tmp/pawtest.mjs):
+    // charcoal v4 felt fur, 4 chunky fingers wrapping the left side, thenar + 2-joint thumb on top, dark clay claws, mustard fleece sleeve + rib cuff
+    const ribC = document.createElement('canvas'); ribC.width = 64; ribC.height = 8; { const g = ribC.getContext('2d'); for (let i = 0; i < 64; i += 8) { g.fillStyle = '#d29434'; g.fillRect(i, 0, 5, 8); g.fillStyle = '#b07420'; g.fillRect(i + 5, 0, 3, 8); } }
+    const ribT = new THREE.CanvasTexture(ribC); ribT.colorSpace = THREE.SRGBColorSpace; ribT.wrapS = ribT.wrapT = THREE.RepeatWrapping; ribT.repeat.set(3, 1);
+    const PM = { fur: feltMat('#4b4f5a'), fur2: feltMat('#41444e'), claw: new THREE.MeshStandardMaterial({ color: '#17161b', roughness: 0.42, metalness: 0.05 }),
+      sleeve: feltMat('#e3a13a'), cuff: new THREE.MeshStandardMaterial({ map: ribT, roughness: 0.95 }) };
+    const SG = new THREE.SphereGeometry(1, 16, 12), CG = new THREE.CylinderGeometry(1, 1, 1, 14, 1, true), KG = new THREE.ConeGeometry(1, 1, 10), _Y = V(0, 1, 0);
+    const putSeg = (o, a, b) => { const d = V(b[0] - a[0], b[1] - a[1], b[2] - a[2]); const L = d.length(); o.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2); o.quaternion.setFromUnitVectors(_Y, d.normalize()); return L; };
+    const mk = (pr, par) => { const M = PM[pr.m], g = new THREE.Group(); par.add(g);
+      if (pr.t === 'ell') { const m = new THREE.Mesh(SG, M); m.position.set(...pr.c); m.scale.set(...pr.r); g.add(m); }
+      else if (pr.t === 'cap') { const c = new THREE.Mesh(pr.ra === pr.rb ? CG : new THREE.CylinderGeometry(pr.rb, pr.ra, 1, 14, 1, true), M), e0 = new THREE.Mesh(SG, M), e1 = new THREE.Mesh(SG, M); g.add(c, e0, e1); g.userData.set = (p) => { const L = putSeg(c, p.a, p.b); c.scale.set(p.ra === p.rb ? p.ra : 1, L, p.ra === p.rb ? p.ra : 1); e0.position.set(...p.a); e0.scale.setScalar(p.ra); e1.position.set(...p.b); e1.scale.setScalar(p.rb); }; g.userData.set(pr); }
+      else { const c = new THREE.Mesh(KG, M); g.add(c); g.userData.set = (p) => { const L = putSeg(c, p.a, p.b); c.scale.set(p.r, L, p.r); }; g.userData.set(pr); }
+      return g; };
+    const hand = new THREE.Group(); hand.name = 'paw'; rem.add(hand); for (const pr of handPrims()) mk(pr, hand);
+    const th0 = thumbPrims([0.019, -0.011, 0.03], 0); const thumb = th0.prims.map((pr) => mk(pr, rem));
+    const knuckle = new THREE.Mesh(SG, PM.fur); rem.add(knuckle);   // fills the thumb's middle joint
+    vm.userData.paw = { hand, thumb, knuckle, st: thumbInit() };
     vm.traverse((o) => { o.frustumCulled = false; o.castShadow = o.receiveShadow = false; o.renderOrder = 5; }); vm.visible = false; }
 
   // ------------------------------------------------------------------ helpers: bone aiming (procedural sit pose), walking, camera
@@ -329,10 +337,13 @@ export function createLivingTV({ renderer, feltMat, audio, LOW, say, glb, S, sav
     _vp.set(nx * aspect * fp.tan * D, ny * fp.tan * D, -D).applyQuaternion(cam.quaternion); vm.position.copy(cam.position).add(_vp);
     vm.quaternion.copy(cam.quaternion); vm.scale.setScalar(s); const rem = vm.userData.rem; rem.rotation.set(-0.8, port ? -0.06 : -0.16, port ? -0.1 : -0.2); vm.updateMatrixWorld(true); }
 
+  function pawStep(dt) {
+    const P = vm.userData.paw, T = thumbStep(P.st, Math.min(dt, 0.05)), dy = slideFor(T[0], T[1]); P.hand.position.y = dy;
+    const tp = thumbPrims(T, dy); tp.prims.forEach((pr, i) => P.thumb[i].userData.set(pr)); P.knuckle.position.set(...tp.K); P.knuckle.scale.setScalar(0.0112); }
   // ------------------------------------------------------------------ remote buttons
   function blink() { M.ledT = 0.14; }
   function press(id) {
-    if (M.phase !== 'fp') return; const b = btns.find((m) => m.userData.id === id); if (b) b.userData.pressT = 0.14; blink(); click();
+    if (M.phase !== 'fp') return; const b = btns.find((m) => m.userData.id === id); if (b) { b.userData.pressT = 0.3; thumbAim(vm.userData.paw.st, id, b.userData.x, b.userData.y); } blink(); click();
     if (!M.muted && sfxOn() && !tv.unlocked) tv.unlock(); if (!sfxOn()) tv.mute(true);
     if (M.secret && id !== 'power') return;
     if (id === 'power') { if (M.secret) return; const on = !tv.on; tv.power(on); hum(on); M.osdT = on ? 2.5 : 0; osdShow(); return; }
@@ -408,7 +419,8 @@ export function createLivingTV({ renderer, feltMat, audio, LOW, say, glb, S, sav
     if (M.phase === 'fp') {
       if (M.digits && (M.digitT -= dt) <= 0) tune();
       fpCam(dt); secretStep(dt);
-      for (const b of btns) { const u = b.userData; if (u.pressT > 0) { u.pressT -= dt; b.position.z = u.z0 - 0.004; u.top.emissive.set('#553a10'); } else { b.position.z = u.z0; u.top.emissive.set('#000000'); } }
+      pawStep(dt);   // run 9b: the thumb travels to the pressed button and pushes it; the button sinks exactly as far as the pad pushes it
+      for (const b of btns) { const u = b.userData, dep = buttonDepth(vm.userData.paw.st, u.x, u.y, u.w, u.h); b.position.z = u.z0 - dep; if (u.pressT > 0) u.pressT -= dt; u.top.emissive.set(u.pressT > 0 && dep > 0.001 ? '#553a10' : '#000000'); }
       const lt = M.ledT > 0 ? (M.ledT -= dt, 1) : 0; led.material.color.set(lt ? '#ff6a9a' : '#3a0a14'); ledGlow.material.opacity = lt ? 0.55 + Math.random() * 0.3 : 0;
       if (M.osdT > 0) M.osdT -= dt; if (M.osdVol > 0) M.osdVol -= dt; osdShow(); placeOSD();
       if (tv.cur?.tick && tv.on) tv.cur.tick(dt, t);

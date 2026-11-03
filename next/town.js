@@ -7,6 +7,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { sunspotsApply, sunspotsLowEnd } from './sunspots_material.js';
 import { createBowling } from './bowling.js';   // run 8: playable lane at Gutter Bowl
 import { createLivingTV } from './livingtv.js'; // run 9: TV night on Bear's couch (living90)
+import { framedPainting } from './bearwall.js';   // run 9b: Scott's paintings on Bear's walls
 
 const M = './models/';
 const ROOMS = {
@@ -817,14 +818,20 @@ export function createTown(ctx) {
       for (const sx of [-0.84, 0.84]) for (const y of [0.66, 1.24]) for (let i = 0; i < 9; i++) { mx4.makeTranslation(sx - 0.32 + i * 0.075, y + 0.1, 0.05); vhs.setMatrixAt(k, mx4); vhs.setColorAt(k++, cc.set(['#1e1e22', '#e8e2d2', '#2a3a6a', '#1e1e22', '#c23a35'][i % 5])); }
       ec.add(vhs);
       const tv = ph('27" CRT', new THREE.Group()); tv.add(box(0.78, 0.62, 0.55, '#2c2c30', 0.06)); const scr = sunPic(0.6, 0.45, 'CH. 2', '#3a5a7a'); scr.position.set(-0.04, 0.32, 0.28); tv.add(scr);
-      const tvb = box(0.1, 0.4, 0.02, '#3a3a3e', 0.005); tvb.position.set(0.31, 0.12, 0.27); tv.add(tvb); tv.position.set(0, 0.76, 0.0); ec.add(tv);
+      // run 9b: a real moulded bezel in FRONT of the tube -- the picture (painted scr + the CRT quad at z 0.284) shows only through its opening,
+      // which is 12 mm inside the screen rect on every side, so the quad's edges/corners can never draw past the bezel in any view
+      { const bz = new THREE.Shape(); bz.moveTo(-0.38, 0.016); bz.lineTo(0.38, 0.016); bz.lineTo(0.38, 0.604); bz.lineTo(-0.38, 0.604); bz.closePath();
+        const ho = new THREE.Path(); ho.moveTo(-0.322, 0.103); ho.lineTo(-0.322, 0.537); ho.lineTo(0.242, 0.537); ho.lineTo(0.242, 0.103); ho.closePath(); bz.holes.push(ho);
+        const bzg = new THREE.ExtrudeGeometry(bz, { depth: 0.008, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 1, curveSegments: 1 }); bzg.translate(0, 0, 0.282);
+        const bezel = new THREE.Mesh(bzg, feltMat('#2c2c30')); bezel.name = 'tv_bezel'; tv.add(bezel); }   // bezel front face at z 0.294
+      const tvb = box(0.1, 0.4, 0.02, '#3a3a3e', 0.005); tvb.position.set(0.31, 0.12, 0.288); tv.add(tvb); tv.position.set(0, 0.76, 0.0); ec.add(tv);   // control panel sits proud of the bezel (front 0.308)
       // run 9 hint: a yellow sticky note on the bezel with a TV Guide doodle (a little sun on the cover) and four numbers
       const note = pane(0.1, 0.1, cvTex(128, 128, (g, w, h) => { g.fillStyle = '#f7e36a'; g.fillRect(0, 0, w, h); g.fillStyle = 'rgba(0,0,0,0.06)'; g.fillRect(0, 0, w, 16);
         g.strokeStyle = '#2a3a8a'; g.lineWidth = 3; g.lineCap = 'round'; g.strokeRect(22, 22, 50, 64); g.font = '700 16px "Comic Sans MS", "Marker Felt", cursive'; g.fillStyle = '#c23a35'; g.fillText('TV', 30, 42);
         g.beginPath(); g.arc(47, 64, 10, 0, 7); g.stroke(); for (let i = 0; i < 8; i++) { const a = i * 0.785; g.beginPath(); g.moveTo(47 + Math.cos(a) * 13, 64 + Math.sin(a) * 13); g.lineTo(47 + Math.cos(a) * 18, 64 + Math.sin(a) * 18); g.stroke(); }
         g.fillStyle = '#2a3a8a'; g.font = '700 21px "Comic Sans MS", "Marker Felt", cursive'; g.save(); g.translate(64, 108); g.rotate(-0.06); g.textAlign = 'center'; g.fillText('19 · 90 ?', 0, 0); g.restore();
         g.beginPath(); g.moveTo(80, 30); g.lineTo(104, 50); g.moveTo(104, 30); g.lineTo(80, 50); g.stroke(); }, 1, 1, 0));
-      note.position.set(-0.33, 0.07, 0.282); note.rotation.z = 0.14; tv.add(note);
+      note.scale.setScalar(0.9); note.position.set(0.322, 0.066, 0.2965); note.rotation.z = -0.1; tv.add(note);   // stuck on the bezel's bottom-right corner, under the control panel, fully clear of the screen opening (x>=0.272 vs opening edge 0.242)
       const vcr = new THREE.Group(); vcr.add(box(0.7, 0.1, 0.4, '#1e1e22', 0.01)); const clockC = document.createElement('canvas'); clockC.width = 64; clockC.height = 24;
       const cgx = clockC.getContext('2d'); const vt = new THREE.CanvasTexture(clockC); vt.colorSpace = THREE.SRGBColorSpace;
       const drawV = (on) => { cgx.fillStyle = '#0e1a14'; cgx.fillRect(0, 0, 64, 24); if (on) { cgx.fillStyle = '#5aff9a'; cgx.font = '700 18px monospace'; cgx.textAlign = 'center'; cgx.textBaseline = 'middle'; cgx.fillText('1:59', 32, 13); } vt.needsUpdate = true; };
@@ -862,7 +869,7 @@ export function createTown(ctx) {
       const front = pane(8, 4.0, cvTex(512, 256, (g, w, h) => { g.fillStyle = '#e6d8bc'; g.fillRect(0, 0, w, h); g.fillStyle = 'rgba(150,110,70,0.12)'; for (let x = 0; x < w; x += 12) g.fillRect(x, 0, 4, h * 0.7);
         g.fillStyle = '#2f5a3e'; g.fillRect(0, h * 0.72, w, h * 0.28); g.fillStyle = 'rgba(0,0,0,0.12)'; for (let x = 0; x < w; x += 9) g.fillRect(x, h * 0.72, 3, h * 0.28); g.fillStyle = '#7a5230'; g.fillRect(0, h * 0.70, w, 5); g.fillRect(0, h - 6, w, 6);
         g.fillStyle = '#6b4526'; g.fillRect(70, 24, 66, 112); g.fillStyle = '#8a5d36'; g.fillRect(74, 28, 58, 104); g.fillStyle = '#c9a24a'; g.beginPath(); g.arc(126, 84, 3, 0, 7); g.fill();   // the hall door
-        g.fillStyle = '#5a3a20'; g.fillRect(300, 50, 90, 64); g.fillStyle = '#9fd6e8'; g.fillRect(306, 56, 78, 52); g.fillStyle = '#e0b52a'; g.beginPath(); g.arc(345, 82, 14, 0, 7); g.fill(); }, 1, 1, 0));
+      }, 1, 1, 0));   // (the painted sun picture that hung here is replaced by Scott's centrepiece, see bearwall.js below)
       front.position.set(0, 2.0, 2.98); front.rotation.y = Math.PI; front.visible = false; G.add(front);
       const sofaT = box(1.7, 0.92, 0.34, OAK, 0.02); at(sofaT, EX - 0.1, 0, 2.2); G.add(sofaT);   // the console table behind the couch (every '90s family room had one)
       const pot = cyl(0.09, 0.07, 0.2, '#b65a3a', 10); at(pot, EX + 0.55, 0.92, 2.2); G.add(pot); const fern = cyl(0.14, 0.05, 0.22, '#3f7a3a', 7); at(fern, EX + 0.55, 1.08, 2.2); G.add(fern);
@@ -890,10 +897,12 @@ export function createTown(ctx) {
       const glass = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), feltMat('#fff3d8')); glass.material.emissive.set('#ffe8b0'); glass.material.emissiveIntensity = 0.6; glass.position.y = -0.45; fan.add(glass);
       const blades = new THREE.Group(); for (let i = 0; i < 5; i++) { const b = box(0.62, 0.02, 0.15, OAK2, 0.01); b.position.set(Math.cos(i * 1.2566) * 0.42, 0, Math.sin(i * 1.2566) * 0.42); b.rotation.y = -i * 1.2566; blades.add(b); }
       blades.position.y = -0.4; fan.add(blades); fan.position.set(0.6, 3.62, 0.4); G.add(fan);
-      // framed pastel print + brass family frames on the right wall
-      const print = pane(1.0, 0.75, cvTex(160, 120, (g, w, h) => { g.fillStyle = '#e8d8e2'; g.fillRect(0, 0, w, h); const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#f6c8b8'); gr.addColorStop(1, '#a8c8d0'); g.fillStyle = gr; g.fillRect(14, 14, w - 28, h - 28);
-        g.fillStyle = '#7aa8a0'; g.beginPath(); g.moveTo(14, h - 40); g.quadraticCurveTo(w / 2, h - 70, w - 14, h - 44); g.lineTo(w - 14, h - 14); g.lineTo(14, h - 14); g.fill(); g.fillStyle = '#f6efdc'; g.fillRect(70, 40, 4, 40); g.beginPath(); g.moveTo(74, 40); g.lineTo(96, 66); g.lineTo(74, 66); g.fill(); }, 1, 1, 0.3));
-      print.rotation.y = -Math.PI / 2; print.position.set(3.96, 1.95, 0.0); G.add(print); const pf = box(0.03, 0.85, 1.1, BRASS, 0.01); pf.position.set(3.985, 1.52, 0.0); G.add(pf);
+      // Scott's paintings in gilded antique frames (bearwall.js): centrepiece over the sofa (on the 4th wall, seen from the couch / the TV feeds),
+      // a pair on the right wall, a pair on the left wall beside the patio-door blinds -- all at eye height, clear of the TV, blinds and windows
+      const art = [['lady', 0.95, front, [0.7, -0.2, 0.004], 0], ['suit', 0.64, G, [3.975, 1.66, -0.62], -Math.PI / 2], ['painter', 0.64, G, [3.975, 1.66, 0.62], -Math.PI / 2],
+        ['cowboy', 0.62, G, [-3.975, 1.62, 1.22], Math.PI / 2], ['guitar', 0.74, G, [-3.975, 1.62, 2.22], Math.PI / 2]].map(([k, h, par, p, ry]) => {
+        const f = framedPainting(k, h, { px: LOW ? 256 : 512 }); f.position.set(...p); f.rotation.y = ry; par.add(f); return f; });
+      await Promise.all(art.map((f) => f.userData.ready));
       const [bear] = await Promise.all([glb('town2/bear_lo.glb', 1.85, 'bear', { rest: 'breathe' })]);
       at(bear, 2.05, 0, 1.25, -1.1); G.add(bear);
       A.wolfSpot = [1.75, 2.15]; A.anim = []; A.proc = [bear]; A.vcrT = 0;
