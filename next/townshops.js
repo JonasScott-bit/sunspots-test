@@ -2,7 +2,8 @@
 // Same local frame as townscape.js houses: front face at z=0 facing +z, building runs back to -z; +x = viewer's right.
 // Colours sampled from exterior_refs/*.jpg (median 7x7 patch, lit side) and locked in PALC.
 import * as THREE from 'three';
-import { textPlane } from './townkit.js';
+import { textPlane, Kit, COLOR_GAIN } from './townkit.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 export const PALC = {
   store: { wall: '#ead8c7', wall2: '#e6cec0', stain: '#d8bfb0', ledge: '#f0e4d8', sill: '#b0625d', diamond: '#d83f47', dframe: '#b8524f', picketR: '#c8463f', plank: '#b8423f', picketW: '#efe6dc', cooler: '#d43c0f', coolerLid: '#ece4da', sign: '#d9762e', steps: '#e4c9b9', pole: '#7a6656', iron: '#1e1a1a' },
@@ -16,7 +17,7 @@ export const PALC = {
   bowl: { wall: '#f9cfaa', wallSh: '#ecb891', wallR: '#ce8139', block: '#e9b88e', canopy: '#4c2d25', band: '#efdfa1', fin: '#3d1c15', dot: '#f2e6c8', signY: '#faec89', signR: '#ba464a', disc: '#a93a34', pole: '#e7e3d2', stone: '#efe2c4', stone2: '#cdbb9a', glass: '#532f27', cap: '#e8e0d0', script: '#b23a3a' },
   pool: { wall: '#eae1d8', base: '#4f3c36', frame: '#343f3e', block: '#7f8a86', grid: '#d8d8d0', curtain: '#e8e4da', door: '#575f59', letters: '#5a3a30', ghost: '#9a7a6e' },
   motel: { wall: '#f6c6d6', trim: '#2a9d9a', stone: '#c8b8a0', court: '#6a6460', deck: '#efe6d2', water: '#5ec8d6', coping: '#f2ece0', fence: '#e8f0ee', neonP: '#ff6fae', neonR: '#ff3b3b', star: '#ffd75a' },
-  drivein: { lot: '#4f4646', fence: '#6a5446', screen: '#efe6d6', frame: '#3a3030', sign: '#e0c192', neonR: '#ff6a3a', signG: '#3f6f52', snack: '#f0e2c4', snackR: '#c8463f', post: '#5a5a5a' },
+  drivein: { chair: '#1c101a', seat: '#1b1015', table: '#d8bca6', cup: '#c8463f', pop: '#f2e2b0', lot: '#4f4646', fence: '#6a5446', screen: '#efe6d6', frame: '#3a3030', sign: '#e0c192', neonR: '#ff6a3a', signG: '#3f6f52', snack: '#f0e2c4', snackR: '#c8463f', post: '#5a5a5a' },
 };
 
 // ---------------------------------------------------------------- shared helpers
@@ -57,6 +58,33 @@ function tableSet(k, x, z, c = '#c8c4bc', seat = '#b8322e') {
 }
 
 // ================================================================= M2 builders
+// a cheap fleet of 50s classics: one felt car is built once (body + trim), then drawn as two InstancedMeshes
+// (body takes a per-car colour, trim keeps its own). cars: [[x, z, ry, colour], ...] in the current frame; front faces -z.
+let _carGeo = null;
+function carGeo() {
+  if (_carGeo) return _carGeo;
+  const b = new Kit(), t = new Kit(), W = '#ffffff';
+  b.box(0, 0.3, 0, 1.96, 0.5, 5.3, W); b.box(0, 0.8, 0.95, 1.9, 0.08, 2.9, W);                         // lower body + rear deck shelf
+  b.box(0, 0.8, -1.7, 1.9, 0.06, 1.9, W);                                                             // hood
+  b.box(0, 1.34, 0.45, 1.66, 0.12, 2.0, W);                                                           // roof
+  for (const s of [-1, 1]) b.box(s * 0.86, 0.8, 2.25, 0.22, 0.26, 0.85, W, { rx: -0.25 });              // tail fins
+  t.box(0, 0.86, 0.45, 1.6, 0.48, 1.95, '#2e3638');                                                   // glasshouse
+  for (const z of [-2.68, 2.66]) t.box(0, 0.26, z, 2.0, 0.2, 0.06, '#d8d6cc');                        // chrome bumpers
+  t.box(0, 0.52, -0.25, 2.0, 0.05, 4.9, '#d8d6cc');                                                   // side spear
+  for (const s of [-1, 1]) { t.box(s * 0.68, 0.5, -2.66, 0.3, 0.2, 0.04, '#f6ecc8'); t.box(s * 0.72, 0.55, 2.66, 0.18, 0.24, 0.04, '#c8463f'); }
+  for (const [x, z] of [[-1.0, -1.65], [1.0, -1.65], [-1.0, 1.7], [1.0, 1.7]]) {
+    const xo = x < 0 ? x + 0.24 : x;                                                                 // rz=pi/2 cylinders grow toward -x
+    t.cyl(xo, 0.34, z, 0.34, 0.24, '#1e1a1c', { rz: Math.PI / 2, seg: 8 }); t.cyl(xo + (x < 0 ? -0.23 : 0.01), 0.34, z, 0.2, 0.02, '#f2efe6', { rz: Math.PI / 2, seg: 8 }); }
+  return (_carGeo = { body: mergeGeometries(b.parts, false), trim: mergeGeometries(t.parts, false) });
+}
+export function carFleet(k, mat, cars) {
+  const g = carGeo(), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1), c = new THREE.Color();
+  const body = new THREE.InstancedMesh(g.body, mat, cars.length), trim = new THREE.InstancedMesh(g.trim, mat, cars.length);
+  cars.forEach(([x, z, ry, hex], i) => { m4.compose(new THREE.Vector3(x, 0, z), q.setFromAxisAngle(up, ry), one); body.setMatrixAt(i, m4); trim.setMatrixAt(i, m4); c.set(hex); c.setRGB(Math.min(1, c.r * COLOR_GAIN.v), Math.min(1, c.g * COLOR_GAIN.v), Math.min(1, c.b * COLOR_GAIN.v)); body.setColorAt(i, c); });
+  for (const m of [body, trim]) { m.castShadow = m.receiveShadow = true; m.computeBoundingSphere(); k.put(m, 0, 0, 0); }
+  for (const [x, z, ry] of cars) { const a = Math.abs(Math.sin(ry)) > 0.5; k.solid(x - (a ? 2.7 : 1.0), z - (a ? 1.0 : 2.7), x + (a ? 2.7 : 1.0), z + (a ? 1.0 : 2.7), 1.5); }
+}
+
 export function buildCommercial(TS, place) {
   buildMainNorth(place); buildYard(place); buildStore(place); buildStrip(TS, place);
 }
@@ -385,6 +413,19 @@ function buildStrip(TS, place) {
     sign(k, 'TICKETS', 2.0, 2.2, -2.15, 1.6, 0.34, { fg: P.snackR, fit: 0.8 }); k.solid(1.0, -4.2, 3.0, -2.2, 2.6); k.mark('door_drivein', 2.0, 0.5);
     // speaker posts in rows
     for (let z = -12; z > -43; z -= 7) for (let x = -14; x <= 14; x += 4) { k.box(x, 0, z, 0.1, 1.2, 0.1, P.post); k.box(x, 1.1, z, 0.36, 0.26, 0.2, '#8a8a7a'); }
+    // the lot fills up (ref drivein_01): mint, teal and cream classics nosed toward the screen between the speaker posts,
+    // drawn as two InstancedMeshes; a few slots hold folding chairs round a little snack table instead
+    { const CAR = ['#a1b099', '#81a792', '#b7ac98', '#a1b099', '#4a6c5c', '#b7ac98', '#81a792', '#24212c', '#a1b099', '#b7ac98', '#81a792', '#d67d4c'];
+      const skip = new Set(['-12,-12', '-8,-12', '-8,-26', '8,-40']), chairs = new Set(['4,-19', '-4,-33', '12,-26']), cars = []; let n = 0;
+      for (let z = -12; z > -43; z -= 7) for (let x = -12; x <= 12; x += 4) { const key = x + ',' + z;
+        if (skip.has(key)) continue;
+        if (chairs.has(key)) { k.cyl(x, 0, z, 0.06, 0.7, P.chair, { seg: 6 }); k.cyl(x, 0.7, z, 0.4, 0.04, P.table, { seg: 12 });
+          k.cyl(x - 0.12, 0.74, z + 0.05, 0.05, 0.14, P.cup, { seg: 6 }); k.cyl(x + 0.1, 0.74, z - 0.1, 0.05, 0.14, P.cup, { seg: 6 }); k.box(x + 0.05, 0.74, z + 0.15, 0.16, 0.2, 0.12, P.pop);
+          for (const s of [-1, 1]) k.frame(x + s * 0.75, 0, z + 0.3, s * 0.35, (f) => { f.box(0, 0.44, 0, 0.5, 0.05, 0.45, P.seat); f.box(0, 0.5, 0.24, 0.5, 0.48, 0.04, P.seat, { rx: -0.15 });
+            for (const sx of [-0.24, 0.24]) { f.beam([sx, 0, -0.22], [sx, 0.46, 0.2], 0.03, P.chair); f.beam([sx, 0, 0.2], [sx, 0.98, 0.26], 0.03, P.chair); f.beam([sx, 0.46, -0.22], [sx, 0.44, 0.2], 0.03, P.chair); } });
+          continue; }
+        cars.push([x, z - 0.4, Math.sin(n * 2.1) * 0.06, CAR[n++ % CAR.length]]); }
+      carFleet(k, TS.mats.felt, cars); }
     // snack bar
     k.aab(-15.5, 0, -16, -8.5, 3.0, -10, P.snack); k.aab(-15.5, 2.2, -10, -8.5, 2.5, -9.98, P.snackR); k.aab(-15.8, 3.0, -16.3, -8.2, 3.25, -9.4, P.snackR); k.solid(-15.5, -16, -8.5, -10, 3);
     sign(k, 'SNACK BAR', -12, 3.7, -9.6, 4.6, 0.8, { fg: '#ffe08a', glow: true, bg: null, stroke: '#c8463f' }); k.window(-12, 0.9, -10, 4.0, 1.1, { frame: P.snackR, glass: '#f6d0a0', glow: true, mull: [3, 0] });

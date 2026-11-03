@@ -43,7 +43,7 @@ export const GRID = {
 export function createTownscape(C) {
   const { scene, feltMat, makeMeltable, LOW } = C;
   const mats = { felt: patternize(feltMat('#ffffff', { vertexColors: true })), glow: new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }) };
-  const TS = { buildings: [], boxes: [], doors: {}, marks: {}, GRID, PAL, stats: { tris: 0 } };
+  const TS = { buildings: [], boxes: [], doors: {}, marks: {}, GRID, PAL, stats: { tris: 0 }, mats };
   const S = PAL.street;
 
   // ---------------------------------------------------------------- placing a building
