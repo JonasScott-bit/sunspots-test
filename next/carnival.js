@@ -93,7 +93,7 @@ export function createCarnival({ scene, feltMat, TS, colliders, LOW }) {
   // ------------------------------------------------------------------ ENTRANCE: arch over Mesa Rd + ticket booth (white booth, blue roof like the ref)
   {
     const L = [], ax = 78;
-    for (const z of [56.6, 67.4]) { P(L, cyl(0.28, 0.32, 7.4, 12), '#f4f1ea', M4(ax, 3.7, z)); for (let i = 0; i < 7; i++) P(L, cyl(0.3, 0.3, 0.42, 12), PALC.red, M4(ax, 0.6 + i * 1.0, z)); P(L, new THREE.SphereGeometry(0.42, 10, 8), PALC.yellow, M4(ax, 7.6, z)); }
+    for (const z of [56.6, 67.4]) { P(L, cyl(0.28, 0.32, 7.4, 12), '#f4f1ea', M4(ax, 3.7, z)); for (let i = 0; i < 7; i++) P(L, cyl(0.3, 0.3, 0.42, 9), PALC.red, M4(ax, 0.6 + i * 1.0, z)); P(L, new THREE.SphereGeometry(0.42, 10, 8), PALC.yellow, M4(ax, 7.6, z)); }
     merged(L, root);
     const sign = texMesh(box(0.3, 2.0, 11.6), null, root, M4(ax, 7.0, 62)); sign.material = [feltMat('#f4f1ea'), feltMat('#f4f1ea'), feltMat(PALC.blue), feltMat(PALC.blue),
       feltMat('#fff', { map: label('ONE HORSE FAIR', { w: 1024, h: 180, bg: PALC.blueL, fg: PALC.redL, outline: '#f4f1ea', border: PALC.blue, sub: '· RIDES · GAMES · CORN DOGS · ONE HORSE ·' }) }),
@@ -161,7 +161,7 @@ export function createCarnival({ scene, feltMat, TS, colliders, LOW }) {
     const L = []; const top = (k) => [B[k].x, 5.3, B[k].z];
     { const [x, y, z] = top('corndog'); P(L, new THREE.CapsuleGeometry(0.45, 1.6, 4, 10), '#c98a3c', M4(x, y + 0.6, z, 0, 0, 0.5)); P(L, cyl(0.06, 0.06, 1.2, 6), '#e6d2a8', M4(x - 0.62, y - 0.55, z, 0, 0, 0.5)); }
     { const [x, y, z] = top('floss'); P(L, new THREE.ConeGeometry(0.35, 1.3, 10), '#f4f1ea', M4(x, y - 0.1, z, Math.PI)); P(L, new THREE.IcosahedronGeometry(0.85, 1), PALC.pink, M4(x, y + 0.9, z)); }
-    { const [x, y, z] = top('lemon'); P(L, new THREE.SphereGeometry(0.8, 14, 10), PALC.yellow, M4(x, y + 0.5, z, 0, 0, 0, 1.3, 1, 1)); P(L, new THREE.SphereGeometry(0.16, 8, 6), PALC.yellow, M4(x + 1.05, y + 0.5, z)); }
+    { const [x, y, z] = top('lemon'); P(L, new THREE.SphereGeometry(0.8, 11, 8), PALC.yellow, M4(x, y + 0.5, z, 0, 0, 0, 1.3, 1, 1)); P(L, new THREE.SphereGeometry(0.16, 8, 6), PALC.yellow, M4(x + 1.05, y + 0.5, z)); }
     { const [x, y, z] = top('fry'); P(L, cyl(0.75, 0.5, 0.9, 10), PALC.redL, M4(x, y + 0.2, z)); for (let i = 0; i < 9; i++) P(L, box(0.13, 1.1, 0.13), '#e8c95a', M4(x + Math.sin(i * 2.4) * 0.4, y + 0.8, z + Math.cos(i * 2.4) * 0.4, Math.sin(i) * 0.2, 0, Math.cos(i * 1.7) * 0.2)); }
     merged(L, near);
   }
@@ -181,7 +181,7 @@ export function createCarnival({ scene, feltMat, TS, colliders, LOW }) {
   // ================================================================== RIDES
   // each: { key, name, root, seats: [Object3D], cam: 'pod' | 'orbit', speed (0..1, eased toward want), want, update(dt, t, k) }
   const ride = (key, name, x, z) => { const g = new THREE.Group(); g.position.set(x, 0, z); g.name = 'ride ' + key; root.add(g); const r = { key, name, x, z, root: g, seats: [], speed: 0, want: 0, phase: 0, t: 0, cycle: Math.random() * 20 }; C.rides[key] = r; return r; };
-  const rider = (parent, x, y, z, col) => { const L = []; P(L, new THREE.CapsuleGeometry(0.2, 0.35, 3, 8), col, M4(x, y + 0.35, z)); P(L, new THREE.SphereGeometry(0.17, 8, 6), '#e9d2b4', M4(x, y + 0.85, z)); P(L, new THREE.SphereGeometry(0.07, 6, 4), '#e9d2b4', M4(x - 0.12, y + 1.0, z)); P(L, new THREE.SphereGeometry(0.07, 6, 4), '#e9d2b4', M4(x + 0.12, y + 1.0, z)); return L; };
+  const rider = (parent, x, y, z, col) => { const L = []; P(L, new THREE.CapsuleGeometry(0.2, 0.35, 2, 6), col, M4(x, y + 0.35, z)); P(L, new THREE.SphereGeometry(0.17, 7, 5), '#e9d2b4', M4(x, y + 0.85, z)); P(L, new THREE.SphereGeometry(0.07, 4, 3), '#e9d2b4', M4(x - 0.12, y + 1.0, z)); P(L, new THREE.SphereGeometry(0.07, 4, 3), '#e9d2b4', M4(x + 0.12, y + 1.0, z)); return L; };
   const RIDER_C = ['#c45a48', '#5b86a3', '#e8c95a', '#7fb36a', '#b9a3d6', '#e88a3a'];
 
   // ---- BUSTLER (the Hustler ref): striped platform 18 x 14, ramp to the midway, blue arch with letter discs, sign, 8 sweeps with tubs

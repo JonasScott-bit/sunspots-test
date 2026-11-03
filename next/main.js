@@ -15,7 +15,8 @@ import { createMinimap } from './minimap.js';
 import { createHorse } from './horse.js';
 import { createPetHorse, PET_NAME } from './horses.js';   // horses: GRAVY, Bear's rideable pet horse   // run 13: the town's one horse (statue) + welcome signs
 import { dressTown, installTalk } from './towntalk.js';   // run 13: billboards, flyers, lore, chatter
-import { installMissions } from './missions13.js';   // run 13: THE ONE HORSE, KSUN CALL-IN, PAPER ROUTE
+import { installMissions } from './missions13.js';
+import { installCarnRides } from './carnrides.js';   // run 14b: ride the rides, play the midway   // run 13: THE ONE HORSE, KSUN CALL-IN, PAPER ROUTE
 import { createCarnival, createCalliope } from './carnival.js';   // run 14: the One Horse Fair (east edge of town)
 import { audio } from './audio.js';
 import { sunspotsApply, sunspotsEnabled, setSunspotsLook, sunspotsLookOn, bothMats, sunspotsLowEnd } from './sunspots_material.js';
@@ -662,7 +663,7 @@ canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointerca
 const keys = {}; addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyM') toggleWild(); if (e.code === 'KeyV' && !e.repeat && level.mode === 'walk' && !level.frozen) toggleFP(); if (e.code === 'KeyC' && !e.repeat && level.solo && !level.frozen) toggleFP(); if (e.code === 'KeyN' && !e.repeat) MM?.toggle(); }); addEventListener('keyup', e => keys[e.code] = false);
 
 // ---------------------------------------------------------------- wild mode
-let CARN = null, PET = null, rideK = 0, rideHip = 0;   // run 14
+let CARN = null, PET = null, CR = null, HERON = null, rideK = 0, rideHip = 0;   // run 14
 let wild = Q.has('wild') ? 1 : 0, wildTarget = wild;
 const wildBtn = document.getElementById('wildBtn');
 function toggleWild() { wildTarget = wildTarget ? 0 : 1; audio.wild(!!wildTarget); wildBtn.classList.toggle('on', !!wildTarget); wildBtn.textContent = wildTarget ? 'SUNSHINE' : 'WILD'; }
@@ -784,12 +785,12 @@ function frame() {
     wolfState.pos.copy(wolf.position).setY(0); wolfState.yaw = wolf.rotation.y; wolfState.speed = sp;
   }
   // wolf movement
-  if (wolfReady && level.mode === 'walk' && !level.frozen && !puppet.on) {
+  if (wolfReady && level.mode === 'walk' && !level.frozen && !puppet.on && !CR?.frozen) {
     let ix = input.x, iy = input.y;
     if (keys.KeyW || keys.ArrowUp) iy = -1; if (keys.KeyS || keys.ArrowDown) iy = 1; if (keys.KeyA || keys.ArrowLeft) ix = -1; if (keys.KeyD || keys.ArrowRight) ix = 1;
     if (keys.ShiftLeft) { ix *= 1; iy *= 1; } else if (!input.x && !input.y && (ix || iy)) { const l = Math.hypot(ix, iy); ix *= 0.6 / l; iy *= 0.6 / l; }
     const mag = Math.min(1, Math.hypot(ix, iy));
-    const target = PET?.mounted ? PET.target(PET.whoa ? 0 : mag) : mag < 0.08 ? 0 : (mag > 0.75 ? (NEWTOWN ? 8.4 : 7.2) : 2.6 * (mag / 0.75) + 0.6); // run 11: a touch quicker for the bigger town
+    const target = PET?.mounted ? PET.target(PET.whoa ? 0 : mag) : CR?.bump ? (mag < 0.08 ? 0 : 6.5 * Math.min(1, mag / 0.6)) : mag < 0.08 ? 0 : (mag > 0.75 ? (NEWTOWN ? 8.4 : 7.2) : 2.6 * (mag / 0.75) + 0.6); // run 11: a touch quicker for the bigger town
     wolfState.speed = lerp(wolfState.speed, target, 1 - Math.exp(-dt * 8));
     if (mag > 0.08) {
       const fx = Math.sin(camYaw), fz = Math.cos(camYaw); // camera forward (on ground) = -(fx,fz)
@@ -847,6 +848,9 @@ function frame() {
     if (PET.whoa && wolfState.speed < 1.2) PET.dismount();
     PET.update(dt, t, w, wolfState); if (wolfReady && PET.mounted) seatRider(t);
     rideK = THREE.MathUtils.clamp(rideK + (PET.mounted ? dt : -dt) / 0.5, 0, 1); }
+  // run 14b: carnival rides + midway games (the Wolf sits in a seat, or stands at a booth)
+  if (CR) { if (CR.busy && (level.mode !== 'walk' || puppet.on || town?.active)) CR.exit();
+    CR.update(dt, t, w); if (wolfReady && CR.seatM) seatWolf(CR.seatM, CR.pose, t); else if (wolfReady && CR.game) standIdle(dt); }
   camYaw += (camYawTarget - camYaw) * (1 - Math.exp(-dt * 6));
   const portrait = innerHeight > innerWidth;
   const dist = portrait ? 10.5 : 9.5, hgt = portrait ? 4.2 : 3.3;
@@ -908,6 +912,7 @@ function frame() {
   if (level.inCar) { fpArms.visible = fpCross.visible = false; fpFx.style.opacity = 0; if (FP.hidden) { FP.hidden = false; setWolfGhost(false); } }
   if (camera.fov !== wantFov || camera.near !== wantNear) { camera.fov = wantFov; camera.near = wantNear; camera.updateProjectionMatrix(); }
   const cc = DEBUG.closeCam; // screenshot/QA hook: close-up orbit relative to the wolf's facing
+  if (CR && wolfReady && !QCAM) CR.cam(camera, dt, portrait);
   if (cc && wolfReady) { const a = wolfState.yaw + (cc.yaw || 0); camera.position.set(wp.x + Math.sin(a) * cc.dist, cc.h, wp.z + Math.cos(a) * cc.dist); camTarget.set(wp.x, cc.ty, wp.z); camera.lookAt(camTarget); }
   if (QCAM) { camera.position.set(QCAM[0], QCAM[1], QCAM[2]); camTarget.set(QCAM[3], QCAM[4], QCAM[5]); camera.lookAt(camTarget); }
   director?.camera(camera, dt);   // scene shots / hand-back blend + speech bubbles
@@ -978,6 +983,9 @@ loadAll().then(() => {
   if (TS && town) try { installMissions({ T: town, TS, level, wolfState, horse: HORSE, scene, feltMat }); } catch (e) { console.warn('missions13 failed', e); }
   if (TS) try { CARN = createCarnival({ scene, feltMat, TS, colliders, LOW: sunspotsLowEnd() }); CARN.music = createCalliope(audio); window.__carn = CARN; } catch (e) { console.warn('carnival failed', e); }
   if (TS) try { PET = createPetHorse({ scene, TS, feltMat, LOW: sunspotsLowEnd(), colliders, audio }); installRiding(); window.__pet = PET; } catch (e) { console.warn('pet horse failed', e); }
+  if (TS && town && CARN) try { CR = installCarnRides({ CARN, T: town, TS, level, wolfState, scene, camera, feltMat, audio, fpOff: () => { if (FP.on) toggleFP?.(); }, onSeat: () => { if (wolfReady) measureHip(); }, isBusyElse: () => !!PET?.mounted }); window.__cr = CR;
+    if (PET) { const m0 = PET.mount; PET.mount = () => CR.busy ? false : m0(); }
+    const r0 = town.riding; town.riding = () => !!(r0?.() || CR.busy); } catch (e) { console.warn('carnrides failed', e); }
   if (TS) QT = createQuickTravel({ TS, level, wolfState, LAYOUT, onJump: (y) => { clearInput(); camYawTarget = camYaw = y + Math.PI; snapCam = true; } }); window.__qt = QT;
   if (TS && QT) { MM = createMinimap({ TS, level, wolfState, QT, town, audio }); window.__minimap = MM; }
   if (Q.get('room')) { const go = () => { if (window.__titleUp || !wolfReady) { setTimeout(go, 200); return; } town.enter(Q.get('room')); }; go(); }
@@ -1025,7 +1033,7 @@ function calibrateFeet() {
   return wolf.userData.footProfile.map((r, i) => { const th = Math.max(...r) * 0.08; for (let k = 0; k < N; k++) if (r[k] < th && r[(k + N - 1) % N] >= th) return k / N; return best[i][1]; });
 }
 function wolfFootsteps() {
-  if (!wolfReady || !wolf || level.inCar || level.solo || PET?.mounted || window.__titleUp) return;
+  if (!wolfReady || !wolf || level.inCar || level.solo || PET?.mounted || CR?.seatM || CR?.game || window.__titleUp) return;
   const u = wolf.userData; if (!u.plants) u.plants = calibrateFeet();
   const ph = u.phase || 0, p0 = u.lastPh ?? ph; u.lastPh = ph;
   const sp = puppet.on ? puppet.speed : wolfState.speed, d = ((ph - p0) % 1 + 1) % 1; if (sp < 0.3 || d === 0 || d > 0.5) return;
@@ -1047,6 +1055,22 @@ function seatRider(t) {
   rot(R.lu, P.hip, 0, P.out); rot(R.ru, P.hip, 0, -P.out); rot(R.ll, P.knee, 0, 0); rot(R.rl, P.knee, 0, 0);
   rot(R.la, P.arm, 0, 0); rot(R.ra, P.arm, 0, 0); rot(R.lf, 0, P.fore, 0); rot(R.rf, 0, -P.fore, 0);
   wolf.updateMatrixWorld(true);
+}
+// run 14b: sit the Wolf in any carnival seat (matrix = seat in world, pose = bone offsets), or stand him still at a booth
+function measureHip() { wolf.updateMatrixWorld(true); const hb = wolf.userData.body.getObjectByName('Hips'); rideHip = hb ? hb.getWorldPosition(_rv).y - wolf.position.y : 0.9 * wolfBaseScale; }
+function seatWolf(m, P, t) {
+  m.decompose(_rv, _rq, tmpV); wolf.quaternion.copy(_rq); wolf.position.set(_rv.x, _rv.y - rideHip * (P.drop ?? 1), _rv.z); wolf.scale.setScalar(wolfBaseScale);
+  actWalk.setEffectiveWeight(0); actRun.setEffectiveWeight(0); actIdle.setEffectiveWeight(1); actIdle.timeScale = 1; mixer.update(0);
+  const u = wolf.userData, body = u.body; body.rotation.set(0.04, 0, 0); body.position.x = 0;
+  if (!u.rideBones) { const b = (n) => body.getObjectByName(n); u.rideBones = { lu: b('LeftUpLeg'), ru: b('RightUpLeg'), ll: b('LeftLeg'), rl: b('RightLeg'), la: b('LeftArm'), ra: b('RightArm'), lf: b('LeftForeArm'), rf: b('RightForeArm') }; }
+  const R = u.rideBones; const rot = (bn, x, y, z) => { if (!bn) return; _re.set(x, y, z); _rq.setFromEuler(_re); bn.quaternion.multiply(_rq); };
+  rot(R.lu, P.hip, 0, P.out); rot(R.ru, P.hip, 0, -P.out); rot(R.ll, P.knee, 0, 0); rot(R.rl, P.knee, 0, 0);
+  rot(R.la, P.arm, 0, 0); rot(R.ra, P.arm, 0, 0); rot(R.lf, 0, P.fore, 0); rot(R.rf, 0, -P.fore, 0);
+  wolf.updateMatrixWorld(true);
+}
+function standIdle(dt) {
+  wolf.position.copy(wolfState.pos); wolf.rotation.set(0, wolfState.yaw, 0); wolf.scale.setScalar(wolfBaseScale); wolf.userData.body.rotation.set(0, 0, 0); wolf.userData.body.position.x = 0;
+  actWalk.setEffectiveWeight(0); actRun.setEffectiveWeight(0); actIdle.setEffectiveWeight(1); actIdle.timeScale = 1; mixer.update(dt);
 }
 function installRiding() {
   const cols = [{ x: 0, z: 0, r: 0.5 }, { x: 0, z: 0, r: 0.5 }]; colliders.push(...cols);
