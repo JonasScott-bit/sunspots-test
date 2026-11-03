@@ -44,9 +44,9 @@ export function createHorse(C0) {
     k.solid(px - PL.w / 2 - 0.5, pz - PL.d / 2 - 0.5, px + PL.w / 2 + 0.5, pz + PL.d / 2 + 0.5, PL.h + 5);
     // plaques: front (Main St side, -z) + back
     k.aab(px - 1.9, 0.75, pz - PL.d / 2 - 0.06, px + 1.9, 1.95, pz - PL.d / 2, '#b8903e');
-    sign(k, 'SUNSPOTS\n' + SLOGAN + '\nERECTED 1951 · MELTED 1951', px, 0.8, pz - PL.d / 2 - 0.08, 3.6, 1.1, { bg: '#c49a48', fg: '#3a2414', family: SERIF, fit: 0.62, ry: Math.PI });
+    sign(k, 'SUNSPOTS\n' + SLOGAN + '\nERECTED 1951 · MELTED 1951', px, 1.35, pz - PL.d / 2 - 0.08, 3.6, 1.1, { bg: '#c49a48', fg: '#3a2414', family: SERIF, fit: 0.62, ry: Math.PI });
     k.aab(px - 1.4, 0.9, pz + PL.d / 2, px + 1.4, 1.7, pz + PL.d / 2 + 0.06, '#b8903e');
-    sign(k, 'THE HORSE\n"IT WAS HERE FIRST"', px, 0.95, pz + PL.d / 2 + 0.08, 2.6, 0.7, { bg: '#c49a48', fg: '#3a2414', family: SERIF, fit: 0.6 });
+    sign(k, 'THE HORSE\n"IT WAS HERE FIRST"', px, 1.3, pz + PL.d / 2 + 0.08, 2.6, 0.7, { bg: '#c49a48', fg: '#3a2414', family: SERIF, fit: 0.6 });
     // benches facing the horse + a DO NOT FEED sign
     for (const s of [-1, 1]) k.frame(px + s * 4.6, 0, pz - 4.6, s * 0.35, (f) => { f.box(0, 0.42, 0, 2.2, 0.1, 0.6, '#9a6a44'); f.box(0, 0.52, 0.3, 2.2, 0.5, 0.08, '#9a6a44'); for (const x of [-0.9, 0.9]) f.box(x, 0, 0, 0.12, 0.42, 0.5, '#4a3a34'); });
     k.beam([px + 7.2, 0, pz - 3.4], [px + 7.2, 1.2, pz - 3.4], 0.06, '#6a5a4a');
@@ -120,7 +120,7 @@ export function createHorse(C0) {
     for (const f of [1, -1]) { sign(k, 'WELCOME TO', 0, 4.35, f * 0.18, 4.4, 0.5, { fg: '#2a4a8a', fit: 0.6, ry: f > 0 ? 0 : Math.PI });
       sign(k, 'SUNSPOTS', 0, 3.25, f * 0.18, 7.4, 1.1, { fg: '#c8463f', family: SERIF, fit: 0.82, ry: f > 0 ? 0 : Math.PI });
       sign(k, SLOGAN, 0, 2.55, f * 0.18, 7.4, 0.6, { fg: '#3a2418', fit: 0.72, ry: f > 0 ? 0 : Math.PI });
-      sign(k, sub, 0, 2.02, f * 0.18, 5.6, 0.42, { fg: '#6a5a4a', fit: 0.55, ry: f > 0 ? 0 : Math.PI }); }
+      sign(k, sub, 0, 2.17, f * 0.18, 5.6, 0.42, { fg: '#6a5a4a', fit: 0.55, ry: f > 0 ? 0 : Math.PI }); }
     k.solid(-4.2, -0.3, 4.2, 0.3, 5.3);
   }, { lodNear: 140, melt: true, drips: false });
   welcome('welcome_east', 50.5, 13.5, -2.4, 'POP. ABOUT THE SAME');

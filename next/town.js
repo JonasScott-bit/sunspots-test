@@ -1518,7 +1518,7 @@ export function createTown(ctx) {
   let outLines = [], outT = 0;
   function outSay(L) { outLines = L.slice(); nextOut(); }
   // run 13: generic outdoor walk-up spots {x, z, r, label (string|fn), act() -> lines, on()?}
-  const OUT = []; T.addSpot = (sp) => { OUT.push(sp); return sp; }; T.outSay = outSay; T.spots = OUT;
+  T.tick = []; const OUT = []; T.addSpot = (sp) => { OUT.push(sp); return sp; }; T.outSay = outSay; T.spots = OUT;
   const HZ = ctx.horse, wildNow = () => (window.__sunspots?.wild || 0) > 0.5;
   const STATUE = [[['PLAQUE', 'SUNSPOTS. SAME OLD ONE HORSE TOWN.'], ['PLAQUE', 'This was the town\'s only horse. It still is.']],
     [['PLAQUE', 'Erected 1951. Melted 1951.'], ['PLAQUE', 'Same afternoon.']],
@@ -1613,6 +1613,7 @@ export function createTown(ctx) {
     T.swoop = null; B.begin(w, S.lane); T.lane = B; T.scene = B.scene; T.camera = B.camera; await wait(260); await B.uncover(); T.busy = false; }
   let outT0 = 0;
   T.outside = (dt) => {   // called every town frame (walk mode): door prompts, the Crow, held clock, errand timers
+    for (const f of T.tick) try { f(dt); } catch (e) { console.warn('tick', e); }   // run 13: chatter bubbles, mission watchers (walk + car)
     outT0 += dt; if (S.party) diner().outside(dt, outT0, !T.active && level?.mode === 'walk' && !document.body.classList.contains('scene'));   // run 10: the party follows the Wolf
     if (level?.mode === 'solo') { btn.style.display = 'none'; near = null; if (errands().length) { if (S.held == null) S.held = level.left; level.left = S.held; } else S.held = null; common(dt); return; }   // run 12: errands hold the clock in his own car too
     if (!level || level.mode !== 'walk' || level.frozen || document.body.classList.contains('scene')) { btn.style.display = 'none'; near = null; return; }

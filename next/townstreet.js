@@ -3,6 +3,7 @@
 // Procedural felt, 0 Meshy credits. Everything is chunked into ~70 m cells so the townscape LOD/culling can drop far cells.
 import * as THREE from 'three';
 import { palm, sign, far, SERIF, SCRIPT } from './townshops.js';
+import { FLYERS } from './towntalk.js';   // run 13
 
 const WOOD = ['#6b5644', '#75604a', '#5e4c3c'], WIRE = '#2a2426';
 const CARS = [['#7fc8c0', '#f2ece0'], ['#e89ab0', '#f4eee4'], ['#c8302e', '#f2ece0'], ['#a8d4b0', '#e8e4d8'], ['#f0d27a', '#f2ece0'],
@@ -120,7 +121,7 @@ export function buildStreet(TS, place) {
         for (let s = 0; s < 9; s++) k.box(P.tx * (s / 12) + P.x * (1 - s / 12), 0.6 + s * 0.42, P.z + (P.tz - P.z) * s / 12 + ln.side * 0.15, 0.24, 0.03, 0.04, '#4a4a48'); // climbing steps
         if (P.i % 5 === 0) { k.cyl(P.tx + 0.32, P.h - 2.6, P.tz, 0.32, 1.0, '#8a8e8a', { seg: 8 }); k.cyl(P.tx + 0.32, P.h - 1.6, P.tz, 0.34, 0.08, '#6a6e6a', { seg: 8 }); } // transformer can
         if (P.i % 4 === 2) { k.box(P.tx, 3.4, P.tz + ln.side * 0.2, 0.36, 0.5, 0.22, '#7a7a70'); k.box(P.tx, 4.6, P.tz + ln.side * 0.4, 0.06, 0.06, 1.0, '#3a3a3a'); } // junction box + bent bracket
-        if (P.i % 6 === 3) sign(k, ['LOST CAT', 'YARD SALE SAT', 'GUITAR LESSONS', 'HAVE YOU SEEN\nTHE SUN?'][P.i % 4], P.x + 0.01, 1.7, P.z + ln.side * 0.15, 0.42, 0.55, { bg: '#f4eee0', fg: '#3a2a2a', fit: 0.5, ry: ln.side > 0 ? 0 : Math.PI });
+        if (P.i % 3 === 1) sign(k, FLYERS[(P.i / 3 | 0) % FLYERS.length], P.x + 0.01, 1.75, P.z + ln.side * 0.16, 0.5, 0.66, { bg: ['#f4eee0', '#f2d8e0', '#e0ecf4', '#f6e8b0'][(P.i / 3 | 0) % 4], fg: '#3a2a2a', fit: 0.5, ry: ln.side > 0 ? 0 : Math.PI });   // run 13: the town's flyers (towntalk.js)
         if (!N || N.x - P.x > ln.step * 1.5) return;
         const wire = (a, b, sag, t, colr = WIRE) => { const n = 5; let prev = a;
           for (let s = 1; s <= n; s++) { const u = s / n, p = [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u - sag * 4 * u * (1 - u), a[2] + (b[2] - a[2]) * u]; k.beam(prev, p, t, colr); prev = p; } };

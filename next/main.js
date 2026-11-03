@@ -13,6 +13,7 @@ import { patInject } from './townkit.js';
 import { createQuickTravel } from './quicktravel.js';
 import { createMinimap } from './minimap.js';
 import { createHorse } from './horse.js';   // run 13: the town's one horse (statue) + welcome signs
+import { dressTown, installTalk } from './towntalk.js';   // run 13: billboards, flyers, lore, chatter
 import { audio } from './audio.js';
 import { sunspotsApply, sunspotsEnabled, setSunspotsLook, sunspotsLookOn, bothMats, sunspotsLowEnd } from './sunspots_material.js';
 window.__SUNSPOTS_VERSION = 'v9-next';
@@ -561,6 +562,7 @@ async function loadAll() {
   const car2 = car.scene.clone(true); car2.traverse(o => { if (o.isMesh) o.material = o.material.clone(); });   // run 12: the Wolf's own waddle car (own materials -> own boot uniforms)
   if (NEWTOWN) { TS = createTownscape({ scene, feltMat, makeMeltable, LOW: sunspotsLowEnd(), level }); window.__TS = TS; level.townscape = TS;
     try { HORSE = createHorse({ scene, TS, feltMat, LOW: sunspotsLowEnd() }); window.__horse = HORSE; } catch (e) { console.warn('horse failed', e); }
+    try { dressTown(TS); } catch (e) { console.warn('talk failed (dress)', e); }
     const KIND = { bus_shelter: 'shelter', lamp: 'lamp', payphone: 'payphone', fountain: 'fountain' };
     for (const [n, x, z, ry, cr, pr] of TS.props) { const root = feltify(town[n].scene.clone(true)); root.position.set(x, 0, z); root.rotation.y = ry; scene.add(root); if (cr) colliders.push({ x, z, r: cr }); makeMeltable(root, { tint: TINT[KIND[n]] || '#ff8f86', puddle: pr || 1, puddleColor: WAX[KIND[n]] || '#f2907f' }); } }
   placeTown(town); placeFarCacti(town.cactus_far); level.placeRoadCacti(town);
@@ -963,6 +965,7 @@ loadAll().then(() => {
   const clearInput = () => { for (const k in keys) keys[k] = false; input.x = input.y = 0; joyId = null; lookId = null; joy.style.display = 'none'; };
   town = createTown({ renderer, mainScene: scene, load: (u) => load(u), normalize, feltMat, level, wolfState, colliders, audio, townscape: TS, horse: HORSE,
     onEnter: () => { clearInput(); if (FP.on) toggleFP?.(); }, onExit: () => { clearInput(); clock.getDelta(); } });
+  if (TS) try { window.__talk = installTalk({ T: town, level, TS, wolfState }); } catch (e) { console.warn('talk failed', e); }
   if (TS) QT = createQuickTravel({ TS, level, wolfState, LAYOUT, onJump: (y) => { clearInput(); camYawTarget = camYaw = y + Math.PI; snapCam = true; } }); window.__qt = QT;
   if (TS && QT) { MM = createMinimap({ TS, level, wolfState, QT, town, audio }); window.__minimap = MM; }
   if (Q.get('room')) { const go = () => { if (window.__titleUp || !wolfReady) { setTimeout(go, 200); return; } town.enter(Q.get('room')); }; go(); }
