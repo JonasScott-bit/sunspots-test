@@ -69,7 +69,7 @@ function buildMainNorth(place) {
     k.aab(-8.4, 3.5, -16.2, 8.4, 3.8, CZ, P.fasciaDk, { lod: true });
     // the curved front: base / glass band / cream header / red fascia, with round ends
     const band = (y0, h, c, o = {}) => { k.aab(-X, y0, CZ, X, y0 + h, FZ + (o.out || 0), c, o); for (const s of [-1, 1]) k.cyl(s * X, y0, CZ, R + (o.out || 0), h, c, { seg: 16, ...o }); };
-    band(0, 1.0, P.base, { lod: true }); band(1.0, 0.06, P.neon, { glow: true, out: 0.04 }); band(1.06, 1.5, P.glass, { glow: true }); band(2.56, 0.45, P.header, { lod: true });
+    band(0, 1.0, P.base, { lod: true, pat: 'panel', ps: 0.5 }); band(1.0, 0.06, P.neon, { glow: true, out: 0.04 }); band(1.06, 1.5, P.glass, { glow: true }); band(2.56, 0.45, P.header, { lod: true });
     band(2.72, 0.07, P.neon, { glow: true, out: 0.05 });
     k.aab(-X, 3.0, CZ, X, 3.65, FZ + 0.8, P.fascia, { lod: true }); for (const s of [-1, 1]) k.cyl(s * X, 3.0, CZ, R + 0.8, 0.65, P.fascia, { seg: 18 });
     k.aab(-X, 2.93, FZ + 0.74, X, 3.0, FZ + 0.8, P.neon, { glow: true });
@@ -92,8 +92,8 @@ function buildMainNorth(place) {
   // ---------------------------------------------------------------- LAUNDROMAT under brick apartments (x -12..6)
   place('laundromat', -3, -1.5, 0, (k) => {
     const P = PALC.laundry, H = 14.3;
-    k.aab(-9, 0, -16, 9, H, -0.02, P.brick, { lod: true }); k.solid(-9, -16, 9, 0, H);
-    for (const x of [-9, -4.4, 0, 4.4, 9]) k.aab(x - 0.3, 4.4, 0, x + 0.3, H, 0.16, P.brickDk);
+    k.aab(-9, 0, -16, 9, H, -0.02, P.brick, { lod: true, pat: 'brick', ps: 0.085 }); k.solid(-9, -16, 9, 0, H);
+    for (const x of [-9, -4.4, 0, 4.4, 9]) k.aab(x - 0.3, 4.4, 0, x + 0.3, H, 0.16, P.brickDk, { pat: 'brick', ps: 0.085 });
     for (let f = 0; f < 3; f++) { const y = 4.4 + f * 3.3; k.aab(-9.1, y - 0.12, 0, 9.1, y + 0.08, 0.2, P.stone);
       for (const x of [-6.6, -2.2, 2.2, 6.6]) { k.window(x, y + 0.85, 0.02, 1.3, 1.95, { frame: P.frame, glass: '#3a3a3c', mull: [0, 1], sill: P.stone, blind: f === 1 && x > 0 ? 0.3 : 0, blindCol: '#e6dccb' });
         k.box(x, y + 2.95, 0.12, 1.75, 0.22, 0.18, P.stone); k.box(x, y + 2.9, 0.2, 0.32, 0.36, 0.12, P.cream); } }
@@ -130,8 +130,8 @@ function buildMainNorth(place) {
   // ---------------------------------------------------------------- POST OFFICE (x 10..28): 1930s red brick, limestone, steps, arched windows, cupola, flag
   place('post', 19, -1.5, 0, (k) => {
     const P = PALC.post, FZ = -4;
-    k.aab(-9, 0, -20, 9, 7, FZ, P.brick, { lod: true }); k.solid(-9, -20, 9, FZ, 7);
-    k.aab(-9.1, 0, FZ, 9.1, 1.0, FZ + 0.15, P.stone); k.aab(-9.2, 6.0, FZ, 9.2, 7.0, FZ + 0.3, P.stone, { lod: true }); k.aab(-9.3, 7.0, FZ - 0.2, 9.3, 7.25, FZ + 0.42, P.stone);
+    k.aab(-9, 0, -20, 9, 7, FZ, P.brick, { lod: true, pat: 'brick', ps: 0.085 }); k.solid(-9, -20, 9, FZ, 7);
+    k.aab(-9.1, 0, FZ, 9.1, 1.0, FZ + 0.15, P.stone, { pat: 'block', ps: 0.35 }); k.aab(-9.2, 6.0, FZ, 9.2, 7.0, FZ + 0.3, P.stone, { lod: true }); k.aab(-9.3, 7.0, FZ - 0.2, 9.3, 7.25, FZ + 0.42, P.stone);
     for (let x = -8.8; x <= 8.8; x += 0.55) k.box(x, 7.25, FZ + 0.1, 0.18, 0.6, 0.18, P.stone); k.aab(-9.3, 7.85, FZ - 0.1, 9.3, 8.0, FZ + 0.3, P.stone);
     sign(k, 'SUNSPOTS · POST OFFICE', 0, 6.5, FZ + 0.32, 13, 0.6, { fg: '#4a4038', family: SERIF, fit: 0.8, far: true });
     for (const x of [-7.2, -4.2, 4.2, 7.2]) { k.window(x, 1.7, FZ, 1.5, 3.0, { frame: '#f2eee6', glass: P.glass, mull: [2, 4], sill: P.stone });
@@ -153,7 +153,7 @@ function buildMainNorth(place) {
   // ---------------------------------------------------------------- DMV (x -72..-50): 1960s precast fins, ribbon glass, flat slab roof
   place('dmv', -61, -1.5, 0, (k) => {
     const P = PALC.dmv, FZ = -3;
-    k.aab(-11, 0, -22, 11, 4.4, FZ, P.wall, { lod: true }); k.solid(-11, -22, 11, FZ, 4.4);
+    k.aab(-11, 0, -22, 11, 4.4, FZ, P.wall, { lod: true, pat: 'block', ps: 0.2 }); k.solid(-11, -22, 11, FZ, 4.4);
     k.aab(-11.6, 4.4, -22.6, 11.6, 4.95, FZ + 0.8, P.roof, { lod: true });
     k.aab(-11, 0.9, FZ - 0.02, 11, 3.9, FZ + 0.02, P.glass); k.aab(-11, 0, FZ, 11, 0.9, FZ + 0.05, P.sage); k.aab(-11, 3.9, FZ, 11, 4.4, FZ + 0.05, P.sage);
     for (let x = -10.5; x <= 10.6; x += 1.1) if (Math.abs(x) > 1.8) k.box(x, 0, FZ + 0.35, 0.22, 4.4, 0.7, P.fin);
@@ -169,8 +169,8 @@ function buildMainNorth(place) {
   // ---------------------------------------------------------------- SECOND SUN THRIFT (x -90..-75): 1920s two-storey false front, ghost sign, striped awning
   place('thrift', -82.5, -1.5, 0, (k) => {
     const P = PALC.thrift;
-    k.ext([[-7.5, 0], [7.5, 0], [7.5, 7.6], [3, 7.6], [3, 8.3], [-3, 8.3], [-3, 7.6], [-7.5, 7.6]], -0.3, 0.3, P.wall, { lod: true });
-    k.aab(-7.5, 0, -18, 7.5, 7.4, -0.3, P.wall, { lod: true }); k.solid(-7.5, -18, 7.5, 0, 7.4);
+    k.ext([[-7.5, 0], [7.5, 0], [7.5, 7.6], [3, 7.6], [3, 8.3], [-3, 8.3], [-3, 7.6], [-7.5, 7.6]], -0.3, 0.3, P.wall, { lod: true, pat: 'stucco' });
+    k.aab(-7.5, 0, -18, 7.5, 7.4, -0.3, P.wall, { lod: true, pat: 'stucco' }); k.solid(-7.5, -18, 7.5, 0, 7.4);
     k.aab(-7.6, 7.45, -0.1, 7.6, 7.7, 0.15, P.trim); k.aab(-3.1, 8.2, -0.1, 3.1, 8.45, 0.15, P.trim); k.aab(-7.6, 3.65, 0, 7.6, 3.85, 0.18, P.trim);
     sign(k, 'SECOND SUN THRIFT', 0, 6.5, 0.02, 12, 1.25, { fg: P.ghost, family: SERIF, fit: 0.7, far: true });
     for (const x of [-4.5, 0, 4.5]) k.window(x, 4.3, 0, 1.2, 1.6, { frame: '#f6f0e2', glass: '#3a3a3c', mull: [0, 1], sill: P.trim });
@@ -193,7 +193,7 @@ function buildMainNorth(place) {
   // ---------------------------------------------------------------- KSUN RADIO & CH.2 (x -133..-117): streamline moderne + lattice mast
   place('ksun', -125, -1.5, 0, (k) => {
     const P = PALC.ksun, FZ = -3, H = 6.4;
-    k.aab(-5, 0, -16, 8, H, FZ, P.wall, { lod: true }); k.aab(-8, 0, -16, -5, H, -6, P.wall, { lod: true }); k.cyl(-5, 0, -6, 3, H, P.wall, { seg: 20, lod: true }); k.solid(-8, -16, 8, FZ, H);
+    k.aab(-5, 0, -16, 8, H, FZ, P.wall, { lod: true, pat: 'stucco' }); k.aab(-8, 0, -16, -5, H, -6, P.wall, { lod: true, pat: 'stucco' }); k.cyl(-5, 0, -6, 3, H, P.wall, { seg: 20, lod: true }); k.solid(-8, -16, 8, FZ, H);
     for (const y of [4.6, 5.0, 5.4]) { k.aab(-5, y, FZ, 8, y + 0.12, FZ + 0.08, P.trim); k.cyl(-5, y, -6, 3.06, 0.12, P.trim, { seg: 20 }); }
     k.aab(-8.1, H, -16.1, 8.1, H + 0.25, FZ + 0.1, P.trim); k.cyl(-5, H, -6, 3.1, 0.25, P.trim, { seg: 20 });
     k.window(-2.2, 0.9, FZ, 2.4, 3.4, { frame: P.wall, glass: P.block, mull: [7, 10], mullCol: '#eef0ea', ft: 0.05 });
@@ -241,7 +241,7 @@ function buildYard(place) {
 function buildStore(place) {
   place('store', 90, -1011.5, 0, (k) => {
     const P = PALC.store, s = 0.0134, X = (px) => (px - 545) * s, Y = (py) => (425 - py) * s;
-    k.ext([[X(130), -0.3], [X(810), -0.3], [X(810), Y(92)], [X(320), Y(48)], [X(130), Y(70)]], -8, 8, P.wall, { lod: true });
+    k.ext([[X(130), -0.3], [X(810), -0.3], [X(810), Y(92)], [X(320), Y(48)], [X(130), Y(70)]], -8, 8, P.wall, { lod: true, pat: 'stucco', ps: 0.42 });
     // ghost sign + scuffs
     k.aab(X(230), Y(130), 0, X(390), Y(126), 0.02, P.stain); k.aab(X(230), Y(88), 0, X(390), Y(84), 0.02, P.stain); k.aab(X(228), Y(130), 0, X(232), Y(84), 0.02, P.stain); k.aab(X(388), Y(130), 0, X(392), Y(84), 0.02, P.stain);
     for (const [px, py, w, h] of [[330, 210, 6, 30], [455, 400, 30, 8], [610, 445, 40, 10], [200, 300, 3, 40], [780, 300, 3, 30]]) k.aab(X(px), Y(py + h), 0, X(px + w), Y(py), 0.015, P.stain);
@@ -276,7 +276,7 @@ function buildStrip(TS, place) {
   // ---------------------------------------------------------------- GUTTER BOWL (x -45..-8), real size: 37 m frontage, 40 m deep
   place('bowl', -26.5, -70.5, 0, (k) => {
     const P = PALC.bowl, FZ = -5.5, H = 8;
-    k.aab(-18.5, 0, -45, 18.5, H, FZ, P.wall, { lod: true }); k.aab(-18.6, H, -45.1, 18.6, H + 0.3, FZ + 0.1, P.cap, { lod: true }); k.solid(-18.5, -45, 18.5, FZ, H);
+    k.aab(-18.5, 0, -45, 18.5, H, FZ, P.wall, { lod: true, pat: 'stucco', ps: 0.7 }); k.aab(-18.6, H, -45.1, 18.6, H + 0.3, FZ + 0.1, P.cap, { lod: true }); k.solid(-18.5, -45, 18.5, FZ, H);
     // stepped zig-zag block relief (the ref's long tan wall)
     for (let r = 0; r < 9; r++) { const y = 0.9 + r * 0.72, ph = r % 6 < 3 ? r % 6 : 6 - r % 6;
       for (let x = -18 + ph * 0.9; x < -3; x += 5.4) k.box(x + 0.6, y, FZ + 0.06, 1.2, 0.36, 0.14, P.block); }
@@ -287,7 +287,7 @@ function buildStrip(TS, place) {
     for (let x = -2.5; x < 17.5; x += 4) k.cyl(x, 0, -0.9, 0.07, 3.4, P.canopy, { seg: 6 });
     k.aab(-3, 0, FZ + 0.02, 10, 3.3, FZ + 0.06, P.glass); for (let x = -3; x <= 10; x += 1.3) k.box(x, 0, FZ + 0.08, 0.07, 3.3, 0.05, '#c8b8a0');
     k.aab(-1.3, 0, FZ + 0.06, 1.3, 2.4, FZ + 0.1, '#f2c88a', { glow: true }); k.mark('door_bowl', 0, 0.5);
-    k.aab(10, 0, FZ, 17.6, 3.3, FZ + 0.3, P.stone); for (let i = 0; i < 22; i++) k.box(10.4 + (i * 2.37) % 7, 0.2 + ((i * 1.31) % 2.9), FZ + 0.31, 0.5 + (i % 3) * 0.15, 0.28, 0.04, P.stone2);
+    k.aab(10, 0, FZ, 17.6, 3.3, FZ + 0.3, P.stone, { pat: 'stone', ps: 0.4 }); for (let i = 0; i < 22; i++) k.box(10.4 + (i * 2.37) % 7, 0.2 + ((i * 1.31) % 2.9), FZ + 0.31, 0.5 + (i % 3) * 0.15, 0.28, 0.04, P.stone2);
     sign(k, 'Cocktail Bar', 4.0, 2.2, FZ + 0.12, 4.6, 1.0, { fg: P.band, family: SCRIPT, fit: 0.8 });
     // folded-plate fins (dark, dotted) at both canopy ends
     for (const [x0, n] of [[-6.2, 4], [13.2, 6]]) for (let i = 0; i < n; i++) { const x = x0 + i * 0.95, t = i % 2 ? 0.55 : -0.55;
@@ -307,7 +307,7 @@ function buildStrip(TS, place) {
   place('motel', -74, -70.5, 0, (k) => {
     const P = PALC.motel;
     // office: pink box, stone panel, big glass, butterfly roof
-    k.aab(-5, 0, -10, 5, 3.4, -1, P.wall, { lod: true }); k.solid(-5, -10, 5, -1, 3.6); k.aab(-5, 0, -1.2, -3, 3.4, -0.9, P.stone);
+    k.aab(-5, 0, -10, 5, 3.4, -1, P.wall, { lod: true, pat: 'stucco' }); k.solid(-5, -10, 5, -1, 3.6); k.aab(-5, 0, -1.2, -3, 3.4, -0.9, P.stone, { pat: 'stone', ps: 0.3 });
     k.aab(-2.8, 0.5, -1.03, 4.6, 3.0, -0.97, '#3a4a4e'); k.aab(-0.6, 0, -0.98, 0.6, 2.4, -0.92, '#f6d8a8', { glow: true }); k.mark('door_motel', 0, 0.5);
     for (const s of [-1, 1]) k.box(s * 2.75, 3.25, -5.5, 5.8, 0.22, 10.4, P.trim, { rz: s * 0.17 });
     sign(k, 'OFFICE', 2.4, 2.65, -0.9, 2.2, 0.5, { fg: P.trim, glow: true });
@@ -321,8 +321,8 @@ function buildStrip(TS, place) {
     for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; k.beam([sx + 0.3, 11.4, sz], [sx + 0.3 + Math.cos(a) * 1.0, 11.4 + Math.sin(a) * 1.0, sz], 0.08, P.star, { glow: true }); }
     k.blob(sx + 0.3, 11.4, sz, 0.25, 0.25, 0.25, P.star, { glow: true }); k.solid(sx - 1, sz - 0.3, sx + 1, sz + 0.3, 9);
     // west wing (doors face the court, +x) and north wing (doors face the street)
-    k.aab(-24, 0, -34, -14, 3.2, -3, P.wall, { lod: true }); k.aab(-24.4, 3.2, -34.4, -12, 3.5, -2.6, P.trim, { lod: true }); k.solid(-24, -34, -14, -3, 3.4);
-    k.aab(-24, 0, -36, 24, 3.2, -28, P.wall, { lod: true }); k.aab(-24.4, 3.2, -36.4, 24.4, 3.5, -26, P.trim, { lod: true }); k.solid(-24, -36, 24, -28, 3.4);
+    k.aab(-24, 0, -34, -14, 3.2, -3, P.wall, { lod: true, pat: 'stucco' }); k.aab(-24.4, 3.2, -34.4, -12, 3.5, -2.6, P.trim, { lod: true }); k.solid(-24, -34, -14, -3, 3.4);
+    k.aab(-24, 0, -36, 24, 3.2, -28, P.wall, { lod: true, pat: 'stucco' }); k.aab(-24.4, 3.2, -36.4, 24.4, 3.5, -26, P.trim, { lod: true }); k.solid(-24, -36, 24, -28, 3.4);
     let n = 1; const room = (f) => { f.door(0, 0, 0, 0.95, 2.1, n % 2 ? P.trim : '#e8a0b8', { frame: '#f2ece0' }); f.window(1.6, 1.0, 0, 1.3, 1.0, { frame: '#f2ece0', glass: '#3a4a4e', blind: 0.6, blindCol: '#efe0c8' });
       f.blob(-0.75, 2.4, 0.15, 0.1, 0.12, 0.1, '#fff2b0', { glow: true }); sign(f, String(n++), 0, 2.3, 0.08, 0.3, 0.2, { fg: '#2a2a2a' }); };
     for (let z = -6; z > -27; z -= 4) k.frame(-14, 0, z, Math.PI / 2, room);
@@ -350,7 +350,7 @@ function buildStrip(TS, place) {
   place('drivein', 15, -70.5, 0, (k) => {
     const P = PALC.drivein;
     k.aab(-17, 0, -50, 17, 0.03, -0.5, P.lot);
-    k.aab(-17, 0, -50, -16.8, 2.2, -1, P.fence); k.aab(16.8, 0, -50, 17, 2.2, -1, P.fence); k.aab(-17, 0, -1.1, -3.5, 2.2, -0.9, P.fence); k.aab(7.5, 0, -1.1, 17, 2.2, -0.9, P.fence);
+    k.aab(-17, 0, -50, -16.8, 2.2, -1, P.fence); k.aab(16.8, 0, -50, 17, 2.2, -1, P.fence); k.aab(-17, 0, -1.1, -3.5, 2.2, -0.9, P.fence, { pat: 'batten', ps: 0.18 }); k.aab(7.5, 0, -1.1, 17, 2.2, -0.9, P.fence, { pat: 'batten', ps: 0.18 });
     k.solid(-17, -50, -16.8, -1, 2.2); k.solid(16.8, -50, 17, -1, 2.2); k.solid(-17, -1.1, -3.5, -0.9, 2.2); k.solid(7.5, -1.1, 17, -0.9, 2.2);
     // ticket booth in the entrance lane
     k.aab(1.0, 0, -4.2, 3.0, 2.4, -2.2, '#f0e2c4'); k.aab(0.7, 2.4, -4.5, 3.3, 2.6, -1.9, P.snackR); k.window(2.0, 1.0, -2.2, 1.4, 0.9, { frame: P.snackR, glass: '#f2d8a8', glow: true });
@@ -384,9 +384,9 @@ function buildStrip(TS, place) {
   // Ref scale 0.0095 m/px around the door (px 507, ground py 545); a second window bay added on the left for the wider plot.
   place('poolhall', -12, -52.5, Math.PI, (k) => {
     const P = PALC.pool, s = 0.0095, X = (px) => (px - 507) * s, Y = (py) => (545 - py) * s, L = -8.2, R = X(810) + 0.1;
-    k.aab(L, 0, -14, R, Y(60), 0, P.wall, { lod: true }); k.aab(-1.6, Y(60), -0.6, 1.9, Y(60) + 0.7, 0, P.wall); k.solid(L, -14, R, 0, 5);
+    k.aab(L, 0, -14, R, Y(60), 0, P.wall, { lod: true, pat: 'stucco', ps: 0.45 }); k.aab(-1.6, Y(60), -0.6, 1.9, Y(60) + 0.7, 0, P.wall); k.solid(L, -14, R, 0, 5);
     k.aab(L, Y(60) - 0.1, -0.2, R, Y(60), 0.12, '#f2ece4');
-    k.aab(L, 0, 0, X(450), 1.19, 0.06, P.base); k.aab(X(575), 0, 0, R, 1.09, 0.06, P.base);
+    k.aab(L, 0, 0, X(450), 1.19, 0.06, P.base, { pat: 'stucco', ps: 0.35 }); k.aab(X(575), 0, 0, R, 1.09, 0.06, P.base, { pat: 'stucco', ps: 0.35 });
     const bigWin = (dx) => { k.aab(X(100) + dx, 1.19, 0, X(315) + dx, Y(190), 0.14, P.frame);
       k.aab(X(100) + dx + 0.18, 1.35, 0.1, X(315) + dx - 0.18, Y(190) - 0.18, 0.16, P.curtain); k.box((X(100) + X(315)) / 2 + dx, 1.35, 0.17, 0.08, Y(190) - 1.53, 0.04, P.frame);
       k.window((X(130) + X(300)) / 2 + dx, Y(222), 0.0, X(300) - X(130), Y(85) - Y(222), { frame: P.wall, glass: P.block, mull: [7, 6], mullCol: P.grid, ft: 0.05 }); };
