@@ -12,6 +12,7 @@ import { createTownscape } from './townscape.js';
 import { patInject } from './townkit.js';
 import { createQuickTravel } from './quicktravel.js';
 import { createMinimap } from './minimap.js';
+import { createHorse } from './horse.js';   // run 13: the town's one horse (statue) + welcome signs
 import { audio } from './audio.js';
 import { sunspotsApply, sunspotsEnabled, setSunspotsLook, sunspotsLookOn, bothMats, sunspotsLowEnd } from './sunspots_material.js';
 window.__SUNSPOTS_VERSION = 'v9-next';
@@ -510,7 +511,7 @@ let wolf, mixer, actWalk, actRun, actIdle, wolfReady = false, wolfBaseScale = 1;
 // scenes.js drives the Wolf on foot during cutscenes through this puppet (gait from speed, head look)
 const puppet = { on: false, speed: 0, headYaw: 0, headTilt: 0, base: 1 };
 let director = null;
-let town = null; // town.js: diorama interiors + errands (created after loadAll)
+let town = null, HORSE = null; // town.js: diorama interiors + errands (created after loadAll)
 const wolfState = { pos: new THREE.Vector3(LAYOUT.wolfStart[0], 0, LAYOUT.wolfStart[1]), yaw: LAYOUT.wolfStart[2], speed: 0 };
 // ---------------------------------------------------------------- level 1: Last Minute Snacks (roads, car, store, townsfolk, HUD)
 const level = createLevel({ scene, colliders, feltMat, rbox, makeMeltable, feltify: (r) => feltify(r), rnd, clamp, lerp, smooth, FELT,
@@ -559,6 +560,7 @@ async function loadAll() {
   const town = Object.fromEntries(TOWN_MODELS.map((n, i) => [n, townG[i]]));
   const car2 = car.scene.clone(true); car2.traverse(o => { if (o.isMesh) o.material = o.material.clone(); });   // run 12: the Wolf's own waddle car (own materials -> own boot uniforms)
   if (NEWTOWN) { TS = createTownscape({ scene, feltMat, makeMeltable, LOW: sunspotsLowEnd(), level }); window.__TS = TS; level.townscape = TS;
+    try { HORSE = createHorse({ scene, TS, feltMat, LOW: sunspotsLowEnd() }); window.__horse = HORSE; } catch (e) { console.warn('horse failed', e); }
     const KIND = { bus_shelter: 'shelter', lamp: 'lamp', payphone: 'payphone', fountain: 'fountain' };
     for (const [n, x, z, ry, cr, pr] of TS.props) { const root = feltify(town[n].scene.clone(true)); root.position.set(x, 0, z); root.rotation.y = ry; scene.add(root); if (cr) colliders.push({ x, z, r: cr }); makeMeltable(root, { tint: TINT[KIND[n]] || '#ff8f86', puddle: pr || 1, puddleColor: WAX[KIND[n]] || '#f2907f' }); } }
   placeTown(town); placeFarCacti(town.cactus_far); level.placeRoadCacti(town);
@@ -746,7 +748,7 @@ function frame() {
   // level (clock, car, townsfolk, obstacles)
   director?.update(dt, t, { wolfPos: wolfState.pos, titleUp: !!window.__titleUp || !wolfReady || !!MAP });   // scenes: triggers + timeline
   level.update(dt, t, { wolfPos: wolfState.pos, keys, wild: w, titleUp: !!window.__titleUp || !wolfReady || !!MAP });
-  town?.outside(dt); QT?.update(town); MM?.update(dt, town); wolfFootsteps(); audio.update(dt);
+  HORSE?.update(dt, t, w); town?.outside(dt); QT?.update(town); MM?.update(dt, town); wolfFootsteps(); audio.update(dt);
   // run 12: the Wolf at the wheel of his own car
   if (wolfReady && level.solo && !puppet.on) { const fc = level.free, ss = level.soloSeat; fc.root.updateMatrixWorld(true);
     _sm.copy(fc.body.matrixWorld).multiply(_sm2.makeTranslation(ss.x, ss.y, ss.z)); _sm.decompose(wolf.position, wolf.quaternion, tmpV); wolf.scale.setScalar(wolfBaseScale * level.seatScale);
@@ -959,7 +961,7 @@ loadAll().then(() => {
     director.init().then(() => { if (Q.get('scene')) debugScene(Q.get('scene')); }).catch(e => console.warn('scenes failed to load', e));
   }
   const clearInput = () => { for (const k in keys) keys[k] = false; input.x = input.y = 0; joyId = null; lookId = null; joy.style.display = 'none'; };
-  town = createTown({ renderer, mainScene: scene, load: (u) => load(u), normalize, feltMat, level, wolfState, colliders, audio, townscape: TS,
+  town = createTown({ renderer, mainScene: scene, load: (u) => load(u), normalize, feltMat, level, wolfState, colliders, audio, townscape: TS, horse: HORSE,
     onEnter: () => { clearInput(); if (FP.on) toggleFP?.(); }, onExit: () => { clearInput(); clock.getDelta(); } });
   if (TS) QT = createQuickTravel({ TS, level, wolfState, LAYOUT, onJump: (y) => { clearInput(); camYawTarget = camYaw = y + Math.PI; snapCam = true; } }); window.__qt = QT;
   if (TS && QT) { MM = createMinimap({ TS, level, wolfState, QT, town, audio }); window.__minimap = MM; }

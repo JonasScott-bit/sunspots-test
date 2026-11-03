@@ -18,13 +18,14 @@ export function createQuickTravel({ TS, level, wolfState, LAYOUT, onJump }) {
   const fade = document.createElement('div'); fade.id = 'qtFade'; document.body.appendChild(fade);
   const sheet = document.createElement('div'); sheet.id = 'qtSheet'; document.body.appendChild(sheet);
   const PLACES = [
-    ['Main St', [['bus', 'Bus stop', 'ride pickup'], ['diner', 'Diner'], ['laundromat', 'Laundromat'], ['post', 'Post Office'], ['dmv', 'DMV'], ['thrift', 'Thrift'], ['ksun', 'KSUN'], ['yard', "Crow's Yard"], ['moth', "Moth's place", 'apartment row']]],
+    ['Main St', [['bus', 'Bus stop', 'ride pickup'], ['diner', 'Diner'], ['laundromat', 'Laundromat'], ['post', 'Post Office'], ['dmv', 'DMV'], ['thrift', 'Thrift'], ['ksun', 'KSUN'], ['yard', "Crow's Yard"], ['statue', 'Horse Statue', 'town square'], ['moth', "Moth's place", 'apartment row']]],
     ['Neon Strip', [['bowl', 'Gutter Bowl'], ['motel', 'Motel'], ['pool', 'Motel Pool'], ['drivein', 'Drive-in'], ['poolhall', 'Pool Hall', 'eight-ball'], ['court', 'The Court', 'hoops']]],
     ['Homes', [['wolf', 'Home', "the Wolf's"], ['living90', "Bear's"], ['lynx', "Lynx's"], ['crow', "Crow's"], ['heron', "Heron's"], ['gecko', "Gecko's"], ['ram', "Ram's"], ['anteater', "Anteater's"], ['mansion', 'The Mansion', 'Vulture + Larry Byrd'], ['farm', 'The Farm']]],
   ];
   const where = (k) => {
     if (k === 'fence') return { x: -86.5, z: 18.5, yaw: 0 };   // run 12: the Crow's collection by the road
     if (k === 'bus') { const s = TS.busStops?.[0]; return s ? { x: s.x - 2.2, z: s.z + 1.6, yaw: Math.PI / 2 } : null; }
+    if (!TS.doors[k] && TS.spots?.[k]?.map) { const s = TS.spots[k], ry = s.ry || 0; return { x: s.x + Math.sin(ry) * 0.6, z: s.z + Math.cos(ry) * 0.6, yaw: ry + Math.PI }; }   // run 13: map spots (statue, carnival)
     const d = TS.doors[k]; if (!d) return null; const ry = d.ry || 0, out = 2.2;
     return { x: d.x + Math.sin(ry) * out, z: d.z + Math.cos(ry) * out, yaw: ry + Math.PI };
   };

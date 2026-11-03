@@ -107,7 +107,7 @@ export function createTown(ctx) {
   while (ui.firstChild) document.body.appendChild(ui.firstChild);
   const btn = $('roomBtn'), chips = $('roomChips'), curtain = $('roomCurtain'), sub = $('sceneSub'), subName = $('sceneSubName'), subText = $('sceneSubText');
   let near = null;
-  btn.addEventListener('click', () => { if (near) near.room ? enter(near.room) : talkOutside(); });
+  btn.addEventListener('click', () => { if (!near) return; if (near.room) enter(near.room); else if (near.act) { audio.ui?.('tick'); const L = near.act(); if (L) outSay(L); } else talkOutside(); });
   $('roomExit').addEventListener('click', () => exit());
 
   // ------------------------------------------------------------------ helpers
@@ -1516,6 +1516,20 @@ export function createTown(ctx) {
     outLines = L.slice(); nextOut();
   }
   let outLines = [], outT = 0;
+  function outSay(L) { outLines = L.slice(); nextOut(); }
+  // run 13: generic outdoor walk-up spots {x, z, r, label (string|fn), act() -> lines, on()?}
+  const OUT = []; T.addSpot = (sp) => { OUT.push(sp); return sp; }; T.outSay = outSay; T.spots = OUT;
+  const HZ = ctx.horse, wildNow = () => (window.__sunspots?.wild || 0) > 0.5;
+  const STATUE = [[['PLAQUE', 'SUNSPOTS. SAME OLD ONE HORSE TOWN.'], ['PLAQUE', 'This was the town\'s only horse. It still is.']],
+    [['PLAQUE', 'Erected 1951. Melted 1951.'], ['PLAQUE', 'Same afternoon.']],
+    [['PLAQUE', 'The horse did nothing of note.'], ['PLAQUE', 'We felt it deserved a statue anyway. Nobody else was available.']],
+    [['PLAQUE', 'Do not climb the horse.'], ['PLAQUE', 'The horse is soft. The ground is not.']],
+    [['WOLF', 'Hi, horse.'], ['', 'The horse says nothing. It has said nothing since 1951.']]];
+  const STATUE_W = [[['PLAQUE', 'ITS EYES ARE NORMAL.'], ['PLAQUE', 'STOP LOOKING AT ITS EYES.']], [['', 'The horse is looking at you. It has always been looking at you.'], ['WOLF', 'Same old horse.']],
+    [['PLAQUE', 'SAME OLD ONE HORSE TOWN.'], ['PLAQUE', 'SAME OLD ONE HORSE. NEW EYES.']]];
+  let statueN = 0;
+  const STAT = TSC?.spots?.statue;
+  if (STAT && HZ) T.addSpot({ id: 'statue', x: STAT.x, z: STAT.z, r: 3.2, label: () => T.statueLabel?.() || 'READ THE PLAQUE', act: () => T.statueAct?.() || (wildNow() ? STATUE_W[statueN++ % STATUE_W.length] : STATUE[statueN++ % STATUE.length]) });
   function nextOut() { const l = outLines.shift(); if (!l) { sub.classList.remove('on'); return; } try { l[2]?.(); } catch (e) { console.warn(e); } subName.textContent = l[0] ? l[0] + ' ' : ''; subText.textContent = l[1]; sub.classList.add('on'); outT = 1.4 + l[1].length * 0.045; }
 
   // ------------------------------------------------------------------ per-frame
@@ -1605,7 +1619,9 @@ export function createTown(ctx) {
     const p = wolfState.pos; near = null; let best = 2.4;
     for (const d of DOORS) { const dd = Math.hypot(p.x - d.x, p.z - d.z); if (dd < best) { best = dd; near = d; } }
     if (crowSpot) { const dd = Math.hypot(p.x - crowSpot.x, p.z - crowSpot.z); if (dd < 2.6 && dd < best + 0.3) near = crowSpot; }
-    btn.style.display = near ? 'block' : 'none'; if (near) btn.textContent = near.room ? 'ENTER ' + ROOMS[near.room].name.replace('THE ', '') : near.label;
+    for (const sp of OUT) { if (sp.on && !sp.on()) continue; const dd = Math.hypot(p.x - sp.x, p.z - sp.z); if (dd < (sp.r || 2.6) && dd < best + 0.3) { best = dd; near = sp; } }   // run 13: statue, chatter, mission spots
+    if (near && near.act && typeof near.label === 'function') near._l = near.label();
+    btn.style.display = near ? 'block' : 'none'; if (near) btn.textContent = near.room ? 'ENTER ' + ROOMS[near.room].name.replace('THE ', '') : (near._l || near.label);
     if (errands().length) { if (S.held == null) S.held = level.left; level.left = S.held; } else S.held = null;
     if (outLines.length || (!T.active && sub.classList.contains('on') && outT > 0)) { outT -= dt; if (outT <= 0) nextOut(); }
     common(dt);

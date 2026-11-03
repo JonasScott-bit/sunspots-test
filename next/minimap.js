@@ -62,10 +62,10 @@ export function createMinimap({ TS, level, wolfState, QT, town, audio }) {
   }
 
   // ---------------------------------------------------------------- places
-  const doorPos = (k) => { if (k === 'fence') return { x: -86.5, z: 18.5 }; if (k === 'bus') { const s = TS.busStops?.[0]; return s && { x: s.x, z: s.z }; } const d = TS.doors?.[k]; return d && { x: d.x, z: d.z }; };
+  const doorPos = (k) => { if (k === 'fence') return { x: -86.5, z: 18.5 }; if (k === 'bus') { const s = TS.busStops?.[0]; return s && { x: s.x, z: s.z }; } const d = TS.doors?.[k] || (TS.spots?.[k]?.map && TS.spots[k]); return d && { x: d.x, z: d.z }; };
   const names = {}; for (const [, l] of QT.PLACES || []) for (const [k, n] of l) names[k] = n;
-  Object.assign(names, NAME_OF, { fence: "Crow's collection" });
-  const places = Object.keys(TS.doors || {}).map(k => ({ k, ...doorPos(k), name: names[k] || k, room: ROOMS.includes(k), game: !!GAMES[k], home: !!HOMES[k] }));
+  Object.assign(names, NAME_OF, { fence: "Crow's collection" }); for (const [k, v] of Object.entries(TS.spots || {})) if (v.map && !names[k]) names[k] = v.map;
+  const places = [...Object.keys(TS.doors || {}), ...Object.keys(TS.spots || {}).filter(k => TS.spots[k].map && !TS.doors[k])].map(k => ({ k, ...doorPos(k), name: names[k] || k, room: ROOMS.includes(k), game: !!GAMES[k], home: !!HOMES[k], spot: !TS.doors?.[k] && !!TS.spots?.[k]?.map }));
   const targets = () => { const o = []; try { for (const t of town?.targets?.() || []) { const p = doorPos(t.k); if (p) o.push({ ...p, k: t.k, title: t.title }); } } catch (_) {}
     if (level.mode === 'drive' && !level.ended && level.MAIN) { const s = level.MAIN.s, e = s[s.length - 1]; o.push({ x: e.x, z: e.z, k: 'store', title: 'SNACKS' }); }
     return o; };
@@ -117,7 +117,7 @@ export function createMinimap({ TS, level, wolfState, QT, town, audio }) {
     const g = mg; g.save(); g.clearRect(0, 0, W, W); g.beginPath(); g.arc(W / 2, W / 2, W / 2, 0, 7); g.clip();
     const { sx, sy } = drawWorld(g, p.x, p.z, zoomK, W, W), R = W / 2 - 9 * dpr, s = 5.2 * dpr;
     const inView = (x, y) => Math.hypot(x - W / 2, y - W / 2) < R;
-    for (const pl of places) { const x = sx(pl.x), y = sy(pl.z); if (!inView(x, y)) continue; glyph(g, x, y, s * (pl.room ? 0.9 : 0.7), pl.game ? 'game' : pl.home ? 'home' : 'room', pl.room ? null : '#a08c7a'); }
+    for (const pl of places) { const x = sx(pl.x), y = sy(pl.z); if (!inView(x, y)) continue; glyph(g, x, y, s * (pl.room || pl.spot ? 0.9 : 0.7), pl.game ? 'game' : pl.home ? 'home' : 'room', pl.spot ? '#c9a24a' : pl.room ? null : '#a08c7a'); }
     const bus = TS.busStops?.[0]; if (bus && inView(sx(bus.x), sy(bus.z))) glyph(g, sx(bus.x), sy(bus.z), s * 0.75, 'bus');
     const edge = (x, y, col, kind) => { if (inView(x, y)) { glyph(g, x, y, s, kind); return; } const a = Math.atan2(y - W / 2, x - W / 2), ex = W / 2 + Math.cos(a) * R, ey = W / 2 + Math.sin(a) * R;
       g.save(); g.translate(ex, ey); g.rotate(a); g.fillStyle = col; g.beginPath(); g.moveTo(s * 1.1, 0); g.lineTo(-s * 0.6, -s * 0.8); g.lineTo(-s * 0.6, s * 0.8); g.closePath(); g.fill(); g.strokeStyle = '#fff3dc'; g.lineWidth = dpr; g.stroke(); g.restore(); };
@@ -163,7 +163,7 @@ export function createMinimap({ TS, level, wolfState, QT, town, audio }) {
     if (freeOn()) { const x = sx(level.free.pos.x), y = sy(level.free.pos.z); glyph(g, x, y, s * 1.2, 'car'); label(x, y, 'YOUR CAR', 1, '#c45a48'); hits.push({ x, y, car: 1 }); }
     if (rideOn()) { const x = sx(level.car.pos.x), y = sy(level.car.pos.z); glyph(g, x, y, s * 1.1, 'ride'); label(x, y, 'THE RIDE', 1, '#b87420'); hits.push({ x, y, k: 'bus' }); }
     for (const pl of [...places].sort((a, b) => (b.room - a.room) || (b.game - a.game))) { const x = sx(pl.x), y = sy(pl.z); if (x < -20 || y < -20 || x > w + 20 || y > h + 20) continue;
-      glyph(g, x, y, s * (pl.room ? 1 : 0.8), pl.game ? 'game' : pl.home ? 'home' : 'room', pl.room ? null : '#a08c7a'); label(x, y, pl.name, 0); hits.push({ x, y, k: pl.k }); }
+      glyph(g, x, y, s * (pl.room || pl.spot ? 1 : 0.8), pl.game ? 'game' : pl.home ? 'home' : 'room', pl.spot ? '#c9a24a' : pl.room ? null : '#a08c7a'); label(x, y, pl.name, 0); hits.push({ x, y, k: pl.k }); }
     const bus = TS.busStops?.[0]; if (bus) { const x = sx(bus.x), y = sy(bus.z); glyph(g, x, y, s, 'bus'); hits.push({ x, y, k: 'bus' }); }
     const px = sx(P.x), py = sy(P.z);
     if (P.car) { g.save(); g.translate(px, py); g.rotate(Math.PI - P.yaw); glyph(g, 0, 0, s * 1.4, P.car); g.restore(); } else arrow(g, px, py, s * 1.5, P.yaw);

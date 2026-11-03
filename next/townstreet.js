@@ -158,7 +158,7 @@ export function buildStreet(TS, place) {
     if (label) k.beam([x0 + 1.6, 0, nose > 0 ? z0 + 0.2 : z1 - 0.2], [x0 + 1.6, 1.75, nose > 0 ? z0 + 0.2 : z1 - 0.2], 0.08, '#8a8a86');
     for (const i of carsAt) car(k, x0 + (i + 0.5) * sw, back - nose * 2.9, nose > 0 ? 0 : Math.PI, CARS[(i * 7 + 3) % CARS.length]);
   });
-  lot(-76, 16, -58.5, 29.5, 6, 1, [0, 2, 3], 'CUSTOMER\nPARKING');        // Main St south, beside the Yard
+  // run 13: the Main St customer lot (-76..-58.5, 16..29.5) is now the Horse Plaza (horse.js)
   lot(1.5, -52, 22, -38, 7, -1, [1, 2, 5], 'BOWL & POOL\nPARKING');        // Neon Strip south, beside the pool hall
 
   // ---- the back alley (z -31..-26): dumpsters, bags, crates, puddles, graffiti, a bare bulb over a back door
