@@ -17,6 +17,7 @@ import { createPetHorse, PET_NAME } from './horses.js';   // horses: GRAVY, Bear
 import { dressTown, installTalk } from './towntalk.js';   // run 13: billboards, flyers, lore, chatter
 import { installMissions } from './missions13.js';
 import { installHeron } from './heron14.js';
+import { installLivingWorld } from './livingworld.js';   // run 14 (D)
 import { installCarnRides } from './carnrides.js';   // run 14b: ride the rides, play the midway   // run 13: THE ONE HORSE, KSUN CALL-IN, PAPER ROUTE
 import { createCarnival, createCalliope } from './carnival.js';   // run 14: the One Horse Fair (east edge of town)
 import { audio } from './audio.js';
@@ -664,7 +665,7 @@ canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointerca
 const keys = {}; addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyM') toggleWild(); if (e.code === 'KeyV' && !e.repeat && level.mode === 'walk' && !level.frozen) toggleFP(); if (e.code === 'KeyC' && !e.repeat && level.solo && !level.frozen) toggleFP(); if (e.code === 'KeyN' && !e.repeat) MM?.toggle(); }); addEventListener('keyup', e => keys[e.code] = false);
 
 // ---------------------------------------------------------------- wild mode
-let CARN = null, PET = null, CR = null, HERON = null, rideK = 0, rideHip = 0;   // run 14
+let CARN = null, PET = null, CR = null, HERON = null, LW = null, rideK = 0, rideHip = 0;   // run 14
 let wild = Q.has('wild') ? 1 : 0, wildTarget = wild;
 const wildBtn = document.getElementById('wildBtn');
 function toggleWild() { wildTarget = wildTarget ? 0 : 1; audio.wild(!!wildTarget); wildBtn.classList.toggle('on', !!wildTarget); wildBtn.textContent = wildTarget ? 'SUNSHINE' : 'WILD'; }
@@ -852,6 +853,7 @@ function frame() {
   // run 14b: carnival rides + midway games (the Wolf sits in a seat, or stands at a booth)
   if (CR) { if (CR.busy && (level.mode !== 'walk' || puppet.on || town?.active)) CR.exit();
     CR.update(dt, t, w); HERON?.update(dt); if (wolfReady && CR.seatM) seatWolf(CR.seatM, CR.pose, t); else if (wolfReady && CR.game) standIdle(dt); }
+  if (LW) try { LW.update(dt, t); } catch (e) { console.warn('livingworld', e); LW = null; }   // run 14 (D): the living town
   camYaw += (camYawTarget - camYaw) * (1 - Math.exp(-dt * 6));
   const portrait = innerHeight > innerWidth;
   const dist = portrait ? 10.5 : 9.5, hgt = portrait ? 4.2 : 3.3;
@@ -989,6 +991,7 @@ loadAll().then(() => {
     const r0 = town.riding; town.riding = () => !!(r0?.() || CR.busy); } catch (e) { console.warn('carnrides failed', e); }
   if (CR) try { HERON = installHeron({ CR, CARN, T: town, TS, scene, feltMat }); window.__heron = HERON; } catch (e) { console.warn('heron failed', e); }
   if (TS) QT = createQuickTravel({ TS, level, wolfState, LAYOUT, onJump: (y) => { clearInput(); camYawTarget = camYaw = y + Math.PI; snapCam = true; } }); window.__qt = QT;
+  if (TS && town && !Q.has('nolife')) try { LW = installLivingWorld({ T: town, TS, level, wolfState, scene, camera, feltMat, audio, CR, QT }); window.__lw = LW; } catch (e) { console.warn('livingworld failed', e); }
   if (TS && QT) { MM = createMinimap({ TS, level, wolfState, QT, town, audio }); window.__minimap = MM; }
   if (Q.get('room')) { const go = () => { if (window.__titleUp || !wolfReady) { setTimeout(go, 200); return; } town.enter(Q.get('room')); }; go(); }
   window.__ready = true;
