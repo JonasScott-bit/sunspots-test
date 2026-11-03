@@ -349,6 +349,65 @@ A.cast = (m, from, to) => {
   if (h) { A.castT = now; A.castVoice = { who: m, h, end: now + h.src.buffer.duration }; note('cast', { who: m.name, act: to }); }
 };
 A.step = (speed) => { if (A.state !== 'game') return; play(pick(V.step), { gain: 0.3 + 0.45 * clamp(speed / 7.2, 0, 1), rate: 0.94 + rnd() * 0.12 }); A.idleT = 0; };
+// ---------------------------------------------------------------- run 12: KSUN 98.6, the Wolf's own car radio (solo free roam only)
+// Our existing songs, streamed (two <audio> decks -> MediaElementSource, like the credits) so nothing big is decoded.
+// Shuffle start, ~2.2 s crossfade between songs, SCAN = next (a little static), fades out + pauses when he gets out.
+// Mission music wins: Closing at Two / scene cues sink it (it only ever plays in L.mode 'solo', never in the moth's car).
+const SOLO = [
+  { n: 'radio_pro_four_coral_boots', t: 'Four Coral Boots', len: 80 }, { n: 'radio_pro_wrong_station_forever', t: 'Wrong Station Forever', len: 80 },
+  { n: 'radio_pro_motorik_mirage', t: 'Motorik Mirage', len: 80 }, { n: 'music_town_pro_coral_ground_loop', t: 'Coral Ground', len: 80, loop: 1 },
+  { n: 'music_town_pro_fuzzy_melt_wild_loop', t: 'Fuzzy Melt', len: 80, loop: 1 }, { n: 'music_title_loop_pro_mind_meld', t: 'Mind Meld', len: 95, loop: 1 },
+  { n: 'music_tension_pro_closing_at_two', t: 'Closing at Two', len: 84 }, { n: 'cue_pro_readymade_last_snack', t: 'Readymade Last Snack', len: 27 },
+  { n: 'cue_pro_wheel_on_a_stool', t: 'Wheel on a Stool', len: 24.9 }, { n: 'cue_pro_closed_in_my_face', t: 'Closed in My Face', len: 13.3 },
+  { n: 'music_credits_pro_eye_sets_over_the_coral', t: 'The Eye Sets Over the Coral', len: 285 }];
+const SR = { on: false, order: [], i: -1, decks: [], cur: -1, lvl: null, title: '', air: 0, count: 0, offT: 0, scans: 0 };
+A.soloRadio = SR; A.SOLO = SOLO;
+function soloChain() {
+  if (SR.lvl || !ctx) return;
+  SR.lvl = ctx.createGain(); SR.lvl.gain.value = 0; SR.lvl.connect(BUS.radio);
+  const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 120; hp.Q.value = 0.6;   // a car speaker, not a phone: light touch
+  const pk = ctx.createBiquadFilter(); pk.type = 'peaking'; pk.frequency.value = 2300; pk.gain.value = 2.5; pk.Q.value = 0.9;
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 7600; lp.Q.value = 0.6; SR.lp = lp;
+  SR.inp = ctx.createGain(); SR.inp.connect(hp); hp.connect(pk); pk.connect(lp); lp.connect(SR.lvl);
+  for (let k = 0; k < 2; k++) { const el = new Audio(); el.preload = 'auto'; el.setAttribute('playsinline', ''); el.playsInline = true;
+    const g = ctx.createGain(); g.gain.value = 0; g.connect(SR.inp); const d = { el, g, idx: -1 };
+    try { ctx.createMediaElementSource(el).connect(g); } catch (e) { A.errors.push('solo radio: ' + e.message); }
+    el.addEventListener('error', () => { if (!el._fb && /\.ogg$/.test(el.src)) { el._fb = 1; el.src = el.src.replace(/\.ogg$/, '.m4a'); if (SR.on && SR.decks[SR.cur] === d) el.play().catch(() => {}); } else note('solo_err', { src: el.src }); });
+    el.addEventListener('ended', () => { if (SR.on && SR.decks[SR.cur] === d) soloNext(1.2); });
+    SR.decks.push(d); }
+  const nb = ctx.createBuffer(1, ctx.sampleRate * 0.4 | 0, ctx.sampleRate), ch = nb.getChannelData(0);
+  for (let i = 0; i < ch.length; i++) ch[i] = (Math.random() * 2 - 1) * (0.6 + 0.4 * Math.sin(i / 90)) * Math.min(1, (ch.length - i) / 2000);
+  SR.noise = nb;
+}
+function soloShow() { const el = document.getElementById('srName'); if (el) el.textContent = SR.title; const n = document.getElementById('srNum'); if (n) n.textContent = (SR.i + 1) + '/' + SOLO.length; const p = document.getElementById('soloRadio'); if (p) { p.classList.remove('flip'); void p.offsetWidth; p.classList.add('flip'); } }
+function soloNext(fade = 2.2, off = 0) {
+  const now = ctx.currentTime; SR.i = (SR.i + 1) % SR.order.length; const tr = SOLO[SR.order[SR.i]];
+  const old = SR.decks[SR.cur]; SR.cur = (SR.cur + 1) % 2; const nd = SR.decks[SR.cur];
+  if (old) { old.g.gain.cancelScheduledValues(now); old.g.gain.setValueAtTime(old.g.gain.value, now); old.g.gain.linearRampToValueAtTime(0, now + fade);
+    clearTimeout(old.stopT); old.stopT = setTimeout(() => { if (SR.decks[SR.cur] !== old) old.el.pause(); }, fade * 1000 + 200); }
+  clearTimeout(nd.stopT); nd.el._fb = 0; nd.el.loop = !!tr.loop; nd.idx = SR.order[SR.i];
+  const t0 = off, tg = Math.pow(10, -(SOUNDS[tr.n]?.trim?.[A.fmt] || 0) / 20); nd.el.src = BASE + tr.n + '.' + A.fmt;
+  if (t0 > 0.01) nd.el.addEventListener('loadedmetadata', () => { try { nd.el.currentTime = t0; } catch (e) { } }, { once: true });
+  nd.el.play().catch(e => note('solo_play', { err: String(e.message || e) }));
+  nd.g.gain.cancelScheduledValues(now); nd.g.gain.setValueAtTime(0, now); nd.g.gain.linearRampToValueAtTime(tg, now + fade);
+  SR.air = off; SR.len = tr.len; SR.title = tr.t; SR.n = tr.n; SR.count++; note('solo_song', { n: tr.n }); soloShow();
+}
+A.soloOn = (on) => {
+  if (!ctx) return; soloChain(); if (!SR.lvl) return;
+  if (on) { SR.on = true; SR.offT = 0;
+    if (!SR.order.length) { SR.order = SOLO.map((_, i) => i); for (let i = SR.order.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [SR.order[i], SR.order[j]] = [SR.order[j], SR.order[i]]; } }
+    if (SR.cur < 0) { soloNext(0.6, rnd() * 18); const o = SR.decks[(SR.cur + 1) % 2]; if (!o.el.src) { o.el.src = BASE + SOLO[SR.order[1 % SR.order.length]].n + '.' + A.fmt; o.el.play().then(() => { if (SR.decks[SR.cur] !== o) o.el.pause(); }).catch(() => { }); } }   // primes the 2nd deck inside the tap (iOS)
+    else { const d = SR.decks[SR.cur]; d.el.play().catch(() => { }); soloShow(); }
+  } else if (SR.on) { SR.on = false; SR.offT = ctx.currentTime; }
+};
+A.soloScan = () => { if (!ctx || !SR.on) return null; SR.scans++; const now = ctx.currentTime;
+  if (SR.noise) { const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = SR.noise; f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = 0.7; g.gain.value = 0.22; s.connect(f); f.connect(g); g.connect(SR.lvl); s.start(now); }
+  soloNext(0.5); return SR.title; };
+function soloTick(dt, want) {
+  if (!SR.lvl) return; P(SR.lvl.gain, want, SR.on ? 0.35 : 0.3);
+  if (SR.on) { const d = SR.decks[SR.cur]; if (d && !d.el.paused) SR.air += dt; if (SR.air > SR.len - 2.2) soloNext(2.2); }
+  else if (SR.offT && ctx.currentTime - SR.offT > 1.6) { SR.offT = 0; for (const d of SR.decks) d.el.pause(); }
+}
 A.ev = (kind, o = {}) => {
   if (!ctx) return;
   const L = G?.L;
@@ -358,8 +417,8 @@ A.ev = (kind, o = {}) => {
       play(pick(V.grunt), { bus: 'vox', gain: 0.55, when: ctx.currentTime + 0.3 }); loadSet(SET.car); loadSet(SET.sceneVo); A.barkT = 26 + rnd() * 10;
       setTimeout(() => line('vo_wolf_03', { retry: 4 }), 1500);                                   // "Coral ground, cobalt sky. Let's roll."
       A.radioVoT = 13; break;                                                                      // then the radio remark, once it's on
-    case 'enterSolo': play('sfx_car_door_open', { gain: 0.55 }); play('sfx_car_door_shut', { gain: 1, when: ctx.currentTime + 0.6 }); loadSet(SET.car); break;
-    case 'exitSolo': play('sfx_car_door_open', { gain: 0.5 }); play('sfx_car_door_shut', { gain: 0.9, when: ctx.currentTime + 0.5 }); break;
+    case 'enterSolo': play('sfx_car_door_open', { gain: 0.55 }); play('sfx_car_door_shut', { gain: 1, when: ctx.currentTime + 0.6 }); loadSet(SET.car); A.soloOn(true); break;
+    case 'exitSolo': play('sfx_car_door_open', { gain: 0.5 }); play('sfx_car_door_shut', { gain: 0.9, when: ctx.currentTime + 0.5 }); A.soloOn(false); break;
     case 'bonk': play(pick(V.bump), { gain: 1, rate: 0.9 + rnd() * 0.15 }); if (o.solo) break;
       if (rnd() < 0.35 && ctx.currentTime - (A.bonkVoT || -99) > 10 && !A.voice) { A.bonkVoT = ctx.currentTime; setTimeout(() => line(pickFresh(['vo_moth_13', 'vo_moth_14', 'vo_squid_11', 'vo_farmhand_10']), {}), 500); }
       else if (rnd() < 0.25 && !A.voice) setTimeout(() => moth(0.8), 600); break;
@@ -375,7 +434,7 @@ A.ev = (kind, o = {}) => {
         else { if (A.cue) { A.cue.stop(0.5); A.cue = null; } const h = play('cue_pro_closed_in_my_face', { dest: N.sting, destName: 'music.sting', gain: 1, when: ctx.currentTime + 0.25 }); if (h) { A.cue = h; A.cueEnd = ctx.currentTime + 0.25 + h.src.buffer.duration; } }
       }
       A.endT = ctx.currentTime; break; }
-    case 'reset': A.stingDone = false; A.endT = null; if (A.cue) { A.cue.stop(0.3); A.cue = null; } stopTension(0.3); A.tensLoading = false; resetLines(); break;
+    case 'reset': A.soloOn(false); A.stingDone = false; A.endT = null; if (A.cue) { A.cue.stop(0.3); A.cue = null; } stopTension(0.3); A.tensLoading = false; resetLines(); break;
   }
 };
 // scene cues (scenes.js CUES): real sounds where one exists, the rest stay silent no-ops
@@ -418,6 +477,7 @@ A.update = (dt) => {
   else if (cueOn) { town = 0; tens = 0; }
   else if (blocking) { town = 0.4; tens *= 0.5; }
   else if (L.inCar) { town = CK.chase ? 0.12 : 0; tens = (CK.chase ? 0.8 : 0.7) * tensUp; }
+  else if (L.solo) { town = 0; tens = 0.75 * tensUp; }   // run 12: in his own car the KSUN radio is the music
   if (A.tensSrc && !L.ended) town *= 1 - tensUp;
   P(N.town.gain, town, 0.35); P(N.tens.gain, tens, tensUp < 1 ? 0.25 : 0.35);
   const w = clamp(G.getWild?.() || 0, 0, 1);
@@ -432,6 +492,7 @@ A.update = (dt) => {
   const want = L.radioVol || 0; if (want > 0 && !A.radio) radioStart(); radioTick();
   const outside = !L.inCar || CK.chase || blocking;
   P(N.rLvl.gain, want * RADIO_LV[A.radioLvl] * (outside ? 0.6 : 1) * (1 - 0.6 * tensUp), 0.15);   // the station sinks under Closing at Two P(N.rMuf.frequency, outside ? 950 : 4200, 0.15);
+  soloTick(dt, L.solo && !L.ended && !cueOn && !blocking ? 0.62 * (1 - 0.85 * tensUp) * (L.soloChase ? 0.8 : 1) : 0);
   P(N.cabLp.frequency, L.inCar && CK.chase ? 2200 : 18000, 0.1); P(N.cab.gain, L.inCar && CK.chase ? 0.7 : 1, 0.1);
   // engine: idle <-> rev by speed (pitch + gain); faint from the street when you're on foot
   const sc = L.solo ? L.free : c;   // run 12: the engine/boots you hear are the car you're in
