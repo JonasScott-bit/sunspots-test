@@ -46,6 +46,7 @@ const ROOMS = {
   moth:       { name: 'MOTH\'S PAD',                wall: '#d9a62a', trim: '#5a3a1e', floor: '#7a8a3a', floor2: '#6a7a2e', light: '#ffe2b0', real: true },   // 1974 rental den
   apt_pink:   { name: 'THE PINK APARTMENT',         wall: '#f2a6b8', trim: '#4ab8b0', floor: '#f2e2dc', floor2: '#e8d4cc', light: '#fff0f0', real: true },   // 1956 Miami Modern
   mansion:    { name: 'THE MANSION',                wall: '#f2efe8', trim: '#2f3236', floor: '#c9a47a', floor2: '#bf9a70', light: '#fff0d8', real: true, W: 9, D: 6.4 },   // 2024 hillside glass house
+  farm:       { name: 'THE FARMHOUSE KITCHEN',      wall: '#f2ede0', trim: '#1e2326', floor: '#c98f52', floor2: '#bd844a', light: '#fff4e0', real: true },   // 1890s New England farmhouse
 };
 // outside: which building is which (diner door is LAYOUT.spots.diner_door; the three adobes face the square)
 const DOORS = [
@@ -76,6 +77,7 @@ const DOORS = [
   { room: 'moth', x: 0, z: 0, sign: null },
   { room: 'apt_pink', x: 0, z: 0, sign: null },
   { room: 'mansion', x: 0, z: 0, sign: null },
+  { room: 'farm', x: 0, z: 0, sign: null },
 ];
 let DRIVEIN = { x: 24.0, z: 19.0 }; // the outdoor Eye-Max screen (felt placeholder)
 let FENCE = { x: -15, z: 10.8 }; // the Crow's roadside collection (fence-stool), south of the town street

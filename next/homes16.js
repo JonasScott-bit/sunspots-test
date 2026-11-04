@@ -404,5 +404,76 @@ export function homes16(K) {
     ];
     playhouse(A);
   };
+
+  // ---------------------------------------------------------------- FARM: an 1890s New England farmhouse kitchen (ref farmhand_squid_farm_01: white Cape, black shutters, red door, red barn)
+  // Wide pine floor, white beadboard wainscot under whitewashed plaster, a GRANITE STATE No.8 cookstove, a soapstone sink with a cast-iron hand pump under a 6-over-6 window
+  // (red barn outside), a butter churn, a harvest table on a braided rag rug, the one shovel on the pegs, the horse's photo ("PROMOTED"), and the Banana Squid's bus-stop sign collection.
+  // Chore: MORNING CHORES (stoke, churn, pump).
+  R.farm = async (G, A) => {
+    const WASH = '#f2ede0', BEAD = '#e8e0cc', PINE = '#c98f52', IRON = '#1e1c1c', SOAP = '#7d8580', RED = '#a8322a', SHUT = '#1e2326', CROCK = '#d8c8a0';
+    const [farm, squid] = await Promise.all([glb('cast/wanderer_shovel_farmhand_walking.glb', 1.7, 'object', { rest: 'breathe' }), glb('cast/wanderer_banana_squid_walking.glb', 1.5, 'object', { rest: 'bob' })]);
+    const bead = (g, w, h) => { g.fillStyle = WASH; g.fillRect(0, 0, w, h); fibres(g, w, h, 0.03, 700); g.fillStyle = BEAD; g.fillRect(0, yy(h, 1.1), w, h); g.fillStyle = 'rgba(120,100,70,0.25)'; for (let x = 0; x < w; x += 10) g.fillRect(x, yy(h, 1.1), 1.5, h);
+      g.fillStyle = '#d4c8ac'; g.fillRect(0, yy(h, 1.14), w, 7); g.fillStyle = '#bfa888'; g.fillRect(0, yy(h, 0.12), w, h); };
+    realRoom(G, { H,
+      floor: cvTex(256, 256, boards(['#c98f52', '#bd844a', '#d29a5c'], 32), 3, 2.4),
+      back: cvTex(1024, 256, bead), left: cvTex(512, 256, bead), right: cvTex(512, 256, bead),
+      ceil: cvTex(256, 256, (g, w, h) => { g.fillStyle = WASH; g.fillRect(0, 0, w, h); g.fillStyle = '#8a6440'; for (let p = 0; p < w; p += 85) g.fillRect(p, 0, 16, h); }, 2, 1.4), cy: [3.2, 3.4], cz: 4.6, ceilGlow: 0.35 });
+    // 6-over-6 window with black shutters; the red barn and the green hill outside
+    const view = cvTex(256, 192, (g, w, h) => { g.fillStyle = '#8ac4ec'; g.fillRect(0, 0, w, h); g.fillStyle = '#4a7a3a'; g.beginPath(); g.moveTo(0, h * 0.5); g.quadraticCurveTo(w * 0.5, h * 0.2, w, h * 0.45); g.lineTo(w, h); g.lineTo(0, h); g.fill();
+      g.fillStyle = '#6aa24a'; g.fillRect(0, h * 0.72, w, h); g.fillStyle = RED; g.fillRect(w * 0.42, h * 0.42, w * 0.4, h * 0.32); g.beginPath(); g.moveTo(w * 0.4, h * 0.43); g.lineTo(w * 0.62, h * 0.28); g.lineTo(w * 0.84, h * 0.43); g.fill(); g.fillStyle = '#d8d8d0'; g.fillRect(w * 0.4, h * 0.26, w * 0.44, 4);
+      g.fillStyle = '#e8e0cc'; g.fillRect(w * 0.5, h * 0.55, w * 0.1, h * 0.19); g.fillRect(w * 0.65, h * 0.55, w * 0.1, h * 0.19); });
+    const WX = 0.9; wallPane(G, 1.2, 1.3, view, WX, 1.85, -2.97, 0, 0.3); const wf = new THREE.Group(); for (const x of [-0.6, -0.2, 0.2, 0.6]) { const m = box(0.05, 1.32, 0.04, WASH, 0.01); m.position.x = x; wf.add(m); } for (const y of [-0.65, 0, 0.65]) { const m = box(1.25, 0.05, 0.04, WASH, 0.01); m.position.y = y; wf.add(m); } add(G, wf, WX, 1.85 - 0.0, -2.94);
+    for (const sx of [-1, 1]) { const sh = box(0.45, 1.4, 0.04, SHUT, 0.02); add(G, sh, WX + sx * 0.88, 1.15, -2.93); }
+    // soapstone sink + hand pump
+    const sink = new THREE.Group(); sink.add(box(1.3, 0.85, 0.6, '#c9b8a0', 0.03)); const basin = box(1.2, 0.18, 0.55, SOAP, 0.02); basin.position.y = 0.85; sink.add(basin);
+    const pump = new THREE.Group(); pump.add(cyl(0.06, 0.07, 0.42, IRON, 8)); const spout = cyl(0.025, 0.025, 0.2, IRON, 6); spout.rotation.x = Math.PI / 2; spout.position.set(0, 0.12, 0.12); pump.add(spout);
+    const pumpH = new THREE.Group(); pumpH.position.set(0, 0.22, -0.05); const ph = cyl(0.015, 0.015, 0.45, IRON, 5); ph.rotation.x = Math.PI / 2 - 0.4; ph.position.z = -0.18; pumpH.add(ph); pump.add(pumpH); pump.position.set(0.35, 1.03, -0.1); sink.add(pump);
+    const water = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.02, 0.32, 6), glowM('#9ad0e8', 0.4)); water.position.set(0.35, 1.0, 0.12); water.visible = false; sink.add(water); add(G, sink, WX, 0, -2.65);
+    // GRANITE STATE No.8 cookstove with stovepipe, warming shelf, firebox glow, kettle
+    const stove = new THREE.Group(); stove.add(box(1.3, 0.8, 0.7, IRON, 0.04)); const tp = box(1.4, 0.05, 0.75, '#2a2826', 0.01); tp.position.y = 0.8; stove.add(tp); for (let i = 0; i < 4; i++) { const ld = cyl(0.12, 0.12, 0.02, '#3a3634', 12); ld.position.set(-0.4 + (i % 2) * 0.35, 0.83, -0.17 + Math.floor(i / 2) * 0.32); stove.add(ld); }
+    const fire = box(0.38, 0.22, 0.02, '#ff8a3a', 0.02); fire.material = glowM('#ff7a2a', 1.2); fire.position.set(-0.3, 0.42, 0.36); stove.add(fire); const sh2 = box(1.3, 0.04, 0.3, IRON, 0.01); sh2.position.set(0, 1.45, -0.25); stove.add(sh2);
+    for (const s of [-1, 1]) { const rod = cyl(0.015, 0.015, 0.62, IRON, 4); rod.position.set(s * 0.6, 1.14, -0.25); stove.add(rod); }
+    const pipe = cyl(0.09, 0.09, 1.9, '#2a2826', 10); pipe.position.set(0.4, 1.75, -0.25); stove.add(pipe); const elb = cyl(0.09, 0.09, 0.2, '#2a2826', 10); elb.rotation.x = Math.PI / 2; elb.position.set(0.4, 2.62, -0.35); stove.add(elb); const nm = sign('GRANITE STATE No.8', 0.6, 0.09, IRON, '#d8b060', 0.8); nm.position.set(0.25, 0.6, 0.355); stove.add(nm);
+    const kettle = new THREE.Group(); const kb = ball(0.13, '#5a5a5a', 10); kb.scale.y = 0.75; kettle.add(kb); const kspout = cyl(0.02, 0.03, 0.15, '#5a5a5a', 5); kspout.rotation.z = -1.0; kspout.position.set(0.14, 0.04, 0); kettle.add(kspout); eyes(A, kettle, [[-0.04, 0.03, 0.12], [0.04, 0.03, 0.12]], 0.018);
+    kettle.position.set(0.15, 0.93, -0.05); stove.add(kettle); add(G, stove, -2.9, 0, -2.55); const fireL = new THREE.PointLight('#ff8a3a', 0.6, 3.2, 2); fireL.position.set(-3.2, 0.5, -1.9); G.add(fireL);
+    // crock shelf
+    add(G, box(1.6, 0.04, 0.25, PINE, 0.01), 2.6, 2.1, -2.85); for (let i = 0; i < 4; i++) { const ck = cyl(0.1, 0.12, 0.24 + (i % 2) * 0.08, i === 2 ? '#8a5a3a' : CROCK, 10); add(G, ck, 2.0 + i * 0.38, 2.12, -2.85); }
+    // harvest table on a braided rag rug, benches to the sides, a pie and a milk jug
+    const rug = new THREE.Mesh(new THREE.CircleGeometry(1.4, 28), texMat(cvTex(256, 256, (g, w, h) => { const C = ['#a8322a', '#3a5a8a', '#d8c8a0', '#6a8a4a', '#8a5a3a']; for (let r = 128, i = 0; r > 0; r -= 9, i++) { g.fillStyle = C[i % 5]; g.beginPath(); g.arc(128, 128, r, 0, 7); g.fill(); } })));
+    rug.rotation.x = -Math.PI / 2; rug.scale.y = 0.62; add(G, rug, -0.5, 0.012, -0.8);
+    const table = new THREE.Group(); const ttop = box(2.0, 0.07, 0.85, '#b07a44', 0.02); ttop.position.y = 0.76; table.add(ttop); for (const [x, z] of [[-0.9, -0.35], [0.9, -0.35], [-0.9, 0.35], [0.9, 0.35]]) { const l = box(0.08, 0.76, 0.08, '#8a5a32', 0.01); l.position.set(x, 0, z); table.add(l); }
+    const pie = cyl(0.16, 0.13, 0.06, '#d8a050', 14); pie.position.set(-0.3, 0.82, 0.05); table.add(pie); const jug = cyl(0.07, 0.09, 0.26, '#f2ede0', 10); jug.position.set(0.35, 0.79, -0.1); table.add(jug); add(G, table, -0.5, 0, -0.85);
+    for (const s of [-1, 1]) { const b = box(1.9, 0.07, 0.3, '#a06e3c', 0.02); b.position.set(-0.5, 0.45, -0.85 + s * 0.65); G.add(b); for (const x of [-1.3, 0.3]) { const l = box(0.06, 0.45, 0.24, '#8a5a32', 0.01); l.position.set(x, 0, -0.85 + s * 0.65); G.add(l); } }
+    // butter churn (dash churn: staved tub, lid, dasher that plunges)
+    const churn = new THREE.Group(); churn.add(cyl(0.22, 0.26, 0.85, '#b88a52', 12)); for (const y of [0.12, 0.72]) { const hp = cyl(0.265, 0.265, 0.04, IRON, 12); hp.position.y = y - 0.425 + 0.425; churn.add(hp); } const clid = cyl(0.2, 0.2, 0.04, '#a07a46', 12); clid.position.y = 0.86; churn.add(clid);
+    const dash = cyl(0.02, 0.02, 0.7, '#c9a070', 5); dash.position.y = 1.15; churn.add(dash); eyes(A, churn, [[-0.07, 0.6, 0.24], [0.07, 0.6, 0.24]], 0.022); add(G, churn, 1.95, 0, -1.6);
+    // left wall: pegs with the one shovel, the horse's photo
+    for (let i = 0; i < 3; i++) add(G, cyl(0.02, 0.02, 0.14, PINE, 4).rotateZ(Math.PI / 2), -3.88, 1.75, -1.25 + i * 0.36); const hat = new THREE.Group(); hat.add(cyl(0.2, 0.2, 0.02, '#d8b868', 14), cyl(0.1, 0.11, 0.1, '#d8b868', 10).translateY(0.06)); hat.rotation.z = -1.3; add(G, hat, -3.86, 1.72, -0.89);
+    const shovel = new THREE.Group(); const sht = cyl(0.025, 0.025, 1.2, '#b08a5a', 5); sht.position.y = -0.55; shovel.add(sht); const blade = box(0.26, 0.32, 0.03, '#8a8a8a', 0.02); blade.position.y = -1.25; shovel.add(blade); eyes(A, shovel, [[-0.06, -1.22, 0.02], [0.06, -1.22, 0.02]], 0.02); add(G, shovel, -3.8, 1.42, -0.2, Math.PI / 2); shovel.rotation.x = 0.12;
+    const photo = sign('THE HORSE\nPROMOTED', 0.45, 0.55, '#e8dcc0', '#3a2a1a', 0.55); const pfr = box(0.52, 0.62, 0.03, '#3a2a1a', 0.01); add(G, pfr, -3.95, 2.35, 0.6, Math.PI / 2); photo.position.set(-3.92, 2.35, 0.6); photo.rotation.y = Math.PI / 2; G.add(photo);
+    // right wall: the Banana Squid's bus-stop sign collection
+    const signs = new THREE.Group(); [['BUS STOP', '#e8c030'], ['STOP 14', '#3a6ac8'], ['NO BUS\nSUNDAYS', '#c83a3a'], ['BUS\nSTOP', '#3a9a5a']].forEach(([t, c], i) => { const sg = sign(t, 0.5, 0.5, c, '#fff8e8', 0.7); sg.position.set(-0.9 + i * 0.58, 2.2 + (i % 2) * 0.25, 0); sg.rotation.z = (i - 1.5) * 0.06; signs.add(sg); }); signs.rotation.y = -Math.PI / 2; add(G, signs, 3.96, 0, -0.5, -Math.PI / 2);
+    // cast
+    add(G, farm, -1.7, 0, -1.95, 0.35); add(G, squid, 2.95, 0, -0.2, -0.7);
+    const ch = { stoke: 0, churn: 0, pump: 0, fire: 0, plunge: 0, pumping: 0 }; A.wolfSpot = [0.5, 1.6]; A.anim = []; A.proc = [farm, squid]; A.view = { look: -0.45 };
+    const doneN = () => ch.stoke + ch.churn + ch.pump;
+    A.setAir = () => { ch.stoke = ch.churn = ch.pump = 0; ch.fire = ch.plunge = ch.pumping = 0; water.visible = false; };
+    A.onEnter = () => say([['FARMHAND', 'The horse isn\'t here.'], ['BANANA SQUID', 'The bus isn\'t here either. Neither is the bus stop. I have the bus stop. Several.'], ['FARMHAND', 'Chores, if you\'re staying. Stove, churn, pump.']]);
+    A.tick = (dt, t) => { fire.material.emissiveIntensity = 1.0 + 0.25 * Math.sin(t * 7) + (ch.fire > 0 ? 1.2 : 0); fireL.intensity = 0.5 + (ch.fire > 0 ? 0.9 : 0) + 0.1 * Math.sin(t * 9); if (ch.fire > 0) ch.fire -= dt;
+      if (ch.plunge > 0) { ch.plunge -= dt; dash.position.y = 1.15 - 0.2 * Math.abs(Math.sin(t * 9)); } else dash.position.y = 1.15;
+      if (ch.pumping > 0) { ch.pumping -= dt; pumpH.rotation.x = 0.35 * Math.sin(t * 8); water.visible = true; } else { pumpH.rotation.x = 0; water.visible = false; } };
+    const chore = (k, line) => { const first = !ch[k]; ch[k] = 1; const n = doneN(); return [line, ...(first ? [['', `MORNING CHORES ${n}/3`]] : []), ...(first && n === 3 ? [['FARMHAND', 'Done before noon. The horse would\'ve been proud.'], ['', 'MORNING CHORES: done.']] : [])]; };
+    A.who = [
+      { id: 'farm_stove', label: 'STOVE', o: stove, talk: () => { ch.fire = 4; return chore('stoke', ['', 'You feed two sticks of maple into the GRANITE STATE No.8. It roars.']).concat([['KETTLE', 'Hot. Hot. Hot. I\'m fine.']]); } },
+      { id: 'farm_churn', label: 'CHURN', o: churn, talk: () => { ch.plunge = 4; return chore('churn', ['', 'Thump. Thump. Thump. Butter is a long way off.']).concat([['CHURN', 'Keep going. You\'re doing great. You\'re doing butter.']]); } },
+      { id: 'farm_pump', label: 'HAND PUMP', o: sink, talk: () => { ch.pumping = 3; return chore('pump', ['', 'Squeak. Squeak. Squeak-gush. Cold well water into the soapstone.']); } },
+      { id: 'farm_signs', label: 'BUS STOP SIGNS', o: signs, talk: () => [['BANANA SQUID', 'Every one of these was a place a bus did not come.'], ['BANANA SQUID', 'I took them so nobody else would wait.'], ['FARMHAND', 'That\'s not how buses work.'], ['BANANA SQUID', 'That\'s how these ones work now.']] },
+      { id: 'farm_photo', label: 'THE HORSE', o: photo, talk: () => [['', 'A photograph of the horse. Somebody wrote PROMOTED on the bottom.'], ['FARMHAND', 'He\'s in town now. Big job. He doesn\'t call.']] },
+      { id: 'farm_shovel', label: 'THE SHOVEL', o: shovel, talk: () => [['THE SHOVEL', 'There is one shovel on this farm. It is me.'], ['THE SHOVEL', 'The farmhand carries a different one around town. That one is a decoy.']] },
+      { id: 'farm_hand', label: 'FARMHAND', o: farm, talk: () => [['FARMHAND', 'Eighteen-ninety-something, this kitchen. Nothing\'s changed but the horse.']] },
+      { id: 'farm_squid', label: 'BANANA SQUID', o: squid, talk: () => [['BANANA SQUID', 'I came for the bus in 1998. I stayed for the pie.']] },
+    ];
+    playhouse(A);
+  };
   return R;
 }
