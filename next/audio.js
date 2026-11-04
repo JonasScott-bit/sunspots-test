@@ -271,12 +271,21 @@ function radioStart() {
   const i = Math.floor(rnd() * RADIO.length); A.radioIdx = i;
   load(RADIO[i]).then(b => { if (A.radio || !running()) return; const off = 3 + rnd() * 30, n = ctx.currentTime + 0.05; radioSched(i, n - off, off); });
 }
+const DJ_BUMPERS = [   // run 17: KSUN DJ text bumpers between songs (no VO)
+  'KSUN 1490. Same song, fresh air. The air is not fresh.', 'That was the song. Coming up: the song.', 'Lines are open for caller four. Callers one through three, please stop.',
+  'Weather: hot. Tomorrow: also. Sun State Insurance reminds you that is not covered.', 'This hour brought to you by SUN-O-GAS. We have gas. Also gas.',
+  'Shout-out to Moth, on shift tonight. Turn your porch lights off, folks. Let the man work.', 'A listener on Mesa Rd says she is SOMEONE. We believe her.',
+  'Ram called in to say he is not home. Thanks, Ram.', 'Still no word on the second horse. If it is a cow, keep it to yourself.',
+  'Last Minute Snacks closes at two. If you are hearing this at two-oh-one, we are sorry.', 'Banana Squid is still at the bus stop. The bus is still not.',
+  'From the mansion: Larry Byrd is taking challengers at pool. KSUN legal says: do not.', 'Band Night at the Bowl is Friday. The band is still to be determined. Call in if you are the band.',
+];
 function radioSched(i, t0, off = 0) {
   const name = RADIO[i], b = A.buf[name]; if (!b) return;
   const s = ctx.createBufferSource(); s.buffer = b; s.connect(N.rIn);
   const when = Math.max(ctx.currentTime + 0.01, t0 + off); s.start(when, off);
   A.radio = { i, t0, end: t0 + SOUNDS[name].dur, src: s, next: false };
   A.counts[name] = (A.counts[name] || 0) + 1; note('radio', { name, off: +off.toFixed(2) });
+  if (off === 0 && G?.L?.toast && G.L.inCar) setTimeout(() => { if (G?.L?.inCar && !(G.L.toastT > 0)) G.L.toast('KSUN 1490: \u201c' + pick(DJ_BUMPERS) + '\u201d', 4); }, Math.max(0, (when - ctx.currentTime) * 1000) + 400);   // run 17: DJ bumper between songs (text only)
   const K = RADIO.length; load(RADIO[(i + 1) % K]).catch(() => {});
   const prev = RADIO[(i + K - 1) % K]; if (prev !== name) setTimeout(() => { if (A.radio && RADIO[A.radio.i] !== prev && RADIO[(A.radio.i + 1) % K] !== prev) drop(prev); }, 3000);
 }
