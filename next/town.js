@@ -12,6 +12,7 @@ import { gesturer, castOffsets, CAST_POOL, PROP_POOL } from './idles.js';   // r
 import { createDiner } from './diner.js';   // run 10: the Diner trio, ORDER, mission Table For Four, party followers
 import { createPool, createHoops, larryByrd } from './minigames.js';   // run 11 (M4): playable pool (Pool Hall) + shoot-around vs Larry Byrd (the court)
 
+import { homes16 } from './homes16.js';   // run 16: interiors for ram, anteater, apt_vict, moth, apt_pink, mansion, farm
 const M = './models/';
 const ROOMS = {
   diner:      { name: 'THE DINER',       wall: '#f3dcb8', trim: '#e0705a', floor: '#d9c6a4', floor2: '#7a5a4a', light: '#fff4e0', real: true },   // real place: 1950s stainless dining car
@@ -38,6 +39,11 @@ const ROOMS = {
   lynx:       { name: 'LYNX\'S BEDROOM',       wall: '#c6d6f0', trim: '#6b3a22', floor: '#9a6a4a', floor2: '#8a5a3e', light: '#ffeccc' },
   gecko:      { name: 'GECKO\'S LAUNDRY ROOM', wall: '#d6e8c0', trim: '#6aa4b8', floor: '#e8e2cf', floor2: '#c9b9a0', light: '#f2fff0' },
   crow:       { name: 'CROW\'S GARAGE',        wall: '#b8a888', trim: '#7a5a3a', floor: '#8a8a84', floor2: '#7a7a74', light: '#fff0d0' },
+  // run 16: the last seven houses (homes16.js)
+  ram:        { name: 'RAM\'S FRONT ROOM',          wall: '#e9c27e', trim: '#7a4e2e', floor: '#a8743f', floor2: '#9c6a38', light: '#ffe6c0', real: true },   // 1924 Craftsman bungalow, kept as of 1958
+  anteater:   { name: 'ANTEATER\'S BREAKFAST NOOK', wall: '#c2e6cd', trim: '#3f8a86', floor: '#dc6065', floor2: '#c85a54', light: '#f4fff0', real: true },   // 1931 Storybook Tudor
+  apt_vict:   { name: 'THE VICTORIAN PARLOR',       wall: '#6a1f24', trim: '#4a2a1a', floor: '#6a3a22', floor2: '#5e321e', light: '#ffe0b0', real: true },   // 1889 Queen Anne
+  moth:       { name: 'MOTH\'S PAD',                wall: '#d9a62a', trim: '#5a3a1e', floor: '#7a8a3a', floor2: '#6a7a2e', light: '#ffe2b0', real: true },   // 1974 rental den
 };
 // outside: which building is which (diner door is LAYOUT.spots.diner_door; the three adobes face the square)
 const DOORS = [
@@ -61,6 +67,11 @@ const DOORS = [
   { room: 'crow', x: -62.0, z: 51.4, sign: null },
   { room: 'heron', x: -86.1, z: 51.6, sign: null },
   { room: 'gecko', x: -122.0, z: 50.9, sign: null },
+  // run 16 (homes16.js): positions from townscape door marks; fallbacks only
+  { room: 'ram', x: 0, z: 0, sign: null },
+  { room: 'anteater', x: 0, z: 0, sign: null },
+  { room: 'apt_vict', x: 0, z: 0, sign: null },
+  { room: 'moth', x: 0, z: 0, sign: null },
 ];
 let DRIVEIN = { x: 24.0, z: 19.0 }; // the outdoor Eye-Max screen (felt placeholder)
 let FENCE = { x: -15, z: 10.8 }; // the Crow's roadside collection (fence-stool), south of the town street
@@ -1427,6 +1438,7 @@ export function createTown(ctx) {
     let s = errands().map(m => { let o = OBJ[m][S[m]]; if (m === 'sock' && S[m] === 4 && !S.hubcap) o += '\n   (the Crow trades — check the Post Office parcels)'; return TITLE[m] + ' · ' + o; }).join('\n');
     if (errands().length) s += '\n(clock on hold while you run errands)'; $('townObj').textContent = s; const to = $('townObj'), hd = $('hud'); to.style.top = (!document.body.classList.contains('room') && hd) ? (hd.getBoundingClientRect().bottom + 8) + 'px' : '';
   }
+  Object.assign(BUILD, homes16({ glb, box, cyl, at, sign, cvTex, texMat, pane, realRoom, feltMat, eyes, playhouse, wob, txt, say: (L) => say(L), S, save: () => save() }));   // run 16
   function save() { try { sessionStorage.setItem('ss_town1', JSON.stringify(S)); } catch (e) { } }
   try { if (new URLSearchParams(location.search).has('fresh')) sessionStorage.removeItem('ss_town1'); Object.assign(S, JSON.parse(sessionStorage.getItem('ss_town1') || '{}')); } catch (e) { }
   { const q = new URLSearchParams(location.search).get('mstep'); if (q) for (const kv of q.split(',')) { const [k, v] = kv.split(':'); if (k in DONE) S[k] = +v; if (S.adv >= 3) S.party = 1; } } // QA: ?mstep=sock:3,num:4 (adv:3+ also gives you the party)

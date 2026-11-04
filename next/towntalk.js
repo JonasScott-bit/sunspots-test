@@ -85,6 +85,10 @@ const FROM_INSIDE = {   // walk-by bubbles from homes with rooms
   crow: [['CROW (from inside)', 'Everything in here is in the collection. Including the door.']],
   heron: [['HERON (from inside)', 'I\'m standing on one leg. Don\'t ask which.']],
   gecko: [['GECKO (from inside)', 'I\'m practising my jump shot. Indoors. It\'s going fine.']],
+  ram: [['RAM (from inside)', 'Not home. Wipe your feet anyway.']],   // run 16: the last seven homes have rooms now (homes16.js)
+  anteater: [['ANTEATER (from inside)', 'I\'m eating. Come in if you\'re not an ant. Or if you are. Roommates welcome.']],
+  apt_vict: [['A VOICE (from the speaking tube)', 'Landlord says no visitors. Landlord also says come up, it\'s rent day.']],
+  moth: [['MOTH (from inside)', 'Can\'t come out. Porch light\'s on. Come in and turn it off, would you?']],
   wolf: [['FRIDGE (from the porch)', 'You live here. Come in. Or don\'t. I\'m a fridge.']],
 };
 export function installTalk({ T, level, TS, wolfState }) {
@@ -121,7 +125,7 @@ export function installTalk({ T, level, TS, wolfState }) {
         bubble(who, list[(i - 1) % list.length], pos, h); return null; } });
   }
   // knock on the homes without rooms
-  for (const [k, L] of Object.entries(KNOCK)) { const d = TS.doors?.[k]; if (!d) continue;
+  for (const [k, L] of Object.entries(KNOCK)) { const d = TS.doors?.[k]; if (!d || FROM_INSIDE[k]) continue;   // run 16: roomed homes get ENTER, not KNOCK
     T.addSpot({ id: 'knock_' + k, x: d.x + Math.sin(d.ry || 0) * 0.9, z: d.z + Math.cos(d.ry || 0) * 0.9, r: 2.2, label: 'KNOCK',
       act: () => { say(W() ? KNOCK_W[k] : L, { x: d.x, z: d.z }, 2.6); return null; } }); }
   // the plaza notice board: flyers + the lore
