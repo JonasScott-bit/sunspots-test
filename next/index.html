@@ -28,8 +28,9 @@
   #bar{width:160px;height:3px;background:rgba(255,255,255,.2);margin-top:14px}#bar i{display:block;height:100%;width:0;background:#f2c14e}
   #err{position:fixed;left:10px;right:10px;bottom:60px;color:#fff;background:rgba(120,0,0,.7);font:12px monospace;padding:8px;display:none;z-index:20;white-space:pre-wrap}
   /* ---- v9 launch: EES intro + trippy title menu (title.js) ---- */
-  #intro{position:fixed;inset:0;z-index:15;background:#2e1b3d;transition:opacity .6s ease;touch-action:manipulation;cursor:pointer}
-  #intro video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#2e1b3d;pointer-events:none}
+  #intro{position:fixed;inset:0;z-index:15;background:radial-gradient(ellipse at 50% 40%,#3a2350 0%,#2e1b3d 55%,#1d1028 100%);transition:opacity .6s ease;touch-action:manipulation;cursor:pointer}
+  #intro .iframe{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(78vw,78vh);aspect-ratio:1;padding:clamp(8px,1.6vmin,14px);border-radius:9%;box-sizing:border-box;pointer-events:none;background:linear-gradient(135deg,#2fb7a6 0%,#3fd0b8 22%,#f07a6a 55%,#f45c8f 75%,#f6a15a 100%);box-shadow:0 0 0 3px #1d1028,0 0 0 calc(3px + 1.2vmin) rgba(122,84,170,.55),0 18px 60px rgba(0,0,0,.55),inset 0 2px 3px rgba(255,255,255,.35),inset 0 -3px 5px rgba(0,0,0,.3)}
+  #intro video{display:block;width:100%;height:100%;object-fit:cover;border-radius:7%;background:#2e1b3d;pointer-events:none}
   #intro .ihint{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 18px);text-align:center;color:#f6e7c8;font-size:11px;letter-spacing:.35em;opacity:0;transition:opacity 1s;pointer-events:none}
   #intro .ihint.show{opacity:.62}
   #intro .itap{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:16px 30px;border-radius:999px;background:rgba(0,0,0,.55);color:#f6e7c8;font-weight:700;letter-spacing:.3em;font-size:16px;display:none;animation:tpulse 1.6s ease-in-out infinite}
@@ -221,7 +222,7 @@
     <div class="scroll"><div class="roll"><p class="big">SUNSPOTS</p><p><small>A GAME BY</small>Ethereal Entertainment Systems</p><p><small>CREATED BY</small>Jonas Scott</p><p><small>MUSIC</small>Music made with Suno</p><p><small>THANK YOU FOR PLAYING</small>&#9728;</p></div></div>
     <button class="felt cream bBack">BACK</button></div>
 </div>
-<div id="intro"><video muted autoplay playsinline webkit-playsinline preload="auto" disablepictureinpicture disableremoteplayback poster="./intro/ees_poster.jpg"><source src="./intro/ees_intro.mp4" type='video/mp4; codecs="avc1.640028"'><source src="./intro/ees_intro.webm" type='video/webm; codecs="vp9"'></video><div class="itap">TAP TO PLAY</div><div class="ihint">TAP TO SKIP</div></div>
+<div id="intro"><div class="iframe"><video muted autoplay playsinline webkit-playsinline preload="auto" disablepictureinpicture disableremoteplayback poster="./intro/ees_poster.jpg"><source src="./intro/ees_intro.mp4" type='video/mp4; codecs="avc1.640028"'><source src="./intro/ees_intro.webm" type='video/webm; codecs="vp9"'></video></div><div class="itap">TAP TO PLAY</div><div class="ihint">TAP TO SKIP</div></div>
 <div id="err"></div>
 <script>window.addEventListener('error',e=>{const d=document.getElementById('err');d.style.display='block';d.textContent+=String(e.message)+'\n'});</script>
 <script type="module" src="./title.js"></script>
