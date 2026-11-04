@@ -44,6 +44,8 @@ const ROOMS = {
   anteater:   { name: 'ANTEATER\'S BREAKFAST NOOK', wall: '#c2e6cd', trim: '#3f8a86', floor: '#dc6065', floor2: '#c85a54', light: '#f4fff0', real: true },   // 1931 Storybook Tudor
   apt_vict:   { name: 'THE VICTORIAN PARLOR',       wall: '#6a1f24', trim: '#4a2a1a', floor: '#6a3a22', floor2: '#5e321e', light: '#ffe0b0', real: true },   // 1889 Queen Anne
   moth:       { name: 'MOTH\'S PAD',                wall: '#d9a62a', trim: '#5a3a1e', floor: '#7a8a3a', floor2: '#6a7a2e', light: '#ffe2b0', real: true },   // 1974 rental den
+  apt_pink:   { name: 'THE PINK APARTMENT',         wall: '#f2a6b8', trim: '#4ab8b0', floor: '#f2e2dc', floor2: '#e8d4cc', light: '#fff0f0', real: true },   // 1956 Miami Modern
+  mansion:    { name: 'THE MANSION',                wall: '#f2efe8', trim: '#2f3236', floor: '#c9a47a', floor2: '#bf9a70', light: '#fff0d8', real: true, W: 9, D: 6.4 },   // 2024 hillside glass house
 };
 // outside: which building is which (diner door is LAYOUT.spots.diner_door; the three adobes face the square)
 const DOORS = [
@@ -72,6 +74,8 @@ const DOORS = [
   { room: 'anteater', x: 0, z: 0, sign: null },
   { room: 'apt_vict', x: 0, z: 0, sign: null },
   { room: 'moth', x: 0, z: 0, sign: null },
+  { room: 'apt_pink', x: 0, z: 0, sign: null },
+  { room: 'mansion', x: 0, z: 0, sign: null },
 ];
 let DRIVEIN = { x: 24.0, z: 19.0 }; // the outdoor Eye-Max screen (felt placeholder)
 let FENCE = { x: -15, z: 10.8 }; // the Crow's roadside collection (fence-stool), south of the town street

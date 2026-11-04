@@ -283,5 +283,126 @@ export function homes16(K) {
     ];
     playhouse(A);
   };
+
+  // ---------------------------------------------------------------- APT_PINK: a 1956 Miami-Modern efficiency (#6, the pink stucco with the bay)
+  // Pink-and-cream terrazzo, flamingo-pink kitchenette with a cream counter, a turquoise accent wall with a starburst clock, a boomerang-pattern dinette,
+  // a bay window seat with venetian blinds, a flamingo lamp, a blonde hi-fi console. Nobody you can see lives here; SOMEONE talks from behind the bedroom door.
+  // Chore: SORT THE MAIL (four letters, all for the wrong name).
+  R.apt_pink = async (G, A) => {
+    const PINK = '#f2a6b8', PINK2 = '#e88aa2', CREAM = '#f6ecd8', TURQ = '#4ab8b0', GREY = '#c9cdd0', BLOND = '#d9b880', INK = '#2a2440';
+    const pinkWall = (g, w, h) => { g.fillStyle = PINK; g.fillRect(0, 0, w, h); g.fillStyle = CREAM; g.fillRect(0, yy(h, 0.12), w, h); g.fillStyle = PINK2; g.fillRect(0, yy(h, 0.14), w, 4); };
+    realRoom(G, { H,
+      floor: cvTex(256, 256, (g, w, h) => { g.fillStyle = '#f2e2dc'; g.fillRect(0, 0, w, h); const C = [PINK2, '#c9cdd0', '#8a8a92', '#f6f0e6', TURQ]; for (let i = 0; i < 1400; i++) { g.fillStyle = C[i % 5]; g.beginPath(); g.ellipse(Math.random() * w, Math.random() * h, 1.5 + Math.random() * 3, 1 + Math.random() * 2, Math.random() * 3, 0, 7); g.fill(); } g.fillStyle = '#d9c8b8'; for (let k = 0; k < w; k += 128) { g.fillRect(k, 0, 2, h); g.fillRect(0, k, w, 2); } }, 3, 2.4),
+      back: cvTex(1024, 256, (g, w, h) => { pinkWall(g, w, h); g.fillStyle = TURQ; g.fillRect(w * 0.36, 0, w * 0.3, yy(h, 0.14)); }), left: cvTex(512, 256, pinkWall), right: cvTex(512, 256, pinkWall),
+      ceil: cvTex(256, 256, (g, w, h) => { g.fillStyle = '#fbf4ea'; g.fillRect(0, 0, w, h); }, 1, 1), cy: [3.2, 3.4], cz: 4.6, ceilGlow: 0.45 });
+    // kitchenette (left back): flamingo cabinets, cream counter, a little round-shouldered fridge, a pale-grey range hood
+    add(G, box(2.0, 0.9, 0.6, PINK2, 0.04), -2.6, 0, -2.65); add(G, box(2.1, 0.05, 0.65, CREAM, 0.02), -2.6, 0.9, -2.65); add(G, box(2.0, 0.6, 0.34, PINK2, 0.04), -2.6, 1.75, -2.8);
+    for (let i = 0; i < 4; i++) add(G, box(0.06, 0.03, 0.03, GREY, 0.01), -3.35 + i * 0.5, 0.7, -2.33);
+    const fr = new THREE.Group(); fr.add(box(0.75, 1.55, 0.65, CREAM, 0.16)); const fh = box(0.05, 0.3, 0.05, GREY, 0.02); fh.position.set(0.3, 1.0, 0.33); fr.add(fh); const fb = sign('FRIGI-PALM', 0.4, 0.08, CREAM, PINK2, 0.8); fb.position.set(0, 1.42, 0.326); fr.add(fb); add(G, fr, -1.2, 0, -2.6);
+    // starburst clock on the turquoise wall
+    const clock = new THREE.Group(); clock.add(new THREE.Mesh(new THREE.CircleGeometry(0.16, 16), feltMat(CREAM))); for (let i = 0; i < 12; i++) { const r = box(0.02, 0.32, 0.01, '#c9a24a', 0.005); r.rotation.z = i * Math.PI / 6; r.position.set(0, 0, -0.005); r.geometry.translate(0, 0.08, 0); clock.add(r); }
+    const hand = box(0.012, 0.12, 0.01, INK, 0.003); hand.position.z = 0.01; clock.add(hand); add(G, clock, 0.05, 2.45, -2.96);
+    // bay window seat (centre-right): three angled panes with venetian blinds, cushion, a stack of throw pillows
+    const view = cvTex(128, 192, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#7ac8e8'); gr.addColorStop(1, '#e8f4f0'); g.fillStyle = gr; g.fillRect(0, 0, w, h); g.fillStyle = PINK; g.fillRect(10, h * 0.45, 50, h); g.fillStyle = '#f6d0a0'; g.fillRect(70, h * 0.55, 50, h); g.fillStyle = '#3a8a4a'; g.beginPath(); g.arc(64, h * 0.38, 18, 0, 7); g.fill(); g.fillRect(62, h * 0.38, 4, h); });
+    const slats = []; const BX = 1.6;
+    for (const [dx, ry, dz] of [[-0.85, 0.55, 0.22], [0, 0, 0], [0.85, -0.55, 0.22]]) { wallPane(G, 0.75, 1.5, view, BX + dx, 1.75, -2.95 + dz, ry, 0.35);
+      const bl = new THREE.Group(); for (let k = 0; k < 12; k++) { const sl = box(0.74, 0.012, 0.11, CREAM, 0.004); sl.position.y = 2.45 - k * 0.12; sl.rotation.x = 1.35; bl.add(sl); slats.push(sl); } at(bl, BX + dx, 0, -2.88 + dz, ry); bl.position.z += 0.02; G.add(bl); }
+    const seat = box(2.4, 0.5, 0.6, CREAM, 0.05); add(G, seat, BX, 0, -2.55); const cush = box(2.3, 0.1, 0.55, TURQ, 0.04); add(G, cush, BX, 0.5, -2.55);
+    for (const [x, c] of [[-0.7, PINK2], [0.75, '#f2c230']]) { const pl = box(0.35, 0.3, 0.12, c, 0.06); add(G, pl, BX + x, 0.6, -2.7, x * 0.3); }
+    // boomerang dinette: kidney top with the boomerang print, pale-grey legs, two vinyl chairs; the mail pile on top
+    const boomT = cvTex(256, 128, (g, w, h) => { g.fillStyle = '#f6ecd8'; g.fillRect(0, 0, w, h); const C = [PINK2, TURQ, '#c9a24a', '#8a8a92']; for (let i = 0; i < 40; i++) { g.save(); g.translate((i * 53) % w, (i * 31) % h); g.rotate(i); g.strokeStyle = C[i % 4]; g.lineWidth = 4; g.beginPath(); g.moveTo(-12, 6); g.lineTo(0, -4); g.lineTo(12, 6); g.stroke(); g.restore(); } });
+    const tbl = new THREE.Group(); const top = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.04, 24), texMat(boomT)); top.scale.z = 0.62; top.position.y = 0.74; tbl.add(top); tbl.add(cyl(0.03, 0.03, 0.74, GREY, 6)); tbl.add(cyl(0.25, 0.25, 0.02, GREY, 14)); add(G, tbl, -1.0, 0, -0.9);
+    for (const s of [-1, 1]) { const ch = new THREE.Group(); const st = box(0.42, 0.08, 0.42, TURQ, 0.04); st.position.y = 0.45; ch.add(st, cyl(0.02, 0.02, 0.45, GREY, 5)); const cb = box(0.42, 0.38, 0.06, TURQ, 0.04); cb.position.set(0, 0.55, -0.2); ch.add(cb); add(G, ch, -1.0 + s * 0.85, 0, -0.9, -s * Math.PI / 2); }
+    const NAMES = [['MR. R. FLAMINGO', 'Apartment 6.', 'This is apartment 6. Nobody here is a Mr. Flamingo. Probably.'], ['OCCUPANT', 'Apartment 9.', 'There is no apartment 9. There\'s a 6. Upside down.'], ['THE HORSE', 'c/o The Town Square', 'It\'s a bill. The horse owes eleven cents.'], ['SOMEONE ELSE', 'Apt. 6, Sunspots', 'Close. Very close. Still not SOMEONE.']];
+    const mail = new THREE.Group(); const letters = NAMES.map((_, i) => { const l = box(0.22, 0.012, 0.13, ['#f6f0e6', '#e8d8f0', '#f2e0a8', '#dff0f0'][i], 0.003); l.position.set((i % 2) * 0.03, 0.012 * i, (i % 3) * 0.02); l.rotation.y = i * 0.3; mail.add(l); return l; }); add(G, mail, -1.0, 0.76, -0.9);
+    const tray = box(0.3, 0.06, 0.2, PINK2, 0.02); add(G, tray, -2.1, 0.92, -2.55); const trayL = sign('RETURN TO SENDER', 0.28, 0.05, PINK2, CREAM, 0.8); trayL.position.set(-2.1, 0.96, -2.44); G.add(trayL);
+    // flamingo lamp (pink felt bird base, one leg, fringed shade) + blonde hi-fi with a turntable
+    const flam = new THREE.Group(); flam.add(cyl(0.12, 0.14, 0.03, CREAM, 12)); const lg = cyl(0.012, 0.012, 0.5, PINK2, 5); flam.add(lg); const fbody = ball(0.12, PINK, 10); fbody.scale.set(1.3, 0.8, 0.7); fbody.position.y = 0.55; flam.add(fbody);
+    const nk = cyl(0.025, 0.02, 0.35, PINK, 6); nk.position.set(0.12, 0.6, 0); nk.rotation.z = -0.3; flam.add(nk); const fhd = ball(0.05, PINK, 8); fhd.position.set(0.2, 0.95, 0); flam.add(fhd);
+    const lshade = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.24, 0.24, 10), glowM('#fbe6c8', 0.5)); lshade.position.y = 1.2; flam.add(lshade); eyes(A, flam, [[0.22, 0.97, 0.04]], 0.018);
+    add(G, box(0.5, 0.5, 0.45, BLOND, 0.03), -3.4, 0, -0.4); add(G, flam, -3.4, 0.5, -0.4, 0.6); lampLight(G, '#ffd8c8', -3.3, 1.9, -0.4, 0.45, 3.5);
+    const hifi = new THREE.Group(); hifi.add(box(1.4, 0.7, 0.5, BLOND, 0.04)); for (const s of [-1, 1]) { const sp = box(0.45, 0.4, 0.01, '#8a6a4a', 0.01); sp.position.set(s * 0.42, 0.15, 0.25); hifi.add(sp); }
+    const lid = box(0.6, 0.02, 0.45, BLOND, 0.01); lid.position.set(0, 0.7, 0); hifi.add(lid); const plat = cyl(0.17, 0.17, 0.02, '#1a1616', 16); plat.position.y = 0.72; hifi.add(plat);
+    const label = new THREE.Mesh(new THREE.CircleGeometry(0.05, 10), feltMat(PINK2)); label.rotation.x = -Math.PI / 2; label.position.set(0.06, 0.012, 0); plat.add(label); for (let i = 0; i < 4; i++) { const ft = cyl(0.015, 0.008, 0.18, '#3a2a1a', 4); ft.position.set((i % 2 ? 0.6 : -0.6), -0.18, (i < 2 ? 0.2 : -0.2)); hifi.add(ft); }
+    hifi.position.y = 0.18; add(G, hifi, 3.25, 0.18, -1.3, -Math.PI / 2);
+    const bdoor = box(0.85, 2.05, 0.06, CREAM, 0.02); add(G, bdoor, -3.92, 0, -1.9, Math.PI / 2); const knob = ball(0.035, '#c9a24a', 8); add(G, knob, -3.86, 1.0, -1.6);
+    const pk = { mail: 0, rec: 0, open: false, spin: 0 }; A.wolfSpot = [0.4, 1.6]; A.anim = []; A.proc = []; A.view = { look: -0.45 };
+    A.setAir = () => { pk.mail = 0; letters.forEach(l => l.visible = true); pk.open = false; slats.forEach(s => s.rotation.x = 1.35); };
+    A.onEnter = () => say([['SOMEONE (behind the bedroom door)', 'Wrong apartment.'], ['SOMEONE', 'They\'re all the wrong apartment. Since you\'re here, sort the mail?']]);
+    A.tick = (dt, t) => { hand.rotation.z = -t * 0.3; if (pk.spin > 0) { pk.spin -= dt; plat.rotation.y -= dt * 3.5; } const want = pk.open ? 0.15 : 1.35; for (const sl of slats) sl.rotation.x += (want - sl.rotation.x) * Math.min(1, dt * 4); };
+    const RECS = [['"Mambo for a Flamingo" — CORAL TONE RECORDS', [['HI-FI', 'Cha-cha-cha. That\'s the whole lyric. It\'s a hit.']]], ['"Moonlight Over the Motel" — PALMETTO HI-FI', [['HI-FI', 'Ooo-ooo. A slow one. SOMEONE always plays this one twice.']]], ['"Sounds of the Sun, Vol. 2" — SOLARIA', [['HI-FI', 'Side two is just a sunny afternoon. Forty minutes. Nothing happens.'], ['SOMEONE', 'My favourite part is the nothing.']]]];
+    A.who = [
+      { id: 'pink_mail', label: 'THE MAIL', o: mail, talk: () => { if (pk.mail < 4) { const [to, addr, joke] = NAMES[pk.mail]; letters[3 - pk.mail].visible = false; pk.mail++; return [['', `Letter ${pk.mail}: "${to}, ${addr}"`], ['SOMEONE', 'Not me.'], ['', joke + ' Into RETURN TO SENDER. (SORT THE MAIL ' + pk.mail + '/4)'], ...(pk.mail === 4 ? [['SOMEONE', 'All wrong. Perfect. Same as yesterday.'], ['', 'SORT THE MAIL: done.']] : [])]; } return [['', 'Nothing left on the table. The mailman will bring four more wrong ones tomorrow.']]; } },
+      { id: 'pink_hifi', label: 'HI-FI', o: hifi, talk: () => { const r = RECS[pk.rec++ % RECS.length]; pk.spin = 6; return [['', 'You drop the needle: ' + r[0] + '.'], ...r[1]]; } },
+      { id: 'pink_blinds', label: 'BLINDS', o: slats[14], talk: () => { pk.open = !pk.open; return pk.open ? [['', 'You tilt the blinds open. Sun, palms, the pink building next door.'], ['SOMEONE', 'Close them a little. The neighbours are also wrong.']] : [['', 'Blinds shut. Stripes of light on the terrazzo.']]; } },
+      { id: 'pink_lamp', label: 'FLAMINGO LAMP', o: flam, talk: () => [['FLAMINGO LAMP', 'One leg. Since 1956. I\'m not tired. I\'m elegant.'], ['FLAMINGO LAMP', 'The heron down the road stole my look.']] },
+      { id: 'pink_door', label: 'BEDROOM DOOR', o: bdoor, talk: () => [['', 'You knock on the bedroom door.'], ['SOMEONE', 'Wrong door.'], ['WOLF', 'Who are you?'], ['SOMEONE', 'Someone. The name on the mailbox is someone else\'s. It works out.']] },
+    ];
+    playhouse(A);
+  };
+
+  // ---------------------------------------------------------------- MANSION: a 2024 hillside glass house (ref vulture_byrd_mansion_01: white planes, charcoal frames, gold LED coves, magenta bougainvillea, dusk)
+  // Inside: double-height great room, white plaster, oak floor, gold cove light, a full glass back wall at dusk, a sunken magenta conversation pit, a sculptural perch for the Vulture,
+  // a regulation hoop in the "ballroom", a pool table (Larry Byrd's), a newspaper stack (subscription cancelled 1979), an intercom panel.
+  R.mansion = async (G, A) => {
+    const WHITE = '#f2efe8', CHAR = '#2f3236', OAK = '#c9a47a', GOLD = '#f2c46a', MAG = '#c83a8a', GREEN = '#2f6a4a';
+    realRoom(G, { H, W: 9, D: 6.4,
+      floor: cvTex(256, 256, (g, w, h) => { for (let y = 0, i = 0; y < h; y += 20, i++) { g.fillStyle = ['#c9a47a', '#bf9a70', '#d2ad84'][i % 3]; g.fillRect(0, y, w, 20); g.fillStyle = 'rgba(0,0,0,0.12)'; g.fillRect(0, y, w, 1.5); g.fillRect((i * 97) % w, y, 1.5, 20); } }, 3, 2.4),
+      back: cvTex(1024, 256, (g, w, h) => { const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#3a4a7a'); gr.addColorStop(0.45, '#e8a86a'); gr.addColorStop(0.62, '#f6d08a'); gr.addColorStop(0.63, '#2a4a3a'); gr.addColorStop(1, '#1e3a2e'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+        g.fillStyle = '#1e3a2e'; for (const x of [120, 300, 760, 900]) { g.fillRect(x, h * 0.35, 5, h * 0.3); for (let k = 0; k < 6; k++) { g.save(); g.translate(x + 2, h * 0.35); g.rotate(-1.4 + k * 0.55); g.fillRect(0, -3, 34, 6); g.restore(); } }
+        g.fillStyle = 'rgba(255,240,200,0.8)'; for (let i = 0; i < 18; i++) g.fillRect((i * 151) % w, h * 0.64 + (i * 37) % 30, 3, 3);
+        g.fillStyle = CHAR; for (let x = 0; x <= w; x += w / 6) g.fillRect(x - 5, 0, 10, h); g.fillRect(0, h * 0.5, w, 8); g.fillRect(0, h - 22, w, 22); }, 1, 1, 0.3),
+      left: cvTex(512, 256, (g, w, h) => { g.fillStyle = WHITE; g.fillRect(0, 0, w, h); g.fillStyle = '#e4dfd4'; for (let x = 0; x < w; x += 128) g.fillRect(x, 0, 2, h); }), right: cvTex(512, 256, (g, w, h) => { g.fillStyle = WHITE; g.fillRect(0, 0, w, h); g.fillStyle = '#e4dfd4'; for (let x = 0; x < w; x += 128) g.fillRect(x, 0, 2, h); }),
+      ceil: cvTex(256, 256, (g, w, h) => { g.fillStyle = '#fbf8f2'; g.fillRect(0, 0, w, h); }, 1, 1), cy: [3.35, 3.4], cz: 4.8, ceilGlow: 0.4 });
+    // gold LED coves (glow strips) along the top of the side walls and the glass
+    for (const [x, z, w, ry] of [[0, -3.12, 9.2, 0], [-4.45, 0, 6.2, Math.PI / 2], [4.45, 0, 6.2, -Math.PI / 2]]) { const c = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.06), glowM(GOLD, 1.0)); c.position.set(x, 3.25, z); c.rotation.y = ry; G.add(c); }
+    // planters with magenta bougainvillea against the glass
+    for (const x of [-3.6, 3.6]) { add(G, box(0.9, 0.5, 0.5, CHAR, 0.03), x, 0, -2.85); for (let i = 0; i < 7; i++) { const b = ball(0.16, i % 3 ? MAG : GREEN, 8); add(G, b, x - 0.35 + (i % 4) * 0.23, 0.55 + Math.floor(i / 4) * 0.18, -2.85 + (i % 2) * 0.1); } }
+    // sunken conversation pit: a magenta sectional ringing a recessed rug (we read the sink as a darker step)
+    const pit = new THREE.Group(); const rug = cyl(1.3, 1.3, 0.02, '#e8d8c8', 24); rug.scale.z = 0.7; pit.add(rug); const step = new THREE.Mesh(new THREE.RingGeometry(1.3, 1.45, 24, 1), feltMat('#a88a6a')); step.rotation.x = -Math.PI / 2; step.scale.y = 0.7; step.position.y = 0.025; pit.add(step);
+    for (let i = 0; i < 5; i++) { const a = Math.PI * (0.15 + i * 0.175) + Math.PI; const sec = box(0.85, 0.38, 0.55, MAG, 0.1); sec.position.set(Math.cos(a) * 1.0, 0, Math.sin(a) * 0.7); sec.rotation.y = -a - Math.PI / 2; pit.add(sec); }
+    const ctab = cyl(0.35, 0.35, 0.3, WHITE, 16); pit.add(ctab); add(G, pit, -1.6, 0, -0.6);
+    const papers = new THREE.Group(); for (let i = 0; i < 7; i++) { const pp = box(0.42, 0.06, 0.3, i % 2 ? '#e8e2d2' : '#d8d2c2', 0.01); pp.position.set((i % 3) * 0.02 - 0.02, i * 0.06, 0); pp.rotation.y = (i % 2) * 0.12; papers.add(pp); }
+    const head = sign('SUNSPOTS SENTINEL\nSTOP DELIVERY · 1979', 0.42, 0.3, '#e8e2d2', '#2a2440', 0.55); head.rotation.x = -Math.PI / 2; head.position.set(0, 0.43, 0); papers.add(head); add(G, papers, 0.45, 0, -2.6);
+    // the hoop (ballroom end, right): charcoal post, glass-look board (pale felt), orange rim, felt net
+    const hoop = new THREE.Group(); const post = box(0.14, 3.0, 0.14, CHAR, 0.03); hoop.add(post); const board = box(1.0, 0.65, 0.04, '#e8eef0', 0.02); board.position.set(0, 2.55, 0.25); hoop.add(board);
+    const sq = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.3), feltMat(CHAR)); sq.position.set(0, 2.75, 0.275); hoop.add(sq); const rim = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.015, 5, 16), feltMat('#e8582a')); rim.rotation.x = Math.PI / 2; rim.position.set(0, 2.6, 0.5); hoop.add(rim);
+    const net = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.13, 0.3, 10, 1, true), feltMat('#f6f2ea')); net.position.set(0, 2.45, 0.5); hoop.add(net); add(G, hoop, 3.6, 0, -1.2, -Math.PI / 2 + 0.2);
+    const ballB = ball(0.12, '#d9682a', 12); add(G, ballB, 2.2, 0.12, -0.2); const RIMW = new THREE.Vector3(); hoop.updateMatrixWorld(true); rim.getWorldPosition(RIMW);
+    // pool table (Larry's), cue ball + 8 ball
+    const pool = new THREE.Group(); pool.add(box(1.9, 0.75, 1.05, CHAR, 0.04)); const felt = box(1.75, 0.04, 0.9, GREEN, 0.01); felt.position.y = 0.75; pool.add(felt);
+    for (const s of [-1, 1]) { const rl = box(1.9, 0.08, 0.08, CHAR, 0.02); rl.position.set(0, 0.76, s * 0.5); pool.add(rl); }
+    const cue = ball(0.04, '#f6f2ea', 8); cue.position.set(-0.5, 0.83, 0); pool.add(cue); const eight = ball(0.04, '#111111', 8); eight.position.set(0.4, 0.83, 0.15); pool.add(eight);
+    const stick = cyl(0.012, 0.02, 1.0, '#c9a47a', 6); stick.rotation.z = Math.PI / 2 - 0.08; stick.position.set(-1.05, 0.86, 0); pool.add(stick); add(G, pool, 1.8, 0, -2.2);
+    // Larry Byrd at the table; THE VULTURE on a sculptural perch (recoloured: plum robe, grey head, no jersey number)
+    const larry = larryByrd(feltMat); larry.scale.setScalar(0.88); add(G, larry, 2.9, 0, -1.9, -0.6);
+    const vmap = { '#2f55a8': '#6a2a4a', '#c4473a': '#8a8480', '#f3efe2': '#6a2a4a' }; const vFelt = (c, x) => feltMat(vmap[c] || c, x);
+    const vult = larryByrd(vFelt); vult.traverse(o => { if (o.isMesh && o.material?.isMeshBasicMaterial) o.visible = false; }); vult.scale.setScalar(0.82);
+    const perch = new THREE.Group(); perch.add(cyl(0.35, 0.4, 0.08, CHAR, 16)); const arc = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.05, 6, 24, Math.PI * 1.3), feltMat(GOLD)); arc.position.y = 0.6; arc.rotation.z = -0.4; perch.add(arc);
+    const bar = cyl(0.03, 0.03, 0.9, GOLD, 6); bar.rotation.z = Math.PI / 2; bar.position.set(0.45, 1.15, 0); bar.geometry.translate(0, -0.45, 0); perch.add(bar);
+    vult.position.set(0, 1.15 - 0.6, 0); perch.add(vult); add(G, perch, -0.75, 0, -2.4, 0.35);
+    // intercom panel by the glass (left)
+    const icom = new THREE.Group(); icom.add(box(0.2, 0.32, 0.03, CHAR, 0.01)); const ib = new THREE.Mesh(new THREE.CircleGeometry(0.04, 12), glowM('#7ad8e8', 0.8)); ib.position.set(0, 0.1, 0.02); icom.add(ib); add(G, icom, -4.38, 1.3, -1.6, Math.PI / 2);
+    const mn = { throw: -1, made: 0, tries: 0, bet: 0, pool: -1 }; const BALL0 = new THREE.Vector3(2.2, 1.6, -0.2);
+    A.wolfSpot = [0.4, 1.7]; A.anim = []; A.proc = []; A.view = { look: -0.45 };
+    A.setAir = () => { mn.throw = -1; mn.pool = -1; eight.visible = true; eight.position.set(0.4, 0.83, 0.15); cue.position.set(-0.5, 0.83, 0); ballB.position.set(2.2, 0.12, -0.2); };
+    A.onEnter = () => say([['VULTURE (intercom, from the perch)', 'Larry\'s practising free throws in the ballroom. You may circle. Briefly.'], ['LARRY BYRD', 'Pool. Right here. Bring money. Bring a lot of money.']]);
+    const lh = larry.userData.head, vh = vult.userData.head;
+    A.tick = (dt, t) => { if (lh) lh.rotation.y = Math.sin(t * 0.7) * 0.4; if (vh) vh.rotation.y = Math.sin(t * 0.25) * 0.6; vult.rotation.z = Math.sin(t * 0.6) * 0.04; perch.rotation.y = 0.35 + Math.sin(t * 0.2) * 0.08;
+      ib.material.emissiveIntensity = mn.buzz > 0 ? 0.8 + 0.6 * Math.sin(t * 20) : 0.6; if (mn.buzz > 0) mn.buzz -= dt;
+      if (mn.throw >= 0) { mn.throw += dt; const u = Math.min(1, mn.throw / 1.1), end = mn.made ? RIMW : new THREE.Vector3(RIMW.x - 0.1, RIMW.y + 0.05, RIMW.z + 0.35);
+        if (u < 1) { ballB.position.lerpVectors(BALL0, end, u); ballB.position.y += Math.sin(u * Math.PI) * 1.2; } else { const d = mn.throw - 1.1; ballB.position.set(end.x + (mn.made ? 0 : d * 0.8), Math.max(0.12, end.y - d * d * 6 - d * 2), end.z + (mn.made ? 0 : d * 0.6)); if (d > 1.4) { mn.throw = -1; ballB.position.set(2.2, 0.12, -0.2); } } }
+      if (mn.pool >= 0) { mn.pool += dt; const p = mn.pool; if (p < 0.4) cue.position.x = -0.5 + p * 2.0; else if (p < 1.6) { eight.position.x = 0.4 + (p - 0.4) * 0.38; eight.position.z = 0.15 + (p - 0.4) * 0.22; } else if (mn.bet) eight.visible = false; if (p > 3.5) { mn.pool = -1; eight.visible = true; eight.position.set(0.4, 0.83, 0.15); cue.position.set(-0.5, 0.83, 0); } } };
+    A.who = [
+      { id: 'man_hoop', label: 'FREE THROW', o: hoop, talk: () => { mn.tries++; mn.made = Math.random() < 0.45 ? 1 : 0; mn.throw = 0; if (mn.made) mn.score = (mn.score || 0) + 1;
+        return mn.made ? [['', `Swish. (${mn.score} of ${mn.tries})`], ['LARRY BYRD', 'Beginner\'s luck. In the ballroom. My ballroom.']] : [['', `Off the rim. (${mn.score || 0} of ${mn.tries})`], ['LARRY BYRD', 'Brick. Want to make it interesting? Pool table. Ten dollars.']]; } },
+      { id: 'man_pool', label: 'POOL BET', o: pool, talk: () => { mn.bet = 1; mn.pool = 0; return [['LARRY BYRD', 'Eight ball, corner pocket. Three rails. Ten dollars.'], ['', 'Larry shoots. Click. Click-click-click. The eight drops.'], ['LARRY BYRD', 'You owe me ten dollars.'], ['WOLF', 'I never said yes.'], ['LARRY BYRD', 'Never play pool with Larry. Everybody knows that. Now you know that. Ten dollars.']]; } },
+      { id: 'man_icom', label: 'INTERCOM', o: icom, talk: () => { mn.buzz = 1.5; return [['', 'Bzzzzt.'], ['VULTURE (intercom)', 'Who is it.'], ['WOLF', 'It\'s me. I\'m inside.'], ['VULTURE (intercom)', 'Then why are you buzzing. Go away from inside.']]; } },
+      { id: 'man_papers', label: 'NEWSPAPERS', o: papers, talk: () => [['', 'Seven papers. The SUNSPOTS SENTINEL. The top one says STOP DELIVERY · 1979.'], ['NEWSPAPERS', 'He cancelled us in 1979. They still deliver one a day.'], ['NEWSPAPERS', 'Same headline every day: "SUNNY". Accurate.']] },
+      { id: 'man_vult', label: 'VULTURE', o: perch, talk: () => [['VULTURE', 'I built this house in a year. Glass on every side. I like to see things coming.'], ['VULTURE', 'Nothing comes. It\'s very peaceful.'], ['VULTURE', 'Larry pays rent in pool winnings. From you, apparently.']] },
+      { id: 'man_larry', label: 'LARRY BYRD', o: larry, talk: () => [['LARRY BYRD', 'Court\'s the court. This is the ballroom. Different rules.'], ['LARRY BYRD', 'In the ballroom, I\'m always up by two.']] },
+    ];
+    playhouse(A);
+  };
   return R;
 }

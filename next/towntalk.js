@@ -89,6 +89,8 @@ const FROM_INSIDE = {   // walk-by bubbles from homes with rooms
   anteater: [['ANTEATER (from inside)', 'I\'m eating. Come in if you\'re not an ant. Or if you are. Roommates welcome.']],
   apt_vict: [['A VOICE (from the speaking tube)', 'Landlord says no visitors. Landlord also says come up, it\'s rent day.']],
   moth: [['MOTH (from inside)', 'Can\'t come out. Porch light\'s on. Come in and turn it off, would you?']],
+  apt_pink: [['SOMEONE (from inside)', 'Wrong apartment. Come in anyway, the mail\'s piling up.']],
+  mansion: [['VULTURE (intercom)', 'Larry\'s practising free throws in the ballroom. The door\'s open. Circle in.']],
   wolf: [['FRIDGE (from the porch)', 'You live here. Come in. Or don\'t. I\'m a fridge.']],
 };
 export function installTalk({ T, level, TS, wolfState }) {
