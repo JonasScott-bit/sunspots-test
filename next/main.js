@@ -20,6 +20,8 @@ import { installHeron } from './heron14.js';
 import { installJournal } from './journal.js';   // Next Level run 1
 import { installCinematicQA } from './cinematic.js';   // Next Level run 1: video/ clip hook (swim lesson intro)
 import { installLivingWorld } from './livingworld.js';   // run 14 (D)
+import { installSnackRun } from './missions/snackrun.js';   // Next Level: LATE NIGHT SNACK RUN (night, 1:40 clock, list, stars)
+let SR = null;
 import { wolfIdle } from './idles.js';   // run 15
 let WIDLE = null;
 import { installCarnRides } from './carnrides.js';   // run 14b: ride the rides, play the midway   // run 13: THE ONE HORSE, KSUN CALL-IN, PAPER ROUTE
@@ -959,6 +961,7 @@ function frame() {
     key.position.set(window.__mapView.cx, 0, window.__mapView.cz).add(KEY_OFFSET); key.target.position.set(window.__mapView.cx, 0, window.__mapView.cz);
     renderer.render(scene, mapCam); requestAnimationFrame(frame); return;
   }
+  SR?.update(dt, t, w);   // snack run: night look + route + HUD (after the palette, before render)
   cockpit.renderMirror(renderer, scene);
   if (TS) TS.update(camera);
   renderer.render(scene, camera); if (SHOT || QCAM) window.__tris = renderer.info.render.triangles;
@@ -1000,6 +1003,7 @@ loadAll().then(() => {
   if (TS && QT) { MM = createMinimap({ TS, level, wolfState, QT, town, audio }); window.__minimap = MM; }
   if (TS && town && QT) try { JN = installJournal({ T: town, QT, level, audio }); } catch (e) { console.warn('journal failed', e); }   // Next Level run 1
   installCinematicQA();
+  if (TS && town) try { SR = installSnackRun({ scene, camera, level, wolfState, town, TS, feltMat, audio, LT: { hemi, key, fill, groundMat, discMat, lidMat, halo }, snap: () => { snapCam = true; } }); window.__snackrun = SR; } catch (e) { console.warn('snackrun failed', e); }
   if (Q.get('room')) { const go = () => { if (window.__titleUp || !wolfReady) { setTimeout(go, 200); return; } town.enter(Q.get('room')); }; go(); }
   window.__ready = true;
 }).catch(e => { document.getElementById('err').style.display = 'block'; document.getElementById('err').textContent = 'Load error: ' + e.message; console.error(e); });
