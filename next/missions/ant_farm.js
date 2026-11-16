@@ -69,7 +69,7 @@ function create({ hud: H }) {
   const beat = 60 / 100, half = beat / 2;
   function makePattern(n) { const p = []; let t = 0; for (let i = 0; i < n; i++) { p.push({ pad: Math.floor(R() * 4), t }); t += R() < 0.3 && G.v > 1 ? half : R() < 0.75 ? beat : beat * 1.5; } for (let i = 1; i < p.length; i++) if (p[i].pad === p[i - 1].pad && R() < 0.5) p[i].pad = (p[i].pad + 1 + Math.floor(R() * 3)) % 4; return p; }
   function play(i) { const f = PADS[i].f; if (f === 0) sfx.drum(0); else if (f === 1) { sfx.drum(1); sfx.tone(1400, 0.05, 'square', 0.05); } else if (f === 2) sfx.note(262 + 33 * (G.v % 3), 0.28, 'sine', 0.3); else sfx.tone(466, 0.22, 'sawtooth', 0.12, 1.12); glows[i].material.opacity = 0.9; for (const a of A) if (a.ch === i) a.jump = 0.25 + Math.random() * 0.1; }
-  function verse() { const V = VERSES[G.v]; G.pat = makePattern(V.n); G.phase = 'call'; G.t = -beat * 2; G.k = 0; G.ticks = 0; H.hint(`VERSE ${G.v + 1}: ${V.demand}`, 0); setPads(false); H.pill('verse', `VERSE ${G.v + 1}/6`); }
+  function verse() { const V = VERSES[G.v]; G.pat = makePattern(V.n); G.phase = 'call'; G.t = -beat * 2; G.k = 0; G.ticks = 0; if (innerHeight > innerWidth) { H.hint('', 0); H.toast(`VERSE ${G.v + 1}: ${V.demand}`, 2.6); } else H.hint(`VERSE ${G.v + 1}: ${V.demand}`, 0); setPads(false); H.pill('verse', `VERSE ${G.v + 1}/6`); }
   function setPads(on) { for (const b of pads) b.disabled = !on; }
   function hit(i) {
     play(i); if (G.phase !== 'echo') return; const n = G.pat[G.k], now = G.t; if (!n) return;
@@ -99,7 +99,7 @@ function create({ hud: H }) {
     G.t += dt;
     if (G.phase === 'call') { if (G.t < 0) { const tk = Math.floor((G.t + beat * 2) / beat); if (tk >= G.ticks && G.ticks < 2) { G.ticks++; sfx.tick(); } }
       while (G.k < G.pat.length && G.t >= G.pat[G.k].t) { const i = G.pat[G.k].pad; play(i); H.flash(pads[i], 220); G.k++; }
-      if (G.k >= G.pat.length && G.t > G.pat[G.pat.length - 1].t + beat) { G.phase = 'echo'; G.k = 0; G.t = 0; G.last = 0; setPads(true); H.hint('YOUR TURN', 1.1); sfx.ok(); } }
+      if (G.k >= G.pat.length && G.t > G.pat[G.pat.length - 1].t + beat) { G.phase = 'echo'; G.k = 0; G.t = 0; G.last = 0; setPads(true); if (innerHeight > innerWidth) H.toast('YOUR TURN', 1.1); else H.hint('YOUR TURN', 1.1); sfx.ok(); } }
     if (G.phase === 'echo') { if (G.auto) { const n = G.pat[G.k]; if (n && ((G.k === 0 && G.t > 0.6) || (G.k > 0 && G.t - G.tap0 >= n.t))) { H.flash(pads[n.pad]); hit(n.pad); } }
       if ((G.k === 0 && G.t > 5) || (G.k > 0 && G.t - G.last > 3)) slip('Too quiet.'); }
     for (const g of glows) g.material.opacity = Math.max(0, g.material.opacity - dt * 3);
@@ -117,7 +117,7 @@ function create({ hud: H }) {
     anteater.rotation.y = por ? 0.3 : 0.5; squid.rotation.y = por ? -0.3 : -0.5; wolf.rotation.y = 0.5;
     animPal(anteater, dt, t, { wave: G.phase === 'wait' ? 1 : 0 }); animPal(squid, dt, t, { cheer: G.phase === 'call' ? 1 : 0 }); animPal(wolf, dt, t, {});
     const hf = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect, dist = por ? (FW / 2 + 0.6) / hf : 10.2;
-    camera.position.set(0, por ? FY + 1.2 : FY + 0.6, dist); camera.lookAt(0, por ? FY - 2.4 : FY - 0.1, 0);
+    camera.position.set(0, por ? FY + 1.2 : FY + 0.6, dist); camera.lookAt(0, por ? FY - 1.85 : FY - 0.1, 0);
   };
   return inst;
 }

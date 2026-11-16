@@ -11,3 +11,7 @@ import './never_made_it.js';
 import './reggie_ride.js';
 import './nothing_cat.js';
 import './band_night.js';
+import './hum_bars.js';
+import './my_hat.js';
+import './vulture_party.js';
+import './moth_porch.js';

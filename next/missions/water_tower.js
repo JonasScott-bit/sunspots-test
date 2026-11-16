@@ -112,7 +112,7 @@ function create({ hud: H }) {
     if (climbing || G.phase === 'top') { H.pill('h', `${Math.round(P.y)} m${P.carry ? ' · 🦎 ON BACK' : ''}`); H.pill('time', `${Math.floor(G.t / 60)}:${String(Math.floor(G.t % 60)).padStart(2, '0')}`); H.setMeter(P.grip / 100, onLedge() ? 'GRIP · RESTING' : P.grip < 25 ? 'GRIP · LOW!' : 'GRIP'); }
     // camera: orbit outside the climber, a little below, looking up the tower
     const por = camera.aspect < 1; camS.th = angLerp(camS.th, P.th, Math.min(1, dt * 3)); camS.y = lerp(camS.y, P.y, Math.min(1, dt * 4));
-    const cd = P.r + (por ? 12 : 9), ch = camS.y + (por ? 1.5 : 2.0); camera.position.set(Math.sin(camS.th) * cd, Math.max(1.2, ch), Math.cos(camS.th) * cd); camera.lookAt(Math.sin(camS.th) * P.r * 0.6, camS.y + (por ? 2.6 : 1.6), Math.cos(camS.th) * P.r * 0.6);
+    const cd = P.r + (por ? 15 : 9), ch = camS.y + (por ? 1.5 : 2.0); camera.position.set(Math.sin(camS.th) * cd, Math.max(1.2, ch), Math.cos(camS.th) * cd); camera.lookAt(Math.sin(camS.th) * P.r * 0.6, camS.y + (por ? 3.0 : 1.6), Math.cos(camS.th) * P.r * 0.6);
   };
   function finish() { G.phase = 'done'; sfx.good(); const time = G.t, stars = 1 + (P.falls <= 1 ? 1 : 0) + (time < 150 ? 1 : 0); const suns = ['wt_done']; if (stars === 3) suns.push('wt_star'); if (G.kite) suns.push('wt_kite');
     H.say([['GECKO', 'Solid ground. It is so boring. I love it.'], ['LYNX', 'You were great, Wolf. I mean it. Mostly the second half.']], () => ctl.finish({ win: true, stars, title: 'GECKO IS DOWN', lines: [`${Math.floor(time / 60)}:${String(Math.floor(time % 60)).padStart(2, '0')} · ${P.falls} slide${P.falls === 1 ? '' : 's'}`, 'GECKO: "Next week: the other half."'], suns })); }

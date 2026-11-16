@@ -74,8 +74,8 @@ export function countTris(root) { let n = 0; root.traverse((o) => { if ((o.isMes
 
 // sign board (canvas text on a plane). glow = unlit (neon / lit window)
 export function sign(text, w, h, { bg = '#f2e6c8', fg = '#3a1f2a', font = '800 64px Futura, Avenir, system-ui, sans-serif', glow = false, border = true, sub = null } = {}) {
-  const tex = canvasTex(512, Math.max(64, Math.round(512 * h / w)), (g, W, H) => { if (bg) { g.fillStyle = bg; g.fillRect(0, 0, W, H); if (border) { g.strokeStyle = fg; g.setLineDash([10, 8]); g.lineWidth = 5; g.strokeRect(10, 10, W - 20, H - 20); } }
-    g.fillStyle = fg; g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle'; const L = text.split('\n'); L.forEach((l, i) => g.fillText(l, W / 2, H / 2 + (i - (L.length - 1) / 2) * H / (L.length + 0.6) - (sub ? H * 0.1 : 0), W - 30));
+  const CW = w / h > 4 ? 1024 : 512, tex = canvasTex(CW, Math.max(64, Math.round(CW * h / w)), (g, W, H) => { if (bg) { g.fillStyle = bg; g.fillRect(0, 0, W, H); if (border) { g.strokeStyle = fg; g.setLineDash([10, 8]); g.lineWidth = 5; g.strokeRect(10, 10, W - 20, H - 20); } }
+    g.fillStyle = fg; const nL = text.split('\n').length, fpx = Math.min(parseInt(font.match(/(\d+)px/)?.[1] || 64), Math.floor(H * (sub ? 0.5 : 0.66) / (nL + (nL > 1 ? 0.3 : 0)))); g.font = font.replace(/\d+px/, fpx + 'px'); g.textAlign = 'center'; g.textBaseline = 'middle'; const L = text.split('\n'); L.forEach((l, i) => g.fillText(l, W / 2, H / 2 + (i - (L.length - 1) / 2) * H / (L.length + 0.6) - (sub ? H * 0.1 : 0), W - 30));
     if (sub) { g.font = '700 30px Futura, Avenir, system-ui, sans-serif'; g.fillText(sub, W / 2, H * 0.82, W - 30); } });
   return new THREE.Mesh(new THREE.PlaneGeometry(w, h), glow ? new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, transparent: !bg, side: THREE.DoubleSide }) : new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide }));
 }
@@ -262,7 +262,7 @@ export function hud() {
   #msn .top{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top) + 10px);display:flex;justify-content:center;gap:8px;flex-wrap:wrap;padding:0 calc(env(safe-area-inset-right) + 66px) 0 calc(env(safe-area-inset-left) + 60px)}
   #msn .pill{background:#2b1e3ce6;border-radius:18px;padding:7px 14px;font:800 15px system-ui,sans-serif;letter-spacing:.06em;box-shadow:0 3px 0 #120a1c;white-space:nowrap}
   #msn .pill.warn{background:#a8323ae6;animation:msnW .6s ease infinite alternate} @keyframes msnW{to{transform:scale(1.07)}}
-  #msn .ttl{position:absolute;left:calc(env(safe-area-inset-left) + 12px);top:calc(env(safe-area-inset-top) + 56px);font:800 12px system-ui,sans-serif;letter-spacing:.22em;color:#ffe1a8;opacity:.85;text-shadow:0 2px 6px #000a}
+  #msn .ttl{position:absolute;left:calc(env(safe-area-inset-left) + 12px);top:calc(env(safe-area-inset-top) + 56px);max-width:calc(50vw - min(31vw,160px) - 24px);line-height:1.5;font:800 12px system-ui,sans-serif;letter-spacing:.22em;color:#ffe1a8;opacity:.85;text-shadow:0 2px 6px #000a}
   #msn .meter{position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top) + 56px);width:min(62vw,320px);height:16px;border-radius:9px;background:#2b1e3cd0;overflow:hidden;box-shadow:0 2px 0 #120a1c;display:none}
   #msn .meter u{display:block;height:100%;width:0;background:linear-gradient(90deg,#f6b23a,#e0503a);border-radius:9px;transition:width .2s} #msn .meter b{position:absolute;inset:0;text-align:center;font:800 11px/16px system-ui,sans-serif;letter-spacing:.16em}
   #msn .hint{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);width:min(86vw,520px);text-align:center;font:800 clamp(18px,4.6vw,26px)/1.25 Futura,Avenir,system-ui,sans-serif;text-shadow:0 3px 10px #000c,0 0 2px #000;opacity:0;transition:opacity .3s}

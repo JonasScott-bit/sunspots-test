@@ -35,7 +35,7 @@ function create({ hud: H }) {
   const R = rng(1984);
   { const m = new Merge(); m.box(14, 1, 6, '#5a2a3a', 0, 0.5, -3); m.box(14, 0.1, 0.3, '#f2c230', 0, 1.02, -0.1); m.box(16, 8, 0.2, '#2a1a3a', 0, 4, -6); for (let i = 0; i < 8; i++) m.box(0.12, 6, 0.12, '#c9a24a', -7 + i * 2, 4, -5.8); m.box(30, 0.1, 20, '#3a2a4a', 0, -0.02, 6);
     for (let i = 0; i < 5; i++) m.box(1.6, 0.04, 14, i % 2 ? '#c9a27a' : '#b8905f', -9 + i * 1.7 - 14, 0.02, 4); scene.add(m.mesh()); }
-  const banner = sign('GUTTER BOWL · FIRST SHOW', 7, 0.8, { bg: '#2a1a3a', fg: '#ff9ac2' }); banner.position.set(0, 5.0, -5.85); scene.add(banner);
+  const banner = sign('GUTTER BOWL  ·  FIRST SHOW', 6.8, 0.7, { bg: '#2a1a3a', fg: '#ff9ac2' }); banner.position.set(0, 4.05, -5.85); scene.add(banner);
   // the band: object characters with faces
   const face = (m, x, y, z, s = 1) => { for (const dx of [-0.12, 0.12]) { m.ball(0.09 * s, '#f6f2e8', x + dx * s, y, z, 1, 1, 0.5, 8, 6); m.ball(0.045 * s, '#1d1416', x + dx * s, y, z + 0.04 * s, 1, 1, 1, 6, 4); } m.box(0.18 * s, 0.03, 0.03, '#1d1416', x, y - 0.16 * s, z); };
   const couch = new THREE.Group(); { const m = new Merge(); m.box(2.4, 0.6, 1.0, '#7ac2c2', 0, 0.5, 0); m.box(2.4, 0.8, 0.3, '#6ab2b2', 0, 1.1, -0.4); for (const x of [-1.25, 1.25]) m.box(0.3, 0.8, 1.0, '#6ab2b2', x, 0.7, 0); face(m, 0, 1.15, -0.24, 1.6); m.box(0.25, 1.6, 0.12, '#8a5a3a', 0.9, 1.2, 0.3, 0, 0, -0.5); couch.add(m.mesh()); } couch.position.set(-3.4, 1, -2.6);
@@ -46,21 +46,23 @@ function create({ hud: H }) {
   const crowd = []; for (let i = 0; i < 9; i++) { const p = folk(R); p.position.set(-5 + (i % 5) * 2.4 + (R() - 0.5), 0, 2.6 + Math.floor(i / 5) * 1.8 + R() * 0.4); p.rotation.y = Math.PI; scene.add(p); crowd.push(p); }
   const hum = CAST.hummer(); hum.position.set(6.2, 0, 3.6); hum.rotation.y = -2.4; scene.add(hum);
   // the lane highway (2D canvas over the scene)
-  const cv = document.createElement('canvas'); cv.style.cssText = 'position:absolute;pointer-events:none;border-radius:16px'; const g2 = cv.getContext('2d');
+  const cv = document.createElement('canvas'); cv.style.cssText = 'position:absolute;pointer-events:none'; const g2 = cv.getContext('2d');
   const G = { phase: 'off', t: 0, notes: [], end: 0, crowd: 0.55, hits: 0, perf: 0, miss: 0, combo: 0, encore: false, auto: false, lastB: -1, said: {} };
   const inst = { scene, camera, G, get phase() { return G.phase; } }; let ctl = null, pads = [];
   const say = (...L) => { if (!H.talking()) H.say(L); };
   const LEAD = 2.2, SPEED = 1 / 1.6;   // notes are visible 1.6 s before the line
-  function layout() { const por = innerHeight > innerWidth, W = por ? Math.min(innerWidth - 24, 360) : 300, top = por ? 150 : 62, bottom = por ? 132 : 96; cv.width = W * devicePixelRatio; cv.height = (innerHeight - top - bottom) * devicePixelRatio; cv.style.width = W + 'px'; cv.style.height = (innerHeight - top - bottom) + 'px'; cv.style.left = (innerWidth - W) / 2 + 'px'; cv.style.top = top + 'px'; }
+  function layout() { const por = innerHeight > innerWidth, W = por ? 318 : 294, top = por ? 132 : 84, bottom = por ? 124 : 88; cv.width = W * devicePixelRatio; cv.height = (innerHeight - top - bottom) * devicePixelRatio; cv.style.width = W + 'px'; cv.style.height = (innerHeight - top - bottom) + 'px'; cv.style.left = (innerWidth - W) / 2 + 'px'; cv.style.top = top + 'px'; }
   function playLane(l, n) { if (l === 0) sfx.tone(BASSN[Math.floor((n?.b ?? 0) / 8) % 4] * 2, 0.32, 'triangle', 0.42); else if (l === 1) sfx.drum(n && n.b % 2 >= 1 ? 1 : 0); else sfx.tone(VOX[Math.floor(n?.b ?? R() * 8) % 8], 0.2, 'square', 0.08); bump[l] = 1; colL[l].intensity = 18; }
   function hit(l) { if (G.phase !== 'play') return; const st = G.t - LEAD; let best = null, bd = 0.2; for (const n of G.notes) { if (n.hit || n.l !== l) continue; const d = Math.abs(n.t - st); if (d < bd) { bd = d; best = n; } if (n.t > st + 0.3) break; }
     if (!best) { G.combo = 0; G.crowd = Math.max(0, G.crowd - 0.01); sfx.tone(140, 0.06, 'square', 0.05); return; } best.hit = bd < 0.08 ? 2 : 1; G.hits++; if (best.hit === 2) G.perf++; G.combo++; G.crowd = Math.min(1, G.crowd + 0.012); playLane(l, best); fx.push({ l, t: 0.3, p: best.hit === 2 }); }
   const fx = [];
-  function draw(st) { const w = cv.width, h = cv.height, d = devicePixelRatio, lw = w / 3, hy = h - 30 * d; g2.clearRect(0, 0, w, h); g2.fillStyle = 'rgba(20,12,30,0.38)'; g2.fillRect(0, 0, w, h);
-    for (let l = 0; l < 3; l++) { g2.fillStyle = l % 2 ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.0)'; g2.fillRect(l * lw, 0, lw, h); }
-    g2.fillStyle = '#fff3dc'; g2.fillRect(0, hy - 2 * d, w, 4 * d);
-    for (const f of fx) { g2.fillStyle = f.p ? 'rgba(255,232,106,' + f.t * 2 + ')' : 'rgba(191,242,224,' + f.t * 2 + ')'; g2.fillRect(f.l * lw, hy - 20 * d, lw, 40 * d); }
-    for (const n of G.notes) { const dtN = n.t - st; if (dtN > 1.7) break; if (dtN < -0.4 || n.hit) continue; const y = hy - dtN * SPEED * hy; g2.fillStyle = LANES[n.l].col; g2.beginPath(); g2.roundRect(n.l * lw + 8 * d, y - 9 * d, lw - 16 * d, 18 * d, 9 * d); g2.fill(); g2.fillStyle = 'rgba(0,0,0,0.25)'; g2.fillRect(n.l * lw + 14 * d, y + 4 * d, lw - 28 * d, 3 * d); } }
+  function draw(st) { const w = cv.width, h = cv.height, d = devicePixelRatio, lw = w / 3, hy = h - 34 * d, nr = Math.min(lw * 0.2, 17 * d); g2.clearRect(0, 0, w, h);
+    for (let l = 0; l < 3; l++) { const x = (l + 0.5) * lw, gr = g2.createLinearGradient(0, 0, 0, hy); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(1, 'rgba(255,243,220,0.35)'); g2.strokeStyle = gr; g2.lineWidth = 1.5 * d; g2.beginPath(); g2.moveTo(x, 0); g2.lineTo(x, hy - nr); g2.stroke();
+      const lit = fx.find((f) => f.l === l); g2.lineWidth = 3 * d; g2.strokeStyle = LANES[l].col; g2.shadowColor = LANES[l].col; g2.shadowBlur = lit ? 22 * d : 8 * d; g2.globalAlpha = lit ? 1 : 0.75; g2.beginPath(); g2.arc(x, hy, nr + 3 * d, 0, TAU); g2.stroke(); g2.globalAlpha = 1; g2.shadowBlur = 0; }
+    for (const f of fx) { const x = (f.l + 0.5) * lw, k = 1 - f.t / 0.3; g2.strokeStyle = f.p ? 'rgba(255,232,106,' + (1 - k) + ')' : 'rgba(191,242,224,' + (1 - k) + ')'; g2.lineWidth = 3 * d; g2.beginPath(); g2.arc(x, hy, nr + 4 * d + k * 22 * d, 0, TAU); g2.stroke(); }
+    for (const n of G.notes) { const dtN = n.t - st; if (dtN > 1.7) break; if (dtN < -0.3 || n.hit) continue; const y = hy - dtN * SPEED * hy, x = (n.l + 0.5) * lw, a = clamp((hy - (hy - y)) / (hy * 0.25), 0, 1); g2.globalAlpha = a;
+      g2.shadowColor = LANES[n.l].col; g2.shadowBlur = 14 * d; g2.fillStyle = LANES[n.l].col; g2.beginPath(); g2.arc(x, y, nr, 0, TAU); g2.fill(); g2.shadowBlur = 0; g2.lineWidth = 2 * d; g2.strokeStyle = 'rgba(30,18,40,0.8)'; g2.stroke();
+      g2.fillStyle = 'rgba(255,255,255,0.55)'; g2.beginPath(); g2.arc(x - nr * 0.3, y - nr * 0.3, nr * 0.32, 0, TAU); g2.fill(); g2.globalAlpha = 1; } }
   function start2(encore) { const ch = chart(rng(encore ? 77 : 1984)); G.notes = encore ? ch.notes.slice(0, 60).map((n) => ({ ...n })) : ch.notes; G.end = encore ? G.notes[G.notes.length - 1].t + 2 : ch.end; G.t = 0; G.lastB = -1; G.phase = 'play'; G.total = G.notes.length; G.hits = G.perf = G.miss = 0; G.combo = 0; }
   inst.start = async (c) => {
     ctl = c; G.auto = c.auto; Object.assign(G, { phase: 'talk', t: 0, crowd: 0.55, hits: 0, perf: 0, miss: 0, combo: 0, encore: false, said: {} }); for (const n of G.notes) n.hit = 0;
