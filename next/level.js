@@ -22,7 +22,7 @@ export const LAYOUT = {
 export const NEWTOWN = !new URLSearchParams(location.search).has('oldtown');
 if (NEWTOWN) Object.assign(LAYOUT, {
   townCenter: [-90, 2], walkRadius: 220,
-  wolfHouse: [22, 47, 0], wolfStart: [23.2, 53.2, 2.25],     // on his front walk, Mesa Lane; Main St + the pickup are a short walk north-east
+  wolfHouse: [22, 47, 0], wolfStart: [23.2, 53.2, 1.6],      // on his front walk, Mesa Lane, facing down the street (ship pass: first view is the street, not the house wall); Main St + the pickup are a short walk north-east
   spots: { bus_stop: [30, 0.6], fountain_s: [19, 0.8], diner_door: [-23, 0.6], payphone: [9.6, 13.6], lamp: [0, 13.8], adobe_w: [-14, 0.8],
     adobe_e: [27, 13.5], road_w: [-30, 13.6], parked_car: [12, 1.0], wolf_gate: [-5, 0.6] },
 });

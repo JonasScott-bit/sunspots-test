@@ -536,7 +536,7 @@ const wolfState = { pos: new THREE.Vector3(LAYOUT.wolfStart[0], 0, LAYOUT.wolfSt
 const level = createLevel({ scene, colliders, feltMat, rbox, makeMeltable, feltify: (r) => feltify(r), rnd, clamp, lerp, smooth, FELT,
   onEnterCar: () => { if (actWalk) { actWalk.setEffectiveWeight(0); actRun.setEffectiveWeight(0); actIdle.setEffectiveWeight(1); } wolfState.speed = 0; snapCam = true; },
   onExitCar: (s) => { wolfState.pos.set(s.x, 0, s.z); wolfState.yaw = s.yaw; wolfState.speed = 0; camYawTarget = camYaw = s.yaw + Math.PI; manualLookT = 0; snapCam = true; },   // run 12: out of his own car
-  onReset: () => { director?.reset(); moth?.reset(); wolfState.pos.set(LAYOUT.wolfStart[0], 0, LAYOUT.wolfStart[1]); wolfState.yaw = LAYOUT.wolfStart[2]; wolfState.speed = 0; camYawTarget = camYaw = 0; snapCam = true; } });
+  onReset: () => { director?.reset(); moth?.reset(); wolfState.pos.set(LAYOUT.wolfStart[0], 0, LAYOUT.wolfStart[1]); wolfState.yaw = LAYOUT.wolfStart[2]; wolfState.speed = 0; camYawTarget = camYaw = LAYOUT.wolfStart[2] + Math.PI; snapCam = true; } });
 let snapCam = false, QT = null, MM = null, JN = null;
 const _sm = new THREE.Matrix4(), _sm2 = new THREE.Matrix4(), _sp = new THREE.Vector3(), _se = new THREE.Euler(0, 0, 0, 'YXZ');
 try { level.soloChase = sessionStorage.getItem('sunspots.soloChase') !== '0'; } catch (_) { level.soloChase = true; }   // his own car: chase view by default
@@ -650,7 +650,7 @@ async function loadAll() {
 const joy = document.getElementById('joy'), knob = document.getElementById('knob');
 const input = { x: 0, y: 0 }; let joyId = null, joyO = { x: 0, y: 0 }, lookId = null, lookLast = 0, lookLastY = 0;
 const DEBUG = {};
-let camYaw = 0, camYawTarget = 0, manualLookT = 0;
+let camYaw = LAYOUT.wolfStart[2] + Math.PI, camYawTarget = camYaw, manualLookT = 0;   // ship pass: start behind the Wolf, looking down the street
 const R = 52;
 canvas.addEventListener('pointerdown', e => {
   if (level.mode !== 'walk' || level.frozen) return;
@@ -1060,7 +1060,7 @@ function wolfFootsteps() {
   const sp = puppet.on ? puppet.speed : wolfState.speed, d = ((ph - p0) % 1 + 1) % 1; if (sp < 0.3 || d === 0 || d > 0.5) return;
   for (const q of u.plants) if (((q - p0) % 1 + 1) % 1 > 0 && ((q - p0) % 1 + 1) % 1 <= d) { u.steps = (u.steps || 0) + 1; audio.step(Math.abs(sp)); }
 }
-window.__sunspots = { puppet, get director() { return director; }, DEBUG, toggleWild, toggleFP, FP, cockpit, input, keys, get wild() { return wild; }, scene, camera, level, wolfState };
+window.__sunspots = { puppet, get director() { return director; }, DEBUG, toggleWild, toggleFP, FP, cockpit, input, keys, get wild() { return wild; }, scene, camera, level, wolfState, renderer };
 
 // ---------------------------------------------------------------- horses: riding GRAVY (Bear's horse). RIDE at the horse, DISMOUNT like GET OUT
 const _rq = new THREE.Quaternion(), _re = new THREE.Euler(), _rv = new THREE.Vector3();
