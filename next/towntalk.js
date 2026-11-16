@@ -8,7 +8,7 @@ import { PLAZA, SLOGAN } from './horse.js';
 export const LORE = {
   founding: ['Sunspots was founded in 1951 by a man who stopped for gas and could not get the car to start again.', 'He called it Sunspots because he saw spots for a week. The doctor said "sun". It stuck.'],
   horse: ['There was one horse. Everyone agreed that was plenty.', 'A second horse came through in 1958. It kept going. The town took it personally.', 'The statue was cast in felt because bronze melts. Felt also melts. Nobody checked.'],
-  store: ['Last Minute Snacks closes at 2:00 PM. Not 2:01. The owner leaves at 2 to go look at the horse.', 'Nobody knows why 2. The sign has said 2 since the sign.'],
+  store: ['Last Minute Snacks closes at 2:00 AM. Not 2:01. The owner leaves at 2 to go look at the horse.', 'Nobody knows why 2. The sign has said 2 since the sign.'],
   mesa: ['On Mesa Rd, Ram locks up every evening in three steps: chain, deadbolt, NOT HOME. He has never been not home.', 'Moth drives the night cab for SUN-O-CAB. He can\'t leave while a porch light\'s on, so the whole street dims for him.'],
   pink: ['Apartment 6, the pink one, belongs to SOMEONE. Nobody has seen SOMEONE. Everyone has heard SOMEONE.', 'Every letter delivered to the pink apartment is for the wrong name. SOMEONE sorts them anyway.'],
   mansion: ['The glass mansion went up in 2024. The Vulture built it so he could see things coming. Nothing comes.', 'Larry Byrd pays the Vulture rent in pool winnings. Ask anyone who has played him. Once.'],

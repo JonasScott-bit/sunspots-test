@@ -208,7 +208,7 @@ export function installLivingWorld({ T, TS, level, wolfState, scene, camera, fel
     chase: [['OFFICER FUZZ', 'LEMON KID! That is a speed!'], ['THE LEMON KID', 'It\'s a waddle! I\'m waddling fast!']],
     caught: [['OFFICER FUZZ', 'Alright, alright. License and fur.'], ['OFFICER FUZZ', 'This is a citation. It says "a lot". Have a good day.'], ['', 'The Fuzz-o-meter resets. Officer Fuzz waddles back to the doughnut.']],
     escape: [['OFFICER FUZZ', 'Lost the fuzzy one. Lunch.']],
-    ped: { normal: [['', 'Afternoon.'], ['', 'Have you seen the horse? The statue one?'], ['', 'Hot one today. Every day is a hot one.'], ['', 'The store closes at two. It always has.'], ['', 'I\'m walking. That\'s it. That\'s the errand.']], bump: [['', 'HEY.'], ['', 'Watch the tail!'], ['', 'Rude. Fuzzy, but rude.'], ['', 'I\'m telling Officer Fuzz.']] },
+    ped: { normal: [['', 'Evening. Morning. Whatever this is.'], ['', 'Have you seen the horse? The statue one?'], ['', 'Warm one tonight. Every night is a warm one.'], ['', 'The store closes at two. It always has.'], ['', 'I\'m walking. That\'s it. That\'s the errand.']], bump: [['', 'HEY.'], ['', 'Watch the tail!'], ['', 'Rude. Fuzzy, but rude.'], ['', 'I\'m telling Officer Fuzz.']] },
     wild: [['', 'THE STREET IS MELTING. NOBODY PANIC. EVERYBODY DANCE.'], ['', 'WADDLE WADDLE WADDLE.'], ['', 'HONK IF YOU\'RE MELTING.'], ['', 'MY HAT IS A SOUP.']],
   };
 

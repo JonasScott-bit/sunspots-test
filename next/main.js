@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { createLevel, LAYOUT } from './level.js';
+import { createLevel, LAYOUT, NIGHT } from './level.js';
 import { createCockpit } from './cockpit.js';
 import { createMoth } from './moth.js';
 import { createDirector } from './scenes.js';
@@ -66,13 +66,18 @@ renderer.toneMapping = TONE ? THREE.NeutralToneMapping : THREE.NoToneMapping; if
 if (TONE) PAL.hemiSky[0] = new THREE.Color('#aebcdc');
 if (NEWTOWN && !TONE) { PAL.hemiSky[0] = new THREE.Color('#e6e0d4'); PAL.hemiSky[1] = new THREE.Color('#cdb8d8'); } // run 11: near-neutral sky fill so white paint reads white, not lilac
 
+// Next Level: Last Minute Snacks is a 2 AM run (Scott: never daytime). Night palette: indigo sky, moon-pale eye sun, cool moonlight key, dim fill. ?day = old look (QA only).
+if (NIGHT) { PAL.sky = [new THREE.Color('#121838'), new THREE.Color('#2a0f3e')]; PAL.fog = [new THREE.Color('#1b1f44'), new THREE.Color('#3a1240')];
+  PAL.ground = [new THREE.Color('#b0583a'), new THREE.Color('#a01c4a')]; PAL.sun = [new THREE.Color('#f2ead0'), new THREE.Color('#ff6d2e')];
+  PAL.cloud = [new THREE.Color('#2a2c46'), new THREE.Color('#4a1f56')]; PAL.hemiSky = [new THREE.Color('#7f8fd0'), new THREE.Color('#9a62c8')]; PAL.key = [new THREE.Color('#b4c2ff'), new THREE.Color('#ff9ab8')]; }
+const NK = NIGHT ? { hemi: 0.95, key: 0.62, fill: 0.22 } : { hemi: 1, key: 1, fill: 1 };
 const scene = new THREE.Scene();
 scene.background = PAL.sky[0].clone();
-scene.fog = new THREE.Fog(PAL.fog[0].clone(), 45, 330);
+scene.fog = new THREE.Fog(PAL.fog[0].clone(), NIGHT ? 34 : 45, NIGHT ? 240 : 330);
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 2500);
 
 // ---------------------------------------------------------------- lights
-const hemi = new THREE.HemisphereLight(PAL.hemiSky[0].clone(), new THREE.Color('#e08a5a'), 1.55);
+const hemi = new THREE.HemisphereLight(PAL.hemiSky[0].clone(), new THREE.Color('#e08a5a'), 1.55 * NK.hemi);
 scene.add(hemi);
 const key = new THREE.DirectionalLight(PAL.key[0].clone(), 2.3);
 key.castShadow = true;
@@ -733,7 +738,7 @@ function frame() {
   scene.fog.color.lerpColors(PAL.fog[0], PAL.fog[1], w);
   groundMat.color.lerpColors(PAL.ground[0], PAL.ground[1], w);
   hemi.color.lerpColors(PAL.hemiSky[0], PAL.hemiSky[1], w); hemi.groundColor.copy(groundMat.color).lerp(col.set(TONE ? '#e0704e' : NEWTOWN ? '#e6e2da' : '#f6c4a2'), (TONE ? 0.8 : NEWTOWN ? 0.8 : 0.6) * (1 - w)); // M6: near-neutral ground bounce on walls so whites read white, not pink
-  key.color.lerpColors(PAL.key[0], PAL.key[1], w); key.intensity = lerp(2.3, 1.6, w); if (NEWTOWN) fill.intensity = lerp(3.2, 1.4, w);
+  key.color.lerpColors(PAL.key[0], PAL.key[1], w); key.intensity = lerp(2.3, 1.6, w) * NK.key; if (NEWTOWN) fill.intensity = lerp(3.2, 1.4, w) * NK.fill;
   discMat.color.lerpColors(PAL.sun[0], PAL.sun[1], w);
   lidMat.color.copy(discMat.color).multiplyScalar(0.9);
   halo.material.color.set('#ffcf6a').lerp(col.set('#ff7a3a'), w); halo.material.opacity = lerp(0.18, 0.75, w); halo.scale.setScalar(lerp(1, 1.25, w));

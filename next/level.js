@@ -1,4 +1,6 @@
-// Level 1 — "Last Minute Snacks". The convenience store closes at 2:00 PM. Walk to the pickup spot, ride out.
+// Level 1 — "Last Minute Snacks". A late-night snack run: the convenience store closes at 2:00 AM. Walk to the pickup spot, ride out.
+// Next Level run 1 (Nov 15 2026): NIGHT is the canon (Scott). ?day = the old daylight look for comparison. Night adds headlights,
+// a felt cow herd crossing the long road, a ROAD WORK barricade on the shortcut, and a CLOSES IN m:ss countdown.
 // Layout data + road + driving + townsfolk + HUD. main.js owns the renderer, wolf and Wild Mode; this owns the level.
 import * as THREE from 'three';
 import { sunspotsApply } from './sunspots_material.js';
@@ -32,7 +34,8 @@ const SHORT_PTS = [[48, -75], [40, -110], [27, -190], [43, -290], [36, -390], [6
 const DRIVE_PTS = [[-10, 24], [-10, 16], [-9.5, 10]]; // the Wolf's dirt driveway
 
 const ROAD_W = 7.2, SHORT_W = 5.0;
-const START_LEFT = 150; // seconds of game clock: 1:57:30 PM -> 2:00:00 PM
+const START_LEFT = 150; // seconds of game clock: 1:57:30 AM -> 2:00:00 AM
+export const NIGHT = !new URLSearchParams(location.search).has('day');
 
 export function createLevel(C) {
   const { scene, colliders, feltMat, rbox, makeMeltable, rnd, clamp, lerp, smooth, FELT } = C;
@@ -242,7 +245,7 @@ export function createLevel(C) {
     add(tower, rbox(1.4, 6.2, 1.4, 0.3, '#e7a676'), 0, 0, 0);
     add(tower, cyl(1.7, 0.5, '#d68a5c', 36), 0, 7.2, 0).rotation.x = Math.PI / 2;
     const face = new THREE.Mesh(new THREE.CircleGeometry(1.5, 48), new THREE.MeshBasicMaterial({ map: clockTex, fog: false, toneMapped: false })); add(tower, face, 0, 7.2, 0.27);
-    add(tower, signBoard('CLOSES 2:00 PM', 3.2, 0.7, { bg: '#ffe7a8', fg: '#a2302a', font: 'bold 64px Futura, Avenir, sans-serif' }), 0, 5.5, 0.72);
+    add(tower, signBoard(NIGHT ? 'CLOSES 2:00 AM' : 'CLOSES 2:00 PM', 3.2, 0.7, { bg: '#ffe7a8', fg: '#a2302a', font: 'bold 64px Futura, Avenir, sans-serif' }), 0, 5.5, 0.72);
     colliders.push({ x: sx - 5, z: sz, r: 4.6 }, { x: sx, z: sz, r: 4.6 }, { x: sx + 5, z: sz, r: 4.6 }, { x: sx + W / 2 + 3.2, z: sz + 2, r: 1.2 });
     makeMeltable(g, { tint: '#ff8070', puddle: 9.5, puddleColor: '#ff8a7c', drips: { drip: 'box', footprint: [W, D], height: H + 0.4, kind: 'adobe' } });
     makeMeltable(tower, { tint: '#ff7a6c', puddle: 1.8, puddleColor: '#f2907f', bend: 0.5 });
@@ -295,6 +298,47 @@ export function createLevel(C) {
     tw.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.45, 1), feltMat('#a07440', { wireframe: true })));
     scene.add(tw); const r = atDist(SHORT, SHORT.len * 0.66); L.tumble = { obj: tw, cx: r.x, cz: r.z, yaw: r.yaw, ph: 0, push: 0 }; }
   L.obstacles = { guards: L.guards, tumble: L.tumble };
+  // ---- Next Level run 1: night obstacles (felt, deadpan, nobody gets hurt) + headlights
+  L.cows = []; L.works = []; L.MAIN = MAIN; L.SHORT = SHORT;
+  if (NIGHT) {
+    // a small felt herd crosses the long road, slowly, back and forth (the "second horse" is a cow)
+    const hide = feltMat('#efe6d6'), spot = feltMat('#2a2326'), nose = feltMat('#e8a0a0'), bodyG = new THREE.BoxGeometry(0.9, 0.8, 1.7), headG = new THREE.BoxGeometry(0.5, 0.5, 0.6), legG = new THREE.BoxGeometry(0.18, 0.7, 0.18), spotG = new THREE.BoxGeometry(0.92, 0.42, 0.5), noseG = new THREE.BoxGeometry(0.42, 0.24, 0.12);
+    const eyeG = new THREE.SphereGeometry(0.06, 8, 6), eyeM = new THREE.MeshBasicMaterial({ color: '#d8ffb0' });   // eyeshine in the headlights
+    for (const [frac, n] of [[0.36, 3], [0.71, 2]]) { const r = atDist(MAIN, MAIN.len * frac);
+      for (let i = 0; i < n; i++) { const g = new THREE.Group(); const b = new THREE.Mesh(bodyG, hide); b.position.y = 1.05; g.add(b); const sp = new THREE.Mesh(spotG, spot); sp.position.set(0, 1.15, i % 2 ? 0.3 : -0.35); g.add(sp);
+        const hd = new THREE.Mesh(headG, hide); hd.position.set(0, 1.35, 1.05); g.add(hd); const ns = new THREE.Mesh(noseG, nose); ns.position.set(0, 1.25, 1.38); g.add(ns);
+        for (const sx of [-0.13, 0.13]) { const e = new THREE.Mesh(eyeG, eyeM); e.position.set(sx, 1.47, 1.36); g.add(e); }
+        for (const [lx, lz] of [[-0.3, -0.6], [0.3, -0.6], [-0.3, 0.6], [0.3, 0.6]]) { const l = new THREE.Mesh(legG, spot); l.position.set(lx, 0.35, lz); g.add(l); }
+        g.traverse(o => { if (o.isMesh) o.castShadow = true; }); scene.add(g);
+        L.cows.push({ obj: g, cx: r.x, cz: r.z, yaw: r.yaw, ph: i * 0.9 + frac * 7, lane: (i - (n - 1) / 2) * 2.6, hitT: 0 }); } }
+    // ROAD WORK on the shortcut: sawhorses + blinking amber lamps take the right half; squeeze past slowly or bonk
+    const wood = feltMat('#f2e6c8'), stripe = feltMat('#e0702a'), lampM = new THREE.MeshBasicMaterial({ color: '#ffb02a' });
+    for (const frac of [0.24, 0.84]) { const r = atDist(SHORT, SHORT.len * frac, SHORT.w * 0.22); const g = group(r.x, r.z, r.yaw); const lamps = [];
+      for (const sx of [-1.1, 0, 1.1]) { add(g, rbox(1.0, 0.22, 0.08, 0.02, '#f2e6c8'), sx, 0.95, 0); add(g, rbox(0.3, 0.2, 0.09, 0.01, '#e0702a'), sx, 0.95, 0.01);
+        for (const lx of [-0.4, 0.4]) add(g, rbox(0.07, 0.95, 0.07, 0.01, '#f2e6c8'), sx + lx, 0.47, 0);
+        const lp = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8), lampM.clone()); lp.position.set(sx, 1.18, 0); g.add(lp); lamps.push(lp); }
+      const s = signPost(r.x - Math.cos(r.yaw) * 2.6, r.z + Math.sin(r.yaw) * 2.6, r.yaw + Math.PI, 'ROAD WORK\n(NOBODY WORKING)', 2.2, 0.9); void s; void wood; void stripe;
+      colliders.push({ x: r.x, z: r.z, r: 1.7 }); L.works.push({ x: r.x, z: r.z, lamps, hit: false }); }
+  }
+  // headlights: one shadowless spot that rides whichever car the Wolf is in (always in the scene so shaders never recompile) + soft beam cones
+  L.head = null;
+  if (NIGHT) { const sl = new THREE.SpotLight('#fff1c8', 0, 70, 0.55, 0.6, 1.2); sl.castShadow = false; scene.add(sl, sl.target);
+    const beamM = new THREE.MeshBasicMaterial({ color: '#fff3c8', transparent: true, opacity: 0.0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
+    const beamG = new THREE.ConeGeometry(2.6, 14, 18, 1, true); beamG.translate(0, -7, 0); beamG.rotateX(-Math.PI / 2 + Math.PI);
+    const beams = [L.car, L.free].filter(Boolean).map(c => { const m = new THREE.Mesh(beamG, beamM); m.position.set(0, 0.9, 1.4); m.rotation.x = 0.06; m.renderOrder = 5; c.root.add(m); return m; });
+    L.head = { sl, beamM, beams }; }
+  function updateNight(dt, t) {
+    if (!NIGHT) return; const c = L.mode === 'drive' ? L.car : L.mode === 'solo' ? L.free : null;
+    if (L.head) { const h = L.head; h.sl.intensity = c ? 60 : 0; h.beamM.opacity = c ? 0.07 : 0.035;
+      if (c) { const s = Math.sin(c.yaw), co = Math.cos(c.yaw); h.sl.position.set(c.pos.x + s * 1.4, 1.3, c.pos.z + co * 1.4); h.sl.target.position.set(c.pos.x + s * 24, 0, c.pos.z + co * 24); h.sl.target.updateMatrixWorld(); } }
+    for (const w of L.works) { const on = Math.sin(t * 6 + w.x) > 0; for (const l of w.lamps) l.material.color.set(on ? '#ffb02a' : '#5a3a12'); }
+    for (const k of L.cows) { k.ph += dt * 0.07; const off = Math.sin(k.ph) * 11, nx = Math.cos(k.yaw), nz = -Math.sin(k.yaw), dir = Math.cos(k.ph) >= 0 ? 1 : -1;
+      const fx = k.cx - Math.sin(k.yaw) * k.lane, fz = k.cz - Math.cos(k.yaw) * k.lane; k.obj.position.set(fx + nx * off, Math.abs(Math.sin(t * 2.4 + k.lane)) * 0.04, fz + nz * off);
+      k.obj.rotation.y = k.yaw + (dir > 0 ? Math.PI / 2 : -Math.PI / 2); k.hitT -= dt;
+      const cc = L.mode === 'drive' ? L.car : L.mode === 'solo' ? L.free : null;
+      if (cc && k.hitT <= 0 && Math.hypot(cc.pos.x - k.obj.position.x, cc.pos.z - k.obj.position.z) < 2.3) { k.hitT = 2.5; const fast = Math.abs(cc.v) > 6; cc.v *= fast ? -0.2 : 0.3; cc.hopV = fast ? 2.0 : 0.8;
+        audio.ev('bonk', { solo: cc === L.free }); toast(fast ? ['Moo. (felt)', 'The cow does not move. The cow was here first.', 'A cow. At 2 AM. Of course.'][Math.floor(rnd() * 3)] : 'Cows crossing. You wait. They take their time.', 2.2); } }
+  }
 
   // -------------------------------------------------------------- townsfolk spots (invisible markers) + rigged cast
   L.spotMarkers = [];
@@ -362,7 +406,8 @@ export function createLevel(C) {
   // -------------------------------------------------------------- HUD (DOM)
   const $ = id => document.getElementById(id);
   const hud = { clock: $('clk'), sub: $('clkSub'), obj: $('obj'), dist: $('dist'), getIn: $('getIn'), drive: $('drive'), toast: $('toast'), end: $('endScr') };
-  const fmt = (left) => { const s = Math.max(0, Math.ceil(14 * 3600 - left)); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, ss = s % 60; return `${h > 12 ? h - 12 : h}:${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')} PM`; };
+  const fmt = (left) => { const s = Math.max(0, Math.ceil((NIGHT ? 2 : 14) * 3600 - left)); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, ss = s % 60; return `${h > 12 ? h - 12 : h || 12}:${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')} ${NIGHT ? 'AM' : 'PM'}`; };
+  const fmtLeft = (left) => { const s = Math.max(0, Math.ceil(left)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
   L.fmt = fmt;
   function toast(msg, sec = 3) { if (!hud.toast) return; hud.toast.textContent = msg; hud.toast.style.opacity = 1; L.toastT = sec; }
   L.toast = toast;
@@ -421,7 +466,7 @@ export function createLevel(C) {
   function finish(won) {
     if (L.ended) return; L.ended = true; L.mode = won ? 'won' : 'lost'; audio.ev('finish', { won }); document.body.classList.add('ended', won ? 'won' : 'lost');
     $('endTitle').textContent = won ? 'SNACKS ACQUIRED.' : 'CLOSED.';
-    $('endSub').textContent = won ? `Arrived ${fmt(L.left)}. The store was still open. Nobody said anything.` : 'The store closed at 2:00 PM. The Wolf looks at the sign for a while.';
+    $('endSub').textContent = won ? `Arrived ${fmt(L.left)}. The store was still open. Nobody said anything.` : `The store closed at 2:00 ${NIGHT ? 'AM' : 'PM'}. The Wolf looks at the sign for a while.`;
   }
   L.finish = finish;
   L.forceEnd = (won) => finish(won);
@@ -492,6 +537,8 @@ export function createLevel(C) {
       // with scenes: at 2:00 on foot it's over; in the car you can still drive there (90 s grace) and watch it close
       else if (L.left <= 0) { if (!L.lateSaid) { L.lateSaid = true; toast(L.inCar ? "2:00. Go anyway." : 'It is 2:00.', 2.6); } if (!L.inCar || L.left <= -90) finish(false); } }
     if (hud.clock) { hud.clock.textContent = fmt(L.left); hud.clock.classList.toggle('late', L.left < 30); }
+    if (hud.sub) { const tx = L.left > 0 ? `STORE CLOSES 2:00 ${NIGHT ? 'AM' : 'PM'} · ${fmtLeft(L.left)} LEFT` : 'STORE CLOSED. MAYBE.'; if (hud.sub.textContent !== tx) hud.sub.textContent = tx; hud.sub.classList.toggle('late', L.left < 30); }
+    updateNight(dt, t);
     let nr = null;
     if (L.mode === 'drive' && !L.frozen && !L.sceneCar) nr = updateCar(dt, keys);
     else if (L.sceneCar) { // a scene owns the car: scenes.js moves it (sceneDriven), otherwise it coasts to a stop
@@ -515,7 +562,7 @@ export function createLevel(C) {
       if (hud.obj) hud.obj.textContent = 'Walk to the ride pickup, east end of the street.';
       if (hud.dist) hud.dist.textContent = Math.round(d) + ' m to pickup';
     } else if (L.mode === 'drive' && nr) {
-      if (hud.obj) hud.obj.textContent = L.left <= 0 ? "It's 2:00. Go anyway." : 'Get to the convenience store.';
+      if (hud.obj) hud.obj.textContent = L.left <= 0 ? "It's 2:00. Go anyway." : 'Get to Last Minute Snacks.';
       const [ax, az] = LAYOUT.storeArrive; const onMainIdx = nr.road === MAIN ? nr.i : nr.road === SHORT ? nearestIdx(MAIN.s, [nr.road.s[nr.i].x, nr.road.s[nr.i].z]) : 0;
       const remain = Math.max(Math.hypot(L.car.pos.x - ax, L.car.pos.z - az), MAIN.len - MAIN.cum[onMainIdx]);
       if (hud.dist) hud.dist.textContent = `STORE ${Math.round(remain)} m`;

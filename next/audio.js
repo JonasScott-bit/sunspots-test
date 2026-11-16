@@ -24,7 +24,7 @@ const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform 
 const canOgg = (() => { try { return !IOS && document.createElement('audio').canPlayType('audio/ogg; codecs="vorbis"') !== ''; } catch (_) { return false; } })();
 // v10: the Pro tracks have their own tempos/keys, so nothing is beat-locked any more; changes are crossfades.
 const RADIO = ['radio_pro_four_coral_boots', 'radio_pro_wrong_station_forever', 'radio_pro_motorik_mirage'];   // the moth's 3 stations
-const TENS_AT = 105;                                           // Closing at Two starts at 1:58:15 PM (105 s before 2:00)
+const TENS_AT = 105;                                           // Closing at Two starts at 1:58:15 AM (105 s before 2:00)
 const RADIO_LV = [1.0, 0.86, 0.74];                             // the knob: loud, still loud, "lowest"
 const RADIO_TXT = ['He turns it back up.', 'He turns it down. A hair.', 'That is the lowest it goes.'];
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
@@ -476,7 +476,7 @@ A.update = (dt) => {
   if (!A.townSrc) startTown();
   if (A.coreReady && !A.engSrc) startEngine();
   // music levels (v10): one main piece per stretch. On foot = the town loop; in the cabin the moth's radio IS the music
-  // (the town all but goes, its key would fight the station); near 2 PM Closing at Two takes over and the radio sinks under it;
+  // (the town all but goes, its key would fight the station); near 2 AM Closing at Two takes over and the radio sinks under it;
   // scene cues and the end cues play alone. Crossfade times: town<->car ~1 s (tc 0.35), tension fade-in ~4 s.
   const cueOn = A.cue && now < A.cueEnd;
   if (A.cue && !cueOn) { A.cue = null; A.cueSoft = false; }
@@ -491,7 +491,7 @@ A.update = (dt) => {
   P(N.town.gain, town, 0.35); P(N.tens.gain, tens, tensUp < 1 ? 0.25 : 0.35);
   const w = clamp(G.getWild?.() || 0, 0, 1);
   P(N.sun.gain, Math.cos(w * Math.PI / 2), 0.03); P(N.wild.gain, Math.sin(w * Math.PI / 2), 0.03);   // equal power: cos² + sin² = 1
-  // tension: lazy-load ~25 s ahead, start at 105 s before 2 PM (after 2:00 it keeps going until the store)
+  // tension: lazy-load ~25 s ahead, start at 105 s before 2 AM (after 2:00 it keeps going until the store)
   if (L.started && !L.ended && L.left < TENS_AT + 25 && !A.tensLoading) { A.tensLoading = true; loadSet(SET.tension); }
   if (L.started && !L.ended && L.left <= TENS_AT && !A.tensSrc && !A.tensDone && !cueOn) { startTension(); if (A.tensSrc) A.tensDone = true; }
   // ambience: a town bed; thinner in the cabin and out in the desert
@@ -567,7 +567,7 @@ function lines(dt, L, CK, blocking, sp) {
     A.barkT -= dt;
     if (A.barkT <= 0 && sp > 2 && !A.voice) { const n = pickFresh(CHAT.filter(x => !x.includes('_' + lastWho + '_'))) || pickFresh(CHAT); if (n) line(n, {}); else moth(0.8); A.barkT = 25 + rnd() * 20; }
   }
-  // the clock (L.left = seconds to 2 PM)
+  // the clock (L.left = seconds to 2 AM)
   const c = A.clk;
   if (L.left <= 120 && !c.two) { c.two = 1; line(L.inCar ? pick(['vo_farmhand_13', 'vo_squid_14']) : 'vo_wolf_15', { retry: 6 }); }
   if (L.left <= 60 && !c.one) { c.one = 1; if (L.inCar) line('vo_wolf_09', { retry: 6, then: () => line('vo_moth_16', { retry: 3 }) }); else line('vo_wolf_05', { retry: 6 }); }

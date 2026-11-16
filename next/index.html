@@ -95,7 +95,7 @@
   #hud{position:fixed;top:calc(env(safe-area-inset-top) + 42px);left:calc(env(safe-area-inset-left) + 14px);max-width:44%;z-index:4;display:flex;flex-direction:column;align-items:flex-start;pointer-events:none;color:#fbe9d0;text-shadow:0 2px 0 rgba(60,20,10,.35)}
   #clk{font-size:21px;font-weight:700;letter-spacing:.06em;background:rgba(43,30,60,.42);padding:3px 10px 1px;border-radius:10px;font-variant-numeric:tabular-nums}
   #clk.late{color:#ffd0e6;background:rgba(160,30,90,.55);animation:tpulse 1s ease-in-out infinite}
-  #clkSub{font-size:9px;letter-spacing:.22em;opacity:.85;margin-top:4px}
+  #clkSub{font-size:11px;letter-spacing:.18em;opacity:.9;margin-top:4px} #clkSub.late{color:#ffb0a0;opacity:1}
   #obj{font-size:11px;letter-spacing:.05em;line-height:1.35;margin-top:6px;opacity:.9}
   #dist{font-size:11px;letter-spacing:.2em;margin-top:2px;opacity:.75}
   body.map #hud,body.map #title,body.map #wildBtn,body.map #hint,body.map #vig,body.map #grain{display:none}
@@ -196,7 +196,7 @@
 <div id="fpFx"></div>
 <svg width="0" height="0" style="position:absolute"><filter id="haze" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence id="hazeT" type="fractalNoise" baseFrequency="0.012 0.02" numOctaves="2" seed="3"/><feDisplacementMap in="SourceGraphic" scale="38" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
 <div id="hint">DRAG TO WALK · PUSH FAR TO RUN · DRAG THE SKY TO LOOK</div>
-<div id="hud"><div id="clk">1:57:30 PM</div><div id="clkSub">STORE CLOSES 2:00 PM</div><div id="obj"></div><div id="dist"></div></div>
+<div id="hud"><div id="clk">1:57:30 AM</div><div id="clkSub">STORE CLOSES 2:00 AM</div><div id="obj"></div><div id="dist"></div></div>
 <button id="getIn">GET IN</button>
 <div id="drive"><button class="dbtn" id="bL">◀</button><button class="dbtn" id="bR">▶</button><button class="dbtn" id="bBrake">BRAKE</button><button class="dbtn" id="bGas">GAS</button><button class="dbtn" id="bTilt">TILT</button><button class="dbtn" id="bVol">RADIO VOL</button><button class="dbtn" id="bHorn">HORN</button><button class="dbtn" id="bScan">SCAN ▸</button><button class="dbtn" id="bExit">GET OUT</button></div>
 <div id="soloRadio"><b>KSUN SOLO <span id="srNum"></span></b><span id="srName">tuning…</span></div>

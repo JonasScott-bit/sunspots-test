@@ -11,7 +11,8 @@
 // (only requested if a HEAD check finds it; HOLD TO SKIP; plays once per page load; ?nointro skips it).
 // QA: ?snackrun auto-starts after the title. window.__snackrun = { start, go, quit, S, jump(m), arrive(), pick(id), checkout(), home(), shots }.
 import * as THREE from 'three';
-import { playCinematic, CINE } from '../cinematic.js';   // shared clip player (TAP FOR SOUND, HOLD TO SKIP)
+import { playCinematic, CINE } from '../cinematic.js';
+import { NIGHT as BASE_NIGHT } from '../level.js';   // the opening level is night too (?day = old look, QA only)   // shared clip player (TAP FOR SOUND, HOLD TO SKIP)
 
 const SCALE = 11;                       // game seconds per real second (1:40 -> 2:00 = ~109 s of real driving)
 const T0 = 6000, CLOSE = 7200, STAR_HOME = 8100;   // 1:40:00, 2:00:00, 2:15:00 (seconds after midnight)
@@ -139,7 +140,7 @@ export function installSnackRun(C) {
   for (const dd of [MAIN.len - 170, MAIN.len - 95]) { const r = onRoad(MAIN, dd); const g = new THREE.Group(); mesh(new THREE.IcosahedronGeometry(0.7, 1), new THREE.MeshStandardMaterial({ color: '#a07440', roughness: 1, wireframe: true }), [0, 0.7, 0], g); at(g, r.x, r.z); tumbles.push({ g, r, ph: R() * 6, hitT: 0 }); }
   // ROAD WORK on the shortcut (from the design pass): sawhorses + blinking amber lamps block one half; squeeze past or bonk
   const works = [];
-  for (const frac of [0.24, 0.84]) { const r = onRoad(SHORT, SHORT.len * frac, SHORT.w * 0.22), g = new THREE.Group(); at(g, r.x, r.z, r.yaw);
+  if (!BASE_NIGHT) for (const frac of [0.24, 0.84]) { const r = onRoad(SHORT, SHORT.len * frac, SHORT.w * 0.22), g = new THREE.Group(); at(g, r.x, r.z, r.yaw);   // (night level.js already builds these; reuse)
     for (const sx of [-1.0, 0, 1.0]) { box(0.95, 0.22, 0.08, '#f2e6c8', [sx, 0.95, 0], g); box(0.3, 0.2, 0.09, '#e0702a', [sx, 0.95, 0.01], g); for (const lx of [-0.4, 0.4]) box(0.07, 0.95, 0.07, '#f2e6c8', [sx + lx, 0.47, 0], g); }
     const lamps = [-1.2, 1.2].map((sx) => mesh(new THREE.SphereGeometry(0.11, 8, 6), new THREE.MeshBasicMaterial({ color: '#ffb02a', toneMapped: false }), [sx, 1.18, 0], g, false));
     const sg = board('ROAD WORK\n(NOBODY WORKING)', 1.8, 0.9, { bg: '#ffb02a', fg: '#2a2326', font: 'bold 56px Futura, Avenir, sans-serif' }); sg.position.set(0, 1.75, -0.06); sg.rotation.y = Math.PI; g.add(sg); const sg2 = sg.clone(); sg2.rotation.y = 0; sg2.position.z = 0.06; g.add(sg2);
@@ -165,7 +166,7 @@ export function installSnackRun(C) {
   const MOTH_START = D0 + 430; const mothR = { d: MOTH_START, v: 0, state: 'wait', said: false };
   void MOTH_D0; SR.moth = mothR;
   // LAST MINUTE SNACKS neon: two words that flicker on their own, an OPEN/CLOSED sign, a beam you can see from town
-  const neon = new THREE.Group(); at(neon, STORE[0] - 1.0, STORE[1] + 0.35);
+  const neon = new THREE.Group(); at(neon, STORE[0] - 1.0, STORE[1] + 0.35, 0, BASE_NIGHT ? scene : SR.root);   // the sign is always on at night (the opening run sees it too)
   const neonTex = (txt, col) => canvasTex(1024, 256, (g, W, H) => { g.clearRect(0, 0, W, H); g.font = 'bold 150px Futura, Avenir, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.shadowColor = col; g.shadowBlur = 48; g.strokeStyle = col; g.lineWidth = 22; g.strokeText(txt, W / 2, H / 2, W - 60); g.strokeText(txt, W / 2, H / 2, W - 60);
     g.shadowBlur = 12; g.lineWidth = 8; g.strokeStyle = '#ffffff'; g.strokeText(txt, W / 2, H / 2, W - 60); g.shadowBlur = 0; g.fillStyle = col; g.fillText(txt, W / 2, H / 2, W - 60); });
@@ -188,7 +189,7 @@ export function installSnackRun(C) {
     const posts = new THREE.InstancedMesh(pg, fm('#f2e6c8'), pts.length), caps = new THREE.InstancedMesh(cg, glowM('#ffb02a'), pts.length), m4 = new THREE.Matrix4();
     pts.forEach((p, i) => { m4.makeTranslation(p.x, 0.45, p.z); posts.setMatrixAt(i, m4); m4.makeTranslation(p.x, 0.95, p.z); caps.setMatrixAt(i, m4); }); SR.root.add(posts, caps); }
   // streetlamp glow + warm light pools on Main St (the town's own lamp models; glow only at night)
-  const lampGlow = new THREE.Group(); SR.root.add(lampGlow);
+  const lampGlow = new THREE.Group(); (BASE_NIGHT ? scene : SR.root).add(lampGlow);   // streetlamps glow all night
   { const lamps = (TS?.props || []).filter((p) => p[0] === 'lamp'); const pool = count(new THREE.CircleGeometry(4.2, 20)); SR.tris += lamps.length * 20;
     const poolM = new THREE.MeshBasicMaterial({ map: glowTex, color: '#ffc27a', transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
     for (const p of lamps) { const s = glowSprite('#ffd08a', 2.6, 2.6, 0.9); s.position.set(p[1], 4.15, p[2]); lampGlow.add(s); const c = new THREE.Mesh(pool, poolM); c.rotation.x = -Math.PI / 2; c.position.set(p[1], 0.06, p[2]); lampGlow.add(c); } }
@@ -208,9 +209,9 @@ export function installSnackRun(C) {
     const k = nightK * (1 - wild * 0.85);
     scene.background.lerp(NIGHT.sky, k); scene.fog.color.lerp(NIGHT.fog, k); scene.fog.near = lerp(saved.near, 28, k); scene.fog.far = lerp(saved.far, 230, k);
     LT.groundMat.color.lerp(NIGHT.ground, k); LT.hemi.color.lerp(NIGHT.hemi, k); LT.hemi.groundColor.lerp(NIGHT.hemiG, k); LT.hemi.intensity = lerp(saved.hemiI, 0.72, k);
-    LT.key.color.lerp(NIGHT.key, k); LT.key.intensity *= lerp(1, 0.24, k); if (LT.fill) LT.fill.intensity *= lerp(1, 0.08, k);
+    LT.key.color.lerp(NIGHT.key, k); LT.key.intensity = lerp(LT.key.intensity, 0.55, k); if (LT.fill) LT.fill.intensity = lerp(LT.fill.intensity, 0.26, k);
     LT.discMat?.color.lerp(NIGHT.sun, k); LT.lidMat?.color.copy(LT.discMat.color).multiplyScalar(0.9); if (LT.halo) { LT.halo.material.color.lerp(NIGHT.sun, k); LT.halo.material.opacity = lerp(LT.halo.material.opacity, 0.45, k); }
-    lampGlow.visible = k > 0.2; for (const c of lampGlow.children) if (c.material.opacity != null) c.material.opacity = (c.isSprite ? 0.9 : 0.55) * k;
+    if (!BASE_NIGHT) lampGlow.visible = k > 0.2; if (!BASE_NIGHT) for (const c of lampGlow.children) if (c.material.opacity != null) c.material.opacity = (c.isSprite ? 0.9 : 0.55) * k;
   }
 
   // ------------------------------------------------------------ UI (felt cards, big phone buttons)
@@ -298,7 +299,7 @@ export function installSnackRun(C) {
     const ram = RAM_PICKS[Math.floor(R() * RAM_PICKS.length)];
     S.list = [['BEAR', 'puffs', 'MOON PUFFS — the BIG bag'], ['HERON', 'sour', 'SOUR SUNSPOTS. Not sweet.'], ['RAM', ram[0], ram[1]], ['WOLF', 'nacho', 'NACHO NOVA. Extra dust.']];
     document.body.classList.add('snackrun'); SR.root.visible = true; squidPal.visible = true; squidHome.visible = false; S.cars = 0;
-    if (!lightsAdded) { lightsAdded = true; L.free.root.add(head); }
+    if (!lightsAdded && !BASE_NIGHT) { lightsAdded = true; L.free.root.add(head); }   // night level.js already has headlights
     head.visible = true; spot.intensity = 0;
     mothR.d = MOTH_START; mothR.v = 0; mothR.state = 'wait'; placeCab();
     L.parkFree(...CAR0); wolfState.pos.set(CAR0[0] - 1.2, 0, CAR0[1] - 2.4); wolfState.yaw = Math.PI / 2; wolfState.speed = 0; C.snap?.();
@@ -402,6 +403,7 @@ export function installSnackRun(C) {
     applyNight(dt, wild);
     // the start button: outside, on foot, nothing else going on
     const showBtn = !S.on && okToStart() && !Q.has('nosnackrun'); if (showBtn !== (btn.style.display === 'block')) btn.style.display = showBtn ? 'block' : 'none';
+    if (!S.on && BASE_NIGHT) neonTick(L.ended && L.mode === 'lost' ? 0 : L.left, t);   // the opening run: same sign, its own 1:57:30 clock
     if (!S.on && nightK <= 0) return;
     if (!SR.root.visible) return;
     for (const [k, p] of Object.entries(crew)) animPal(p, dt, t, { wave: (S.phase === 'brief' || S.phase === 'end') ? 1 : 0 }); void 0;
@@ -413,19 +415,15 @@ export function installSnackRun(C) {
     if (run && !L.frozen) S.clock += dt * SCALE; else if (S.phase === 'shop') S.clock += dt * SCALE;
     S.t += dt;
     const leftG = CLOSE - S.clock;
-    if (clockEl) { const txt = fmt(S.clock); if (clockEl.textContent !== txt) clockEl.textContent = txt; clockEl.classList.toggle('late', S.phase !== 'home' && S.phase !== 'end' && leftG < 180); }
-    if (subEl) { const txt = S.phase === 'home' || (S.phase === 'end' && S.won) ? 'HOME BY 2:15 FOR ★' : leftG > 0 ? `CLOSES IN ${Math.ceil(leftG / 60)} MIN` : 'CLOSED'; if (subEl.textContent !== txt) subEl.textContent = txt; }
+    if (clockEl) { const txt = fmtS(S.clock); if (clockEl.textContent !== txt) clockEl.textContent = txt; clockEl.classList.toggle('late', S.phase !== 'home' && S.phase !== 'end' && leftG < 180); }
+    if (subEl) { const txt = S.phase === 'home' || (S.phase === 'end' && S.won) ? 'HOME BY 2:15 FOR ★' : leftG > 0 ? `STORE CLOSES 2:00 AM · ${Math.ceil(leftG / 60)} MIN LEFT` : 'STORE CLOSED'; if (subEl.textContent !== txt) subEl.textContent = txt; }
     const tg = target(); const dd = Math.hypot(tg.x - cp.x, tg.z - cp.z);
     if (objEl) objEl.textContent = S.phase === 'brief' ? 'The crew wants snacks.' : S.phase === 'go' ? 'Get to LAST MINUTE SNACKS before 2:00.' : S.phase === 'home' ? 'Get the snacks home to the couch.' : S.phase === 'shop' ? 'Shop.' : '';
     if (distEl) { const ds = S.phase === 'go' ? Math.hypot(STORE_ARRIVE[0] - cp.x, STORE_ARRIVE[1] - cp.z) : Math.hypot(HOME[0] - cp.x, HOME[1] - cp.z); distEl.textContent = S.phase === 'go' ? `STORE ${ds > 999 ? (ds / 1000).toFixed(1) + ' km' : Math.round(ds) + ' m'}` : S.phase === 'home' ? `HOME ${ds > 999 ? (ds / 1000).toFixed(1) + ' km' : Math.round(ds) + ' m'}` : ''; }
     // arrow (screen-up = camera forward)
     camera.getWorldDirection(_v); const camYaw = Math.atan2(_v.x, _v.z), brg = Math.atan2(tg.x - cp.x, tg.z - cp.z); let rel = brg - camYaw; rel = Math.atan2(Math.sin(rel), Math.cos(rel));
     arrow.style.transform = `rotate(${(-rel * 180 / Math.PI).toFixed(1)}deg)`; arrow.style.opacity = run && dd > 6 ? 1 : 0.25;
-    // neon: steady, then flickering harder as 2:00 gets close, then dark + CLOSED
-    { const fl = leftG <= 0 ? 0 : leftG > 300 ? 1 : (() => { const k = 1 - leftG / 300, n = Math.sin(t * 37.1) * Math.sin(t * 13.7 + 1.3) + Math.sin(t * 5.3) * 0.3; return n > 1 - k * 1.6 ? 0.12 : 1; })();
-      const fl2 = leftG <= 0 ? 0 : leftG > 180 ? 1 : (Math.sin(t * 29.3 + 2) * Math.sin(t * 7.9) > 0.55 - (1 - leftG / 180) ? 0.08 : 1);
-      neonA.material.opacity = fl; neonB.material.opacity = Math.min(fl, fl2); neonGlow.material.opacity = 0.6 * Math.max(fl, fl2) * (leftG <= 0 ? 0 : 1); beam.material.opacity = leftG <= 0 ? 0.02 : 0.16 * fl; SR.lot.material.opacity = leftG <= 0 ? 0.08 : 0.55 * Math.max(fl, 0.4); SR.door.material.opacity = leftG <= 0 ? 0.1 : 0.75;
-      const closed = leftG <= 0; if ((openS.material === closedM) !== closed) openS.material = closed ? closedM : openM; openS.material.opacity = closed ? (Math.sin(t * 3) > 0 ? 1 : 0.6) : fl; }
+    neonTick(leftG, t);
     homeBeam.visible = S.phase === 'home' || S.phase === 'end';
     spot.intensity = L.solo ? 26 : 0; hpool.visible = L.solo;
     if (S.phase === 'brief' || S.phase === 'end') return;
@@ -488,6 +486,13 @@ export function installSnackRun(C) {
     // --- home
     if (S.phase === 'home' && Math.hypot(cp.x - HOME[0], cp.z - HOME[1]) < 9 && Math.abs(c.v) < 9) { c.v = 0; L.frozen = true; win(); }
   };
+  // neon: steady, then flickering harder as 2:00 gets close, then dark + CLOSED (leftG = game seconds to 2:00)
+  function neonTick(leftG, t) {
+    const fl = leftG <= 0 ? 0 : leftG > 300 ? 1 : (() => { const k = 1 - leftG / 300, n = Math.sin(t * 37.1) * Math.sin(t * 13.7 + 1.3) + Math.sin(t * 5.3) * 0.3; return n > 1 - k * 1.6 ? 0.12 : 1; })();
+      const fl2 = leftG <= 0 ? 0 : leftG > 180 ? 1 : (Math.sin(t * 29.3 + 2) * Math.sin(t * 7.9) > 0.55 - (1 - leftG / 180) ? 0.08 : 1);
+      neonA.material.opacity = fl; neonB.material.opacity = Math.min(fl, fl2); neonGlow.material.opacity = 0.6 * Math.max(fl, fl2) * (leftG <= 0 ? 0 : 1); beam.material.opacity = leftG <= 0 ? 0.02 : 0.16 * fl; SR.lot.material.opacity = leftG <= 0 ? 0.08 : 0.55 * Math.max(fl, 0.4); SR.door.material.opacity = leftG <= 0 ? 0.1 : 0.75;
+      const closed = leftG <= 0; if ((openS.material === closedM) !== closed) openS.material = closed ? closedM : openM; openS.material.opacity = closed ? (Math.sin(t * 3) > 0 ? 1 : 0.6) : fl;
+  }
   let listSig = '';
   function renderListTick() { const sig = S.list.length + ':' + [...S.basket].join(','); if (sig !== listSig) { listSig = sig; renderList(); } }
 

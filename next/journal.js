@@ -147,7 +147,7 @@ export function installJournal({ T, QT, level, audio }) {
   let wbShown = false;
   function showWb() {
     wbShown = true; const a = active(), f = found();
-    const m = a[0]; const line = m ? `${M.TITLE[m]}: ${M.OBJ[m][S[m]]}` : !S.snacks ? 'The store still closes at 2:00 PM.' : 'Nothing on the list. The town keeps going without you.';
+    const m = a[0]; const line = m ? `${M.TITLE[m]}: ${M.OBJ[m][S[m]]}` : !S.snacks ? 'The store still closes at 2:00 AM.' : 'Nothing on the list. The town keeps going without you.';
     wb.innerHTML = `<b>WELCOME BACK</b><h3>☀ ${f.length} of ${SUNS.length} Sunspots</h3><p>${esc(line)}</p><div><button class="alt" data-j="1">JOURNAL</button><button data-c="1">CARRY ON</button></div>`;
     wb.classList.add('on');
   }
