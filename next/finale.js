@@ -3,7 +3,26 @@
 // Self-contained: its own scene, drawn with the game's renderer while the main loop sleeps (window.__paused).
 // shell.js calls maybeFinale() from its progress loop; ?finale plays it on load (QA), ?finale=credits jumps to the roll.
 import * as THREE from 'three';
-let CAST, animPal, glowSprite, sign;   // missions/kit.js, loaded on first play (keeps shell.js's import order as it was)
+let glowSprite, blobShadow;   // missions/kit.js, loaded on first play (keeps shell.js's import order as it was)
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { clone as skClone } from 'three/addons/utils/SkeletonUtils.js';
+import { sunspotsApply } from './sunspots_material.js';
+// [file, height m, look] : the in-game models (town.js / kit.js crewGLB use the same files, heights and looks)
+const CREW = { wolf: ['wolf_armsdown_felt.glb', 1.75, 'wolf'], moth: ['town2/moth_lo.glb', 1.95, 'moth'], bear: ['town2/bear_lo.glb', 1.95, 'bear'], ram: ['town2/ram_lo.glb', 1.8, 'ram'],
+  heron: ['town2/heron_lo.glb', 1.95, 'heron'], crow: ['town2/crow_lo.glb', 1.6, 'crow'], lynx: ['town2/lynx_lo.glb', 1.75, 'lynx'], gecko: ['town2/gecko_lo.glb', 1.45, 'gecko'],
+  anteater: ['town2/anteater_lo.glb', 1.7, 'anteater'], squid: ['cast/wanderer_banana_squid_walking.glb', 1.6, 'object'] };
+let loader = null; const glbP = {};
+async function crewModel(k) {
+  const [f, h, look] = CREW[k]; loader ||= new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  const gl = await (glbP[f] ||= new Promise((res, rej) => loader.load('./models/' + f, res, undefined, rej)));
+  const root = skClone(gl.scene); root.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = false; if (o.isSkinnedMesh) { o.skeleton.pose(); o.frustumCulled = false; } } });   // SkeletonUtils: the bones come along
+  root.updateMatrixWorld(true); const b = new THREE.Box3().setFromObject(root); root.scale.multiplyScalar(h / Math.max(0.01, b.max.y - b.min.y)); root.updateMatrixWorld(true);
+  const b2 = new THREE.Box3().setFromObject(root); root.position.x -= (b2.min.x + b2.max.x) / 2; root.position.z -= (b2.min.z + b2.max.z) / 2; root.position.y -= b2.min.y;
+  try { sunspotsApply(root, look, h); } catch (_) {}
+  const w = new THREE.Group(), inner = new THREE.Group(); inner.add(root); w.add(inner); if (blobShadow) w.add(blobShadow(0.42 * h / 1.8, 0.4)); w.userData = { inner, h, ph: Math.random() * 6 }; return w;
+}
+async function loadCrew() { const out = {}; await Promise.all(Object.keys(CREW).map(async (k) => { try { out[k] = await crewModel(k); } catch (e) { console.warn('finale: model', k, e?.message || e); } })); return out; }
 import { creditsHTML, CREATOR_NAME, STUDIO } from './credits.js';
 
 const Q = new URLSearchParams(location.search);
@@ -57,12 +76,22 @@ css.textContent = `
 #fin .skip{position:absolute;right:calc(env(safe-area-inset-right) + 16px);bottom:calc(env(safe-area-inset-bottom) + 16px);border:0;border-radius:22px;padding:10px 16px;min-height:40px;
   font:800 12px/1 system-ui,sans-serif;letter-spacing:.14em;color:#ffe1a8;background:#2b1e3ccc;box-shadow:0 4px 0 #120a1c;overflow:hidden;-webkit-tap-highlight-color:transparent}
 #fin .skip i{position:absolute;left:0;bottom:0;height:4px;width:0;background:#ffcf6a}
-#fin .card{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.96);width:min(88vw,440px);max-height:calc(100% - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow:auto;box-sizing:border-box;
-  padding:24px 22px 20px;border-radius:22px;background:#2b1e3c;box-shadow:0 8px 0 #120a1c,0 0 0 4px #ffcf6a33 inset;text-align:center;opacity:0;transition:opacity .5s,transform .5s}
+#fin .card{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.94);width:min(86vw,430px);max-height:calc(100% - 40px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow:visible;box-sizing:border-box;
+  padding:44px 22px 20px;border-radius:26px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 .9  0 0 0 0 .8  0 0 0 .16 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E"),radial-gradient(120% 90% at 50% 0%,#5a3a6e 0%,#3a2550 55%,#2b1b3e 100%);
+  box-shadow:0 8px 0 #160c22,0 0 0 3px #ffcf6a55,0 0 90px 10px #ffb04a55;text-align:center;opacity:0;transition:opacity .6s,transform .6s cubic-bezier(.2,1.4,.4,1)}
+#fin .card::before{content:'';position:absolute;inset:8px;border-radius:20px;border:2px dashed #ffcf6a66;pointer-events:none}
+#fin .card::after{content:'';position:absolute;left:50%;top:0;width:360px;height:360px;transform:translate(-50%,-50%);background:radial-gradient(closest-side,#ffd36a55,#ffb04a22 55%,transparent);pointer-events:none;z-index:-1}
 #fin .card.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+#fin .card .sunB{position:absolute;left:50%;top:0;width:76px;height:76px;transform:translate(-50%,-55%)}
+#fin .card .sunB::before{content:'';position:absolute;inset:-14px;border-radius:50%;background:repeating-conic-gradient(#ffcf4a 0 9deg,transparent 9deg 30deg);-webkit-mask:radial-gradient(closest-side,transparent 62%,#000 64%);mask:radial-gradient(closest-side,transparent 62%,#000 64%);animation:finSpin 14s linear infinite}
+#fin .card .sunB i{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 40% 36%,#ffe48a,#ffc23a 55%,#e8962a);box-shadow:0 4px 0 #a8601a,0 0 28px #ffcf6a}
+#fin .card .sunB i::before{content:'';position:absolute;left:22%;right:22%;top:30%;height:34%;border-radius:50%;background:#fff8ea}
+#fin .card .sunB i::after{content:'';position:absolute;left:39%;top:34%;width:22%;height:26%;border-radius:50%;background:radial-gradient(circle at 60% 35%,#fff 0 18%,#1d1416 22% 48%,#3a7ab8 52%)}
+@keyframes finSpin{to{transform:rotate(360deg)}}
+#fin .card .bar{box-shadow:inset 0 2px 0 #0006}
 #fin .card h2{margin:4px 0 6px;font:900 clamp(26px,7vw,34px)/1.05 Futura,Avenir,system-ui,sans-serif;color:#ffd36a;letter-spacing:.03em}
 #fin .card .fk{margin:0;font:800 11px/1.3 system-ui,sans-serif;letter-spacing:.26em;color:#ffe1a8aa}
-#fin .card .fbig{margin:8px 0 4px;font:900 clamp(34px,10vw,46px)/1 Futura,Avenir,system-ui,sans-serif;color:#fff3dc}
+#fin .card .fbig b{font:inherit;color:#ffd36a} #fin .card .fbig{margin:8px 0 4px;font:900 clamp(34px,10vw,46px)/1 Futura,Avenir,system-ui,sans-serif;color:#fff3dc}
 #fin .card p{margin:8px 0;font:500 15px/1.4 system-ui,sans-serif;color:#f2e2c8}
 #fin .card .bar{height:12px;border-radius:8px;background:#120a1c;margin:12px 4px 6px;overflow:hidden}
 #fin .card .bar u{display:block;height:100%;background:linear-gradient(90deg,#e0a224,#ffd36a);border-radius:8px}
@@ -70,7 +99,7 @@ css.textContent = `
 #fin .card button{border:0;border-radius:16px;padding:13px 16px;font:800 15px/1 system-ui,sans-serif;letter-spacing:.1em;background:#ffcf6a;color:#2b1e3c;box-shadow:0 4px 0 #8a5a12;-webkit-tap-highlight-color:transparent}
 #fin .card button.alt{background:#4a3a5e;color:#ffe1a8;box-shadow:0 4px 0 #120a1c}
 #fin .card button:active{transform:translateY(3px);box-shadow:0 1px 0 #120a1c}
-@media (orientation:landscape) and (max-height:500px){#fin .card{padding:16px 20px 14px;width:min(70vw,520px)} #fin .card .btns{flex-direction:row} #fin .card .btns button{flex:1} #fin .card p{margin:5px 0} #fin .cap{bottom:calc(env(safe-area-inset-bottom) + 5vh)} #fin .ttl{top:30%} #fin .cap{width:calc(100vw - 2 * (env(safe-area-inset-right) + 170px))} #fin .kick{top:calc(env(safe-area-inset-top) + 6vh)}}
+@media (orientation:landscape) and (max-height:500px){#fin .card{padding:34px 20px 14px;width:min(70vw,520px)} #fin .card .sunB{width:60px;height:60px} #fin .card .btns{flex-direction:row} #fin .card .btns button{flex:1} #fin .card p{margin:5px 0} #fin .cap{bottom:calc(env(safe-area-inset-bottom) + 5vh)} #fin .ttl{top:30%} #fin .cap{width:calc(100vw - 2 * (env(safe-area-inset-right) + 170px))} #fin .kick{top:calc(env(safe-area-inset-top) + 6vh)}}
 body.finale #pfHud{z-index:80}
 `;
 document.head.appendChild(css);
@@ -78,7 +107,7 @@ document.head.appendChild(css);
 let root = null, playing = false, raf = 0, scene = null, cam = null, own = [], st = null;
 
 // ------------------------------------------------------------------ scene
-function build() {
+function build(MODELS) {
   scene = new THREE.Scene(); own = [];
   const M = (c, o = {}) => { const m = new THREE.MeshStandardMaterial({ color: c, roughness: 0.95, metalness: 0, ...o }); own.push(m); return m; };
   const B = (m) => { own.push(m); return m; };
@@ -104,7 +133,7 @@ function build() {
   scene.fog = new THREE.Fog('#3a2a52', 60, 330);
   const hemi = new THREE.HemisphereLight('#6a6ab8', '#2a1a2a', 0.9); scene.add(hemi);
   const sunL = new THREE.DirectionalLight('#ffb070', 0); sunL.position.set(0, 10, -100); scene.add(sunL);
-  const fill = new THREE.DirectionalLight('#8a9aff', 0.55); fill.position.set(6, 8, 10); scene.add(fill);
+  const fill = new THREE.DirectionalLight('#8a9aff', 0.55); fill.position.set(-4, 6, 9);   // night: cool moon fill; dawn: the warm rim light behind the crew scene.add(fill);
 
   // the mesa (couch on top), the town below, the far mesas
   const mesaTop = M('#c98552'), mesaSide = M('#a8603a');
@@ -165,28 +194,27 @@ function build() {
   const smile = mesh(new THREE.TorusGeometry(5.5, 0.9, 6, 24, Math.PI), SB('#c9542a'), 0, -10, 0.2, sun); smile.rotation.z = Math.PI;
   const halo = glowSprite('#ffb05a', 150, 150, 0.0); sun.add(halo); halo.position.z = -2;
 
-  // Moth's couch, the porch light he fixed, the snacks
+  // Moth's couch, the porch light he fixed
   const couch = new THREE.Group(); couch.position.set(0, 0, 0); scene.add(couch);
   const cm = M('#b8443a'), cc = M('#d06a52');
   mesh(new THREE.BoxGeometry(4.6, 0.42, 1.15), cm, 0, 0.21, 0, couch); mesh(new THREE.BoxGeometry(4.1, 0.16, 1.0), cc, 0, 0.5, -0.02, couch);
   mesh(new THREE.BoxGeometry(4.6, 0.95, 0.32), cm, 0, 0.78, 0.46, couch); for (const sx of [-1, 1]) mesh(new THREE.BoxGeometry(0.32, 0.72, 1.15), cm, sx * 2.3, 0.6, 0, couch);
-  const lamp = new THREE.Group(); lamp.position.set(-3.1, 0, 0.6); scene.add(lamp);
+  const lamp = new THREE.Group(); lamp.position.set(1.0, 0, 1.25); scene.add(lamp);   // Moth's porch light, framed between the leads in the front shot
   mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.2, 6), M('#3a2a2a'), 0, 1.1, 0, lamp); mesh(new THREE.CylinderGeometry(0.34, 0.24, 0.36, 10), M('#3a2a2a'), 0, 2.32, 0, lamp);
   const bulbMat = B(new THREE.MeshBasicMaterial({ color: '#ffe6a0' })); mesh(new THREE.SphereGeometry(0.18, 10, 8), bulbMat, 0, 2.08, 0, lamp);
   const lampGlow = glowSprite('#ffd27a', 3.2, 3.2, 0.75); lampGlow.position.y = 2.1; lamp.add(lampGlow);
   const lampL = new THREE.PointLight('#ffcf7a', 6, 7, 1.6); lampL.position.set(0, 2.0, 0); lamp.add(lampL);
-  const cooler = mesh(new THREE.BoxGeometry(0.8, 0.55, 0.55), M('#3a8ac8'), 1.0, 0.28, -1.5); mesh(new THREE.BoxGeometry(0.84, 0.1, 0.6), M('#f6efe0'), 0, 0.32, 0, cooler);
-  const bag = mesh(new THREE.BoxGeometry(0.45, 0.6, 0.28), M('#f2c230'), -0.9, 0.3, -1.45); bag.rotation.y = 0.4;
-  const crate = mesh(new THREE.BoxGeometry(0.9, 0.5, 0.7), M('#a87a4a'), 3.3, 0.25, -0.4);
-  const sg2 = sign('SAME OLD ONE HORSE TOWN', 3.6, 0.7, { bg: '#f2e6c8', fg: '#3a1f2a' }); sg2.position.set(5.6, 1.1, -4.6); sg2.rotation.y = 2.84; scene.add(sg2);
-  const post = mesh(new THREE.CylinderGeometry(0.07, 0.07, 1.1, 6), M('#6a4a3a'), 5.6, 0.4, -4.6); post.scale.y = 1;
+  const cooler = mesh(new THREE.BoxGeometry(0.8, 0.5, 0.5), M('#3a8ac8'), 3.0, 0.25, -0.2); mesh(new THREE.BoxGeometry(0.84, 0.09, 0.54), M('#f6efe0'), 0, 0.29, 0, cooler); cooler.rotation.y = -0.3;
 
-  // the crew: Wolf, Moth, Bear and Ram on the couch; the rest around it. Everyone faces the town (-z).
-  const crew = {}; const put = (k, x, y, z, ry = Math.PI, sit = 0) => { const g = CAST[k](); g.position.set(x, y, z); g.rotation.y = ry; scene.add(g); crew[k] = { g, sit, wave: 0, cheer: 0 }; return g; };
-  put('moth', -1.55, 0.14, -0.05, Math.PI, 1); put('wolf', -0.52, 0.14, -0.05, Math.PI, 1); put('bear', 0.58, 0.14, -0.05, Math.PI, 1); put('ram', 1.62, 0.14, -0.05, Math.PI, 1);
-  put('squid', 2.62, 0.62, 0.0, Math.PI + 0.2, 1); put('heron', -2.25, 0, 1.25, Math.PI - 0.15); put('crow', 0.05, 1.12, 0.52, Math.PI, 1);
-  put('lynx', 3.25, 0, 1.0, Math.PI + 0.35); put('gecko', -0.15, 0, -1.55, Math.PI, 1); put('anteater', -3.55, 0, 1.6, Math.PI - 0.4);
-  crew.crow.g.scale.setScalar(0.8); crew.gecko.g.scale.setScalar(0.9);
+  // the crew: the game's own models (the same lo GLBs + Sunspots felt look the town and missions use; the Wolf is the
+  // player's own wolf_armsdown_felt.glb). Staged like an art-book frame: Wolf + Moth up front as the leads, a clear gap
+  // behind them, everyone else in a loose arc around Moth's couch. Everyone faces the town and the sun (-z).
+  const crew = {}; const put = (k, x, z, ry = 0) => { const g = MODELS[k]; if (!g) return; g.position.set(x, 0, z); g.rotation.y = Math.PI + ry; scene.add(g); crew[k] = { g }; };
+  put('wolf', -0.62, -1.15, 0.12); put('moth', 0.66, -1.05, -0.12);
+  put('gecko', -2.2, -0.75, 0.3); put('squid', 1.8, -0.7, -0.3);
+  put('bear', -1.4, 0.95, 0.15); put('ram', 2.35, 0.95, -0.2);
+  put('heron', -3.0, 0.55, 0.35); put('lynx', 3.5, 0.55, -0.35); put('anteater', -4.2, -0.1, 0.5); put('crow', 4.4, -0.1, -0.5);
+  if (Q.get('finale') === 'lineup') { const order = ['wolf', 'moth', 'bear', 'ram', 'heron', 'crow', 'lynx', 'gecko', 'anteater', 'squid']; order.forEach((k, i) => { const c = crew[k]; if (c) { c.g.position.set((i - 4.5) * 1.3, 0, 4); c.g.rotation.y = 0; } }); }
 
   cam = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 1200);
   return { skyU, starMat, hemi, sunL, fill, sun, eye, rays, halo, wins, win, wheel, cars, crew, lampGlow, lampL, bulbMat, scene };
@@ -202,17 +230,17 @@ const LINES = [   // [t, who, line]
   [21.4, 'SQUID', 'Somebody else is driving tomorrow.'],
 ];
 const D = { scene: 26, title: 6.5, roll: 52 };
-const SHOT = [   // camera keys: [t, camPos, lookAt]
-  [0, [1.4, 3.6, 7.0], [-4, -5, -60]],
-  [7, [0.5, 3.0, 5.4], [-4, -4, -60]],
-  [7.01, [-4.6, 1.3, -3.4], [0.3, 1.0, 0]],
-  [14, [-1.8, 1.25, -4.0], [0.6, 1.0, 0]],
+const SHOT = [   // camera keys: [t, camPos, lookAt, lookAt in portrait (optional)]
+  [0, [1.4, 4.6, 7.6], [-4, -6, -60]],
+  [7, [0.5, 4.0, 6.2], [-4, -5, -60]],
+  [7.01, [-1.6, 1.35, -4.9], [0.0, 1.2, -0.8]],      // the crew from the front, low 3/4: Wolf + Moth lead, dawn on their faces, rim light behind
+  [14, [-0.9, 1.3, -4.4], [0.05, 1.2, -0.8]],
   [14.01, [1.5, 1.6, 6.5], [-6, 4, -200]],
   [20, [0.5, 2.6, 8.5], [-8, 8, -200]],
-  [20.01, [2.2, 1.7, -5.2], [0, 1.0, 0]],
-  [26, [3.4, 2.5, -6.8], [0, 1.1, 0]],
-  [26.01, [7, 5, 10], [-6, 15, -60]],     // title: the sun under the words
-  [33, [4, 7, 14], [-6, 16, -70]],
+  [20.01, [2.4, 1.35, -5.8], [0.1, 1.15, -0.6]],
+  [26, [3.3, 1.9, -7.2], [0.1, 1.2, -0.5]],
+  [26.01, [7, 5, 10], [-24, 22, -60], [-6, 27, -60]],     // title: clear sky for the words, the sun low and to the right (centred, under them, in portrait)
+  [33, [4, 7, 14], [-26, 24, -70], [-8, 29, -70]],
   [40, [3, 7.5, 14.5], [60, 14, -70]],     // the roll: the sun off to the left, clear sky behind the names
   [200, [-4, 9, 16], [66, 14, -80]],
 ];
@@ -220,20 +248,21 @@ function camAt(t, out, look, portrait) {
   let i = 0; while (i < SHOT.length - 2 && SHOT[i + 1][0] <= t) i++;
   const a = SHOT[i], b = SHOT[i + 1], k = ease((t - a[0]) / Math.max(0.001, b[0] - a[0]));
   out.set(lerp(a[1][0], b[1][0], k), lerp(a[1][1], b[1][1], k), lerp(a[1][2], b[1][2], k));
-  look.set(lerp(a[2][0], b[2][0], k), lerp(a[2][1], b[2][1], k), lerp(a[2][2], b[2][2], k));
+  const la = portrait && a[3] || a[2], lb = portrait && b[3] || b[2];
+  look.set(lerp(la[0], lb[0], k), lerp(la[1], lb[1], k), lerp(la[2], lb[2], k));
   if (portrait) { const back = out.clone().sub(look).normalize(); out.addScaledVector(back, 1.8 + 0.06 * out.distanceTo(look) * 0); out.y += 0.3; }
 }
 
 export async function playFinale({ from = 0 } = {}) {
   if (playing) return; playing = true;
   const R = window.__sunspots?.renderer; if (!R) { playing = false; return; }
-  try { if (!CAST) ({ CAST, animPal, glowSprite, sign } = await import('./missions/kit.js')); } catch (e) { console.warn('finale: kit', e); playing = false; return; }
+  let MODELS; try { if (!glowSprite) ({ glowSprite, blobShadow } = await import('./missions/kit.js')); MODELS = await loadCrew(); } catch (e) { console.warn('finale: kit', e); playing = false; return; }
   try { window.__town?.M?.save?.(); } catch (_) {}
   if (st) return; const P0 = loadP(); P0.finaleSeen = 1; P0.finaleAt = Date.now(); saveP(P0);   // the SAME OLD SUNRISE Sunspot + never auto-plays twice
   window.__saveguard?.mirror?.();
   window.__paused = true; document.body.classList.add('finale');
   const canvas = R.domElement, oldZ = canvas.style.zIndex; canvas.style.zIndex = '76';
-  st = build(); st.oldZ = oldZ; st.canvas = canvas; st.R = R; st.t = from; st.speed = 1; st.phase = 'scene'; st.lineI = -1;
+  st = build(MODELS); st.oldZ = oldZ; st.canvas = canvas; st.R = R; st.t = from; st.speed = 1; st.phase = 'scene'; st.lineI = -1;
   st.toneExp = R.toneMappingExposure;
   root = document.createElement('div'); root.id = 'fin';
   root.innerHTML = `<div class="kick">SUNDAY · 6:04 AM</div><div class="cap"><b></b><span></span></div>
@@ -258,7 +287,7 @@ export async function playFinale({ from = 0 } = {}) {
   let last = performance.now();
   const tick = (now) => { if (!st) return; const dt = Math.min(0.05, (now - last) / 1000); last = now; st.holdTick(); step(dt); raf = requestAnimationFrame(tick); };
   raf = requestAnimationFrame(tick);
-  window.__finale = { st, skip: toTally, get t() { return st?.t; }, get phase() { return st?.phase; } };
+  window.__finale = { st, cam, skip: toTally, get t() { return st?.t; }, get phase() { return st?.phase; } };
 }
 
 const V = new THREE.Vector3(), L = new THREE.Vector3(), CA = new THREE.Color(), CB = new THREE.Color();
@@ -278,7 +307,7 @@ function step(dt) {
 function render(dt, tally) {
   const s = st, t = Math.min(s.t, 400), portrait = innerHeight > innerWidth;
   // sunrise: k 0 -> 1 over the scene
-  const k = ease((t - 2) / 22);
+  const k = ease((t - 2) / 19);
   s.skyU.k.value = k; s.starMat.opacity = 1 - ease(k * 1.6);
   s.sun.position.y = lerp(-46, 34, ease((t - 1) / 26)); s.sun.position.x = lerp(-14, -6, ease(t / 30));
   s.skyU.sunDir.value.copy(s.sun.position).normalize();
@@ -288,19 +317,20 @@ function render(dt, tally) {
   CA.set('#3a2a52'); CB.set('#f2b48a'); s.scene.fog.color.copy(CA).lerp(CB, k);
   s.hemi.color.set('#6a6ab8').lerp(CB.set('#ffe2c0'), k); s.hemi.groundColor.set('#2a1a2a').lerp(CB.set('#8a5a4a'), k); s.hemi.intensity = lerp(0.85, 1.25, k);
   s.sunL.intensity = 2.4 * k; s.sunL.position.set(s.sun.position.x * 0.3, Math.max(4, s.sun.position.y * 0.5), -100);
-  s.fill.intensity = lerp(0.6, 0.25, k);
+  s.fill.color.set('#8a9aff').lerp(CB.set('#ff9a50'), k); s.fill.intensity = lerp(0.6, 1.9, k);
   // porch light clicks off once the sun is up; windows go dark one by one
   const lampOn = t < 19.2 ? 1 : 0; s.lampGlow.material.opacity = 0.75 * lampOn; s.lampL.intensity = 6 * lampOn; s.bulbMat.color.set(lampOn ? '#ffe6a0' : '#d8ccb4');
   const m4 = new THREE.Matrix4(); s.win.forEach(([x, y, z, r], i) => { const on = r > k * 1.15; m4.makeScale(on ? 1 : 0.0001, on ? 1 : 0.0001, 1).setPosition(x, y, z); s.wins.setMatrixAt(i, m4); }); s.wins.instanceMatrix.needsUpdate = true;
   s.wheel.rotation.z = t * 0.06; for (const c of s.cars) c.rotation.z = -s.wheel.rotation.z;
   // the crew: everyone waves at the sun on Ram's line, everyone cheers at the title
-  for (const [key, c] of Object.entries(s.crew)) {
-    const waveNow = t > 18.4 && t < 21.2 && key !== 'ram' ? 1 : key === 'ram' && t > 19.2 && t < 21.2 ? 1 : 0;
-    const cheer = (t > 23.2 && t < D.scene + 3) || tally ? 1 : 0;
-    animPal(c.g, dt, t + key.length, { sit: c.sit, wave: waveNow && !cheer ? 1 : 0, cheer });
+  for (const [key, c] of Object.entries(s.crew)) {   // rest-pose models: a felt breathe, a little hop when they cheer
+    const u = c.g.userData, i = u.inner, cheer = (t > 23.2 && t < D.scene + 3) || tally;
+    i.scale.y = 1 + Math.sin(t * 2 + u.ph) * 0.012; i.position.y = cheer ? Math.abs(Math.sin(t * 7 + u.ph)) * 0.12 : 0;
+    i.rotation.z = Math.sin(t * 1.3 + u.ph) * 0.025 + (key === 'ram' && t > 19.2 && t < 21.2 ? Math.sin(t * 8) * 0.06 : 0);
   }
   camAt(t, V, L, portrait); cam.position.copy(V); cam.lookAt(L);
   cam.fov = portrait ? 66 : 48; cam.updateProjectionMatrix();
+  if (Q.get('finale') === 'lineup') { cam.position.set(0, 1.0, 15); cam.lookAt(0, 0.95, 4); cam.fov = 30; cam.updateProjectionMatrix(); }   // QA: refcheck lineup
   s.R.setRenderTarget(null); s.R.render(s.scene, cam);
 }
 
@@ -310,14 +340,16 @@ function card(html, buttons, standalone = false) {
   root.querySelector('.card')?.remove();
   const c = document.createElement('div'); c.className = 'card'; c.innerHTML = html + '<div class="btns">' + buttons.map(([l], i) => `<button data-i="${i}"${i ? ' class="alt"' : ''}>${esc(l)}</button>`).join('') + '</div>';
   c.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; buttons[+b.dataset.i][1](); });
+  c.insertAdjacentHTML('afterbegin', '<div class="sunB"><i></i></div>');
   root.appendChild(c); requestAnimationFrame(() => requestAnimationFrame(() => c.classList.add('on')));
+  const n = c.querySelector('[data-count]'); if (n) { const to = +n.dataset.count, t0 = performance.now(); const up = (now) => { const k = Math.min(1, (now - t0) / 1200); n.textContent = Math.round(to * (1 - Math.pow(1 - k, 3))); if (k < 1 && n.isConnected) requestAnimationFrame(up); }; requestAnimationFrame(up); }
 }
 function toTally() {
   const s = st; if (!s || s.phase === 'tally') return; s.phase = 'tally';
   if (s.t < D.scene) s.t = D.scene + 1;   // skipped: show the morning
   for (const k of ['cap', 'ttl', 'roll', 'skip', 'kick']) s.el[k].style.display = 'none'; s.el.dim.classList.add('on');
   window.__journal?.render?.(); const [f, t] = totals(), left = Math.max(0, t - f), pct = t ? Math.round(100 * f / t) : 0;
-  card(`<p class="fk">THE END · A GAME BY ${esc(STUDIO.toUpperCase())}</p><h2>SUNSPOTS FOUND</h2><p class="fbig">☀ ${f} / ${t}</p><div class="bar"><u style="width:${pct}%"></u></div>
+  card(`<p class="fk">THE END · A GAME BY ${esc(STUDIO.toUpperCase())}</p><h2>SUNSPOTS FOUND</h2><p class="fbig"><b data-count="${f}">0</b> / ${t}</p><div class="bar"><u style="width:${pct}%"></u></div>
     <p>${left ? `${pct}% complete. ${left} Sunspot${left > 1 ? 's are' : ' is'} still out there. The town keeps going: the JOURNAL has rumours.` : '100%. Every errand, every game, every secret.'}</p>`,
     [['KEEP PLAYING', () => end('roam')], ['MAIN MENU', () => end('menu')]]);
 }

@@ -29,7 +29,7 @@ const FALLBACK_NIGHTS = [
   { n: 4, need: 8, name: "NIGHT 4 · GRANDMA'S CAT", opens: "Grandma's side of town" },
   { n: 5, need: 12, name: 'NIGHT 5 · ONE HORSE FAIR', opens: 'the Fair after dark' },
   { n: 6, need: 17, name: 'NIGHT 6 · TWO HORSES', opens: 'the farm road' },
-  { n: 7, need: 23, name: 'NIGHT 7 · SAME OLD ONE HORSE TOWN', opens: 'the Eye-Max premiere' },
+  { n: 7, need: 21, name: 'NIGHT 7 · SAME OLD ONE HORSE TOWN', opens: 'the Eye-Max premiere' },
 ];
 const NIGHTS = () => window.__msnNights || FALLBACK_NIGHTS;
 const PKEY = 'sunspots.progress';
