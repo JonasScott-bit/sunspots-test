@@ -1,8 +1,8 @@
 // Sunspots ship pass (Nov 16 2026): settings store + device quality tiers.
 // - One saved settings object (localStorage 'sunspots.settings'): quality (auto|high|medium|low), invert (off|x|y|both),
 //   textSize (m|l|xl). Audio volumes stay in audio.js ('sunspots.audio').
-// - Quality AUTO picks a tier from the device (phone/desktop, memory, cores, GPU string). perf.js applies it and can
-//   step AUTO down one tier at runtime if the frame rate stays low after the resolution is already at its floor.
+// - Quality AUTO picks a tier from the device (phone/desktop, memory, cores, GPU string). perf.js applies it and steps
+//   AUTO up/down at runtime on steady frame times (remembered per GPU, see 'sunspots.autoTier' below).
 // - ?quality=high|medium|low forces a tier for QA. 0 tris, 0 rigs.
 const KEY = 'sunspots.settings';
 const Q = new URLSearchParams(location.search);
@@ -35,6 +35,8 @@ export function detectTier() {
   const mem = navigator.deviceMemory || (phone ? 4 : 8), cores = navigator.hardwareConcurrency || 4;
   let t, why;
   if (/mali-4|mali-t[0-9]|adreno \(tm\) [3-5]\d\d|powervr sgx|powervr rogue g6|intel\(r\) hd graphics [2-5]\d\d\b|llvmpipe|software/.test(g)) { t = 'low'; why = 'older GPU'; }
+  // iOS/iPadOS: WebKit always reports 4 cores and no memory, and every Apple GPU since the A12 holds 60 fps here -> MEDIUM
+  else if (phone && /apple/.test(g) && /iPhone|iPad|Macintosh/.test(navigator.userAgent)) { t = 'medium'; why = 'iPhone/iPad (Apple GPU)'; }
   else if (mem <= 3 || (phone && cores <= 4)) { t = 'low'; why = `memory ${mem} GB, ${cores} cores`; }
   else if (phone) { t = 'medium'; why = 'phone'; }
   else if (mem >= 8 && cores >= 8) { t = 'high'; why = 'desktop'; }
@@ -42,19 +44,29 @@ export function detectTier() {
   return { tier: t, why, gpu: g, phone, mem, cores };
 }
 const DET = detectTier();
-let autoStep = 0;   // runtime step-down for AUTO (perf.js)
+// AUTO learns: perf.js steps the tier up after ~20 s of steady 60 fps in town and down after ~6 s of steady < 35 fps
+// (per-second medians, so one-off hitches never count). The result is remembered per GPU ('sunspots.autoTier'), and a tier
+// that had to be stepped down from is never tried again on that device. Phones top out at MEDIUM, desktops at HIGH.
+const LKEY = 'sunspots.autoTier', CAP = DET.phone ? 1 : 2;
+let L = {}; try { const j = JSON.parse(localStorage.getItem(LKEY)); if (j && j.gpu === DET.gpu) L = j; } catch (_) {}
+let cur = TIERS[L.tier] ? ORDER.indexOf(L.tier) : ORDER.indexOf(DET.tier);
+const failed = () => (L.failed ?? 9);   // lowest tier index that was too slow here
+function learn() { L.tier = ORDER[cur]; L.gpu = DET.gpu; try { localStorage.setItem(LKEY, JSON.stringify(L)); } catch (_) {} }
 export function tierId() {
   const f = Q.get('quality'); if (TIERS[f]) return f;
   if (S.quality !== 'auto' && TIERS[S.quality]) return S.quality;
-  return ORDER[Math.max(0, ORDER.indexOf(DET.tier) - autoStep)];
+  return ORDER[cur];
 }
 export const quality = {
   get tier() { return tierId(); }, get t() { return TIERS[tierId()]; }, get auto() { return !TIERS[Q.get('quality')] && S.quality === 'auto'; },
   detected: DET,
-  stepDown() { if (!this.auto || ORDER.indexOf(tierId()) === 0) return false; autoStep++; emit('quality'); return true; },
+  get learned() { return { ...L, start: DET.tier }; },
+  stepDown() { if (!this.auto || cur === 0) return false; L.failed = Math.min(failed(), cur); cur--; learn(); emit('quality'); return true; },
+  stepUp() { if (!this.auto || cur >= CAP || cur + 1 >= failed()) return false; cur++; learn(); emit('quality'); return true; },
+  canStepUp() { return this.auto && cur < CAP && cur + 1 < failed(); },
 };
 export function getSettings() { return S; }
-export function setSetting(k, v) { if (S[k] === v) return; S[k] = v; if (k === 'quality') autoStep = 0; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (_) {} emit(k); }
+export function setSetting(k, v) { if (S[k] === v) return; S[k] = v;  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (_) {} emit(k); }
 export function onSettings(fn) { subs.add(fn); return () => subs.delete(fn); }
 function emit(k) { applyTextSize(); for (const f of subs) try { f(k, S); } catch (e) { console.warn('settings listener', e); } }
 function applyTextSize() { const h = document.documentElement; h.classList.toggle('ts-l', S.textSize === 'l'); h.classList.toggle('ts-xl', S.textSize === 'xl'); }

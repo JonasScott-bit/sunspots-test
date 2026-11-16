@@ -731,17 +731,23 @@ camera.position.set(0, 4, 14);
 const col = new THREE.Color();
 // adaptive resolution: hold ~60 fps on phones by stepping the pixel ratio down (and back up) with frame time
 let DPR_MAX = Math.min(window.devicePixelRatio || 1, SHOT ? 1 : quality.t.dprMax), DPR_MIN = Math.min(DPR_MAX, 1);   // ship pass: cap from the quality tier
-let dpr = DPR_MAX, ftAvg = 16.7, ftLast = performance.now(), dprHold = 0, slowT = 0;
-onSettings((k) => { if (k !== 'quality') return; DPR_MAX = Math.min(window.devicePixelRatio || 1, SHOT ? 1 : quality.t.dprMax); DPR_MIN = Math.min(DPR_MAX, 1); dpr = Math.min(dpr, DPR_MAX); renderer.setPixelRatio(dpr); renderer.setSize(window.innerWidth, window.innerHeight, false); });
+let dpr = DPR_MAX, ftAvg = 16.7, ftLast = performance.now(), dprHold = 5, slowT = 0, secFt = [], secT = 0, slowS = 0, fastS = 0;
+onSettings((k) => { if (k !== 'quality') return; DPR_MAX = Math.min(window.devicePixelRatio || 1, SHOT ? 1 : quality.t.dprMax); DPR_MIN = Math.min(DPR_MAX, 1); dpr = DPR_MAX; renderer.setPixelRatio(dpr); renderer.setSize(window.innerWidth, window.innerHeight, false); dprHold = 120; slowS = fastS = 0; });
+// perf pass 2: decided on per-second MEDIAN frame times, so a one-off hitch (shader compile, GC) never drops the resolution.
+// 60 Hz vsync = ~16.7 ms, so "fast" means holding vsync (< 17.6 ms median), not "< 14 ms" (which a 60 Hz screen never shows).
 function adaptDPR() {
   const now = performance.now(), ft = Math.min(100, now - ftLast); ftLast = now;
-  ftAvg += (ft - ftAvg) * 0.05; if (SHOT || document.hidden || --dprHold > 0) return;
+  ftAvg += (Math.min(ft, 40) - ftAvg) * 0.05; if (SHOT || document.hidden) { secFt.length = 0; secT = 0; return; }
+  secFt.push(ft); secT += ft; if (secT < 1000) return;
+  secFt.sort((x, y) => x - y); const med = secFt[secFt.length >> 1]; secFt.length = 0; secT = 0;
+  if (--dprHold > 0) return;
+  slowS = med > 19.5 ? slowS + 1 : 0; fastS = med < 17.6 ? fastS + 1 : 0;
   let nd = dpr;
-  if (ftAvg > 18.5 && dpr > DPR_MIN) nd = Math.max(DPR_MIN, dpr - 0.25);
-  else if (ftAvg < 14 && dpr < DPR_MAX) nd = Math.min(DPR_MAX, dpr + 0.25);
-  if (nd !== dpr) { dpr = nd; renderer.setPixelRatio(dpr); renderer.setSize(window.innerWidth, window.innerHeight, false); dprHold = 90; }
-  // last resort: resolution already at the floor and still slow for ~5 s -> drop the felt shader back to the plain materials
-  if (dpr <= DPR_MIN && ftAvg > 24 && sunspotsLookOn() && sunspotsEnabled() && !Q.has('felt')) { if ((slowT += ft) > 5000) { setSunspotsLook(false); console.info('sunspots look: low-end fallback'); } } else slowT = 0;
+  if (slowS >= 2 && dpr > DPR_MIN) nd = Math.max(DPR_MIN, dpr - 0.25);
+  else if (fastS >= 5 && dpr < DPR_MAX) nd = Math.min(DPR_MAX, dpr + 0.25);
+  if (nd !== dpr) { dpr = nd; renderer.setPixelRatio(dpr); renderer.setSize(window.innerWidth, window.innerHeight, false); dprHold = 3; slowS = fastS = 0; window.__perf?.mark?.('pixel ratio ' + dpr); }
+  // last resort: resolution already at the floor and the median still > 24 ms for 5 s -> drop the felt shader back to the plain materials
+  if (dpr <= DPR_MIN && med > 24 && sunspotsLookOn() && sunspotsEnabled() && !Q.has('felt')) { if ((slowT += 1000) > 5000) { setSunspotsLook(false); console.info('sunspots look: low-end fallback'); window.__perf?.mark?.('felt shader off'); } } else slowT = 0;
 }
 function frame() {
   if (window.__titleUp || window.__paused) { clock.getDelta(); ftLast = performance.now(); requestAnimationFrame(frame); return; } // title screen owns the GPU; ship pass: pause menu (shell.js) freezes the town
