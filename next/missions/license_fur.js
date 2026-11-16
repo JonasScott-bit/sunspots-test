@@ -22,7 +22,7 @@ function create({ hud: H }) {
   const sky = nightSky(scene, { top: '#0a0c28', mid: '#22184a', low: '#3a2450', glow: '#7a5aff', dusk: 0.05 }); nightLights(scene);
   const R = rng(911);
   const cab = waddleCar('#f2c230', '#f6efe0', { open: true, cab: true });
-  const moth = CAST.moth(), wolf = CAST.wolf(); for (const [p, x] of [[moth, 0.36], [wolf, -0.36]]) { p.scale.setScalar(0.62); p.position.set(x, 0.66, 0.05); p.userData.shadow.visible = false; cab.userData.body.add(p); }
+  const moth = CAST.moth(), wolf = CAST.wolf(); for (const [p, x] of [[moth, 0.36], [wolf, -0.36]]) { p.scale.setScalar(0.84); p.position.set(x * 1.05, 0.62, 0.15); p.userData.shadow.visible = false; cab.userData.body.add(p); }
   const route = [[260, 0], [80, 50], [240, 0], [90, -60], [300, 5], [80, 45], [260, 0], [90, -40], [200, 0]];
   const D = createDrive(scene, { theme: 'town', route, cross: [180, 420, 640, 880, 1100, 1320], player: cab, cruise: 20, max: 26, boostV: 33, boostRecharge: 6, seed: 12, traffic: { same: 10, oncoming: 10, cross: 2 }, peds: 12 });
   // the Lemon Kid's kart: a felt lemon on four tiny wheels

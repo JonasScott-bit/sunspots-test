@@ -1,6 +1,6 @@
 // missions/grandma_cat.js — GRANDMA'S CAT (Night 4 headliner). Sunday dinner at Bear's. Grandma stops mid-bite:
 // she left DUCHESS shut in the bedroom at her house. With the good china. Two halves, one Sunspot chain:
-//  1 THE DRIVE — the mustard waddle car across town at night (DRIVER below: Bear by default, it's his grandma; the Wolf rides shotgun; Grandma in the back with
+//  1 THE DRIVE — the mustard waddle car across town at night (DRIVER below: the Wolf drives (Scott's call), Bear rides shotgun; Grandma in the back with
 //    opinions). Drag to steer, FLOOR IT to boost, HONK and the car ahead pulls over. Real traffic lights (run a red and the
 //    cross traffic is real too), queues, oncoming cars, people walking their own walks, cat treats on the road.
 //    DUCHESS vs THE HOUSE climbs the whole way: the later you get there, the more is already on the floor.
@@ -14,9 +14,10 @@ import { registerMission, hud, CAST, pal, animPal, waddleCar, nightSky, nightLig
 import { createDrive } from './drivecore.js';
 
 // OPEN QUESTION for Scott: who drives? One switch: 'bear' (default) or 'wolf'.
-const DRIVER_DEFAULT = 'bear';   // <- flip to 'wolf' if Scott says so (QA override: ?driver=wolf)
+const DRIVER_DEFAULT = 'wolf';   // Scott's call (Nov 16): the Wolf drives. QA override: ?driver=bear
 export const DRIVER = ['bear', 'wolf'].includes(new URLSearchParams(location.search).get('driver')) ? new URLSearchParams(location.search).get('driver') : DRIVER_DEFAULT;
-const PAR = 58;   // seconds: arriving before this keeps the meter under half
+const PAR = 58;
+const CAMO = { dist: 7.0, height: 3.3, lookY: 1.4 };   // a touch closer + lower than the default chase cam so the crew read   // seconds: arriving before this keeps the meter under half
 registerMission({
   id: 'grandma_cat', key: 'gcat', title: "GRANDMA'S CAT", chip: "GRANDMA'S CAT", room: 'living90', night: 4, where: "Bear's house (Sunday)",
   rumour: "Bear's grandma comes over for Sunday dinner. Tonight she keeps checking her watch.",
@@ -38,8 +39,8 @@ function create({ T, S, hud: H }) {
   // ================================================================== 1. THE DRIVE
   const car = waddleCar('#e7b23a', '#f6efe0', { open: true });
   const crew = { wolf: CAST.wolf(), bear: CAST.bear(), grandma: CAST.grandma() };
-  const seat = [[0.36, 0.66, 0.05], [-0.36, 0.66, 0.05], [0.0, 0.7, -0.9]];   // driver, shotgun, back (left-hand drive = +x is the car's left)
-  const SC = { wolf: 0.62, bear: 0.66, grandma: 0.6 };
+  const seat = [[0.38, 0.62, 0.15], [-0.38, 0.62, 0.15], [0.0, 0.78, -0.95]];   // driver, shotgun, back (left-hand drive = +x is the car's left)
+  const SC = { wolf: 0.84, bear: 0.9, grandma: 0.82 };   // big enough to read from the chase cam
   [crew[DRIVER], crew[DRIVER === 'bear' ? 'wolf' : 'bear'], crew.grandma].forEach((p, i) => { p.scale.setScalar(SC[Object.keys(crew).find((k) => crew[k] === p)]); p.position.set(seat[i][0], seat[i][1], seat[i][2]); p.userData.shadow.visible = false; car.userData.body.add(p); });
   const route = [[150, 0], [70, 55], [170, 0], [60, -70], [190, 8], [80, 60], [150, -10], [60, -30], [90, 0]];
   const D = createDrive(scene, { theme: 'town', route, cross: [140, 330, 520, 700, 860], player: car, cruise: 19, max: 24, boostV: 31, seed: 77, traffic: { same: 9, oncoming: 9, cross: 2 }, peds: 12 });
@@ -116,8 +117,8 @@ function create({ T, S, hud: H }) {
     const b = H.button('boost', 'FLOOR<br>IT'); const hk = H.button('honk', 'HONK', { alt: true }); hk.onDown = honk;
     c.I.onTap = null; c.I.padOn = true;
     if (c.opts.phase === 'house') { G.drive = 40; toHouse(); return; }
-    G.phase = 'talk'; camera.fov = 55; D.update(0.016, 0, { x: 0 }); D.resetCam(); D.cam(camera, 1);
-    H.say([['GRANDMA', "Duchess. I left Duchess in the bedroom."], ['BEAR', 'With the door shut?'], ['GRANDMA', 'With my good china, dear.'], DRIVER === 'bear' ? ['BEAR', 'Keys. Everybody in. I\'m driving.'] : ['WOLF', 'Get in.']], () => { if (G.phase === 'talk') go(); });
+    G.phase = 'talk'; camera.fov = 55; D.update(0.016, 0, { x: 0 }); D.resetCam(); D.cam(camera, 1, CAMO);
+    H.say([['GRANDMA', "Duchess. I left Duchess in the bedroom."], ['BEAR', 'With the door shut?'], ['GRANDMA', 'With my good china, dear.'], ...(DRIVER === 'bear' ? [['BEAR', 'Keys. Everybody in. I\'m driving.']] : [['WOLF', 'Get in. I\'m driving.'], ['BEAR', 'Shotgun.']]), ['GRANDMA', 'I\'ll take the back. I like to see everything.']], () => { if (G.phase === 'talk') go(); });
     if (G.auto) setTimeout(() => { if (G.phase === 'talk') { H.subQ = []; H.skipSub(); } }, 600);
   };
   function go() { G.phase = 'count'; G.t = 0; H.hint('3', 0); sfx.tick(); }
@@ -176,7 +177,7 @@ function create({ T, S, hud: H }) {
       const wantB = G.phase === 'drive' && (H.btn.boost?.down || I.keys[' '] || (G.auto && D.P.boostCharge >= 1 && G.t > 3));
       if (G.phase === 'count') { const n = 3 - Math.floor(G.t); H.hint(n > 0 ? String(n) : 'GO!', 0); if (G.t > 3) { G.phase = 'drive'; G.t = 0; H.hint('GO!', 0.8); sfx.ok(); } }
       if (G.phase !== 'drive' && G.phase !== 'arrive') { D.P.cruise = 0; } else D.P.cruise = 19;
-      D.update(dt, t, G.phase === 'drive' ? ax : { x: 0 }, wantB); D.cam(camera, dt);
+      D.update(dt, t, G.phase === 'drive' ? ax : { x: 0 }, wantB); D.cam(camera, dt, CAMO);
       sky.follow(camera);
       if (G.phase === 'drive') { G.drive += dt; G.meter = clamp(G.drive / (PAR * 2), 0, 1); H.setMeter(G.meter, G.meter < 0.5 ? 'DUCHESS vs THE HOUSE' : G.meter < 0.8 ? 'SHE IS ON THE CURTAINS' : 'THE GOOD CHINA'); const mins = 52 + Math.floor(G.drive / 20); H.pill('clock', `SUN ${mins >= 60 ? '9:' + String(mins - 60).padStart(2, '0') : '8:' + mins} PM`, G.meter > 0.7);
         H.pill('treat', `🐟 ${G.treats}`); const bb = H.btn.boost; if (bb) bb.style.opacity = D.P.boostCharge >= 1 || D.P.boost > 0 ? 1 : 0.45;

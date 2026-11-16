@@ -155,8 +155,8 @@ export const CAST = {
   rabbit: () => pal({ body: '#e8dcd0', ears: 'long', ear: '#f0c8c8', snout: '#f6eee8', nose: '#e88a9a', shirt: '#a84a6a', pants: '#3a3a4a', h: 0.95 }),
   reggie: () => pal({ body: '#7a7a82', ears: 'round', snout: '#e8e2d6', nose: '#1a1214', shirt: '#c98a3a', pants: '#3a3a4a', tail: '#5a5a62', glasses: '#1a1214' }),
   peach: () => pal({ body: '#f6a88a', head: '#f8b496', ears: null, shirt: '#f6a88a', pants: '#8a5a3a', h: 0.85 }),
-  sal: () => pal({ body: '#c99a7a', ears: 'round', snout: '#e2c2a2', nose: '#3a2226', shirt: '#f6f2e8', pants: '#3a3a4a', cap: '#f6f2e8', fat: 1.2 }),
-  dot: () => pal({ body: '#e2b08a', ears: 'round', ear: '#c98a6a', snout: '#f2d2b2', shirt: '#7ac2c2', skirt: '#7ac2c2', hair: '#c9583a', bun: true }),
+  sal: () => pal({ body: '#c9c0c8', head: '#e8e2e6', ears: 'round', ear: '#2a2226', snout: '#f2e6ea', nose: '#e88a9a', tail: '#e8c8c8', shirt: '#f6f2e8', pants: '#3a3a4a', cap: '#f6f2e8', fat: 1.2 }),
+  dot: () => pal({ body: '#f2e6d2', head: '#f6ecdc', ears: null, beak: '#e0a03a', beakLen: 0.16, shirt: '#7ac2c2', skirt: '#7ac2c2', hair: '#c9302a' }),   // a hen (livingworld: DOT the waitress)
   nan: () => pal({ body: '#d8c8b8', ears: 'round', snout: '#efe2d2', shirt: '#b8a0d8', skirt: '#6a5a8a', hair: '#f2f0ea', glasses: '#6a4a3a', h: 0.92 }),
   wrench: () => pal({ body: '#9aa2aa', head: '#b8c0c8', ears: null, shirt: '#2a5a8a', pants: '#2a3a5a', cap: '#c9302a' }),
   hummer: () => pal({ body: '#3aa88a', head: '#4ac29a', ears: null, beak: '#2a2226', beakLen: 0.5, shirt: '#c9306a', pants: '#3a3a4a', wings: '#2a8a7a', h: 0.7 }),
@@ -183,8 +183,9 @@ export function waddleCar(col = '#e7b23a', trim = '#f6efe0', { roof = null, cop 
   if (lite) for (const [x, z] of WP) mm.add(new THREE.CylinderGeometry(0.34, 0.34, 0.26, 10), '#2a2426', M4(x, 0.34, z, 0, 0, Math.PI / 2));
   body.add(mm.mesh()); body.add(gm.mesh(new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false })));
   if (!lite) for (const [x, z] of WP) { const w = mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.26, 10), '#2a2426', [x, 0.34, z], g); w.rotation.z = Math.PI / 2; wheels.push(w); }
-  if (cab) { const s = sign('CAB', 0.8, 0.3, { bg: '#f2c230', fg: '#2a1a14' }); s.position.set(0, 1.72, -0.25); body.add(s); }
-  if (roof) { const s = sign(roof, 1.4, 0.36); s.position.set(0, 1.75, -0.25); body.add(s); }
+  const roofSign = (txt, w, h, o) => { for (const ry of [0, Math.PI]) { const s = sign(txt, w, h, o); s.position.set(0, 1.74, -0.25 - (ry ? 0.02 : 0)); s.rotation.y = ry; body.add(s); } };   // two-sided, so it reads from the chase cam too
+  if (cab) roofSign('CAB', 0.8, 0.3, { bg: '#f2c230', fg: '#2a1a14' });
+  if (roof) roofSign(roof, 1.4, 0.36);
   const sh = blobShadow(1.5, 0.45); sh.scale.set(0.8, 1.35, 1); g.add(sh);
   const beam = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({ map: glowTex(), color: '#fff0b8', transparent: true, opacity: 0.32, depthWrite: false, blending: THREE.AdditiveBlending }));   // headlight pool on the road
   beam.rotation.x = -Math.PI / 2; beam.scale.set(2.2, 4.5, 1); beam.position.set(0, 0.05, 5.4); g.add(beam);
@@ -282,7 +283,8 @@ export function hud() {
   #msn .card p{margin:4px 0;color:#4a3d52;font:600 15px/1.35 Futura,Avenir,system-ui,sans-serif} #msn .card .sun{display:inline-block;margin:4px 3px;padding:6px 11px;border-radius:14px;background:#2b1e3c;color:#ffe1a8;font:800 12px system-ui,sans-serif;letter-spacing:.08em}
   #msn .card .sun.new{background:#e0a224;color:#2b1e3c} #msn .card .row{display:flex;gap:10px;margin-top:12px} #msn .card button{flex:1;min-height:54px;border-radius:16px} #msn .card button.alt{background:#2b1e3c;color:#ffe1a8;box-shadow:0 5px 0 #120a1c}
   #msn .fade{position:fixed;inset:0;background:#0d0a18;opacity:0;transition:opacity .35s;pointer-events:none;z-index:31}
-  @media (orientation:portrait){#msn .ttl{display:none} #msn .top{top:calc(env(safe-area-inset-top) + 60px);padding:0 8px} #msn .meter{top:calc(env(safe-area-inset-top) + 104px)} #msn .toast{top:calc(env(safe-area-inset-top) + 132px)}}
+  @media (orientation:portrait){#msn .ttl{display:none} #msn .top{top:calc(env(safe-area-inset-top) + 60px);padding:0 8px} #msn .meter{top:calc(env(safe-area-inset-top) + 104px)} #msn#msn .toast{top:calc(env(safe-area-inset-top) + 132px)}}
+  @media (orientation:portrait){#msn.btnsOn .sub{bottom:calc(env(safe-area-inset-bottom) + 18px);left:12px;transform:none;width:calc(100vw - 134px)} #msn.btnsOn.btns1 .sub{bottom:calc(env(safe-area-inset-bottom) + 118px);left:50%;transform:translateX(-50%);width:min(90vw,560px)}}
   @media (orientation:landscape){#msn .top{padding:0 calc(env(safe-area-inset-right) + 112px) 0 calc(env(safe-area-inset-left) + 112px)}}
   #msn .toast{position:absolute;left:50%;top:calc(env(safe-area-inset-top) + 92px);transform:translateX(-50%);background:#e0a224;color:#2b1e3c;border-radius:16px;padding:8px 14px;font:800 14px system-ui,sans-serif;letter-spacing:.06em;opacity:0;transition:opacity .3s;white-space:nowrap}
   #msn .pads{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 14px);display:none;justify-content:center;gap:10px;pointer-events:auto;padding:0 10px}
@@ -290,17 +292,19 @@ export function hud() {
   #msn .pads button{flex:0 1 96px;height:96px;border:0;border-radius:24px;color:#2b1e3c;font:800 14px system-ui,sans-serif;letter-spacing:.08em;box-shadow:0 6px 0 #0008;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:transform .06s,filter .06s}
   #msn .pads button.lit{filter:brightness(1.45) saturate(1.2);transform:scale(1.08)} #msn .pads button.on{transform:translateY(5px);box-shadow:0 1px 0 #0008} #msn .pads button[disabled]{opacity:.45}
   @media (orientation:landscape){#msn .pads button{flex-basis:88px;height:78px}} 
+  #msn .panel{position:absolute;left:50%;top:calc(env(safe-area-inset-top) + 100px);transform:translateX(-50%);width:min(84vw,360px);background:#f4ead2;color:#2b1e3c;border-radius:18px;padding:12px 14px;box-shadow:0 8px 0 #0006,0 10px 30px #0008;text-align:center;display:none;pointer-events:none;font:700 16px/1.3 Futura,Avenir,system-ui,sans-serif}
+  #msn .panel b{display:block;font:800 11px system-ui,sans-serif;letter-spacing:.22em;color:#8a5a12;margin-bottom:4px} #msn .panel.on{display:block} @media (orientation:landscape){#msn .panel{top:calc(env(safe-area-inset-top) + 64px)}}
   #msn .toast.on{opacity:1} #msn .layer{position:absolute;inset:0;pointer-events:auto;touch-action:none}
   #msn .float{position:absolute;transform:translate(-50%,-50%);font:800 18px system-ui,sans-serif;text-shadow:0 2px 6px #000c;pointer-events:none;transition:transform .8s ease-out,opacity .8s ease-out}
   #msn .tag{position:absolute;transform:translate(-50%,-100%);background:#2b1e3ce6;color:#ffe1a8;border-radius:12px;padding:4px 9px;font:800 12px system-ui,sans-serif;letter-spacing:.08em;pointer-events:none;white-space:nowrap}`;
   document.head.appendChild(css);
   const root = document.createElement('div'); root.id = 'msn';
-  root.innerHTML = `<div class="layer"></div><div class="top"></div><div class="ttl"></div><div class="meter"><u></u><b></b></div><div class="hint"></div><div class="sub"><i></i><span></span></div><div class="toast"></div><div class="pads"></div><div class="pad"><i></i></div><div class="btns"></div><button class="big"></button><button class="quit" aria-label="Leave the mission">✕</button><div class="card"></div><div class="fade"></div>`;
+  root.innerHTML = `<div class="layer"></div><div class="top"></div><div class="ttl"></div><div class="meter"><u></u><b></b></div><div class="hint"></div><div class="sub"><i></i><span></span></div><div class="toast"></div><div class="pads"></div><div class="panel"></div><div class="pad"><i></i></div><div class="btns"></div><button class="big"></button><button class="quit" aria-label="Leave the mission">✕</button><div class="card"></div><div class="fade"></div>`;
   document.body.appendChild(root);
   const $ = (s) => root.querySelector(s);
-  H = { root, layer: $('.layer'), top: $('.top'), ttl: $('.ttl'), meter: $('.meter'), hintEl: $('.hint'), subEl: $('.sub'), toastEl: $('.toast'), pad: $('.pad'), btnsEl: $('.btns'), padsEl: $('.pads'), bigEl: $('.big'), quitEl: $('.quit'), card: $('.card'), fadeEl: $('.fade'), pills: {}, btn: {}, tags: [] };
+  H = { root, layer: $('.layer'), top: $('.top'), ttl: $('.ttl'), meter: $('.meter'), hintEl: $('.hint'), subEl: $('.sub'), toastEl: $('.toast'), pad: $('.pad'), btnsEl: $('.btns'), padsEl: $('.pads'), panelEl: $('.panel'), bigEl: $('.big'), quitEl: $('.quit'), card: $('.card'), fadeEl: $('.fade'), pills: {}, btn: {}, tags: [] };
   for (const el of [H.padsEl, H.btnsEl, H.bigEl, H.quitEl, H.card]) el.addEventListener('pointerdown', (e) => e.stopPropagation());
-  H.reset = (title = '') => { H.top.innerHTML = ''; H.padsEl.innerHTML = ''; H.root.classList.remove('padsOn'); H.pills = {}; H.btnsEl.innerHTML = ''; H.btn = {}; H.ttl.textContent = title; H.meter.style.display = 'none'; H.hint(''); H.subEl.classList.remove('on'); H.subQ = []; H.bigEl.style.display = 'none'; H.card.classList.remove('on'); for (const t of H.tags) t.remove(); H.tags = []; H.pad.style.display = 'none'; };
+  H.reset = (title = '') => { H.top.innerHTML = ''; H.padsEl.innerHTML = ''; H.root.classList.remove('padsOn'); H.panelEl.classList.remove('on'); H.pills = {}; H.btnsEl.innerHTML = ''; H.btn = {}; H.root.classList.remove('btnsOn', 'btns1'); H.ttl.textContent = title; H.meter.style.display = 'none'; H.hint(''); H.subEl.classList.remove('on'); H.subQ = []; H.bigEl.style.display = 'none'; H.card.classList.remove('on'); for (const t of H.tags) t.remove(); H.tags = []; H.pad.style.display = 'none'; };
   H.pill = (k, text, warn = false) => { let p = H.pills[k]; if (!p) { p = H.pills[k] = document.createElement('div'); p.className = 'pill'; H.top.appendChild(p); } if (p._t !== text) { p.textContent = text; p._t = text; } p.classList.toggle('warn', !!warn); return p; };
   H.setMeter = (v, label = '', show = true) => { H.meter.style.display = show ? 'block' : 'none'; H.meter.querySelector('u').style.width = Math.round(clamp(v, 0, 1) * 100) + '%'; H.meter.querySelector('b').textContent = label; };
   let hintT = null; H.hint = (t, sec = 0) => { clearTimeout(hintT); H.hintEl.textContent = t || ''; H.hintEl.classList.toggle('on', !!t); if (t && sec) hintT = setTimeout(() => H.hintEl.classList.remove('on'), sec * 1000); };
@@ -312,15 +316,16 @@ export function hud() {
   H.tickSub = (dt) => { if (!H.subEl.classList.contains('on')) return; subT -= dt; if (subT <= 0) nextSub(); };
   H.skipSub = () => { if (H.subEl.classList.contains('on')) { nextSub(); return true; } return false; };
   H.talking = () => H.subEl.classList.contains('on');
-  H.button = (k, label, { alt = false, hold = false } = {}) => { const b = document.createElement('button'); b.innerHTML = label; if (alt) b.className = 'alt'; H.btnsEl.appendChild(b); H.btn[k] = b; b.down = false;
+  H.button = (k, label, { alt = false, hold = false } = {}) => { const b = document.createElement('button'); b.innerHTML = label; if (alt) b.className = 'alt'; H.btnsEl.appendChild(b); H.btn[k] = b; b.down = false; H.root.classList.add('btnsOn');
     b.addEventListener('pointerdown', (e) => { e.preventDefault(); b.down = true; b.classList.add('on'); b.onDown?.(); }); const up = () => { if (!b.down) return; b.down = false; b.classList.remove('on'); b.onUp?.(); };
     b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up); return b; };
   H.pads = (defs, onHit) => { H.padsEl.innerHTML = ''; H.root.classList.add('padsOn'); return defs.map((d, i) => { const b = document.createElement('button'); b.innerHTML = d.label; b.style.background = d.col; H.padsEl.appendChild(b);
     b.addEventListener('pointerdown', (e) => { e.preventDefault(); if (b.disabled) return; b.classList.add('on'); onHit(i, b); }); const up = () => b.classList.remove('on'); b.addEventListener('pointerup', up); b.addEventListener('pointerleave', up); b.addEventListener('pointercancel', up); return b; }); };
+  H.panel = (html) => { if (html == null) { H.panelEl.classList.remove('on'); return; } if (H.panelEl._h !== html) { H.panelEl.innerHTML = html; H.panelEl._h = html; } H.panelEl.classList.add('on'); };
   H.flash = (b, ms = 160) => { b.classList.add('lit'); setTimeout(() => b.classList.remove('lit'), ms); };
   H.big = (label, fn) => new Promise((res) => { H.bigEl.textContent = label; H.bigEl.style.display = 'block'; H.bigEl.onclick = (e) => { e.stopPropagation(); H.bigEl.style.display = 'none'; sfx.ok(); fn?.(); res(); }; });
   H.fade = (on, ms = 350) => new Promise((r) => { H.fadeEl.style.transition = `opacity ${ms}ms`; H.fadeEl.style.opacity = on ? 1 : 0; setTimeout(r, ms + 20); });
-  H.float = (x, y, text, col = '#ffe1a8') => { const d = document.createElement('div'); d.className = 'float'; d.textContent = text; d.style.left = x + 'px'; d.style.top = y + 'px'; d.style.color = col; root.appendChild(d); requestAnimationFrame(() => { d.style.transform = 'translate(-50%,-160%)'; d.style.opacity = 0; }); setTimeout(() => d.remove(), 900); };
+  H.float = (x, y, text, col = '#ffe1a8') => { const d = document.createElement('div'); d.className = 'float'; d.textContent = text; d.style.left = clamp(x, 70, innerWidth - 70) + 'px'; d.style.top = clamp(y, 110, innerHeight - 60) + 'px'; d.style.color = col; d.style.whiteSpace = 'nowrap'; root.appendChild(d); requestAnimationFrame(() => { d.style.transform = 'translate(-50%,-160%)'; d.style.opacity = 0; }); setTimeout(() => d.remove(), 900); };
   H.tag = (text) => { const d = document.createElement('div'); d.className = 'tag'; d.textContent = text; root.appendChild(d); H.tags.push(d); return d; };
   H.place = (el, v, cam) => { _v.copy(v).project(cam); const on = _v.z < 1 && Math.abs(_v.x) < 1.2 && Math.abs(_v.y) < 1.2; el.style.display = on ? 'block' : 'none'; if (on) { el.style.left = ((_v.x + 1) / 2 * innerWidth) + 'px'; el.style.top = ((1 - _v.y) / 2 * innerHeight) + 'px'; } return on; };
   return H;
@@ -336,11 +341,11 @@ export function input() {
   h.layer.addEventListener('pointermove', (e) => { if (e.pointerId !== id) return; const dx = e.clientX - sx, dy = e.clientY - sy, R = 55; I.x = clamp(dx / R, -1, 1); I.y = clamp(dy / R, -1, 1); if (I.padOn) h.pad.firstChild.style.transform = `translate(${I.x * 34}px,${I.y * 34}px)`; I.cur = { x: e.clientX, y: e.clientY }; });
   const up = (e) => { if (e.pointerId !== id) return; id = null; I.active = false; h.pad.style.display = 'none'; const dt = performance.now() - t0, dx = e.clientX - sx, dy = e.clientY - sy;
     if (dt < 320 && Math.hypot(dx, dy) < 14) I.onTap?.(e.clientX, e.clientY); else if (dt < 450 && Math.hypot(dx, dy) > 40) I.onSwipe?.(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
-    I.x = I.y = 0; };
+    I.onRelease?.(dx, dy, dt); I.x = I.y = 0; };
   h.layer.addEventListener('pointerup', up); h.layer.addEventListener('pointercancel', up);
   addEventListener('keydown', (e) => { I.keys[e.key.toLowerCase()] = true; }); addEventListener('keyup', (e) => { I.keys[e.key.toLowerCase()] = false; });
   I.axis = () => { const k = I.keys; let x = I.x, y = I.y; if (k.arrowleft || k.a) x = -1; if (k.arrowright || k.d) x = 1; if (k.arrowup || k.w) y = -1; if (k.arrowdown || k.s) y = 1; return { x, y }; };
-  I.reset = () => { I.x = I.y = 0; I.active = false; id = null; h.pad.style.display = 'none'; I.onTap = I.onSwipe = null; I.padOn = true; };
+  I.reset = () => { I.x = I.y = 0; I.active = false; id = null; h.pad.style.display = 'none'; I.onTap = I.onSwipe = I.onRelease = null; I.padOn = true; };
   return I;
 }
 // screen -> world ray against a list of objects (returns the nearest object whose screen centre is within r px, the forgiving phone tap)
@@ -351,7 +356,7 @@ export function toScreen(v, cam) { _v.copy(v).project(cam); return { x: (_v.x + 
 const REG = (window.__msnReg ||= {});
 export function sunTotal(T) { const S = T?.state || window.__town?.state || {}; return Object.keys(S.sun || {}).length; }
 function nightOf(def) { return NIGHTS[(def.night || 1) - 1] || NIGHTS[0]; }
-export function locked(T, def) { if (Q.has('unlock') || Q.has('m')) return false; return sunTotal(T) < nightOf(def).need; }
+export function locked(T, def) { if (Q.has('unlock') || Q.has('m')) return false; const sh = window.__shell; if (sh?.nightOpen) return !sh.nightOpen(def.night || 1); return sunTotal(T) < nightOf(def).need; }   // shell.js owns Nights + the demo cutoff when present
 
 export function registerMission(def) {
   REG[def.id] = def; def.state = 'off';
@@ -381,7 +386,7 @@ let RUN = null;
 export async function run(T, def, opts = {}) {
   if (RUN || T.busy || T.lane || T.active !== def.room) return false;
   const h = hud(), S = T.state, M = T.M, id = def.key || def.id;
-  if (locked(T, def)) { const N = nightOf(def); h.reset(); document.body.classList.add('msnlock'); showCard(h, { kicker: N.name, title: def.title, lines: [`Opens at ${N.need} Sunspots. You have ${sunTotal(T)}.`, 'Errands, games and secrets around town all leave one. Check the JOURNAL.'], buttons: [['OKAY', () => { h.card.classList.remove('on'); h.root.style.display = ''; document.body.classList.remove('msnlock'); }]] }); h.root.style.display = 'block'; return false; }
+  if (locked(T, def)) { const N = nightOf(def); h.reset(); document.body.classList.add('msnlock'); showCard(h, { kicker: N.name, title: def.title, lines: [window.__shell?.lockLine?.(def.night || 1) || `Opens at ${N.need} Sunspots. You have ${sunTotal(T)}.`, 'Errands, games and secrets around town all leave one. Check the JOURNAL.'], buttons: [['OKAY', () => { h.card.classList.remove('on'); h.root.style.display = ''; document.body.classList.remove('msnlock'); }]] }); h.root.style.display = 'block'; return false; }
   RUN = def; T.busy = true; def.state = 'intro';
   h.root.style.display = 'block'; await h.fade(true, 300);
   const A = T.rooms[T.active], saved = { scene: T.scene, camera: T.camera };
