@@ -1,0 +1,19 @@
+{
+  "name": "Sunspots",
+  "short_name": "Sunspots",
+  "description": "A felt-and-clay night adventure in Same Old One Horse Town. Seven Nights, a whole town of errands, and a store that closes at 2:00 AM.",
+  "id": "./",
+  "start_url": "./index.html?src=homescreen",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#1c4fb8",
+  "theme_color": "#1c4fb8",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
