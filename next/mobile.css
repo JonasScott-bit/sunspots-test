@@ -17,7 +17,7 @@ html body #obj{font-size:calc(14px * var(--ts))!important;line-height:1.35!impor
 html body #dist{font-size:calc(13px * var(--ts))!important;letter-spacing:.14em!important}
 html body #hint{font-size:calc(14px * var(--ts))!important;letter-spacing:.1em!important;padding:0 14px;opacity:.85}
 html body #toast{font-size:calc(16px * var(--ts))!important}
-html body #townObj{font-size:calc(14px * var(--ts))!important;top:calc(env(safe-area-inset-top) + 112px)!important}
+html body #townObj{font-size:calc(14px * var(--ts))!important}   /* portrait: town.js places it under the HUD (it measures the HUD) */
 html body.room #townObj{top:calc(env(safe-area-inset-top) + 62px)!important}
 @media (orientation:landscape){html body #hud{max-width:42vw!important} html body #townObj{top:calc(env(safe-area-inset-top) + 58px)!important;left:calc(env(safe-area-inset-left) + 44vw)!important;max-width:30vw!important}}
 
@@ -104,3 +104,28 @@ html body #msn .ttl,html body #msn .meter b,html body #msn .sub i,html body #msn
   html body #jnTabs{display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:6px!important;overflow:visible!important;flex-wrap:wrap!important}
   html body #jnTabs button{padding:0 6px!important;min-width:0!important;width:100%!important;font-size:13px!important;letter-spacing:.06em!important}
 }
+/* a mission's Night-gate card has its own OKAY; its corner quit button sat on top of the room's EXIT */
+html body.msnlock #msn .quit{display:none!important}
+/* short landscape (phone on its side): HORN sits beside SCAN/RADIO VOL so GET OUT clears the objective line under the clock */
+@media (orientation:landscape) and (max-height:500px){
+  html body #bHorn{bottom:calc(env(safe-area-inset-bottom) + 116px)!important;left:calc(env(safe-area-inset-left) + 140px)!important}
+  html body #bExit{bottom:calc(env(safe-area-inset-bottom) + 46px)!important;left:calc(env(safe-area-inset-left) + 190px)!important}
+  html body #soloRadio{max-width:220px!important}   /* bottom row, beside the arrows: clear of the HUD lines */
+}
+/* journal: with a long list (SUNSPOTS) the flex column squeezed the header + tab row and clipped the tab labels */
+html body #jnSheet header,html body #jnTabs{flex:none!important}
+html body #jnBody{flex:1 1 auto!important;min-height:0!important}
+/* errand list: a soft felt-dark backing so it reads over bright signs; out of the PERF overlay's way when that is on */
+html body #townObj{background:rgba(27,19,36,.55);padding:6px 10px;border-radius:12px;box-sizing:border-box}
+html body #townObj:empty{display:none!important}
+@media (orientation:landscape){html body.pf-on #townObj{top:calc(env(safe-area-inset-top) + 92px)!important}}
+/* portrait drive: the snack run's LIST moves under the minimap (it sat on the wrapped objective line), and the radio
+   pill shifts right so it clears the SCAN / HORN column */
+@media (orientation:portrait){
+  html body #srList{left:auto!important;right:calc(env(safe-area-inset-right) + 12px)!important;top:calc(env(safe-area-inset-top) + 258px)!important;max-width:46vw}
+  html body #soloRadio{left:calc(50% + 45px)!important;bottom:calc(env(safe-area-inset-bottom) + 178px)!important;max-width:130px!important;min-width:0!important}
+}
+/* portrait: the LATE NIGHT SNACK RUN pill sat on top of the walk-up button (GET IN / IN THE CAR / ENTER ...) */
+@media (orientation:portrait){html body #srBtn{bottom:calc(env(safe-area-inset-bottom) + 228px)!important}}
+/* portrait rooms: the room name sits between the pause button and EXIT instead of under the pause button */
+@media (orientation:portrait){html body #roomName{left:calc(env(safe-area-inset-left) + 114px)!important;right:calc(env(safe-area-inset-right) + 94px)!important;font-size:13px!important;letter-spacing:.16em!important;line-height:1.3!important;top:calc(env(safe-area-inset-top) + 14px)!important}}

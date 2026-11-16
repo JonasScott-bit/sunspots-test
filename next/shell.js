@@ -13,6 +13,7 @@
 //  * PWA: registers sw.js (scope /next/) so it installs to a home screen and starts offline.
 // QA: ?unlock opens every Night · ?demo=1 · ?pause=1 opens the pause menu · window.__shell
 import { quality, getSettings, setSetting, onSettings, TIERS } from './quality.js';
+import './perfhud.js';   // PERF overlay (?perf or Settings > PERF)
 
 const Q = new URLSearchParams(location.search);
 const BUILD = window.SUNSPOTS_BUILD || {};
@@ -39,6 +40,8 @@ function savedTown() { if (Q.has('fresh')) return null; try { const j = localSto
 function count() { const J = window.__journal; if (J) return J.found().length; const s = savedTown(); return s?.sun ? Object.keys(s.sun).length : 0; }
 function total() { return window.__journal?.SUNS?.length || 0; }
 function nightOpen(n) { if (Q.has('unlock')) return true; if (DEMO && n > 1) return false; const N = NIGHTS()[n - 1]; return !!N && count() >= N.need; }
+// one sentence for a locked Night (mission cards in missions/kit.js use it, so the demo says "full game", not a count)
+function lockLine(n) { const N = NIGHTS()[n - 1]; if (!N) return ''; const nm = `Night ${n}`; if (DEMO && n > 1) return `${nm} is in the full game. The free demo is Night 1.`; return `Opens on ${nm} at ${N.need} ☀ Sunspots. You have ${count()}.`; }
 function night() { let n = 1; for (const N of NIGHTS()) if (nightOpen(N.n)) n = N.n; return n; }
 const nightName = (n) => (NIGHTS()[n - 1]?.name || `NIGHT ${n}`);
 // GO sheet districts -> the Night that opens them
@@ -135,6 +138,7 @@ html body #title{left:calc(env(safe-area-inset-left) + 120px)!important}
   #shOv .card[data-v=settings] .shRows>:nth-child(-n+3){grid-column:1}
   #shOv .card[data-v=settings] .shRows>:nth-child(1){grid-row:1} #shOv .card[data-v=settings] .shRows>:nth-child(2){grid-row:2} #shOv .card[data-v=settings] .shRows>:nth-child(3){grid-row:3}
   #shOv .card[data-v=settings] .shRows>:nth-child(n+4){grid-column:2}
+  #shOv .card[data-v=settings] .shRows>:nth-child(8){grid-column:1;grid-row:4}
   #shOv .card[data-v=settings] .shNote{margin:0}
   #shOv .nts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px} #shOv .nts>.nt:last-child:nth-child(3n+1){grid-column:1/-1}
   #shOv .card[data-v=nights] .nt{padding:7px 10px} #shOv .card[data-v=nights] .nt i{flex-basis:30px;height:30px;font-size:14px}
@@ -161,6 +165,7 @@ function settingsHTML(withAudio) {
   h += `<div class="shNote" data-qn>${qualityNote()}</div>`;
   h += seg('TEXT', 'textSize', [['m', 'A'], ['l', 'A+'], ['xl', 'A++']], S.textSize);
   h += seg('INVERT', 'invert', [['off', 'OFF'], ['x', 'X'], ['y', 'Y'], ['both', 'BOTH']], S.invert === true ? 'y' : (S.invert || 'off'));
+  h += seg('PERF', 'fps', [['off', 'OFF'], ['on', 'ON']], S.fps || 'off');
   return h + '</div>';
 }
 function wireSettings(root) {
@@ -226,7 +231,7 @@ function pause(v = 'pause') {
 function resumeNow() { if (!paused()) return; window.__paused = false; document.body.classList.remove('shell-paused'); try { window.__audio?.ctx?.resume?.(); } catch (_) {} for (const vd of document.querySelectorAll('video[data-sh-paused]')) { delete vd.dataset.shPaused; vd.play().catch(() => {}); } }
 function resume() { hide(); }
 function pauseView() {
-  const n = night(), c = count(), tt = total(), N = NIGHTS()[n], nx = N && !(DEMO && N.n > 1) ? `${Math.max(0, N.need - c)} more ☀ opens ${N.name.split(' · ')[0]}` : (DEMO ? 'Free demo: Night 1' : 'Every Night is open');
+  const n = night(), c = count(), tt = total(), N = NIGHTS()[n], nx = N && !(DEMO && N.n > 1) ? `${Math.max(0, N.need - c)} more ☀ opens Night ${N.n}` : (DEMO ? 'Free demo: Night 1' : 'Every Night is open');
   show('pause', `<h2>PAUSED</h2><h3>${esc(nightName(n))}</h3><p>${c}${tt ? ' of ' + tt : ''} ☀ Sunspots · ${esc(nx)}</p>
     <button class="felt mustard" data-a="resume">RESUME</button><div class="row2"><button class="felt cobalt" data-a="nights">NIGHTS</button><button class="felt coral" data-a="settings">SETTINGS</button></div>
     <div class="row2"><button class="felt cream" data-a="credits">CREDITS</button><button class="felt cream" data-a="menu">MAIN MENU</button></div>`);
@@ -270,16 +275,28 @@ function lockGo() {
   const sh = document.getElementById('qtSheet'); if (!sh || sh.dataset.shWired) return; sh.dataset.shWired = '1';
   sh.addEventListener('click', (e) => { const b = e.target.closest('button[data-k]'); if (!b) return; const n = KEY_NIGHT(b.dataset.k); if (nightOpen(n)) return;
     e.stopImmediatePropagation(); e.preventDefault(); const N = NIGHTS()[n - 1];
-    window.__sunspots?.level?.toast?.(DEMO ? `${N.name.split(' · ')[0]} is in the full game.` : `Opens on ${N.name.split(' · ')[0]}: ${N.need} ☀ Sunspots. You can still walk there.`, 3.5); }, true);
+    window.__sunspots?.level?.toast?.(DEMO ? `Night ${n} is in the full game.` : `Opens on Night ${n} at ${N.need} ☀ Sunspots. You can still walk there.`, 3.5); }, true);
   const mark = () => { for (const b of sh.querySelectorAll('button[data-k]')) { const n = KEY_NIGHT(b.dataset.k), open = nightOpen(n); b.classList.toggle('shLock', !open);
     let l = b.querySelector('small.shL'); if (!open) { if (!l) { l = document.createElement('small'); l.className = 'shL'; b.appendChild(l); } l.textContent = DEMO && n > 1 ? '🔒 FULL GAME' : `🔒 NIGHT ${n} · ${NIGHTS()[n - 1].need} ☀`; } else l?.remove(); } };
   new MutationObserver(() => { if (sh.classList.contains('on')) mark(); }).observe(sh, { attributes: true, attributeFilter: ['class'] }); mark();
 }
 
+// Night gates for the missions that are not on missions/kit.js (kit missions ask nightOpen() themselves): wrap the
+// "play" entry in their room so every way in (chip, tapping the character, T.talk) gets a polite "not tonight" instead.
+const ROOM_GATES = [['ram', 'swimlesson', 3, 'RAM'], ['taco', 'brawl', 2, 'BEAR']];
+setInterval(() => { const T = window.__town; if (!T?.rooms) return;
+  for (const [room, id, n, who] of ROOM_GATES) { const w = T.rooms[room]?.who?.find?.((o) => o.id === id); if (!w || w._shGate) continue; const orig = w.talk; w._shGate = true;
+    w.talk = (...a) => nightOpen(n) ? orig.apply(w, a) : [[who, 'Not tonight.'], ['', lockLine(n)]]; }
+}, 400);
+
 // progress loop: Night cards, demo end, pause button visibility
 let lastNight = 0;
 const CARDS = !navigator.webdriver || new URLSearchParams(location.search).has('cards');
-setInterval(() => document.body.classList.toggle('shell-play', playing()), 250);
+setInterval(() => { document.body.classList.toggle('shell-play', playing());
+  // portrait: keep the errand list (town.js #townObj) just under the HUD as the HUD's lines wrap and change
+  const to = document.getElementById('townObj'), hd = document.getElementById('hud');
+  if (to && hd && innerHeight > innerWidth && !document.body.classList.contains('room') && to.textContent) { const r = hd.getBoundingClientRect(); if (r.height) { const t = Math.round(r.bottom + 8) + 'px'; if (to.style.top !== t) to.style.top = t; } }
+}, 250);
 setInterval(() => {
   if (!playing()) return;
   lockGo();
@@ -297,4 +314,4 @@ if (Q.get('pause')) { const go = () => playing() ? pause(Q.get('pause') === 'nig
 // ------------------------------------------------------------------ PWA: installable, starts offline (scope /next/)
 if ('serviceWorker' in navigator && !Q.has('nosw') && location.protocol !== 'file:') addEventListener('load', () => { navigator.serviceWorker.register('./sw.js', { scope: './' }).catch((e) => console.info('sw', e?.message)); });
 
-window.__shell = { NIGHTS, night, count, nightOpen, nightName, demo: DEMO, price: PRICE, pause, resume, nightsView: () => pause('nights'), settings: () => { pause(); settingsView(); }, credits: () => { pause(); creditsView(); }, nightCard, demoCard, wipeSave, keyNight: KEY_NIGHT };
+window.__shell = { NIGHTS, night, count, nightOpen, lockLine, nightName, demo: DEMO, price: PRICE, pause, resume, nightsView: () => pause('nights'), settings: () => { pause(); settingsView(); }, credits: () => { pause(); creditsView(); }, nightCard, demoCard, wipeSave, keyNight: KEY_NIGHT };
