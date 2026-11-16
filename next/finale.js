@@ -8,6 +8,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as skClone } from 'three/addons/utils/SkeletonUtils.js';
 import { sunspotsApply } from './sunspots_material.js';
+import { wolfIdle, gesturer, castOffsets, CAST_POOL } from './idles.js';
 // [file, height m, look] : the in-game models (town.js / kit.js crewGLB use the same files, heights and looks)
 const CREW = { wolf: ['wolf_armsdown_felt.glb', 1.75, 'wolf'], moth: ['town2/moth_lo.glb', 1.95, 'moth'], bear: ['town2/bear_lo.glb', 1.95, 'bear'], ram: ['town2/ram_lo.glb', 1.8, 'ram'],
   heron: ['town2/heron_lo.glb', 1.95, 'heron'], crow: ['town2/crow_lo.glb', 1.6, 'crow'], lynx: ['town2/lynx_lo.glb', 1.75, 'lynx'], gecko: ['town2/gecko_lo.glb', 1.45, 'gecko'],
@@ -16,11 +17,15 @@ let loader = null; const glbP = {};
 async function crewModel(k) {
   const [f, h, look] = CREW[k]; loader ||= new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const gl = await (glbP[f] ||= new Promise((res, rej) => loader.load('./models/' + f, res, undefined, rej)));
-  const root = skClone(gl.scene); root.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = false; if (o.isSkinnedMesh) { o.skeleton.pose(); o.frustumCulled = false; } } });   // SkeletonUtils: the bones come along
+  const root = skClone(gl.scene), idle = (gl.animations || []).find((a) => /idle/i.test(a.name));   // SkeletonUtils: the bones come along
+  root.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = false; if (o.isSkinnedMesh) { if (!idle) o.skeleton.pose(); o.frustumCulled = false; } } });
+  let mixer = null; if (idle) { mixer = new THREE.AnimationMixer(root); const a = mixer.clipAction(idle); a.play(); a.time = Math.random() * idle.duration; a.timeScale = 0.75 + Math.random() * 0.4; mixer.update(0); }   // size it in its idle pose (the clip's own units)
   root.updateMatrixWorld(true); const b = new THREE.Box3().setFromObject(root); root.scale.multiplyScalar(h / Math.max(0.01, b.max.y - b.min.y)); root.updateMatrixWorld(true);
   const b2 = new THREE.Box3().setFromObject(root); root.position.x -= (b2.min.x + b2.max.x) / 2; root.position.z -= (b2.min.z + b2.max.z) / 2; root.position.y -= b2.min.y;
   try { sunspotsApply(root, look, h); } catch (_) {}
-  const w = new THREE.Group(), inner = new THREE.Group(); inner.add(root); w.add(inner); if (blobShadow) w.add(blobShadow(0.42 * h / 1.8, 0.4)); w.userData = { inner, h, ph: Math.random() * 6 }; return w;
+  const bones = {}; root.traverse((o) => { if (o.isBone) bones[o.name] = o; });
+  const w = new THREE.Group(), inner = new THREE.Group(); inner.add(root); w.add(inner); if (blobShadow) { const sh = blobShadow(0.42 * h / 1.8, 0.4); w.add(sh); w.userData.shadow = sh; }
+  Object.assign(w.userData, { inner, h, ph: Math.random() * 6, root, bones, mixer }); return w;
 }
 async function loadCrew() { const out = {}; await Promise.all(Object.keys(CREW).map(async (k) => { try { out[k] = await crewModel(k); } catch (e) { console.warn('finale: model', k, e?.message || e); } })); return out; }
 import { creditsHTML, CREATOR_NAME, STUDIO } from './credits.js';
@@ -107,6 +112,52 @@ document.head.appendChild(css);
 let root = null, playing = false, raf = 0, scene = null, cam = null, own = [], st = null;
 
 // ------------------------------------------------------------------ scene
+// ------------------------------------------------------------------ the cast: idle clips with staggered timing, the game's own
+// gesture layer (idles.js wolfIdle: look, scratch, stretch, shrug, sun, ...), a seated pose for the couch, scripted head turns
+const _q = new THREE.Quaternion(), _w = new THREE.Quaternion(), _wi = new THREE.Quaternion(), _p = new THREE.Quaternion(), _pi = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3();
+const BORDER = ['Hips', 'Spine02', 'Spine01', 'Spine', 'neck', 'Head', 'LeftUpLeg', 'LeftLeg', 'LeftFoot', 'RightUpLeg', 'RightLeg', 'RightFoot'];
+function modelRot(u, list, k = 1) {   // [bone, rx, ry, rz] in model space (+X the character's left, +Z forward), parents first
+  u.root.getWorldQuaternion(_w); _wi.copy(_w).invert();
+  for (const [n, x, y, z] of list.sort((a, b) => BORDER.indexOf(a[0]) - BORDER.indexOf(b[0]))) { const b = u.bones[n]; if (!b) continue;
+    _q.setFromEuler(_e.set(x * k, y * k, z * k, 'YXZ')).premultiply(_w).multiply(_wi); b.parent.getWorldQuaternion(_p); _pi.copy(_p).invert(); _q.premultiply(_pi).multiply(_p); b.quaternion.premultiply(_q); b.updateMatrixWorld(true); }
+}
+const SIT = [['LeftUpLeg', -1.5, 0, 0.08], ['RightUpLeg', -1.5, 0, -0.08], ['LeftLeg', 1.45, 0, 0], ['RightLeg', 1.45, 0, 0], ['LeftFoot', 0.1, 0, 0], ['RightFoot', 0.1, 0, 0]];
+function rig(k, g, sit) {
+  const u = g.userData, c = { g, k, sit, yaw: 0, pitch: 0 };
+  if (u.mixer && u.bones.Hips) { c.mixer = u.mixer;
+    c.gest = wolfIdle({ root: u.root, bones: u.bones }, 'fin_' + k); c.gest.g.wait = 1 + Math.random() * 7; c.gest.g.min = 5; c.gest.g.max = 13; }
+  else c.gest = gesturer(CAST_POOL, 'fin_' + k, { first: 2 + Math.random() * 6, min: 5, max: 12 });
+  if (sit && c.mixer) { modelRot(u, SIT); u.root.updateMatrixWorld(true); g.updateMatrixWorld(true);   // drop the hips onto the cushion
+    const hp = u.bones.Hips.getWorldPosition(_v); u.inner.position.y = 0.66 - hp.y; c.baseY = u.inner.position.y; if (u.shadow) u.shadow.visible = false; }
+  return c;
+}
+// who looks where (radians, model space: +yaw = toward the character's own left). The sun is straight ahead for everyone.
+function heads(k, t) {
+  const at = (a, b) => ease((t - a) / 0.8) * (1 - ease((t - b) / 0.8));
+  switch (k) {
+    case 'wolf': return [0.55 * at(7.2, 10.2) - 0.5 * at(3.0, 6.4) - 0.45 * at(21.4, 24.5), -0.08];   // to Moth, to Bear, to Squid
+    case 'moth': return [0.5 * at(10.4, 14.2) + 0.25 * at(1, 2.8), -0.04];                      // to Wolf on his line
+    case 'bear': return [-0.45 * at(10.4, 14.3) - 0.3 * at(3.0, 6.4), 0];                    // to Wolf
+    case 'heron': return [0.35 * at(5, 13.5), -0.12 * at(14.4, 30)];
+    case 'lynx': return [-0.35 * at(6, 12), 0]; case 'gecko': return [-0.4 * at(4, 11), 0]; case 'squid': return [0.3 * at(8, 13), 0];
+    case 'ram': return [-0.3 * at(2, 12) + 0.25 * at(19.2, 21.5), 0]; default: return [0, 0];
+  }
+}
+function animCrew(s, dt, t, tally) {
+  for (const c of Object.values(s.crew)) { const u = c.g.userData, i = u.inner;
+    const cheer = (t > 23.2 && t < D.scene + 3) || tally;
+    if (c.mixer) { c.mixer.update(dt);
+      if (c.sit) modelRot(u, SIT);
+      const [y, p] = heads(c.k, t); if (y || p) modelRot(u, [['neck', p * 0.4, y * 0.35, 0], ['Head', p * 0.6, y * 0.65, 0]]);
+      c.gest.apply(dt, t, 1);
+      if (cheer) { const b = Math.abs(Math.sin(t * 6.5 + u.ph * 3)); if (c.sit) i.position.y = c.baseY + b * 0.05; else i.position.y = b * 0.1; modelRot(u, [['LeftArm', 0, 0, 2.3 * b * 0.6 + 0.6], ['RightArm', 0, 0, -(2.3 * b * 0.6 + 0.6)]]); }
+      else if (c.sit) i.position.y = c.baseY; else i.position.y = 0;
+    } else { c.gest.update(dt, 1); const o = castOffsets(c.gest, t);   // no usable clip (banana squid): the transform gesture layer
+      i.rotation.set(o.rx, o.ry, o.rz + Math.sin(t * 1.3 + u.ph) * 0.025); i.scale.set(o.sx, o.sy * (1 + Math.sin(t * 2 + u.ph) * 0.012), o.sx);
+      i.position.y = (cheer ? Math.abs(Math.sin(t * 7 + u.ph)) * 0.12 : 0) + o.y * u.h; }
+  }
+}
+
 function build(MODELS) {
   scene = new THREE.Scene(); own = [];
   const M = (c, o = {}) => { const m = new THREE.MeshStandardMaterial({ color: c, roughness: 0.95, metalness: 0, ...o }); own.push(m); return m; };
@@ -199,22 +250,22 @@ function build(MODELS) {
   const cm = M('#b8443a'), cc = M('#d06a52');
   mesh(new THREE.BoxGeometry(4.6, 0.42, 1.15), cm, 0, 0.21, 0, couch); mesh(new THREE.BoxGeometry(4.1, 0.16, 1.0), cc, 0, 0.5, -0.02, couch);
   mesh(new THREE.BoxGeometry(4.6, 0.95, 0.32), cm, 0, 0.78, 0.46, couch); for (const sx of [-1, 1]) mesh(new THREE.BoxGeometry(0.32, 0.72, 1.15), cm, sx * 2.3, 0.6, 0, couch);
-  const lamp = new THREE.Group(); lamp.position.set(1.0, 0, 1.25); scene.add(lamp);   // Moth's porch light, framed between the leads in the front shot
+  const lamp = new THREE.Group(); lamp.position.set(0.95, 0, 1.3); scene.add(lamp);   // Moth's porch light, framed between the leads in the front shot
   mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.2, 6), M('#3a2a2a'), 0, 1.1, 0, lamp); mesh(new THREE.CylinderGeometry(0.34, 0.24, 0.36, 10), M('#3a2a2a'), 0, 2.32, 0, lamp);
   const bulbMat = B(new THREE.MeshBasicMaterial({ color: '#ffe6a0' })); mesh(new THREE.SphereGeometry(0.18, 10, 8), bulbMat, 0, 2.08, 0, lamp);
   const lampGlow = glowSprite('#ffd27a', 3.2, 3.2, 0.75); lampGlow.position.y = 2.1; lamp.add(lampGlow);
   const lampL = new THREE.PointLight('#ffcf7a', 6, 7, 1.6); lampL.position.set(0, 2.0, 0); lamp.add(lampL);
-  const cooler = mesh(new THREE.BoxGeometry(0.8, 0.5, 0.5), M('#3a8ac8'), 3.0, 0.25, -0.2); mesh(new THREE.BoxGeometry(0.84, 0.09, 0.54), M('#f6efe0'), 0, 0.29, 0, cooler); cooler.rotation.y = -0.3;
+  // (no cooler: the couch shot stays clean)
 
   // the crew: the game's own models (the same lo GLBs + Sunspots felt look the town and missions use; the Wolf is the
   // player's own wolf_armsdown_felt.glb). Staged like an art-book frame: Wolf + Moth up front as the leads, a clear gap
   // behind them, everyone else in a loose arc around Moth's couch. Everyone faces the town and the sun (-z).
-  const crew = {}; const put = (k, x, z, ry = 0) => { const g = MODELS[k]; if (!g) return; g.position.set(x, 0, z); g.rotation.y = Math.PI + ry; scene.add(g); crew[k] = { g }; };
-  put('wolf', -0.62, -1.15, 0.12); put('moth', 0.66, -1.05, -0.12);
-  put('gecko', -2.2, -0.75, 0.3); put('squid', 1.8, -0.7, -0.3);
-  put('bear', -1.4, 0.95, 0.15); put('ram', 2.35, 0.95, -0.2);
-  put('heron', -3.0, 0.55, 0.35); put('lynx', 3.5, 0.55, -0.35); put('anteater', -4.2, -0.1, 0.5); put('crow', 4.4, -0.1, -0.5);
-  if (Q.get('finale') === 'lineup') { const order = ['wolf', 'moth', 'bear', 'ram', 'heron', 'crow', 'lynx', 'gecko', 'anteater', 'squid']; order.forEach((k, i) => { const c = crew[k]; if (c) { c.g.position.set((i - 4.5) * 1.3, 0, 4); c.g.rotation.y = 0; } }); }
+  const crew = {}; const put = (k, x, z, ry = 0, sit = false) => { const g = MODELS[k]; if (!g) return; g.position.set(x, 0, z); g.rotation.y = Math.PI + ry; scene.add(g); crew[k] = rig(k, g, sit); };
+  put('bear', -1.38, -0.22, 0.1, true); put('wolf', 0.0, -0.2, 0, true); put('moth', 1.38, -0.22, -0.08, true);   // on Moth's couch (hips at the front of the cushion, feet on the ground)
+  put('lynx', -0.72, 1.18, -0.1); put('ram', -2.6, 1.08, -0.3); put('heron', 2.55, 1.1, 0.22);   // leaning on the back of it
+  put('gecko', 1.82, 1.18, 0.15); put('anteater', -4.25, 0.55, -0.55);
+  put('squid', 2.65, -1.05, 0.55); put('crow', 3.55, -0.15, 0.7);
+  if (Q.get('finale') === 'lineup') { const order = ['wolf', 'moth', 'bear', 'ram', 'heron', 'crow', 'lynx', 'gecko', 'anteater', 'squid']; order.forEach((k, i) => { const c = crew[k]; if (c) { c.g.position.set((i - 4.5) * 1.3, 0, 4); c.g.rotation.y = 0; c.sit = false; c.g.userData.inner.position.y = 0; } }); }
 
   cam = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 1200);
   return { skyU, starMat, hemi, sunL, fill, sun, eye, rays, halo, wins, win, wheel, cars, crew, lampGlow, lampL, bulbMat, scene };
@@ -233,12 +284,12 @@ const D = { scene: 26, title: 6.5, roll: 52 };
 const SHOT = [   // camera keys: [t, camPos, lookAt, lookAt in portrait (optional)]
   [0, [1.4, 4.6, 7.6], [-4, -6, -60]],
   [7, [0.5, 4.0, 6.2], [-4, -5, -60]],
-  [7.01, [-1.6, 1.35, -4.9], [0.0, 1.2, -0.8]],      // the crew from the front, low 3/4: Wolf + Moth lead, dawn on their faces, rim light behind
-  [14, [-0.9, 1.3, -4.4], [0.05, 1.2, -0.8]],
-  [14.01, [1.5, 1.6, 6.5], [-6, 4, -200]],
-  [20, [0.5, 2.6, 8.5], [-8, 8, -200]],
-  [20.01, [2.4, 1.35, -5.8], [0.1, 1.15, -0.6]],
-  [26, [3.3, 1.9, -7.2], [0.1, 1.2, -0.5]],
+  [7.01, [-1.7, 1.2, -4.9], [0.15, 1.0, -0.3]],      // the crew from the front, low 3/4: Wolf + Moth lead, dawn on their faces, rim light behind
+  [14, [-1.0, 1.15, -4.4], [0.25, 1.0, -0.3]],
+  [14.01, [-1.5, 1.6, 6.5], [-7, 4, -200]],     // from behind: the sun comes up over their shoulders (the porch lamp off to the right)
+  [20, [-2.1, 2.6, 8.5], [-9, 8, -200]],
+  [20.01, [2.4, 1.3, -5.8], [0.1, 1.05, -0.3]],
+  [26, [3.3, 1.8, -7.2], [0.1, 1.1, -0.3]],
   [26.01, [7, 5, 10], [-24, 22, -60], [-6, 27, -60]],     // title: clear sky for the words, the sun low and to the right (centred, under them, in portrait)
   [33, [4, 7, 14], [-26, 24, -70], [-8, 29, -70]],
   [40, [3, 7.5, 14.5], [60, 14, -70]],     // the roll: the sun off to the left, clear sky behind the names
@@ -323,11 +374,7 @@ function render(dt, tally) {
   const m4 = new THREE.Matrix4(); s.win.forEach(([x, y, z, r], i) => { const on = r > k * 1.15; m4.makeScale(on ? 1 : 0.0001, on ? 1 : 0.0001, 1).setPosition(x, y, z); s.wins.setMatrixAt(i, m4); }); s.wins.instanceMatrix.needsUpdate = true;
   s.wheel.rotation.z = t * 0.06; for (const c of s.cars) c.rotation.z = -s.wheel.rotation.z;
   // the crew: everyone waves at the sun on Ram's line, everyone cheers at the title
-  for (const [key, c] of Object.entries(s.crew)) {   // rest-pose models: a felt breathe, a little hop when they cheer
-    const u = c.g.userData, i = u.inner, cheer = (t > 23.2 && t < D.scene + 3) || tally;
-    i.scale.y = 1 + Math.sin(t * 2 + u.ph) * 0.012; i.position.y = cheer ? Math.abs(Math.sin(t * 7 + u.ph)) * 0.12 : 0;
-    i.rotation.z = Math.sin(t * 1.3 + u.ph) * 0.025 + (key === 'ram' && t > 19.2 && t < 21.2 ? Math.sin(t * 8) * 0.06 : 0);
-  }
+  animCrew(s, dt, t, tally);
   camAt(t, V, L, portrait); cam.position.copy(V); cam.lookAt(L);
   cam.fov = portrait ? 66 : 48; cam.updateProjectionMatrix();
   if (Q.get('finale') === 'lineup') { cam.position.set(0, 1.0, 15); cam.lookAt(0, 0.95, 4); cam.fov = 30; cam.updateProjectionMatrix(); }   // QA: refcheck lineup
