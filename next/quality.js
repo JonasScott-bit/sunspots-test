@@ -9,11 +9,11 @@ const Q = new URLSearchParams(location.search);
 export const TIERS = {
   //            pixel ratio cap, shadow map, soft shadows, characters hidden past (m), character shadows past (m), props hidden past (m), far cacti, simplified mesh past (m)
   high:   { id: 'high',   label: 'HIGH',   dprMax: 2,   shadowMap: 1024, soft: true,  charCull: 95, charShadow: 30, propCull: 240, cacti: 300, lodDist: 16 },
-  medium: { id: 'medium', label: 'MEDIUM', dprMax: 1.5, shadowMap: 1024, soft: false, charCull: 42, charShadow: 14, propCull: 175, cacti: 150, lodDist: 8 },
+  medium: { id: 'medium', label: 'MEDIUM', dprMax: 1.5, shadowMap: 1024, soft: false, charCull: 42, charShadow: 14, propCull: 175, cacti: 150, lodDist: 6 },
   low:    { id: 'low',    label: 'LOW',    dprMax: 1,   shadowMap: 512,  soft: false, charCull: 32, charShadow: 8, propCull: 125, cacti: 60, lodDist: 5 },
 };
 const ORDER = ['low', 'medium', 'high'];
-const DEF = { quality: 'auto', invert: 'off', textSize: 'm' };
+const DEF = { quality: 'auto', invert: 'off', textSize: 'm', fps: 'off' };   // fps: the PERF overlay (perfhud.js)
 let S = { ...DEF };
 try { S = { ...DEF, ...(JSON.parse(localStorage.getItem(KEY)) || {}) }; } catch (_) {}
 const subs = new Set();
