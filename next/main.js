@@ -17,6 +17,8 @@ import { createPetHorse, PET_NAME } from './horses.js';   // horses: GRAVY, Bear
 import { dressTown, installTalk } from './towntalk.js';   // run 13: billboards, flyers, lore, chatter
 import { installMissions } from './missions13.js';
 import { installHeron } from './heron14.js';
+import { installJournal } from './journal.js';   // Next Level run 1
+import { installCinematicQA } from './cinematic.js';   // Next Level run 1: video/ clip hook (swim lesson intro)
 import { installLivingWorld } from './livingworld.js';   // run 14 (D)
 import { wolfIdle } from './idles.js';   // run 15
 let WIDLE = null;
@@ -528,7 +530,7 @@ const level = createLevel({ scene, colliders, feltMat, rbox, makeMeltable, felti
   onEnterCar: () => { if (actWalk) { actWalk.setEffectiveWeight(0); actRun.setEffectiveWeight(0); actIdle.setEffectiveWeight(1); } wolfState.speed = 0; snapCam = true; },
   onExitCar: (s) => { wolfState.pos.set(s.x, 0, s.z); wolfState.yaw = s.yaw; wolfState.speed = 0; camYawTarget = camYaw = s.yaw + Math.PI; manualLookT = 0; snapCam = true; },   // run 12: out of his own car
   onReset: () => { director?.reset(); moth?.reset(); wolfState.pos.set(LAYOUT.wolfStart[0], 0, LAYOUT.wolfStart[1]); wolfState.yaw = LAYOUT.wolfStart[2]; wolfState.speed = 0; camYawTarget = camYaw = 0; snapCam = true; } });
-let snapCam = false, QT = null, MM = null;
+let snapCam = false, QT = null, MM = null, JN = null;
 const _sm = new THREE.Matrix4(), _sm2 = new THREE.Matrix4(), _sp = new THREE.Vector3(), _se = new THREE.Euler(0, 0, 0, 'YXZ');
 try { level.soloChase = sessionStorage.getItem('sunspots.soloChase') !== '0'; } catch (_) { level.soloChase = true; }   // his own car: chase view by default
 // first person: the moth driver's cockpit (default while driving) + the Wolf's own eyes on foot (eye button, hold 0.5 s / V)
@@ -761,7 +763,7 @@ function frame() {
   // level (clock, car, townsfolk, obstacles)
   director?.update(dt, t, { wolfPos: wolfState.pos, titleUp: !!window.__titleUp || !wolfReady || !!MAP });   // scenes: triggers + timeline
   level.update(dt, t, { wolfPos: wolfState.pos, keys, wild: w, titleUp: !!window.__titleUp || !wolfReady || !!MAP });
-  HORSE?.update(dt, t, w); CARN?.update(dt, t, w, wolfState.pos); town?.outside(dt); QT?.update(town); MM?.update(dt, town); wolfFootsteps(); audio.update(dt);
+  HORSE?.update(dt, t, w); CARN?.update(dt, t, w, wolfState.pos); town?.outside(dt); QT?.update(town); MM?.update(dt, town); JN?.update(); wolfFootsteps(); audio.update(dt);
   // run 12: the Wolf at the wheel of his own car
   if (wolfReady && level.solo && !puppet.on) { const fc = level.free, ss = level.soloSeat; fc.root.updateMatrixWorld(true);
     _sm.copy(fc.body.matrixWorld).multiply(_sm2.makeTranslation(ss.x, ss.y, ss.z)); _sm.decompose(wolf.position, wolf.quaternion, tmpV); wolf.scale.setScalar(wolfBaseScale * level.seatScale);
@@ -996,6 +998,8 @@ loadAll().then(() => {
   if (TS) QT = createQuickTravel({ TS, level, wolfState, LAYOUT, onJump: (y) => { clearInput(); camYawTarget = camYaw = y + Math.PI; snapCam = true; } }); window.__qt = QT;
   if (TS && town && !Q.has('nolife')) try { LW = installLivingWorld({ T: town, TS, level, wolfState, scene, camera, feltMat, audio, CR, QT }); window.__lw = LW; } catch (e) { console.warn('livingworld failed', e); }
   if (TS && QT) { MM = createMinimap({ TS, level, wolfState, QT, town, audio }); window.__minimap = MM; }
+  if (TS && town && QT) try { JN = installJournal({ T: town, QT, level, audio }); } catch (e) { console.warn('journal failed', e); }   // Next Level run 1
+  installCinematicQA();
   if (Q.get('room')) { const go = () => { if (window.__titleUp || !wolfReady) { setTimeout(go, 200); return; } town.enter(Q.get('room')); }; go(); }
   window.__ready = true;
 }).catch(e => { document.getElementById('err').style.display = 'block'; document.getElementById('err').textContent = 'Load error: ' + e.message; console.error(e); });

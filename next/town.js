@@ -1445,8 +1445,12 @@ export function createTown(ctx) {
     if (errands().length) s += '\n(clock on hold while you run errands)'; $('townObj').textContent = s; const to = $('townObj'), hd = $('hud'); to.style.top = (!document.body.classList.contains('room') && hd) ? (hd.getBoundingClientRect().bottom + 8) + 'px' : '';
   }
   Object.assign(BUILD, homes16({ glb, box, cyl, at, sign, cvTex, texMat, pane, realRoom, feltMat, eyes, playhouse, wob, txt, say: (L) => say(L), S, save: () => save() }));   // run 16
-  function save() { try { sessionStorage.setItem('ss_town1', JSON.stringify(S)); } catch (e) { } }
-  try { if (new URLSearchParams(location.search).has('fresh')) sessionStorage.removeItem('ss_town1'); Object.assign(S, JSON.parse(sessionStorage.getItem('ss_town1') || '{}')); } catch (e) { }
+  // Next Level run 1: the save now outlives the tab (localStorage 'ss_town_v1'; sessionStorage kept for this tab). ?fresh clears both.
+  let loadedFromSave = false;
+  function save() { const j = JSON.stringify(S); try { sessionStorage.setItem('ss_town1', j); } catch (e) { } try { localStorage.setItem('ss_town_v1', j); } catch (e) { } }
+  try { if (new URLSearchParams(location.search).has('fresh')) { sessionStorage.removeItem('ss_town1'); try { localStorage.removeItem('ss_town_v1'); } catch (e) { } }
+    let j = sessionStorage.getItem('ss_town1'); if (!j) { try { j = localStorage.getItem('ss_town_v1'); } catch (e) { } loadedFromSave = !!j; }
+    Object.assign(S, JSON.parse(j || '{}')); } catch (e) { }
   { const q = new URLSearchParams(location.search).get('mstep'); if (q) for (const kv of q.split(',')) { const [k, v] = kv.split(':'); if (k in DONE) S[k] = +v; if (S.adv >= 3) S.party = 1; } } // QA: ?mstep=sock:3,num:4 (adv:3+ also gives you the party)
   const toast = (m, sec = 3.5) => level?.toast ? level.toast(m, sec) : null;
 
@@ -1654,7 +1658,8 @@ export function createTown(ctx) {
   }
   T.stats = () => Object.fromEntries(Object.entries(T.rooms).map(([k, A]) => [k, { tris: A.tris, animating: 1 + A.anim.length + (A.extraRigs || 0), rigEvals: 1 + A.anim.length + (A.extraRigs ? 2 : 0) }]));
   Object.defineProperty(T, 'diner', { get: () => DN && Object.assign(DN.test, { S: { adv: S.adv, party: S.party, ord: S.ord }, D: DN }) });
-  T.M = { OBJ, TITLE, DONE, DONE_MSG, TGT, S, MLIST, step, save, toast, hud, errands, outSay: (L) => outSay(L) };   // run 13: mission API for missions13.js
+  T.M = { OBJ, TITLE, DONE, DONE_MSG, TGT, S, MLIST, step, save, toast, hud, errands, outSay: (L) => outSay(L), loadedFromSave };
+  T.ROOMS = ROOMS;   // Next Level run 1: the journal's PLACES list   // run 13: mission API for missions13.js
   T.state = S; T.enter = enter; T.exit = exit; T.talk = (id) => { const A = T.rooms[T.active]; talk(A?.who.find(w => w.id === id)); }; T.talkOutside = talkOutside;
   T.placeholders = () => [...placeholders]; Object.defineProperty(T, 'tvQA', { get: () => LTV && Object.assign(LTV.test, { active: !!T.tv, phase: LTV.phase }) }); Object.defineProperty(T, 'bowl', { get: () => BW && Object.assign(BW.test, { active: !!T.lane, last: BW.last, tris: BW.tris, B: BW }) }); T.next = () => { if (T.active) nextLine(); else nextOut(); };
   const _p = new THREE.Vector3(), _b = new THREE.Box3();
