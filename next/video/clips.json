@@ -2,6 +2,7 @@
  "_note": "Cinematic clips that exist in next/video/. cinematic.js only requests names listed here (a missing intro skips without a 404). Add each new clip's file name.",
  "clips": [
   "ant_farm_intro.mp4",
+  "band_night_intro.mp4",
   "blue_chalk_intro.mp4",
   "brawler_intro.mp4",
   "goat_hurry_intro.mp4",
