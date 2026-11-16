@@ -39,6 +39,11 @@ export function installJournal({ T, QT, level, audio }) {
   ];
   const HOMES = ['wolf', 'living90', 'lynx', 'crow', 'heron', 'gecko', 'ram', 'anteater', 'apt_vict', 'moth', 'apt_pink', 'mansion', 'farm'].filter((k) => !Object.keys(ROOMS).length || ROOMS[k]);
   const roomKeys = () => Object.keys(ROOMS);
+  // Next Level cast missions (missions/kit.js) register rumours, Night gates and their Sunspots here
+  const X = (window.__jnX ||= { start: {}, plain: {}, suns: [], night: {} });
+  const syncX = () => { for (const s of X.suns) if (!SUNS.some((o) => o.id === s.id)) SUNS.push(s); };
+  const startOf = (m) => START[m] || X.start[m], plainOf = (m) => PLAIN[m] || X.plain[m] || '';
+  const gateOf = (m) => { const n = X.night[m]; const N = n && window.__msnNights?.[n - 1]; return N && found().length < N.need && !Q.has('unlock') ? ` · opens at ${N.need} ☀ (${N.name.split(' · ')[0]})` : ''; };
   const found = () => SUNS.filter((s) => { try { return s.got(); } catch (_) { return false; } });
 
   // ---------------------------------------------------------------- UI
@@ -96,8 +101,8 @@ export function installJournal({ T, QT, level, audio }) {
       if (!a.length && S.snacks) h += '<div class="em">Nothing on the list. Check RUMOURS, or just walk around.</div>';
       else if (!a.length) h += '<div class="em">No errands yet. Check RUMOURS for where they start.</div>';
     } else if (tab === 'rumour') {
-      const r = M.MLIST.filter((m) => !(S[m] > 0) && START[m]);
-      h += r.length ? r.map((m) => `<div class="it"><h4>${esc(PLAIN[m] || '')}</h4><p>${esc(START[m][1])}</p>${goBtn(START[m][0])}</div>`).join('') : '<div class="em">You have heard every rumour in town. For now.</div>';
+      const r = M.MLIST.filter((m) => !(S[m] > 0) && startOf(m));
+      h += r.length ? r.map((m) => `<div class="it"><h4>${esc(plainOf(m))}</h4><p>${esc(startOf(m)[1])}</p>${gateOf(m) ? `<small>${esc(gateOf(m).slice(3))}</small>` : ''}${goBtn(startOf(m)[0])}</div>`).join('') : '<div class="em">You have heard every rumour in town. For now.</div>';
     } else if (tab === 'sun') {
       h += `<div class="em">Every errand, game and secret leaves a Sunspot. Found ${f.length} of ${SUNS.length}.</div><div class="bar"><u style="width:${Math.round(100 * f.length / SUNS.length)}%"></u></div><div class="sg">`;
       h += SUNS.map((s) => { const g = f.includes(s); return `<div class="it${g ? ' got' : ''}"><i></i><div><h4>${g ? esc(s.name) : '???'}</h4><small>${esc(s.how)}</small></div></div>`; }).join('') + '</div>';
@@ -165,6 +170,7 @@ export function installJournal({ T, QT, level, audio }) {
     const mt = !!window.__pet?.mounted; if (mt && !wasMounted) { S.rodeGravy = (S.rodeGravy || 0) + 1; M.save(); } wasMounted = mt;
     if (level.mode === 'won' && !S.snacks) { S.snacks = 1; M.save(); }
     const now = performance.now(); if (now - acc < 500) return; acc = now;   // twice a second
+    syncX();
     for (const s of found()) if (!have.has(s.id)) {
       have.add(s.id); S.sun[s.id] = 1; M.save();
       M.toast(`☀ SUNSPOT FOUND: ${s.name}  (${have.size}/${SUNS.length})`, 4); audio?.ui?.('confirm');
