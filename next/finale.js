@@ -130,16 +130,39 @@ function seatPose(c) {   // [bone, rx, ry, rz] model space; c.knee from the leg 
   const kn = c.knee;
   return [['Spine02', -0.06, 0, 0], ['Spine01', -0.05, 0, 0], ['Spine', -0.03, 0, 0],
     ['LeftUpLeg', -1.52, 0, 0.05], ['RightUpLeg', -1.52, 0, -0.05], ['LeftLeg', kn, 0, 0], ['RightLeg', kn, 0, 0], ['LeftFoot', 0.05, 0, 0], ['RightFoot', 0.05, 0, 0],
-    ['LeftArm', -0.62 * c.arm, 0, -0.12], ['RightArm', -0.62 * c.arm, 0, 0.12], ['LeftForeArm', -0.55 * c.arm, 0, 0], ['RightForeArm', -0.55 * c.arm, 0, 0]];
+  ];
 }
 // turn the head (and a little of the chest) so the face points at a world target, k = how far (1 = all the way)
 const _a = new THREE.Vector3(), _b = new THREE.Vector3();
-function aimHead(u, tx, tz, k, lead = 0) {
+function aimHead(u, tx, tz, k, lead = 0, lim = 1.2) {
   const h = u.bones.Head, f = u.bones.headfront; if (!h || !f || k < 0.001) return;
   h.getWorldPosition(_a); f.getWorldPosition(_b); const cur = Math.atan2(_b.x - _a.x, _b.z - _a.z), want = Math.atan2(tx - _a.x, tz - _a.z) + lead;
-  let d = want - cur; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; d = clamp(d, -1.2, 1.2) * k;
+  let d = want - cur; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; d = clamp(d, -lim, lim) * k;
   // world yaw -> the model's own yaw (the character group is turned ~PI; model yaw is about the same world up axis)
   modelRot(u, [['Spine', 0, d * 0.2, 0], ['neck', 0, d * 0.3, 0], ['Head', 0, d * 0.5, 0]]);
+}
+// in his close-up: the face fully solved to 3/4 -- 60% of the way back from the lens toward where his body points, whatever the idle was doing
+function coverAim(u, c) {
+  const h = u.bones.Head; if (!h) return; h.getWorldPosition(_a);
+  const cam = Math.atan2(c.cover.x - _a.x, c.cover.z - _a.z); let d = c.g.rotation.y - cam; d = Math.atan2(Math.sin(d), Math.cos(d));
+  for (let i = 0; i < 3; i++) { aimHead(u, c.cover.x, c.cover.z, 1, 0.6 * d, 1.6); u.root.updateMatrixWorld(true); }   // a few passes: spine and neck move the head as they turn
+}
+// rotate a bone so the direction bone->child points at a world point
+const _c = new THREE.Vector3(), _d = new THREE.Vector3(), _e2 = new THREE.Vector3(), _qa = new THREE.Quaternion();
+function aimBone(bone, child, target) {
+  bone.updateMatrixWorld(true); bone.getWorldPosition(_c); child.getWorldPosition(_d);
+  const from = _d.sub(_c).normalize(), to = _e2.copy(target).sub(_c).normalize(); _qa.setFromUnitVectors(from, to);
+  bone.parent.getWorldQuaternion(_p); _pi.copy(_p).invert(); _qa.premultiply(_pi).multiply(_p); bone.quaternion.premultiply(_qa); bone.updateMatrixWorld(true);
+}
+const _k = new THREE.Vector3(), _s = new THREE.Vector3(), _el = new THREE.Vector3(), _o = new THREE.Vector3();
+function handsOnKnees(u, c) {   // two-bone: elbow out and back a little, the hand on top of the knee
+  u.root.updateMatrixWorld(true); const B = u.bones;
+  for (const side of ['Left', 'Right']) { const arm = B[side + 'Arm'], fore = B[side + 'ForeArm'], hand = B[side + 'Hand'], knee = B[side + 'Leg']; if (!arm || !fore || !hand || !knee) continue;
+    knee.getWorldPosition(_k); _k.y += 0.07 * u.h / 1.8; arm.getWorldPosition(_s); const up = arm.getWorldPosition(new THREE.Vector3()).distanceTo(fore.getWorldPosition(new THREE.Vector3()));
+    _o.subVectors(_k, c.g.position).setY(0).normalize().multiplyScalar(0.06);   // a touch outward
+    _el.subVectors(_k, _s).multiplyScalar(0.5).add(_s); _el.y -= 0.12 * u.h / 1.8; _el.add(_o);   // elbow below the midpoint
+    _el.sub(_s).normalize().multiplyScalar(up).add(_s);
+    aimBone(arm, fore, _el); aimBone(fore, hand, _k); }
 }
 function seatGesture(g, t) {
   if (!g.name || g.k < 0.002) return []; const k = g.k, p = g.p, w = Math.sin(p * Math.PI * 2);
@@ -186,17 +209,21 @@ function animCrew(s, dt, t, tally) {
     const cheer = (t > 23.2 && t < D.scene + 3) || tally, b = Math.abs(Math.sin(t * 6.5 + u.ph * 3));
     if (c.restore) {   // seated
       c.restore(); modelRot(u, seatPose(c)); c.gest.update(dt, 1);
-      const br = Math.sin(t * 1.9 + u.ph) * 0.02, [y0, p, sy0] = heads(c.k, t), y = -y0, sy = -sy0;   // heads() is written as + = toward world -x; the rig's yaw is the other way
+      const br = Math.sin(t * 1.9 + u.ph) * 0.02, [y0, p, sy0] = c.cover ? [0, -0.06, 0] : heads(c.k, t), y = -y0, sy = -sy0;   // heads() is written as + = toward world -x; the rig's yaw is the other way
       modelRot(u, [['Spine01', br, sy * 0.5, 0], ['Spine', 0, sy * 0.5, 0], ['neck', p * 0.4, y * 0.35, 0], ['Head', p * 0.6, y * 0.65, 0], ...seatGesture(c.gest, t)]);
-      if (c.k === 'wolf') { const kk = ease((t - 10.4) / 0.8) * (1 - ease((t - 14.4) / 0.8)); if (kk > 0.001) { u.root.updateMatrixWorld(true); aimHead(u, cam.position.x, cam.position.z, kk, -0.55); } }   // his line: 3/4 to camera (24 deg short of it, toward Moth)
+      if (!cheer) handsOnKnees(u, c);
+      if (c.cover) { u.root.updateMatrixWorld(true); coverAim(u, c); }   // in his close-up: face 3/4 to the lens
+      else if (c.k === 'wolf') { const kk = ease((t - 10.4) / 0.8) * (1 - ease((t - 14.4) / 0.8)); if (kk > 0.001) { u.root.updateMatrixWorld(true); aimHead(u, cam.position.x, cam.position.z, kk, -0.55); } }   // his line on the wide: 3/4 to camera
       if (cheer) modelRot(u, [['LeftArm', 0.62, 0, 1.2 + b * 0.9], ['RightArm', 0.62, 0, -(1.2 + b * 0.9)], ['LeftForeArm', 0.55, 0, 0], ['RightForeArm', 0.55, 0, 0]]);
       i.position.y = cheer ? b * 0.035 : 0;
     } else if (c.mixer) { c.mixer.update(dt);
-      const [y0, p] = heads(c.k, t), y = -y0; if (y || p) modelRot(u, [['neck', p * 0.4, y * 0.35, 0], ['Head', p * 0.6, y * 0.65, 0]]);
+      const [y0, p] = c.cover ? [0, 0] : heads(c.k, t), y = -y0; if (y || p) modelRot(u, [['neck', p * 0.4, y * 0.35, 0], ['Head', p * 0.6, y * 0.65, 0]]);
       c.gest.apply(dt, t, 1);
+      if (c.cover) { u.root.updateMatrixWorld(true); coverAim(u, c); }
       if (cheer) { i.position.y = b * 0.1; modelRot(u, [['LeftArm', 0, 0, 2.3 * b * 0.6 + 0.6], ['RightArm', 0, 0, -(2.3 * b * 0.6 + 0.6)]]); } else i.position.y = 0;
     } else { c.gest.update(dt, 1); const o = castOffsets(c.gest, t);   // no usable clip (banana squid): the transform gesture layer
-      i.rotation.set(o.rx, o.ry, o.rz + Math.sin(t * 1.3 + u.ph) * 0.025); i.scale.set(o.sx, o.sy * (1 + Math.sin(t * 2 + u.ph) * 0.012), o.sx);
+      let tw = 0; if (c.cover) { const want = Math.atan2(c.cover.x - c.g.position.x, c.cover.z - c.g.position.z) - c.g.rotation.y; tw = Math.atan2(Math.sin(want), Math.cos(want)) * 0.7; }   // turn 3/4 to the lens
+      i.rotation.set(o.rx, o.ry + tw, o.rz + Math.sin(t * 1.3 + u.ph) * 0.025); i.scale.set(o.sx, o.sy * (1 + Math.sin(t * 2 + u.ph) * 0.012), o.sx);
       i.position.y = (cheer ? Math.abs(Math.sin(t * 7 + u.ph)) * 0.12 : 0) + o.y * u.h; }
   }
 }
@@ -325,6 +352,31 @@ const LINES = [   // [t, who, line]
   [21.4, 'SQUID', 'Somebody else is driving tomorrow.'],
 ];
 const D = { scene: 26, title: 6.5, roll: 52 };
+// Film coverage: on a spoken line, a hard cut to a medium close-up of the speaker (waist-up, face 3/4 to camera, a sliver of the
+// neighbour, the dawn sky + porch-lamp glow behind). [from, to, who, side]  side: +1 = camera on the speaker's world -x side.
+// 'wide' = the high establishing wide (portrait). Anything not listed falls back to the SHOT keys.
+const CUTS = { land: [[3.0, 7.0, 'moth', 0.42, 0, 1], [10.6, 14.0, 'wolf', -1]], port: [[3.0, 7.0, 'moth', 0.42], [7.0, 8.7, 'wide'], [8.7, 10.6, 'bear', -0.45], [10.6, 14.0, 'wolf', -1], [15.8, 17.8, 'heron', 1], [17.8, 21.2, 'ram', -1, 0.2, 0, 1.3], [21.2, 24.8, 'squid', 1], [24.8, 26.0, 'wide']] };   // [from, to, who, lens angle off his nose (sign = side), extra headroom, landscape: which side of frame he sits, zoom out (horns)]
+const cutAt = (t, portrait) => (portrait ? CUTS.port : CUTS.land).find((c) => t >= c[0] && t < c[1]) || null;
+const _h = new THREE.Vector3();
+const _he = new THREE.Vector3();
+function headPos(c, out) {   // the middle of the face: halfway from the Head bone to the top of the skull
+  const u = c.g.userData, B = u.bones || {};
+  if (B.Head) { B.Head.getWorldPosition(out); if (B.head_end) { B.head_end.getWorldPosition(_he); out.lerp(_he, 0.5); } return out; }
+  return out.copy(c.g.position).setY(c.g.position.y + u.h * 0.85);
+}
+function coverCam(cut, t, out, look, portrait) {
+  const s = st, who = cut[2];
+  if (who === 'wide') { out.set(0, 0.85, -9.8); look.set(0.05, 3.55, 0); cam.fov = 66; return; }   // portrait establishing: low and back, the couch along the bottom, the dawn sky filling the rest
+  const c = s.crew[who]; if (!c) return false; headPos(c, _h); c.g.updateMatrixWorld(true);
+  const h = c.g.userData.h || 1.7, push = (t - cut[0]) / Math.max(0.5, cut[1] - cut[0]);
+  const fov = portrait ? 40 : 30, viewH = h * (portrait ? 0.82 : 0.6) * (cut[6] || 1) * (1 - 0.05 * push);   // waist-up; a slow push-in over the line
+  const d = viewH / (2 * Math.tan(fov * Math.PI / 360)), a = c.g.rotation.y + cut[3] * 0.72;   // ~40 degrees off his nose: 3/4
+  out.set(_h.x + Math.sin(a) * d, _h.y - 0.06 * h, _h.z + Math.cos(a) * d);
+  const off = portrait ? 0 : viewH * 0.32 * (cut[5] ?? -Math.sign(cut[3]));   // landscape: speaker off-centre, looking into the open side, the neighbour sliver behind
+  const lx = Math.cos(a) * off, lz = -Math.sin(a) * off;
+  look.set(_h.x + lx, _h.y - viewH * ((portrait ? 0.17 : 0.13) - (cut[4] || 0)), _h.z + lz); cam.fov = fov; c.cover = { x: out.x, z: out.z }; c.side = -cut[3];
+  return true;
+}
 const SHOT = [   // camera keys: [t, camPos, lookAt, lookAt in portrait (optional)]
   [0, [1.4, 4.6, 7.6], [-4, -6, -60]],
   [7, [0.5, 4.0, 6.2], [-4, -5, -60]],
@@ -419,9 +471,12 @@ function render(dt, tally) {
   const m4 = new THREE.Matrix4(); s.win.forEach(([x, y, z, r], i) => { const on = r > k * 1.15; m4.makeScale(on ? 1 : 0.0001, on ? 1 : 0.0001, 1).setPosition(x, y, z); s.wins.setMatrixAt(i, m4); }); s.wins.instanceMatrix.needsUpdate = true;
   s.wheel.rotation.z = t * 0.06; for (const c of s.cars) c.rotation.z = -s.wheel.rotation.z;
   // the crew: everyone waves at the sun on Ram's line, everyone cheers at the title
+  for (const c of Object.values(s.crew)) c.cover = null;
+  const cut = !tally && cutAt(t, portrait); cam.fov = portrait ? 66 : 48;
+  if (!(cut && coverCam(cut, t, V, L, portrait) !== false)) { camAt(t, V, L, portrait); cam.fov = portrait ? 66 : 48; }
+  cam.position.copy(V); cam.lookAt(L); cam.updateProjectionMatrix();
   animCrew(s, dt, t, tally);
-  camAt(t, V, L, portrait); cam.position.copy(V); cam.lookAt(L);
-  cam.fov = portrait ? 66 : 48; cam.updateProjectionMatrix();
+
   if (Q.get('finale') === 'lineup') { cam.position.set(0, 1.0, 15); cam.lookAt(0, 0.95, 4); cam.fov = 30; cam.updateProjectionMatrix(); }   // QA: refcheck lineup
   s.R.setRenderTarget(null); s.R.render(s.scene, cam);
 }
