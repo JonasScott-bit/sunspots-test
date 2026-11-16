@@ -28,25 +28,33 @@ export function installLivingWorld({ T, TS, level, wolfState, scene, camera, fel
   const logEv = (s) => { LW.log.push(s); if (LW.log.length > 30) LW.log.shift(); };
 
   // ------------------------------------------------------------------ felt pals (no rigs: a pivot per leg + bob)
-  function pal({ body = '#c9a37a', head, ears = 'round', ear = null, snout = null, hat = null, shirt = null, h = 1.0, tail = null }) {
+  function pal({ body = '#c9a37a', head, ears = 'round', ear = null, snout = null, hat = null, shirt = null, h = 1.0, tail = null, earIn = null, eyes = null, nose = null, vest = null, pants = null, hands = null, feet = null, bigFeet = false, puff = null }) {   // optional extras match missions/kit.js pal(): earIn, eyes, vest, pants, hands, feet
     const g = new THREE.Group(), s = h; head ||= body;
     const torso = mesh(new THREE.CapsuleGeometry(0.3 * s, 0.38 * s, 2, 7), shirt || body, [0, 0.78 * s, 0], g);
+    if (vest) { mesh(new THREE.CylinderGeometry(0.312 * s, 0.312 * s, 0.4 * s, 12), vest, [0, -0.005 * s, 0], torso); mesh(new THREE.SphereGeometry(0.312 * s, 12, 6, 0, TAU, 0.42, Math.PI / 2 - 0.42), vest, [0, 0.19 * s, 0], torso); if (shirt) for (const sx of [-1, 1]) { const k = mesh(new THREE.BoxGeometry(0.13 * s, 0.07 * s, 0.03 * s), shirt, [sx * 0.065 * s, 0.37 * s, 0.215 * s], torso); k.rotation.set(-0.75, 0, sx * 0.55); } }   // shirt collar points over the vest   // a vest over the shirt: the collar and sleeves stay shirt-coloured
+    if (pants) mesh(new THREE.SphereGeometry(0.305 * s, 10, 5, 0, TAU, Math.PI / 2, Math.PI / 2), pants, [0, -0.19 * s, 0], torso);
+    if (puff) mesh(new THREE.SphereGeometry(0.1 * s, 6, 5), puff, [0, -0.22 * s, -0.3 * s], torso);   // cottontail
     const hd = new THREE.Group(); hd.position.set(0, 1.38 * s, 0); g.add(hd);
     mesh(new THREE.SphereGeometry(0.27 * s, 8, 6), head, [0, 0, 0], hd);
     for (const sx of [-1, 1]) {
       if (ears === 'round') mesh(new THREE.SphereGeometry(0.1 * s, 5, 4), ear || head, [sx * 0.2 * s, 0.22 * s, -0.02], hd);
-      if (ears === 'long') { const e = mesh(new THREE.CapsuleGeometry(0.06 * s, 0.32 * s, 2, 5), ear || head, [sx * 0.12 * s, 0.38 * s, -0.04], hd); e.rotation.z = -sx * 0.25; }
+      if (ears === 'long') { const e = mesh(new THREE.CapsuleGeometry(0.06 * s, 0.32 * s, 2, 5), ear || head, [sx * 0.12 * s, 0.38 * s, -0.04], hd); e.rotation.z = -sx * 0.25;
+        if (earIn) { const i = mesh(new THREE.CapsuleGeometry(0.036 * s, 0.26 * s, 2, 5), earIn, [sx * 0.12 * s, 0.38 * s, -0.04 + 0.034 * s], hd); i.rotation.z = -sx * 0.25; } }
       if (ears === 'pointy') { const e = mesh(new THREE.ConeGeometry(0.09 * s, 0.22 * s, 4), ear || head, [sx * 0.16 * s, 0.28 * s, 0], hd); e.rotation.z = -sx * 0.3; }
       if (ears === 'antenna') { const e = mesh(new THREE.CylinderGeometry(0.012 * s, 0.012 * s, 0.4 * s, 3), '#3a2a2a', [sx * 0.1 * s, 0.38 * s, 0], hd); e.rotation.z = -sx * 0.4; mesh(new THREE.SphereGeometry(0.05 * s, 4, 3), ear || '#3a2a2a', [sx * 0.19 * s, 0.56 * s, 0], hd); }
-      mesh(new THREE.SphereGeometry(0.035 * s, 4, 3), '#1d1416', [sx * 0.1 * s, 0.05 * s, 0.24 * s], hd);
+      if (eyes) { mesh(new THREE.SphereGeometry(0.07 * s, 8, 6), eyes, [sx * 0.1 * s, 0.06 * s, 0.2 * s], hd); mesh(new THREE.SphereGeometry(0.032 * s, 5, 4), '#1d1416', [sx * 0.1 * s, 0.06 * s, 0.267 * s], hd); }
+      else mesh(new THREE.SphereGeometry(0.035 * s, 4, 3), '#1d1416', [sx * 0.1 * s, 0.05 * s, 0.24 * s], hd);
     }
     if (snout) mesh(new THREE.SphereGeometry(0.12 * s, 6, 4), snout, [0, -0.06 * s, 0.24 * s], hd).scale.set(1, 0.75, 1.1);
+    if (nose) mesh(new THREE.SphereGeometry(0.04 * s, 5, 4), nose, [0, -0.02 * s, snout ? 0.365 * s : 0.27 * s], hd).scale.set(1.3, 0.8, 1);
     if (hat) { mesh(new THREE.CylinderGeometry(0.3 * s, 0.3 * s, 0.03 * s, 9), hat, [0, 0.22 * s, 0], hd); mesh(new THREE.CylinderGeometry(0.17 * s, 0.19 * s, 0.2 * s, 9), hat, [0, 0.32 * s, 0], hd); }
     if (tail) { const t = mesh(new THREE.CapsuleGeometry(0.06 * s, 0.4 * s, 2, 5), tail, [0, 0.6 * s, -0.32 * s], g); t.rotation.x = -0.9; }
     const legs = [], arms = [];
     for (const sx of [-1, 1]) {
-      const lp = new THREE.Group(); lp.position.set(sx * 0.13 * s, 0.42 * s, 0); g.add(lp); mesh(new THREE.CylinderGeometry(0.07 * s, 0.08 * s, 0.42 * s, 5), body, [0, -0.21 * s, 0], lp); legs.push(lp);
-      const ap = new THREE.Group(); ap.position.set(sx * 0.33 * s, 1.0 * s, 0); g.add(ap); mesh(new THREE.CapsuleGeometry(0.055 * s, 0.32 * s, 2, 5), body, [0, -0.2 * s, 0], ap); ap.rotation.z = sx * 0.15; arms.push(ap);
+      const lp = new THREE.Group(); lp.position.set(sx * 0.13 * s, 0.42 * s, 0); g.add(lp); mesh(new THREE.CylinderGeometry(pants ? 0.085 * s : 0.07 * s, pants ? 0.1 * s : 0.08 * s, 0.42 * s, 6), pants || body, [0, -0.21 * s, 0], lp); legs.push(lp);
+      if (feet) mesh(new THREE.SphereGeometry(0.1 * s, 7, 5), feet, [0, -0.41 * s, 0.06 * s], lp).scale.set(1, 0.55, bigFeet ? 2.1 : 1.4);
+      const ap = new THREE.Group(); ap.position.set(sx * 0.33 * s, 1.0 * s, 0); g.add(ap); mesh(new THREE.CapsuleGeometry(0.055 * s, 0.32 * s, 2, 5), hands && shirt ? shirt : body, [0, -0.2 * s, 0], ap); ap.rotation.z = sx * 0.15; arms.push(ap);
+      if (hands) mesh(new THREE.SphereGeometry(0.075 * s, 6, 5), hands, [0, -0.42 * s, 0], ap);   // sleeves in the shirt colour, the paws showing
     }
     g.userData = { torso, hd, legs, arms, h: s, ph: R() * 10 };
     return g;
@@ -99,7 +107,7 @@ export function installLivingWorld({ T, TS, level, wolfState, scene, camera, fel
     pig: () => pal({ body: '#f0b4b0', ears: 'pointy', snout: '#e89a98', shirt: '#3a4a78' }),
     duck: () => pal({ body: '#f2ece0', snout: '#f0a43a', ears: 'none', shirt: '#7fc8c0' }),
     cat: () => pal({ body: '#e8a060', ears: 'pointy', shirt: '#a8d4b0', tail: '#e8a060' }),
-    rabbit: () => pal({ body: '#cfc5bb', ears: 'long', ear: '#e8c8c8', shirt: '#f0d27a' }),
+    rabbit: () => pal({ body: '#8c86a6', ears: 'long', ear: '#8c86a6', earIn: '#e0a090', snout: '#c9c2d4', nose: '#e0806e', eyes: '#f2c83a', shirt: '#f0dcb0', vest: '#3f8a3e', pants: '#d89a2a', hands: '#8c86a6', feet: '#8c86a6', bigFeet: true, puff: '#c9c2d4' }),   // the missions' Rabbit (bible ref): lavender-grey fur, pink inner ears, yellow eyes, green vest over a cream shirt, mustard trousers, grey paws
     dog: () => pal({ body: '#a07850', ears: 'long', ear: '#6b4a32', snout: '#c8a888', shirt: '#e89ab0' }),
     hen: () => pal({ body: '#f6f0e4', head: '#f6f0e4', ears: 'none', snout: '#f0b04a', shirt: '#e0705a', hat: null }),
     possum: () => pal({ body: '#b8b4b0', head: '#e8e2dc', ears: 'round', ear: '#2a2426', snout: '#f0c8c8', shirt: '#f2ece0' }),
