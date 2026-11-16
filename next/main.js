@@ -27,6 +27,9 @@ let WIDLE = null;
 import { installCarnRides } from './carnrides.js';   // run 14b: ride the rides, play the midway   // run 13: THE ONE HORSE, KSUN CALL-IN, PAPER ROUTE
 import { createCarnival, createCalliope } from './carnival.js';   // run 14: the One Horse Fair (east edge of town)
 import { audio } from './audio.js';
+import { quality, onSettings, getSettings } from './quality.js';   // ship pass: settings + device quality tiers
+import { installPerf } from './perf.js';   // ship pass: distance culling / shadow distance / tier switching
+let PF = null;
 import { sunspotsApply, sunspotsEnabled, setSunspotsLook, sunspotsLookOn, bothMats, sunspotsLowEnd } from './sunspots_material.js';
 window.__SUNSPOTS_VERSION = 'v9-next';
 
@@ -56,9 +59,9 @@ const PAL = {
 // ---------------------------------------------------------------- renderer
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, stencil: true, powerPreference: 'high-performance', preserveDrawingBuffer: SHOT }); renderer.localClippingEnabled = true;
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, SHOT ? 1 : 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, SHOT ? 1 : quality.t.dprMax));
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = quality.t.soft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;   // ship pass: soft shadows on HIGH only
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 // look A/B (?tone=neutral): NeutralToneMapping 1.1 + grey-blue/coral hemisphere from the look test. Default stays the live look.
 const TONE = Q.get('tone') === 'neutral';
@@ -81,7 +84,7 @@ const hemi = new THREE.HemisphereLight(PAL.hemiSky[0].clone(), new THREE.Color('
 scene.add(hemi);
 const key = new THREE.DirectionalLight(PAL.key[0].clone(), 2.3);
 key.castShadow = true;
-key.shadow.mapSize.set(1024, 1024);
+key.shadow.mapSize.set(quality.t.shadowMap, quality.t.shadowMap);
 const sc = key.shadow.camera; sc.left = -24; sc.right = 24; sc.top = 24; sc.bottom = -24; sc.near = 1; sc.far = 120;
 key.shadow.bias = -0.0008; key.shadow.normalBias = 0.03; key.shadow.radius = 4;
 scene.add(key, key.target);
@@ -359,14 +362,17 @@ function placeTown(models) {
   }
 }
 
-// Distant cacti: one instanced felt saguaro (cactus_far.glb) scattered to the horizon
+// Distant cacti: instanced felt saguaros (cactus_far.glb) scattered to the horizon.
+// Ship pass: the 300 used to be ONE InstancedMesh (252k tris, never culled, drawn again in the shadow pass). Now they are
+// split into 80 m cells (each frustum-culls on its own, in the view and in the 48 m shadow box; perf.js hides cells past
+// the fog), and perf.js thins each cell to the quality tier (inst.count; cacti with a collider are kept first).
 function placeFarCacti(gltf) {
   let geo; gltf.scene.traverse(o => { if (o.isMesh && !geo) geo = o.geometry; });
-  const N = 300;
+  const N = 300, CELL = 80;
   const u = meltUniforms(geo, '#7a2f5a', 1.3);
-  const mat = patchMelt(feltMat('#58773a'), u);
-  const inst = new THREE.InstancedMesh(geo, mat, N); inst.castShadow = true; inst.customDepthMaterial = depthMatFor(u);
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sv = new THREE.Vector3();
+  const mat = patchMelt(feltMat('#58773a'), u), depth = depthMatFor(u);
+  const q = new THREE.Quaternion(), sv = new THREE.Vector3();
+  const cells = new Map();
   let i = 0;
   const M = level.MAIN; let tries = 0;
   while (i < N && tries++ < 5000) {
@@ -377,12 +383,22 @@ function placeFarCacti(gltf) {
     const r = rd;
     q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rnd() * 6.28);
     const s = 0.75 + rnd() * 0.8;
-    m4.compose(new THREE.Vector3(x, 0, z), q, sv.set(s, s * (0.8 + rnd() * 0.45), s));
-    inst.setMatrixAt(i++, m4);
-    if (r < 45) colliders.push({ x, z, r: 0.6 * s });
+    const m4 = new THREE.Matrix4().compose(new THREE.Vector3(x, 0, z), q, sv.set(s, s * (0.8 + rnd() * 0.45), s));
+    i++;
+    const solid = r < 45; if (solid) colliders.push({ x, z, r: 0.6 * s });
+    const ck = Math.floor(x / CELL) + ',' + Math.floor(z / CELL); if (!cells.has(ck)) cells.set(ck, []); cells.get(ck).push({ m4, solid });
   }
-  scene.add(inst);
-  meltables.push({ root: inst, meshes: [{ mesh: inst, u }], delay: 0.15, puddle: null, drips: [] });
+  const meshes = [];
+  for (const list of cells.values()) {
+    list.sort((a, b) => b.solid - a.solid);   // solid ones first: thinning (inst.count) never hides a cactus you can bump into
+    const inst = new THREE.InstancedMesh(geo, mat, list.length); inst.customDepthMaterial = depth;
+    list.forEach((c, j) => inst.setMatrixAt(j, c.m4)); inst.computeBoundingSphere();
+    inst.castShadow = true;   // the shadow camera (48 m box on the Wolf) now frustum-culls whole cells
+    inst.userData.cactusCell = { total: list.length, solid: list.filter(c => c.solid).length };
+    scene.add(inst); meshes.push({ mesh: inst, u });
+  }
+  window.__cactusCells = meshes.map(m => m.mesh);
+  meltables.push({ root: meshes[0]?.mesh, meshes, delay: 0.15, puddle: null, drips: [] });
 }
 
 // neon (hot pink only) — positioned from the diner's extras once it loads
@@ -669,8 +685,9 @@ canvas.addEventListener('pointermove', e => {
     if (l > R) { dx *= R / l; dy *= R / l; }
     knob.style.transform = `translate(${dx}px,${dy}px)`; input.x = dx / R; input.y = dy / R;
   } else if (e.pointerId === lookId) {
-    camYawTarget -= (e.clientX - lookLast) * (FP.on ? 0.006 : 0.008); lookLast = e.clientX; manualLookT = 2.5;
-    if (FP.on) FP.pitch = clamp(FP.pitch - (e.clientY - lookLastY) * 0.005, -1.15, 0.6); lookLastY = e.clientY;
+    const inv = getSettings().invert, ix = inv === 'x' || inv === 'both' ? -1 : 1, iy = inv === 'y' || inv === 'both' || inv === true ? -1 : 1;   // ship pass: INVERT LOOK setting
+    camYawTarget -= (e.clientX - lookLast) * (FP.on ? 0.006 : 0.008) * ix; lookLast = e.clientX; manualLookT = 2.5;
+    if (FP.on) FP.pitch = clamp(FP.pitch - (e.clientY - lookLastY) * 0.005 * iy, -1.15, 0.6); lookLastY = e.clientY;
   }
 });
 const endPtr = e => { if (e.pointerId === joyId) { joyId = null; input.x = input.y = 0; joy.style.display = 'none'; } if (e.pointerId === lookId) lookId = null; };
@@ -713,8 +730,9 @@ const irisOff = new THREE.Vector2();
 camera.position.set(0, 4, 14);
 const col = new THREE.Color();
 // adaptive resolution: hold ~60 fps on phones by stepping the pixel ratio down (and back up) with frame time
-const DPR_MAX = Math.min(window.devicePixelRatio || 1, SHOT ? 1 : 2), DPR_MIN = Math.min(DPR_MAX, 1);
+let DPR_MAX = Math.min(window.devicePixelRatio || 1, SHOT ? 1 : quality.t.dprMax), DPR_MIN = Math.min(DPR_MAX, 1);   // ship pass: cap from the quality tier
 let dpr = DPR_MAX, ftAvg = 16.7, ftLast = performance.now(), dprHold = 0, slowT = 0;
+onSettings((k) => { if (k !== 'quality') return; DPR_MAX = Math.min(window.devicePixelRatio || 1, SHOT ? 1 : quality.t.dprMax); DPR_MIN = Math.min(DPR_MAX, 1); dpr = Math.min(dpr, DPR_MAX); renderer.setPixelRatio(dpr); renderer.setSize(window.innerWidth, window.innerHeight, false); });
 function adaptDPR() {
   const now = performance.now(), ft = Math.min(100, now - ftLast); ftLast = now;
   ftAvg += (ft - ftAvg) * 0.05; if (SHOT || document.hidden || --dprHold > 0) return;
@@ -726,8 +744,8 @@ function adaptDPR() {
   if (dpr <= DPR_MIN && ftAvg > 24 && sunspotsLookOn() && sunspotsEnabled() && !Q.has('felt')) { if ((slowT += ft) > 5000) { setSunspotsLook(false); console.info('sunspots look: low-end fallback'); } } else slowT = 0;
 }
 function frame() {
-  if (window.__titleUp) { clock.getDelta(); ftLast = performance.now(); requestAnimationFrame(frame); return; } // title screen owns the GPU
-  adaptDPR();
+  if (window.__titleUp || window.__paused) { clock.getDelta(); ftLast = performance.now(); requestAnimationFrame(frame); return; } // title screen owns the GPU; ship pass: pause menu (shell.js) freezes the town
+  adaptDPR(); PF?.update();
   const dt = Math.min(clock.getDelta(), DTMAX); const t = clock.elapsedTime; G.uTime.value = t;
   if (town?.active) { town.update(dt, t); renderer.render(town.scene, town.camera); requestAnimationFrame(frame); return; } // inside a room: town hidden + paused
 
@@ -1010,6 +1028,7 @@ loadAll().then(() => {
   installCinematicQA();
   if (TS && town) try { SR = installSnackRun({ scene, camera, level, wolfState, town, TS, feltMat, audio, LT: { hemi, key, fill, groundMat, discMat, lidMat, halo }, snap: () => { snapCam = true; } }); window.__snackrun = SR; } catch (e) { console.warn('snackrun failed', e); }
   if (Q.get('room')) { const go = () => { if (window.__titleUp || !wolfReady) { setTimeout(go, 200); return; } town.enter(Q.get('room')); }; go(); }
+  try { PF = installPerf({ scene, camera, renderer, key }); } catch (e) { console.warn('perf failed', e); }   // ship pass
   window.__ready = true;
 }).catch(e => { document.getElementById('err').style.display = 'block'; document.getElementById('err').textContent = 'Load error: ' + e.message; console.error(e); });
 requestAnimationFrame(frame);
