@@ -115,43 +115,86 @@ let root = null, playing = false, raf = 0, scene = null, cam = null, own = [], s
 // ------------------------------------------------------------------ the cast: idle clips with staggered timing, the game's own
 // gesture layer (idles.js wolfIdle: look, scratch, stretch, shrug, sun, ...), a seated pose for the couch, scripted head turns
 const _q = new THREE.Quaternion(), _w = new THREE.Quaternion(), _wi = new THREE.Quaternion(), _p = new THREE.Quaternion(), _pi = new THREE.Quaternion(), _e = new THREE.Euler(), _v = new THREE.Vector3();
-const BORDER = ['Hips', 'Spine02', 'Spine01', 'Spine', 'neck', 'Head', 'LeftUpLeg', 'LeftLeg', 'LeftFoot', 'RightUpLeg', 'RightLeg', 'RightFoot'];
+const BORDER = ['Hips', 'Spine02', 'Spine01', 'Spine', 'neck', 'Head', 'LeftShoulder', 'LeftArm', 'LeftForeArm', 'LeftHand', 'RightShoulder', 'RightArm', 'RightForeArm', 'RightHand', 'LeftUpLeg', 'LeftLeg', 'LeftFoot', 'RightUpLeg', 'RightLeg', 'RightFoot'];
 function modelRot(u, list, k = 1) {   // [bone, rx, ry, rz] in model space (+X the character's left, +Z forward), parents first
   u.root.getWorldQuaternion(_w); _wi.copy(_w).invert();
   for (const [n, x, y, z] of list.sort((a, b) => BORDER.indexOf(a[0]) - BORDER.indexOf(b[0]))) { const b = u.bones[n]; if (!b) continue;
     _q.setFromEuler(_e.set(x * k, y * k, z * k, 'YXZ')).premultiply(_w).multiply(_wi); b.parent.getWorldQuaternion(_p); _pi.copy(_p).invert(); _q.premultiply(_pi).multiply(_p); b.quaternion.premultiply(_q); b.updateMatrixWorld(true); }
 }
-const SIT = [['LeftUpLeg', -1.5, 0, 0.08], ['RightUpLeg', -1.5, 0, -0.08], ['LeftLeg', 1.45, 0, 0], ['RightLeg', 1.45, 0, 0], ['LeftFoot', 0.1, 0, 0], ['RightFoot', 0.1, 0, 0]];
+// Seated (Wolf, Moth, Bear): a frozen idle frame as the base, then a real sit: back against the cushions, thighs flat on the
+// seat, shins down to the floor (angled only as much as the leg length needs), hands resting on the knees, a gentle breathe.
+const SEATY = 0.5, ANKLE = 0.09, SEAT_Z = 0.02;   // hip height on the cushion; hips this far forward of the couch centre
+const KEEP = ['Hips', 'Spine02', 'Spine01', 'Spine', 'neck', 'Head', 'LeftShoulder', 'RightShoulder', 'LeftArm', 'RightArm', 'LeftForeArm', 'RightForeArm', 'LeftHand', 'RightHand', 'LeftUpLeg', 'RightUpLeg', 'LeftLeg', 'RightLeg', 'LeftFoot', 'RightFoot'];
+const SEAT_POOL = { look: [1, 3.2], nod: [1, 1.8], shrug: [0.7, 1.8], sun: [1, 2.6], lean: [0.8, 2.6] };
+function seatPose(c) {   // [bone, rx, ry, rz] model space; c.knee from the leg length
+  const kn = c.knee;
+  return [['Spine02', -0.06, 0, 0], ['Spine01', -0.05, 0, 0], ['Spine', -0.03, 0, 0],
+    ['LeftUpLeg', -1.52, 0, 0.05], ['RightUpLeg', -1.52, 0, -0.05], ['LeftLeg', kn, 0, 0], ['RightLeg', kn, 0, 0], ['LeftFoot', 0.05, 0, 0], ['RightFoot', 0.05, 0, 0],
+    ['LeftArm', -0.62 * c.arm, 0, -0.12], ['RightArm', -0.62 * c.arm, 0, 0.12], ['LeftForeArm', -0.55 * c.arm, 0, 0], ['RightForeArm', -0.55 * c.arm, 0, 0]];
+}
+// turn the head (and a little of the chest) so the face points at a world target, k = how far (1 = all the way)
+const _a = new THREE.Vector3(), _b = new THREE.Vector3();
+function aimHead(u, tx, tz, k, lead = 0) {
+  const h = u.bones.Head, f = u.bones.headfront; if (!h || !f || k < 0.001) return;
+  h.getWorldPosition(_a); f.getWorldPosition(_b); const cur = Math.atan2(_b.x - _a.x, _b.z - _a.z), want = Math.atan2(tx - _a.x, tz - _a.z) + lead;
+  let d = want - cur; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; d = clamp(d, -1.2, 1.2) * k;
+  // world yaw -> the model's own yaw (the character group is turned ~PI; model yaw is about the same world up axis)
+  modelRot(u, [['Spine', 0, d * 0.2, 0], ['neck', 0, d * 0.3, 0], ['Head', 0, d * 0.5, 0]]);
+}
+function seatGesture(g, t) {
+  if (!g.name || g.k < 0.002) return []; const k = g.k, p = g.p, w = Math.sin(p * Math.PI * 2);
+  switch (g.name) {
+    case 'look': return [['Head', 0, 0.3 * w * k, 0]];
+    case 'nod': return [['Head', Math.max(0, Math.sin(p * Math.PI * 4)) * 0.12 * k, 0, 0]];
+    case 'shrug': { const u = Math.sin(p * Math.PI) * k; return [['LeftShoulder', 0, 0, 0.22 * u], ['RightShoulder', 0, 0, -0.22 * u], ['Head', 0, 0, 0.08 * u]]; }
+    case 'sun': return [['neck', -0.1 * k, 0, 0], ['Head', -0.2 * k, 0, 0]];
+    case 'lean': return [['Spine', 0, 0, 0.05 * Math.sin(p * Math.PI) * k], ['Head', 0, 0, -0.05 * Math.sin(p * Math.PI) * k]];
+  }
+  return [];
+}
 function rig(k, g, sit) {
-  const u = g.userData, c = { g, k, sit, yaw: 0, pitch: 0 };
-  if (u.mixer && u.bones.Hips) { c.mixer = u.mixer;
+  const u = g.userData, c = { g, k, sit, arm: k === 'bear' ? 0.45 : 1 };
+  if (u.mixer && u.bones.Hips && !sit) { c.mixer = u.mixer;
     c.gest = wolfIdle({ root: u.root, bones: u.bones }, 'fin_' + k); c.gest.g.wait = 1 + Math.random() * 7; c.gest.g.min = 5; c.gest.g.max = 13; }
+  else if (sit && u.bones.Hips) {
+    c.snap = KEEP.map((n) => [u.bones[n], u.bones[n]?.quaternion.clone()]).filter((x) => x[0]);
+    c.gest = gesturer(SEAT_POOL, 'fin_' + k, { first: 2 + Math.random() * 6, min: 5, max: 11 });
+    g.updateMatrixWorld(true); const b = u.bones, P = (n) => b[n].getWorldPosition(new THREE.Vector3());
+    const L = P('LeftLeg').distanceTo(P('LeftFoot'));                       // shin length -> how far the shin tilts to reach the floor
+    c.knee = 1.52 - Math.acos(clamp((SEATY - ANKLE) / Math.max(0.05, L), 0, 1));
+    c.restore = () => { for (const [bn, q] of c.snap) bn.quaternion.copy(q); };
+    c.restore(); modelRot(u, seatPose(c)); g.updateMatrixWorld(true);
+    const hp = P('Hips'); g.position.y += SEATY - hp.y; g.position.z += SEAT_Z - hp.z; c.baseY = 0; if (u.shadow) u.shadow.visible = false;
+  }
   else c.gest = gesturer(CAST_POOL, 'fin_' + k, { first: 2 + Math.random() * 6, min: 5, max: 12 });
-  if (sit && c.mixer) { modelRot(u, SIT); u.root.updateMatrixWorld(true); g.updateMatrixWorld(true);   // drop the hips onto the cushion
-    const hp = u.bones.Hips.getWorldPosition(_v); u.inner.position.y = 0.66 - hp.y; c.baseY = u.inner.position.y; if (u.shadow) u.shadow.visible = false; }
   return c;
 }
-// who looks where (radians, model space: +yaw = toward the character's own left). The sun is straight ahead for everyone.
+// who looks where (radians; + = toward world -x, i.e. screen right in the front shots). The sun is straight ahead for everyone.
 function heads(k, t) {
   const at = (a, b) => ease((t - a) / 0.8) * (1 - ease((t - b) / 0.8));
-  switch (k) {
-    case 'wolf': return [0.55 * at(7.2, 10.2) - 0.5 * at(3.0, 6.4) - 0.45 * at(21.4, 24.5), -0.08];   // to Moth, to Bear, to Squid
-    case 'moth': return [0.5 * at(10.4, 14.2) + 0.25 * at(1, 2.8), -0.04];                      // to Wolf on his line
-    case 'bear': return [-0.45 * at(10.4, 14.3) - 0.3 * at(3.0, 6.4), 0];                    // to Wolf
-    case 'heron': return [0.35 * at(5, 13.5), -0.12 * at(14.4, 30)];
-    case 'lynx': return [-0.35 * at(6, 12), 0]; case 'gecko': return [-0.4 * at(4, 11), 0]; case 'squid': return [0.3 * at(8, 13), 0];
-    case 'ram': return [-0.3 * at(2, 12) + 0.25 * at(19.2, 21.5), 0]; default: return [0, 0];
+  switch (k) {   // [yaw, pitch, spine yaw]: + = toward world -x (Bear's side of the couch), - = toward +x (Moth's side)
+    case 'wolf': return [0.5 * at(7.2, 10.3) - 0.45 * at(21.2, 24.6) - 0.4 * at(2.8, 6.6), -0.1 * at(10.4, 14.4), 0.1 * at(7.2, 10.3)];   // to Bear, to Squid, to Moth (his own line: aimHead)
+    case 'moth': return [0.5 * at(10.4, 14.4) + 0.45 * at(2.8, 6.6), -0.04, 0.12 * at(10.4, 14.4)];   // to the Wolf, on the Wolf's line and his own
+    case 'bear': return [-0.5 * at(7.0, 14.4), -0.22, -0.1 * at(7.0, 14.4)];   // to the Wolf
+    case 'heron': return [0.35 * at(5, 13.5), -0.12 * at(14.4, 30), 0];
+    case 'lynx': return [-0.35 * at(6, 12), 0, 0]; case 'gecko': return [0.35 * at(4, 11), 0, 0]; case 'squid': return [0.3 * at(8, 13), 0, 0];
+    case 'ram': return [-0.3 * at(2, 12) + 0.25 * at(19.2, 21.5), 0, 0]; default: return [0, 0, 0];
   }
 }
 function animCrew(s, dt, t, tally) {
   for (const c of Object.values(s.crew)) { const u = c.g.userData, i = u.inner;
-    const cheer = (t > 23.2 && t < D.scene + 3) || tally;
-    if (c.mixer) { c.mixer.update(dt);
-      if (c.sit) modelRot(u, SIT);
-      const [y, p] = heads(c.k, t); if (y || p) modelRot(u, [['neck', p * 0.4, y * 0.35, 0], ['Head', p * 0.6, y * 0.65, 0]]);
+    const cheer = (t > 23.2 && t < D.scene + 3) || tally, b = Math.abs(Math.sin(t * 6.5 + u.ph * 3));
+    if (c.restore) {   // seated
+      c.restore(); modelRot(u, seatPose(c)); c.gest.update(dt, 1);
+      const br = Math.sin(t * 1.9 + u.ph) * 0.02, [y0, p, sy0] = heads(c.k, t), y = -y0, sy = -sy0;   // heads() is written as + = toward world -x; the rig's yaw is the other way
+      modelRot(u, [['Spine01', br, sy * 0.5, 0], ['Spine', 0, sy * 0.5, 0], ['neck', p * 0.4, y * 0.35, 0], ['Head', p * 0.6, y * 0.65, 0], ...seatGesture(c.gest, t)]);
+      if (c.k === 'wolf') { const kk = ease((t - 10.4) / 0.8) * (1 - ease((t - 14.4) / 0.8)); if (kk > 0.001) { u.root.updateMatrixWorld(true); aimHead(u, cam.position.x, cam.position.z, kk, -0.55); } }   // his line: 3/4 to camera (24 deg short of it, toward Moth)
+      if (cheer) modelRot(u, [['LeftArm', 0.62, 0, 1.2 + b * 0.9], ['RightArm', 0.62, 0, -(1.2 + b * 0.9)], ['LeftForeArm', 0.55, 0, 0], ['RightForeArm', 0.55, 0, 0]]);
+      i.position.y = cheer ? b * 0.035 : 0;
+    } else if (c.mixer) { c.mixer.update(dt);
+      const [y0, p] = heads(c.k, t), y = -y0; if (y || p) modelRot(u, [['neck', p * 0.4, y * 0.35, 0], ['Head', p * 0.6, y * 0.65, 0]]);
       c.gest.apply(dt, t, 1);
-      if (cheer) { const b = Math.abs(Math.sin(t * 6.5 + u.ph * 3)); if (c.sit) i.position.y = c.baseY + b * 0.05; else i.position.y = b * 0.1; modelRot(u, [['LeftArm', 0, 0, 2.3 * b * 0.6 + 0.6], ['RightArm', 0, 0, -(2.3 * b * 0.6 + 0.6)]]); }
-      else if (c.sit) i.position.y = c.baseY; else i.position.y = 0;
+      if (cheer) { i.position.y = b * 0.1; modelRot(u, [['LeftArm', 0, 0, 2.3 * b * 0.6 + 0.6], ['RightArm', 0, 0, -(2.3 * b * 0.6 + 0.6)]]); } else i.position.y = 0;
     } else { c.gest.update(dt, 1); const o = castOffsets(c.gest, t);   // no usable clip (banana squid): the transform gesture layer
       i.rotation.set(o.rx, o.ry, o.rz + Math.sin(t * 1.3 + u.ph) * 0.025); i.scale.set(o.sx, o.sy * (1 + Math.sin(t * 2 + u.ph) * 0.012), o.sx);
       i.position.y = (cheer ? Math.abs(Math.sin(t * 7 + u.ph)) * 0.12 : 0) + o.y * u.h; }
@@ -248,8 +291,9 @@ function build(MODELS) {
   // Moth's couch, the porch light he fixed
   const couch = new THREE.Group(); couch.position.set(0, 0, 0); scene.add(couch);
   const cm = M('#b8443a'), cc = M('#d06a52');
-  mesh(new THREE.BoxGeometry(4.6, 0.42, 1.15), cm, 0, 0.21, 0, couch); mesh(new THREE.BoxGeometry(4.1, 0.16, 1.0), cc, 0, 0.5, -0.02, couch);
-  mesh(new THREE.BoxGeometry(4.6, 0.95, 0.32), cm, 0, 0.78, 0.46, couch); for (const sx of [-1, 1]) mesh(new THREE.BoxGeometry(0.32, 0.72, 1.15), cm, sx * 2.3, 0.6, 0, couch);
+  mesh(new THREE.BoxGeometry(4.6, 0.32, 0.92), cm, 0, 0.16, 0.06, couch); mesh(new THREE.BoxGeometry(4.0, 0.14, 0.66), cc, 0, 0.39, -0.06, couch);   // seat: cushion top 0.46, front edge z -0.39
+  mesh(new THREE.BoxGeometry(4.6, 1.0, 0.3), cm, 0, 0.6, 0.42, couch); for (const x of [-1.34, 0, 1.34]) { const bc = mesh(new THREE.BoxGeometry(1.28, 0.52, 0.16), cc, x, 0.72, 0.21, couch); bc.rotation.x = -0.12; }   // back + three back cushions
+  for (const sx of [-1, 1]) mesh(new THREE.BoxGeometry(0.34, 0.68, 0.92), cm, sx * 2.17, 0.34, 0.06, couch);
   const lamp = new THREE.Group(); lamp.position.set(0.95, 0, 1.3); scene.add(lamp);   // Moth's porch light, framed between the leads in the front shot
   mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.2, 6), M('#3a2a2a'), 0, 1.1, 0, lamp); mesh(new THREE.CylinderGeometry(0.34, 0.24, 0.36, 10), M('#3a2a2a'), 0, 2.32, 0, lamp);
   const bulbMat = B(new THREE.MeshBasicMaterial({ color: '#ffe6a0' })); mesh(new THREE.SphereGeometry(0.18, 10, 8), bulbMat, 0, 2.08, 0, lamp);
@@ -261,9 +305,9 @@ function build(MODELS) {
   // player's own wolf_armsdown_felt.glb). Staged like an art-book frame: Wolf + Moth up front as the leads, a clear gap
   // behind them, everyone else in a loose arc around Moth's couch. Everyone faces the town and the sun (-z).
   const crew = {}; const put = (k, x, z, ry = 0, sit = false) => { const g = MODELS[k]; if (!g) return; g.position.set(x, 0, z); g.rotation.y = Math.PI + ry; scene.add(g); crew[k] = rig(k, g, sit); };
-  put('bear', -1.38, -0.22, 0.1, true); put('wolf', 0.0, -0.2, 0, true); put('moth', 1.38, -0.22, -0.08, true);   // on Moth's couch (hips at the front of the cushion, feet on the ground)
-  put('lynx', -0.72, 1.18, -0.1); put('ram', -2.6, 1.08, -0.3); put('heron', 2.55, 1.1, 0.22);   // leaning on the back of it
-  put('gecko', 1.82, 1.18, 0.15); put('anteater', -4.25, 0.55, -0.55);
+  put('bear', -1.36, 0, 0.1, true); put('wolf', 0.0, 0, 0, true); put('moth', 1.36, 0, -0.08, true);   // on Moth's couch (hips at the front of the cushion, feet on the ground)
+  put('lynx', -0.6, 1.18, -0.1); put('ram', -2.3, 1.1, -0.3); put('heron', 2.55, 1.1, 0.22);   // leaning on the back of it
+  put('gecko', -1.45, 1.22, -0.15); put('anteater', -4.25, 0.55, -0.55);
   put('squid', 2.65, -1.05, 0.55); put('crow', 3.55, -0.15, 0.7);
   if (Q.get('finale') === 'lineup') { const order = ['wolf', 'moth', 'bear', 'ram', 'heron', 'crow', 'lynx', 'gecko', 'anteater', 'squid']; order.forEach((k, i) => { const c = crew[k]; if (c) { c.g.position.set((i - 4.5) * 1.3, 0, 4); c.g.rotation.y = 0; c.sit = false; c.g.userData.inner.position.y = 0; } }); }
 
@@ -284,12 +328,12 @@ const D = { scene: 26, title: 6.5, roll: 52 };
 const SHOT = [   // camera keys: [t, camPos, lookAt, lookAt in portrait (optional)]
   [0, [1.4, 4.6, 7.6], [-4, -6, -60]],
   [7, [0.5, 4.0, 6.2], [-4, -5, -60]],
-  [7.01, [-1.7, 1.2, -4.9], [0.15, 1.0, -0.3]],      // the crew from the front, low 3/4: Wolf + Moth lead, dawn on their faces, rim light behind
-  [14, [-1.0, 1.15, -4.4], [0.25, 1.0, -0.3]],
+  [7.01, [-1.7, 1.2, -4.9], [0.15, 1.0, -0.3], [-0.3, 0.2, 0], [-0.2, 3.7, -7.9]],      // portrait: its own camera, closer and higher, all three seated with margin      // the crew from the front, low 3/4: Wolf + Moth lead, dawn on their faces, rim light behind
+  [14, [-1.0, 1.15, -4.4], [0.25, 1.0, -0.3], [-0.25, 0.2, 0], [0.0, 3.6, -7.6]],
   [14.01, [-1.5, 1.6, 6.5], [-7, 4, -200]],     // from behind: the sun comes up over their shoulders (the porch lamp off to the right)
   [20, [-2.1, 2.6, 8.5], [-9, 8, -200]],
-  [20.01, [2.4, 1.3, -5.8], [0.1, 1.05, -0.3]],
-  [26, [3.3, 1.8, -7.2], [0.1, 1.1, -0.3]],
+  [20.01, [2.4, 1.3, -5.8], [0.1, 1.05, -0.3], [0.2, 0.8, 0], [1.6, 2.4, -7.2]],
+  [26, [3.3, 1.8, -7.2], [0.1, 1.1, -0.3], [0.2, 0.85, 0], [2.3, 2.8, -8.2]],
   [26.01, [7, 5, 10], [-24, 22, -60], [-6, 27, -60]],     // title: clear sky for the words, the sun low and to the right (centred, under them, in portrait)
   [33, [4, 7, 14], [-26, 24, -70], [-8, 29, -70]],
   [40, [3, 7.5, 14.5], [60, 14, -70]],     // the roll: the sun off to the left, clear sky behind the names
@@ -298,10 +342,11 @@ const SHOT = [   // camera keys: [t, camPos, lookAt, lookAt in portrait (optiona
 function camAt(t, out, look, portrait) {
   let i = 0; while (i < SHOT.length - 2 && SHOT[i + 1][0] <= t) i++;
   const a = SHOT[i], b = SHOT[i + 1], k = ease((t - a[0]) / Math.max(0.001, b[0] - a[0]));
-  out.set(lerp(a[1][0], b[1][0], k), lerp(a[1][1], b[1][1], k), lerp(a[1][2], b[1][2], k));
+  const own = portrait && a[4] && b[4], pa = own ? a[4] : a[1], pb = own ? b[4] : b[1];
+  out.set(lerp(pa[0], pb[0], k), lerp(pa[1], pb[1], k), lerp(pa[2], pb[2], k));
   const la = portrait && a[3] || a[2], lb = portrait && b[3] || b[2];
   look.set(lerp(la[0], lb[0], k), lerp(la[1], lb[1], k), lerp(la[2], lb[2], k));
-  if (portrait) { const back = out.clone().sub(look).normalize(); out.addScaledVector(back, 1.8 + 0.06 * out.distanceTo(look) * 0); out.y += 0.3; }
+  if (portrait && !own) { const back = out.clone().sub(look).normalize(); out.addScaledVector(back, 1.8 + 0.06 * out.distanceTo(look) * 0); out.y += 0.3; }
 }
 
 export async function playFinale({ from = 0 } = {}) {
