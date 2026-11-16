@@ -488,6 +488,7 @@ A.update = (dt) => {
   else if (L.inCar) { town = CK.chase ? 0.12 : 0; tens = (CK.chase ? 0.8 : 0.7) * tensUp; }
   else if (L.solo) { town = 0; tens = 0.75 * tensUp; }   // run 12: in his own car the KSUN radio is the music
   if (A.tensSrc && !L.ended) town *= 1 - tensUp;
+  if (A.finaleOn) { town = 0; tens = 0; }   // finale.js: the credits song plays alone
   P(N.town.gain, town, 0.35); P(N.tens.gain, tens, tensUp < 1 ? 0.25 : 0.35);
   const w = clamp(G.getWild?.() || 0, 0, 1);
   P(N.sun.gain, Math.cos(w * Math.PI / 2), 0.03); P(N.wild.gain, Math.sin(w * Math.PI / 2), 0.03);   // equal power: cos² + sin² = 1
@@ -594,6 +595,8 @@ A.credits = (on) => {
     setTimeout(() => { if (!A.credOn && credEl) credEl.pause(); }, X * 1000 + 100); note('credits', { on: 0 });
   }
 };
+// finale.js (end of Night 7): the credits song over the sunrise, town music + ambience out; off = back to the town mix
+A.finale = (on) => { if (!ctx) return; A.finaleOn = !!on; A.credits(!!on); if (N.amb) ramp2(N.amb.gain, on ? 0 : 1, 2); if (N.town && on) ramp2(N.town.gain, 0, 2); };
 function ramp2(gp, v, f) { const n = ctx.currentTime; gp.cancelScheduledValues(n); gp.setValueAtTime(gp.value, n); gp.linearRampToValueAtTime(v, n + f); gp._v = undefined; }
 
 // ---------------------------------------------------------------- debug / probes

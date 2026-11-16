@@ -41,6 +41,8 @@ export function installJournal({ T, QT, level, audio }) {
     { id: 'brawl3', name: 'NOT A SCRATCH', how: 'Three stars in the back lane', got: () => (S.brawl?.best || 0) >= 3 },
     { id: 'swim', name: 'LATE NIGHT SWIM LESSON', how: "Finish Ram's swim lesson (Night 3)", got: () => (S.swimBest?.stars || 0) > 0 },
     { id: 'swim3', name: 'GOLD STAR SWIMMER', how: 'Three stars at the swim lesson', got: () => (S.swimBest?.stars || 0) >= 3 },
+    // the ending (finale.js): Night 7 done, the sun comes up
+    { id: 'finale', name: 'SAME OLD SUNRISE', how: "Finish Night 7 (fix Moth's porch light) and watch the sun come up", got: () => { try { return !!JSON.parse(localStorage.getItem('sunspots.progress') || '{}').finaleSeen; } catch (_) { return false; } } },
   ];
   const HOMES = ['wolf', 'living90', 'lynx', 'crow', 'heron', 'gecko', 'ram', 'anteater', 'apt_vict', 'moth', 'apt_pink', 'mansion', 'farm'].filter((k) => !Object.keys(ROOMS).length || ROOMS[k]);
   const roomKeys = () => Object.keys(ROOMS);
@@ -141,6 +143,7 @@ export function installJournal({ T, QT, level, audio }) {
     const b = e.target.closest('button'); if (!b) return; e.stopPropagation();
     if (b.dataset.go) { goTo(b.dataset.go); return; }
     if (b.dataset.reset) { if (!resetArm) { resetArm = 1; b.textContent = 'TAP AGAIN TO ERASE THIS SAVE'; return; }
+      if (window.__shell?.resetSave) { window.__shell.resetSave(); return; }   // shell.js: every save key + the IndexedDB mirror
       try { localStorage.removeItem('ss_town_v1'); sessionStorage.removeItem('ss_town1'); localStorage.removeItem('ss_carn'); localStorage.removeItem('ss_pool_best'); } catch (_) { }
       location.href = location.pathname + '?fresh'; }
   });

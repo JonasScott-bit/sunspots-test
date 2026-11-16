@@ -13,7 +13,10 @@
 //  * PWA: registers sw.js (scope /next/) so it installs to a home screen and starts offline.
 // QA: ?unlock opens every Night · ?demo=1 · ?pause=1 opens the pause menu · window.__shell
 import { quality, getSettings, setSetting, onSettings, TIERS } from './quality.js';
+import './saveguard.js';   // save backup / restore (runs before the town reads its save)
 import './perfhud.js';   // PERF overlay (?perf or Settings > PERF)
+import { creditsHTML } from './credits.js';
+import { maybeFinale, playFinale, checkPerfect } from './finale.js';
 
 const Q = new URLSearchParams(location.search);
 const BUILD = window.SUNSPOTS_BUILD || {};
@@ -47,9 +50,15 @@ const nightName = (n) => (NIGHTS()[n - 1]?.name || `NIGHT ${n}`);
 // GO sheet districts -> the Night that opens them
 const KEY_NIGHT = (k) => /^(bowl|motel|pool|drivein|poolhall|court|taco)$/.test(k) ? 2 : k === 'mansion' ? 3 : k === 'farm' ? 6 : /^(carnival|c_)/.test(k) ? 5 : 1;
 function wipeSave() {
+  window.__wiping = true; try { if (window.__town?.M) window.__town.M.save = () => {}; } catch (_) {}   // nothing may write the old game back on the way out
   const keep = /^sunspots\.(audio|settings)$/;
   for (const st of [localStorage, sessionStorage]) { try { for (const k of Object.keys(st)) if ((/^ss_/.test(k) || /^sunspots\./.test(k)) && !keep.test(k)) st.removeItem(k); } catch (_) {} }
+  try { localStorage.setItem('sunspots.wiped', String(Date.now())); } catch (_) {}   // saveguard.js: never restore a mirror older than this
+  window.__saveguard?.clearMirror?.();
 }
+// Settings > SAVE > RESET SAVE (confirmed) and the journal's erase button: wipe everything, back to the title
+function resetSave() { wipeSave(); const go = () => { const q = new URLSearchParams(location.search); for (const k of ['fresh', 'unlock', 'finale', 'pause']) q.delete(k); location.href = location.pathname + (q.toString() ? '?' + q : ''); };
+  Promise.resolve(window.__saveguard?.clearMirror?.()).finally(() => setTimeout(go, 60)); }
 
 // NEW GAME restarts the page straight into play (skip the company intro the second time)
 const AUTOPLAY = (() => { try { return sessionStorage.getItem('sunspots.autoplay') === '1'; } catch (_) { return false; } })();
@@ -73,6 +82,7 @@ css.textContent = `
 #titleScr .panel[data-p=newgame] .felt{height:54px;width:100%;flex:none}
 .shSeg{display:grid;grid-template-columns:78px repeat(var(--n,4),1fr);gap:6px;align-items:center;font:700 13px Futura,"Avenir Next",Avenir,system-ui,sans-serif;letter-spacing:.14em}
 .shSeg button{height:46px;border:0;border-radius:12px;background:rgba(32,48,122,.12);color:#20307a;font:800 13px Futura,"Avenir Next",Avenir,system-ui,sans-serif;letter-spacing:.06em;touch-action:manipulation;cursor:pointer;padding:0 4px}
+.shSeg button.shDanger{background:#c9302a;color:#fbf0d9;box-shadow:0 3px 0 #7a1a16}
 .shSeg button.on{background:#2c53c4;color:#fbf0d9;box-shadow:0 3px 0 #162a73}
 .shNote{font:600 13px/1.4 Futura,Avenir,system-ui,sans-serif;color:#4a4f8a;margin:-2px 0 2px}
 .shSlider{display:grid;grid-template-columns:78px 1fr 3.4em;align-items:center;gap:6px;font:700 13px Futura,Avenir,system-ui,sans-serif;letter-spacing:.14em;color:#20307a}
@@ -139,6 +149,7 @@ html body #title{left:calc(env(safe-area-inset-left) + 120px)!important}
   #shOv .card[data-v=settings] .shRows>:nth-child(1){grid-row:1} #shOv .card[data-v=settings] .shRows>:nth-child(2){grid-row:2} #shOv .card[data-v=settings] .shRows>:nth-child(3){grid-row:3}
   #shOv .card[data-v=settings] .shRows>:nth-child(n+4){grid-column:2}
   #shOv .card[data-v=settings] .shRows>:nth-child(8){grid-column:1;grid-row:4}
+  #shOv .card[data-v=settings] .shRows>:nth-child(9){grid-column:1;grid-row:5} #shOv .card[data-v=settings] .shRows>:nth-child(10){grid-column:2;grid-row:5}
   #shOv .card[data-v=settings] .shNote{margin:0}
   #shOv .nts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px} #shOv .nts>.nt:last-child:nth-child(3n+1){grid-column:1/-1}
   #shOv .card[data-v=nights] .nt{padding:7px 10px} #shOv .card[data-v=nights] .nt i{flex-basis:30px;height:30px;font-size:14px}
@@ -166,11 +177,16 @@ function settingsHTML(withAudio) {
   h += seg('TEXT', 'textSize', [['m', 'A'], ['l', 'A+'], ['xl', 'A++']], S.textSize);
   h += seg('INVERT', 'invert', [['off', 'OFF'], ['x', 'X'], ['y', 'Y'], ['both', 'BOTH']], S.invert === true ? 'y' : (S.invert || 'off'));
   h += seg('PERF', 'fps', [['off', 'OFF'], ['on', 'ON']], S.fps || 'off');
+  h += `<div class="shSeg shSave" style="--n:1" data-set="save"><span>SAVE</span><button data-v="reset">RESET SAVE…</button></div>`;
   return h + '</div>';
 }
 function wireSettings(root) {
   root.addEventListener('click', (e) => {
     const b = e.target.closest('.shSeg button'); if (!b) return; const row = b.closest('.shSeg'), k = row.dataset.set, v = b.dataset.v;
+    if (k === 'save') {   // two-step: RESET SAVE… -> ERASE? YES / NO
+      if (v === 'reset') { row.style.setProperty('--n', 2); row.innerHTML = '<span>ERASE?</span><button data-v="yes" class="shDanger">YES, ERASE</button><button data-v="no">KEEP</button>'; row.insertAdjacentHTML('afterend', '<div class="shNote shSaveNote">Erases every Sunspot, Night and mission. Settings stay. This cannot be undone.</div>'); sfx(); return; }
+      if (v === 'yes') { sfx('sfx_ui_confirm'); resetSave(); return; }
+      row.style.setProperty('--n', 1); row.innerHTML = '<span>SAVE</span><button data-v="reset">RESET SAVE…</button>'; row.nextElementSibling?.classList.contains('shSaveNote') && row.nextElementSibling.remove(); return; }
     if (k === 'snd') window.__audio?.setMode?.(v); else setSetting(k, v);
     for (const o of row.querySelectorAll('button')) { o.classList.toggle('on', o === b); o.setAttribute('aria-pressed', o === b); }
     const qn = root.querySelector('[data-qn]'); if (qn) qn.textContent = qualityNote();
@@ -181,10 +197,7 @@ function wireSettings(root) {
 
 // ------------------------------------------------------------------ title menu: CONTINUE / NEW GAME / SETTINGS / CREDITS
 const T = document.getElementById('titleScr');
-const CREDITS_HTML = `<p class="big">SUNSPOTS</p><p><small>A GAME BY</small>Ethereal Entertainment Systems</p><p><small>CREATED BY</small>Jonas Scott</p>
-<p><small>STARRING</small>The Wolf<br>Moth<br>Bear<br>Ram<br>Crow<br>Lynx<br>Heron<br>Banana Squid<br>Larry Byrd<br>Gecko<br>Anteater<br>Officer Fuzz<br>Cake, Shake &amp; Fuzzy Peach<br>TV-Head<br>and the whole town</p>
-<p><small>SET IN</small>Same Old One Horse Town</p><p><small>MUSIC</small>Music made with Suno</p>
-<p><small>BUILT WITH</small>three.js (MIT License)<br>meshoptimizer (MIT License)</p><p><small>THANK YOU FOR PLAYING</small>&#9728;</p>`;
+const CREDITS_HTML = creditsHTML();   // credits.js (CREATOR_NAME lives there)
 if (T) {
   const roll = T.querySelector('.roll'); if (roll) roll.innerHTML = CREDITS_HTML;
   const menu = T.querySelector('.menu'), play = T.querySelector('.bPlay'), row = T.querySelector('.menu .row');
@@ -222,6 +235,7 @@ card.addEventListener('click', (e) => {
   else if (a === 'back') pauseView(); else if (a === 'menu') { show('quit', `<h2>MAIN MENU</h2><p>Your game saves as you play. Head back to the title?</p><button class="felt coral" data-a="quit">YES, MAIN MENU</button><button class="felt cream" data-a="back">KEEP PLAYING</button>`); }
   else if (a === 'quit') { try { window.__journal && window.__town?.M?.save?.(); } catch (_) {} const q = new URLSearchParams(location.search); for (const k of ['fresh', 'menu', 'intro', 'pause', 'room']) q.delete(k); q.set('intro', '0'); location.search = q.toString(); }
   else if (a === 'close') hide();
+  else if (a === 'ending') { resume(); setTimeout(() => playFinale(), 250); }   // NIGHTS > WATCH THE ENDING (after you've seen it once)
 });
 const paused = () => !!window.__paused;
 function pause(v = 'pause') {
@@ -242,7 +256,7 @@ function nightsView() {
     return `<div class="nt${open ? ' open' : ''}${N.n === cur ? ' now' : ''}"><i>${open ? N.n : '🔒'}</i><div><b>${esc(rest.join(' · ') || num)}</b><small>${lockDemo ? 'Full game' : open ? 'Open · ' + esc(N.opens) : `${N.need} ☀ to open · ${esc(N.opens)}`}</small></div></div>`; }).join('');
   const nx = NIGHTS()[cur]; const pct = nx && !(DEMO) ? Math.min(100, Math.round(100 * (c - NIGHTS()[cur - 1].need) / Math.max(1, nx.need - NIGHTS()[cur - 1].need))) : 100;
   show('nights', `<h2>NIGHTS</h2><p>${c} ☀ Sunspots found. Every errand, game and secret leaves one.</p><div class="bar"><u style="width:${pct}%"></u></div><div class="nts">${rows}</div>
-    ${DEMO ? `<p>Seven Nights in the full game. Your save carries over.</p>` : ''}<button class="felt cream" data-a="${paused() ? 'back' : 'close'}">BACK</button>`);
+    ${DEMO ? `<p>Seven Nights in the full game. Your save carries over.</p>` : ''}${loadP().finaleSeen ? '<button class="felt mustard" data-a="ending">WATCH THE ENDING</button>' : ''}<button class="felt cream" data-a="${paused() ? 'back' : 'close'}">BACK</button>`);
 }
 function settingsView() { show('settings', `<h2>SETTINGS</h2>${settingsHTML(true)}<button class="felt cream" data-a="back">BACK</button>`); }
 function creditsView() { show('credits', `<h2>CREDITS</h2><div class="scroll"><div class="roll">${CREDITS_HTML}</div></div><button class="felt cream" data-a="back">BACK</button>`); }
@@ -267,7 +281,7 @@ const pb = document.createElement('button'); pb.id = 'shPauseBtn'; pb.setAttribu
 pb.addEventListener('pointerdown', (e) => e.stopPropagation());
 pb.addEventListener('click', (e) => { e.stopPropagation(); sfx(); pause(); });
 addEventListener('keydown', (e) => { if (!playing()) return; if ((e.key === 'Escape' || e.key === 'p' || e.key === 'P') && !document.querySelector('#qtSheet.on,#jnSheet.on')) { e.preventDefault(); if (ov.classList.contains('on')) { if (view === 'pause' || view === 'night' || view === 'demo') resume(); else if (paused()) pauseView(); else hide(); } else pause(); } });
-document.addEventListener('visibilitychange', () => { if (document.hidden && playing() && !paused() && !Q.has('nobgpause')) pause(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && playing() && !paused() && !Q.has('nobgpause') && !document.body.classList.contains('finale')) pause(); });
 const playing = () => !!window.__ready && !window.__titleUp && !document.body.classList.contains('intro');
 
 // GO sheet: districts open with their Night
@@ -306,6 +320,8 @@ setInterval(() => {
   const busy = paused() || ov.classList.contains('on') || /\b(scene|ended|map|room|driving)\b/.test(document.body.className) || document.querySelector('#jnSheet.on,#qtSheet.on,#cine');
   if (!CARDS) { if (n > P.night) { P.night = n; saveP(P); } return; }   // automated test runs (navigator.webdriver) skip the pausing cards; ?cards=1 brings them back
   if (n > P.night && !busy) { P.night = n; saveP(P); nightCard(n); return; }
+  if (!DEMO && !busy && !document.body.classList.contains('msn') && maybeFinale()) return;   // finale.js: Night 7 done -> the ending
+  if (!DEMO && !busy && P.finaleSeen && checkPerfect()) return;   // free roam: 100% card, once
   if (DEMO && !P.demoEnd && !busy && (count() >= (NIGHTS()[1]?.need || 2) || window.__town?.M?.S?.snacks)) { P.demoEnd = 1; saveP(P); demoCard(); }
   lastNight = n;
 }, 1000);
@@ -314,4 +330,4 @@ if (Q.get('pause')) { const go = () => playing() ? pause(Q.get('pause') === 'nig
 // ------------------------------------------------------------------ PWA: installable, starts offline (scope /next/)
 if ('serviceWorker' in navigator && !Q.has('nosw') && location.protocol !== 'file:') addEventListener('load', () => { navigator.serviceWorker.register('./sw.js', { scope: './' }).catch((e) => console.info('sw', e?.message)); });
 
-window.__shell = { NIGHTS, night, count, nightOpen, lockLine, nightName, demo: DEMO, price: PRICE, pause, resume, nightsView: () => pause('nights'), settings: () => { pause(); settingsView(); }, credits: () => { pause(); creditsView(); }, nightCard, demoCard, wipeSave, keyNight: KEY_NIGHT };
+window.__shell = { NIGHTS, night, count, nightOpen, lockLine, nightName, demo: DEMO, price: PRICE, pause, resume, nightsView: () => pause('nights'), settings: () => { pause(); settingsView(); }, credits: () => { pause(); creditsView(); }, nightCard, demoCard, wipeSave, resetSave, finale: () => playFinale(), keyNight: KEY_NIGHT };
