@@ -5,7 +5,7 @@
 // Stars: there by 1:59 · 1 bump or fewer · every shortcut. Secret: pick up five tin cans (Goat's tip).
 // QA: ?m=goat_hurry [&mauto]
 import * as THREE from 'three';
-import { registerMission, CAST, animPal, waddleCar, nightSky, nightLights, sign, glowMat, glowSprite, Merge, cyl, sfx, clamp, lerp, rng, toScreen } from './kit.js';
+import { registerMission, CAST, animPal, waddleCar, nightSky, nightLights, sign, glowMat, glowSprite, Merge, cyl, sfx, clamp, lerp, rng, toScreen, juice } from './kit.js';
 import { createDrive } from './drivecore.js';
 
 registerMission({
@@ -13,6 +13,7 @@ registerMission({
   rumour: 'Every night at 1:57 somebody bangs on the roof of the night cab and says one word.',
   todo: "Get Goat where he's going by 1:59 (Moth's cab)", doneMsg: ". Goat got there at 1:59. Nothing happened. He's thrilled.",
   suns: [{ id: 'gh_done', name: 'GOAT IN A HURRY', how: 'Get Goat where he is going by 1:59' }, { id: 'gh_star', name: 'METER RUNNING', how: 'Three stars in the night cab' }, { id: 'gh_tip', name: "GOAT'S TIP", how: 'Goat tips in tin cans. Collect five.' }],
+  tip: 'DRAG TO STEER · DRIVE THROUGH THE ORANGE SHORTCUTS',
   create,
 });
 const LIMIT = 120, CAMO = { dist: 7.0, height: 3.3, lookY: 1.4 };
@@ -56,7 +57,7 @@ function create({ hud: H }) {
     animPal(moth, dt, t, {}); animPal(wolf, dt, t, {}); G.bang -= dt; animPal(goat, dt, t, { cheer: G.bang > 0 ? 1 : 0 });
     if (run) {
       const used = G.t - G.bonus, left = LIMIT - used; H.pill('clock', clockStr(used), left < 20);
-      for (const g of gates) { if (!g.passed && D.P.s > g.s) { g.passed = true; if (Math.abs(D.P.x - g.x) < 2.3) { g.hit = true; G.gates++; G.bonus += 3; sfx.good(); const sp = toScreen(g.g.position.clone().setY(3), camera); H.float(sp.x, sp.y, 'SHORTCUT −3s', '#ffe86a'); H.pill('gates', `SHORTCUTS ${G.gates}/9`); if (G.gates === 1) say(['GOAT', 'Good. Again.']); }
+      for (const g of gates) { if (!g.passed && D.P.s > g.s) { g.passed = true; if (Math.abs(D.P.x - g.x) < 2.3) { g.hit = true; G.gates++; G.bonus += 3; sfx.good(); juice.burst(g.g.position.clone().setY(2), '#ff9a3a', 18, { speed: 5, size: 0.45 }); const sp = toScreen(g.g.position.clone().setY(3), camera); H.float(sp.x, sp.y, 'SHORTCUT −3s', '#ffe86a'); H.pill('gates', `SHORTCUTS ${G.gates}/9`); if (G.gates === 1) say(['GOAT', 'Good. Again.']); }
         else { G.bang = 0.8; sfx.bonk(); sfx.bonk(); say(['GOAT', R.pick(['DRIVE.', 'That was a shortcut.', 'Shortcut. Was. There.'])]); } } g.g.visible = Math.abs(g.s - D.P.s) < 200 && !g.hit; }
       for (const e of D.events.splice(0)) { if (e === 'red') say(['GOAT', R.pick(['Red is a suggestion.', 'STOP SIGNS ARE A SUGGESTION.', 'Good.'])]); if (e === 'bump' || e === 'tbone' || e === 'hit') { sfx.crash(); say(['MOTH', R.pick(['That is on the meter.', 'Felt bumpers. Felt feelings.', 'Sorry. Sorry.'])]); } }
       clockF.material.map && 0;

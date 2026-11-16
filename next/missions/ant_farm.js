@@ -12,6 +12,7 @@ registerMission({
   rumour: "Anteater's ant farm has gone very quiet. Tiny signs in the sand. Banana Squid has been asked to come over.",
   todo: "Talk the ants back to work (Anteater's house)", doneMsg: '. The ants signed. In very small writing.',
   suns: [{ id: 'af_done', name: 'ANT FARM STRIKE', how: "Settle the strike in Anteater's ant farm" }, { id: 'af_star', name: 'UNION REP', how: 'Three stars at the ant farm' }, { id: 'af_book', name: 'THE ONE WHO READS', how: 'One ant is not on strike' }],
+  tip: 'WATCH THE ANTS · THEN TAP THE SAME BEATS BACK', hintSide: true,
   create,
 });
 

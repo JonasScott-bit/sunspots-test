@@ -13,6 +13,7 @@ registerMission({
   rumour: 'Somebody leaves Dot blue pool chalk as a tip. Every day. Sal has a theory. Sal always has a theory.',
   todo: "Stake out the Diner and find out who leaves the blue chalk", doneMsg: '. It was Larry. It was always Larry.',
   suns: [{ id: 'bc_done', name: 'BLUE CHALK', how: "Find out who leaves Dot the blue chalk" }, { id: 'bc_star', name: 'PRIVATE EYE', how: 'Three stars on the stakeout' }, { id: 'bc_eggs', name: "SAL'S ALIBI", how: 'Ask Sal where he was' }],
+  tip: 'WATCH THE TIP JAR · SNAP WHEN A PAW REACHES IN',
   create,
 });
 const NIGHT = 40, SUSPECTS = ['larry', 'crow', 'heron', 'reggie', 'moth'], NAMES = { larry: 'LARRY', crow: 'CROW', heron: 'HERON', reggie: 'REGGIE', moth: 'MOTH', goat: 'GOAT', fuzz: 'FUZZ', squid: 'SQUID' };

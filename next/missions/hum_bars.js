@@ -16,6 +16,7 @@ registerMission({
   rumour: 'The league trophy at the Gutter Bowl has a little hummingbird-sized dent in it. Ram says it is not funny.',
   todo: 'Get the league trophy back from the Hummingbird (the Gutter Bowl)', doneMsg: '. The trophy is back on the shelf. Gravy got a carrot.',
   suns: [{ id: 'hb_done', name: 'HUM A FEW BARS', how: 'Get the league trophy back' }, { id: 'hb_star', name: 'TRIPLE CROWN', how: 'Three stars on Gravy' }, { id: 'hb_hum', name: 'HUM ALONG', how: 'Catch all twelve gold notes he drops' }],
+  tip: 'DRAG TO STEER · JUMP THE JUNK · GRAB WHEN HE DIPS',
   create,
 });
 const CAMO = { dist: 7.2, height: 4.8, lookY: 1.6 };

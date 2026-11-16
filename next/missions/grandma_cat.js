@@ -26,6 +26,7 @@ registerMission({
   suns: [{ id: 'gc_done', name: "GRANDMA'S CAT", how: "Get Grandma home before her cat wrecks the house" },
     { id: 'gc_star', name: 'NOT A SCRATCH', how: "Three stars at Grandma's" },
     { id: 'gc_mouse', name: 'THE FELT MOUSE', how: "Duchess keeps something under Grandma's bed" }],
+  tip: 'DRAG TO STEER · FLOOR IT TO BOOST · HONK TO PASS',
   create,
 });
 

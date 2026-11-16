@@ -5,13 +5,14 @@
 // Stars: finished the set · 80% of notes · half of them PERFECT. Secret: hit 95% and they play an encore.
 // QA: ?m=band_night [&mauto]
 import * as THREE from 'three';
-import { registerMission, CAST, animPal, folk, felt, glowMat, glowSprite, sign, Merge, mesh, box, cyl, ball, sfx, clamp, lerp, rng, TAU } from './kit.js';
+import { registerMission, CAST, animPal, folk, felt, glowMat, glowSprite, sign, Merge, mesh, box, cyl, ball, sfx, clamp, lerp, rng, TAU, juice } from './kit.js';
 
 registerMission({
   id: 'band_night', key: 'band', title: 'BAND NIGHT', chip: 'BAND NIGHT', room: 'bowl', night: 5, where: 'Gutter Bowl (the stage)',
   rumour: 'There is one spotlight on an empty stage at the Gutter Bowl. The hydrant from outside has been practising.',
   todo: 'Keep the band in time at the Gutter Bowl', doneMsg: '. Hydrant, Payphone and Couch played their first show. Couch cried.',
   suns: [{ id: 'bn_done', name: 'BAND NIGHT', how: 'Get the band through their first show' }, { id: 'bn_star', name: 'TIGHT', how: 'Three stars at Band Night' }, { id: 'bn_encore', name: 'ENCORE', how: 'Play well enough that they come back out' }],
+  tip: 'TAP EACH LANE AS THE NOTE HITS ITS RING',
   create,
 });
 const BPM = 104, BEAT = 60 / BPM, LANES = [{ label: 'BASS<br><small>COUCH</small>', col: '#7ac2c2' }, { label: 'DRUMS<br><small>HYDRANT</small>', col: '#e0503a' }, { label: 'VOX<br><small>PAYPHONE</small>', col: '#f2c230' }];
@@ -54,7 +55,7 @@ function create({ hud: H }) {
   function layout() { const por = innerHeight > innerWidth, W = por ? 318 : 294, top = por ? 132 : 84, bottom = por ? 124 : 88; cv.width = W * devicePixelRatio; cv.height = (innerHeight - top - bottom) * devicePixelRatio; cv.style.width = W + 'px'; cv.style.height = (innerHeight - top - bottom) + 'px'; cv.style.left = (innerWidth - W) / 2 + 'px'; cv.style.top = top + 'px'; }
   function playLane(l, n) { if (l === 0) sfx.tone(BASSN[Math.floor((n?.b ?? 0) / 8) % 4] * 2, 0.32, 'triangle', 0.42); else if (l === 1) sfx.drum(n && n.b % 2 >= 1 ? 1 : 0); else sfx.tone(VOX[Math.floor(n?.b ?? R() * 8) % 8], 0.2, 'square', 0.08); bump[l] = 1; colL[l].intensity = 18; }
   function hit(l) { if (G.phase !== 'play') return; const st = G.t - LEAD; let best = null, bd = 0.2; for (const n of G.notes) { if (n.hit || n.l !== l) continue; const d = Math.abs(n.t - st); if (d < bd) { bd = d; best = n; } if (n.t > st + 0.3) break; }
-    if (!best) { G.combo = 0; G.crowd = Math.max(0, G.crowd - 0.01); sfx.tone(140, 0.06, 'square', 0.05); return; } best.hit = bd < 0.08 ? 2 : 1; G.hits++; if (best.hit === 2) G.perf++; G.combo++; G.crowd = Math.min(1, G.crowd + 0.012); playLane(l, best); fx.push({ l, t: 0.3, p: best.hit === 2 }); }
+    if (!best) { G.combo = 0; G.crowd = Math.max(0, G.crowd - 0.01); sfx.tone(140, 0.06, 'square', 0.05); return; } best.hit = bd < 0.08 ? 2 : 1; G.hits++; if (best.hit === 2) G.perf++; G.combo++; if (G.combo % 10 === 0) { juice.burst(new THREE.Vector3(0, 2.4, 0), ['#f2c230', '#ff6fae', '#5fe3d2'][G.combo / 10 % 3], 22, { speed: 3, up: 3, size: 0.35 }); H.float(innerWidth / 2, innerHeight * 0.32, `COMBO ${G.combo}!`, '#f2c230'); } G.crowd = Math.min(1, G.crowd + 0.012); playLane(l, best); fx.push({ l, t: 0.3, p: best.hit === 2 }); }
   const fx = [];
   function draw(st) { const w = cv.width, h = cv.height, d = devicePixelRatio, lw = w / 3, hy = h - 34 * d, nr = Math.min(lw * 0.2, 17 * d); g2.clearRect(0, 0, w, h);
     for (let l = 0; l < 3; l++) { const x = (l + 0.5) * lw, gr = g2.createLinearGradient(0, 0, 0, hy); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(1, 'rgba(255,243,220,0.35)'); g2.strokeStyle = gr; g2.lineWidth = 1.5 * d; g2.beginPath(); g2.moveTo(x, 0); g2.lineTo(x, hy - nr); g2.stroke();
@@ -75,7 +76,7 @@ function create({ hud: H }) {
   inst.update = (dt, t) => {
     const st = G.t - LEAD;
     if (G.phase === 'play') { G.t += dt; const b = Math.floor(st / BEAT); if (b > G.lastB && st >= 0) { G.lastB = b; sfx.tone(7000, 0.02, 'square', 0.03); if (b % 4 === 0) [262, 330, 392].forEach((f, i) => sfx.tone(f * (b % 16 < 8 ? 1 : 0.89), BEAT * 3.6, 'sine', 0.035)); }
-      for (const n of G.notes) { if (n.hit) continue; if (n.t > st + 0.25) break; if (G.auto && Math.abs(n.t - st) < 0.03) { H.flash(pads[n.l], 90); hit(n.l); continue; } if (st > n.t + 0.2) { n.hit = -1; G.miss++; G.combo = 0; G.crowd = Math.max(0, G.crowd - 0.04); } }
+      for (const n of G.notes) { if (n.hit) continue; if (n.t > st + 0.25) break; if (G.auto && Math.abs(n.t - st) < 0.03) { H.flash(pads[n.l], 90); hit(n.l); continue; } if (st > n.t + 0.2) { n.hit = -1; G.miss++; if (G.combo >= 8) juice.shake(0.08, 0.15); G.combo = 0; G.crowd = Math.max(0, G.crowd - 0.04); } }
       H.setMeter(G.crowd, G.crowd > 0.75 ? 'CROWD · ON THEIR FEET' : G.crowd > 0.35 ? 'CROWD' : 'CROWD · LEAVING'); H.pill('combo', `COMBO ${G.combo}`);
       if (!G.said.mid && st > G.end * 0.45) { G.said.mid = 1; say(['HUMMINGBIRD (heckling)', G.crowd > 0.6 ? 'Okay. Okay, that is not bad.' : 'Is the couch even plugged in?']); }
       if (G.crowd <= 0) { G.phase = 'done'; H.say([['', 'The crowd drifts back to the lanes. Somebody bowls a strike, loudly.'], ['COUCH', 'We will practise.']], () => ctl.finish({ win: false, stars: 0, title: 'BOOED OFF (GENTLY)', lines: [`${G.hits}/${G.total} notes`, 'HYDRANT: "Watch the line, not the notes."'], suns: [] })); }

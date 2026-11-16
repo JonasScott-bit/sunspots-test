@@ -15,6 +15,7 @@ registerMission({
   rumour: 'Every letter in town ends up at the pink apartment. Nobody there is ever the right name.',
   todo: 'Sort the wrong-name mail and drive the round (the Post Office)', doneMsg: '. Apartment 6 slid one letter back: "Not me."',
   suns: [{ id: 'rs_done', name: 'RETURN TO SENDER', how: 'Sort the wrong-name mail and drive the round' }, { id: 'rs_star', name: 'FIRST CLASS', how: 'Three stars on the mail round' }, { id: 'rs_self', name: 'FROM: MAILBOX', how: 'One letter is for the mailbox' }],
+  tip: 'READ THE ENVELOPE · TAP THE RIGHT CUBBY',
   create,
 });
 

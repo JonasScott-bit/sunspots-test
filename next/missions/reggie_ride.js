@@ -13,6 +13,7 @@ registerMission({
   rumour: "Reggie bet his car on a game of pool. With Larry Byrd. Reggie walks home now.",
   todo: "Win Reggie's car back from Larry (Pool · Billiards)", doneMsg: '. Reggie has his car back. He drives it very slowly now.',
   suns: [{ id: 'rr_done', name: "REGGIE'S RIDE", how: "Win Reggie's car back from Larry Byrd" }, { id: 'rr_star', name: 'NEVER PLAY POOL WITH WOLF', how: "Three stars on Larry's trick shots" }, { id: 'rr_peach', name: 'PEACH ASSIST', how: 'Bounce the cue ball off Fuzzy Peach and still sink a ball' }],
+  tip: 'DRAG BACK FROM THE BALL · LET GO TO SHOOT',
   create,
 });
 const LX = 4, LZ = 2, BR = 0.17, PR = 0.42;   // table half-length/half-width (inside cushions), ball radius, pocket radius

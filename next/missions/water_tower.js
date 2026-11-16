@@ -14,6 +14,7 @@ registerMission({
   rumour: 'Somebody has been tie-dyeing the water tower. Half of it, anyway. The beacon is blinking in a worried way.',
   todo: 'Get Gecko down off the water tower (start at his laundry room)', doneMsg: '. Gecko is down. The tower is still half tie-dye.',
   suns: [{ id: 'wt_done', name: 'THE WATER TOWER', how: 'Bring Gecko down off the water tower' }, { id: 'wt_star', name: 'STICKY FEET', how: 'Three stars on the water tower' }, { id: 'wt_kite', name: 'THE KITE', how: "Something's been stuck on the water tower since spring" }],
+  tip: 'DRAG TO CLIMB · REST ON LEDGES · HOLD STILL IN GUSTS',
   create,
 });
 

@@ -29,7 +29,7 @@ export const NIGHTS = [
   { n: 4, need: 8, name: "NIGHT 4 · GRANDMA'S CAT", opens: "Grandma's side of town" },
   { n: 5, need: 12, name: 'NIGHT 5 · ONE HORSE FAIR', opens: 'the Fair after dark' },
   { n: 6, need: 17, name: 'NIGHT 6 · TWO HORSES', opens: 'the farm road' },
-  { n: 7, need: 23, name: 'NIGHT 7 · SAME OLD ONE HORSE TOWN', opens: 'the Eye-Max premiere' },
+  { n: 7, need: 21, name: 'NIGHT 7 · SAME OLD ONE HORSE TOWN', opens: 'the Eye-Max premiere' },
 ];
 window.__msnNights = NIGHTS;
 
@@ -243,8 +243,8 @@ export const sfx = (() => {
     tone, noise,
     tick: () => tone(880, 0.06, 'square', 0.08), ok: () => { tone(660, 0.12, 'triangle', 0.2); tone(990, 0.18, 'triangle', 0.16, 0, 0.08); },
     good: () => { tone(523, 0.1, 'triangle', 0.18); tone(659, 0.1, 'triangle', 0.18, 0, 0.07); tone(784, 0.2, 'triangle', 0.2, 0, 0.14); },
-    bad: () => { tone(220, 0.3, 'sawtooth', 0.12, 0.6); }, bonk: () => { tone(200, 0.25, 'triangle', 0.3, 0.45); noise(0.08, 0.15, 400); },
-    crash: () => { noise(0.35, 0.35, 900); tone(140, 0.3, 'square', 0.1, 0.5); }, smash: () => { noise(0.25, 0.3, 3200); tone(1800, 0.12, 'triangle', 0.08, 0.4); noise(0.2, 0.2, 5200, 0.05); },
+    bad: () => { tone(220, 0.3, 'sawtooth', 0.12, 0.6); }, bonk: () => { tone(200, 0.25, 'triangle', 0.3, 0.45); noise(0.08, 0.15, 400); juice?.shake(0.15, 0.2); },
+    crash: () => { noise(0.35, 0.35, 900); tone(140, 0.3, 'square', 0.1, 0.5); juice?.shake(0.35, 0.35); }, smash: () => { noise(0.25, 0.3, 3200); tone(1800, 0.12, 'triangle', 0.08, 0.4); noise(0.2, 0.2, 5200, 0.05); },
     horn: () => { tone(392, 0.32, 'square', 0.13); tone(494, 0.32, 'square', 0.1); }, meow: () => { tone(700, 0.35, 'sawtooth', 0.08, 1.6); tone(1050, 0.3, 'sine', 0.06, 0.7, 0.15); },
     whoosh: () => noise(0.3, 0.2, 700), pop: () => tone(900, 0.08, 'sine', 0.25, 0.3), catch: () => { tone(740, 0.08, 'triangle', 0.22); tone(1110, 0.14, 'sine', 0.18, 0, 0.05); },
     star: (i = 0) => tone(660 * Math.pow(1.26, i), 0.35, 'triangle', 0.22), sun: () => { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.5, 'sine', 0.16, 0, i * 0.09)); },
@@ -296,15 +296,35 @@ export function hud() {
   #msn .panel b{display:block;font:800 11px system-ui,sans-serif;letter-spacing:.22em;color:#8a5a12;margin-bottom:4px} #msn .panel.on{display:block} @media (orientation:landscape){#msn .panel{top:calc(env(safe-area-inset-top) + 64px)}}
   #msn .toast.on{opacity:1} #msn .layer{position:absolute;inset:0;pointer-events:auto;touch-action:none}
   #msn .float{position:absolute;transform:translate(-50%,-50%);font:800 18px system-ui,sans-serif;text-shadow:0 2px 6px #000c;pointer-events:none;transition:transform .8s ease-out,opacity .8s ease-out}
-  #msn .tag{position:absolute;transform:translate(-50%,-100%);background:#2b1e3ce6;color:#ffe1a8;border-radius:12px;padding:4px 9px;font:800 12px system-ui,sans-serif;letter-spacing:.08em;pointer-events:none;white-space:nowrap}`;
+  #msn .tag{position:absolute;transform:translate(-50%,-100%);background:#2b1e3ce6;color:#ffe1a8;border-radius:12px;padding:4px 9px;font:800 12px system-ui,sans-serif;letter-spacing:.08em;pointer-events:none;white-space:nowrap}
+  #msn#msn .hint{top:calc(env(safe-area-inset-top) + 126px);transform:translate(-50%,0);font-size:clamp(15px,3.9vw,19px);letter-spacing:.05em;text-shadow:0 2px 8px #000,0 0 3px #000}
+  @media (orientation:portrait){#msn#msn .hint{top:calc(env(safe-area-inset-top) + 170px)}}
+  @media (orientation:landscape){#msn#msn.hintL .hint{left:calc(env(safe-area-inset-left) + 14px);top:162px;transform:none;text-align:left;max-width:min(240px,28vw);font-size:15px;white-space:normal}}
+  #msn .tip{position:absolute;left:calc(env(safe-area-inset-left) + 12px);top:calc(env(safe-area-inset-top) + 100px);max-width:max(150px,calc(50vw - 216px));font:800 14px system-ui,sans-serif;letter-spacing:.06em;line-height:1.35;color:#fff;text-shadow:0 1px 0 #000,0 0 6px #000,0 0 14px #000c;opacity:0;transform:translateY(-6px);transition:opacity .35s,transform .35s;pointer-events:none}
+  #msn .tip b{display:block;font-size:10px;letter-spacing:.24em;color:#ffd86a;margin-bottom:2px}
+  #msn .tip.on{opacity:1;transform:none}
+  @media (orientation:portrait){#msn .tip{left:50%;top:calc(env(safe-area-inset-top) + 128px);transform:translate(-50%,-6px);max-width:88vw;text-align:center;white-space:normal}#msn .tip.on{transform:translate(-50%,0)}}
+  #msn .edge{position:fixed;inset:0;pointer-events:none;z-index:4;animation:edgeF .5s ease-out forwards}@keyframes edgeF{from{opacity:1}to{opacity:0}}
+  #msn .lbl{position:absolute;transform:translate(-50%,-50%);font:800 14px Futura,Avenir,system-ui,sans-serif;letter-spacing:.1em;pointer-events:none;white-space:nowrap;text-shadow:0 1px 0 #000,0 0 6px #000,0 0 12px #000c}
+  #msn .float{animation:fpop .35s ease-out}
+  @keyframes fpop{0%{scale:.4}60%{scale:1.25}100%{scale:1}}
+  #msn .card.on h2{animation:cpop .45s cubic-bezier(.2,1.6,.4,1)}
+  @keyframes cpop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
+  #msn .card .stars i{display:inline-block;font-style:normal;animation:spop .5s cubic-bezier(.2,1.8,.4,1) both}
+  @keyframes spop{0%{transform:scale(0) rotate(-40deg);opacity:0}100%{transform:scale(1) rotate(0);opacity:1}}
+  #msn .card.lose.on{animation:cshake .45s}
+  @keyframes cshake{0%,100%{margin-left:0}20%{margin-left:-10px}40%{margin-left:9px}60%{margin-left:-6px}80%{margin-left:4px}}
+  #msn .confetti{position:absolute;top:-20px;width:9px;height:14px;border-radius:2px;pointer-events:none;animation:cfall linear forwards}
+  @keyframes cfall{to{transform:translate(var(--dx),110vh) rotate(var(--r));opacity:.9}}
+`;
   document.head.appendChild(css);
   const root = document.createElement('div'); root.id = 'msn';
-  root.innerHTML = `<div class="layer"></div><div class="top"></div><div class="ttl"></div><div class="meter"><u></u><b></b></div><div class="hint"></div><div class="sub"><i></i><span></span></div><div class="toast"></div><div class="pads"></div><div class="panel"></div><div class="pad"><i></i></div><div class="btns"></div><button class="big"></button><button class="quit" aria-label="Leave the mission">✕</button><div class="card"></div><div class="fade"></div>`;
+  root.innerHTML = `<div class="layer"></div><div class="top"></div><div class="ttl"></div><div class="meter"><u></u><b></b></div><div class="hint"></div><div class="tip"></div><div class="sub"><i></i><span></span></div><div class="toast"></div><div class="pads"></div><div class="panel"></div><div class="pad"><i></i></div><div class="btns"></div><button class="big"></button><button class="quit" aria-label="Leave the mission">✕</button><div class="card"></div><div class="fade"></div>`;
   document.body.appendChild(root);
   const $ = (s) => root.querySelector(s);
-  H = { root, layer: $('.layer'), top: $('.top'), ttl: $('.ttl'), meter: $('.meter'), hintEl: $('.hint'), subEl: $('.sub'), toastEl: $('.toast'), pad: $('.pad'), btnsEl: $('.btns'), padsEl: $('.pads'), panelEl: $('.panel'), bigEl: $('.big'), quitEl: $('.quit'), card: $('.card'), fadeEl: $('.fade'), pills: {}, btn: {}, tags: [] };
+  H = { root, layer: $('.layer'), top: $('.top'), ttl: $('.ttl'), meter: $('.meter'), hintEl: $('.hint'), tipEl: $('.tip'), subEl: $('.sub'), toastEl: $('.toast'), pad: $('.pad'), btnsEl: $('.btns'), padsEl: $('.pads'), panelEl: $('.panel'), bigEl: $('.big'), quitEl: $('.quit'), card: $('.card'), fadeEl: $('.fade'), pills: {}, btn: {}, tags: [] };
   for (const el of [H.padsEl, H.btnsEl, H.bigEl, H.quitEl, H.card]) el.addEventListener('pointerdown', (e) => e.stopPropagation());
-  H.reset = (title = '') => { H.top.innerHTML = ''; H.padsEl.innerHTML = ''; H.root.classList.remove('padsOn'); H.panelEl.classList.remove('on'); H.pills = {}; H.btnsEl.innerHTML = ''; H.btn = {}; H.root.classList.remove('btnsOn', 'btns1'); H.ttl.textContent = title; H.meter.style.display = 'none'; H.hint(''); H.subEl.classList.remove('on'); H.subQ = []; H.bigEl.style.display = 'none'; H.card.classList.remove('on'); for (const t of H.tags) t.remove(); H.tags = []; H.pad.style.display = 'none'; };
+  H.reset = (title = '') => { H.tipEl.classList.remove('on'); H.top.innerHTML = ''; H.padsEl.innerHTML = ''; H.root.classList.remove('padsOn'); H.panelEl.classList.remove('on'); H.pills = {}; H.btnsEl.innerHTML = ''; H.btn = {}; H.root.classList.remove('btnsOn', 'btns1'); H.ttl.textContent = title; H.meter.style.display = 'none'; H.hint(''); H.subEl.classList.remove('on'); H.subQ = []; H.bigEl.style.display = 'none'; H.card.classList.remove('on'); for (const t of H.tags) t.remove(); H.tags = []; H.pad.style.display = 'none'; };
   H.pill = (k, text, warn = false) => { let p = H.pills[k]; if (!p) { p = H.pills[k] = document.createElement('div'); p.className = 'pill'; H.top.appendChild(p); } if (p._t !== text) { p.textContent = text; p._t = text; } p.classList.toggle('warn', !!warn); return p; };
   H.setMeter = (v, label = '', show = true) => { H.meter.style.display = show ? 'block' : 'none'; H.meter.querySelector('u').style.width = Math.round(clamp(v, 0, 1) * 100) + '%'; H.meter.querySelector('b').textContent = label; };
   let hintT = null; H.hint = (t, sec = 0) => { clearTimeout(hintT); H.hintEl.textContent = t || ''; H.hintEl.classList.toggle('on', !!t); if (t && sec) hintT = setTimeout(() => H.hintEl.classList.remove('on'), sec * 1000); };
@@ -383,6 +403,22 @@ function install(T, def) {
 }
 
 let RUN = null;
+// ------------------------------------------------------------------ juice: screen shake + particle bursts (any mission, via kit)
+const FX = { shake: 0, shakeT: 0, off: new THREE.Vector3(), parts: [], scene: null };
+export const juice = {
+  shake(a = 0.3, d = 0.35) { FX.shake = Math.max(FX.shake, a); FX.shakeT = Math.max(FX.shakeT, d); },
+  burst(pos, col = '#ffe86a', n = 14, { speed = 4, up = 3, size = 0.35, life = 0.8, grav = 9 } = {}) { const sc = FX.scene; if (!sc || !pos) return; for (let i = 0; i < n && FX.parts.length < 160; i++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex(), color: col, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); sp.scale.setScalar(size); sp.position.copy(pos); sc.add(sp);
+      const a = Math.random() * TAU, v = speed * (0.4 + Math.random() * 0.6); FX.parts.push({ sp, vx: Math.cos(a) * v, vy: up * (0.5 + Math.random()), vz: Math.sin(a) * v, t: life * (0.6 + Math.random() * 0.4), life, size, grav }); } },
+  confetti(root, n = 46) { const C = ['#f2c230', '#ff6fae', '#5fe3d2', '#a98cff', '#ff7a3a', '#f6efe0']; for (let i = 0; i < n; i++) { const d = document.createElement('i'); d.className = 'confetti'; d.style.left = Math.random() * 100 + 'vw'; d.style.background = C[i % C.length]; d.style.setProperty('--dx', (Math.random() - 0.5) * 160 + 'px'); d.style.setProperty('--r', (Math.random() * 900 - 450) + 'deg'); d.style.animationDuration = 1.6 + Math.random() * 1.4 + 's'; d.style.animationDelay = Math.random() * 0.5 + 's'; root.appendChild(d); setTimeout(() => d.remove(), 3800); } },
+};
+const _fwd = new THREE.Vector3();
+juice.edge = (col = '#ffd86a') => { const r = H?.root; if (!r) return; const d = document.createElement('div'); d.className = 'edge'; d.style.boxShadow = `inset 0 0 60px 12px ${col}`; r.appendChild(d); setTimeout(() => d.remove(), 520); };
+juice.pop = () => { const c = FX.cam; if (c && FX.scene) { c.getWorldDirection(_fwd); juice.burst(c.position.clone().addScaledVector(_fwd, 4).add(new THREE.Vector3(0, 0.6, 0)), '#ffe86a', 10, { speed: 1.4, up: 1.6, size: 0.18, life: 0.6, grav: 3 }); } juice.edge('#ffd86a88'); };
+{ const g = sfx.good, b = sfx.bad; sfx.good = () => { g(); juice.pop(); }; sfx.bad = () => { b(); juice.edge('#ff4a3aaa'); juice.shake(0.1, 0.18); }; }
+function fxTick(dt, cam) { cam.position.sub(FX.off); FX.off.set(0, 0, 0); }
+function fxPost(dt, cam) { if (FX.shakeT > 0) { FX.shakeT -= dt; const k = FX.shake * Math.max(0, Math.min(1, FX.shakeT / 0.25)); FX.off.set((Math.random() - 0.5) * k, (Math.random() - 0.5) * k, (Math.random() - 0.5) * k * 0.5); cam.position.add(FX.off); if (FX.shakeT <= 0) FX.shake = 0; }
+  for (let i = FX.parts.length - 1; i >= 0; i--) { const p = FX.parts[i]; p.t -= dt; if (p.t <= 0) { p.sp.parent?.remove(p.sp); p.sp.material.dispose(); FX.parts.splice(i, 1); continue; } p.vy -= p.grav * dt; p.sp.position.x += p.vx * dt; p.sp.position.y += p.vy * dt; p.sp.position.z += p.vz * dt; const k = p.t / p.life; p.sp.material.opacity = Math.min(1, k * 1.6); p.sp.scale.setScalar(p.size * (0.5 + k * 0.7)); } }
+function fxClear() { for (const p of FX.parts) p.sp.parent?.remove(p.sp); FX.parts.length = 0; FX.shake = FX.shakeT = 0; FX.off.set(0, 0, 0); }
 export async function run(T, def, opts = {}) {
   if (RUN || T.busy || T.lane || T.active !== def.room) return false;
   const h = hud(), S = T.state, M = T.M, id = def.key || def.id;
@@ -397,9 +433,11 @@ export async function run(T, def, opts = {}) {
   document.body.classList.add('msn'); h.root.style.display = '';
   if ((S[id] || 0) === 0) { S[id] = 1; M.save(); }
   let last = 0;
-  const LANE = { scene: inst.scene, camera: inst.camera, update: (dt, t) => { const a = innerWidth / innerHeight; if (Math.abs(a - last) > 1e-3) { last = a; inst.camera.aspect = a; inst.resize?.(a); inst.camera.updateProjectionMatrix(); } h.tickSub(dt); try { inst.update(Math.min(dt, 0.05), t, I); } catch (e) { console.warn(def.id, e); } }, end: () => detach() };
+  const LANE = { scene: inst.scene, camera: inst.camera, update: (dt, t) => { const a = innerWidth / innerHeight; if (Math.abs(a - last) > 1e-3) { last = a; inst.camera.aspect = a; inst.resize?.(a); inst.camera.updateProjectionMatrix(); } h.tickSub(dt); const dd = Math.min(dt, 0.05); fxTick(dd, inst.camera); try { inst.update(dd, t, I); } catch (e) { console.warn(def.id, e); } fxPost(dd, inst.camera); }, end: () => detach() };
   const ctl = { finish, quit, I, hud: h, auto: Q.has('mauto'), opts };
+  FX.scene = inst.scene; FX.cam = inst.camera; fxClear(); h.root.classList.toggle('hintL', !!def.hintSide);
   try { await inst.start(ctl); } catch (e) { console.warn('mission start failed', def.id, e); }
+  if (def.tip) setTimeout(() => { if (def.state !== 'play') return; h.tipEl.innerHTML = `<b>HOW TO PLAY</b>`; h.tipEl.append(def.tip); h.tipEl.classList.add('on'); clearTimeout(h.tipT); h.tipT = setTimeout(() => h.tipEl.classList.remove('on'), 6000); }, 400);
   T.lane = LANE; T.scene = inst.scene; T.camera = inst.camera; last = 0; def.state = 'play';
   def.test = { get tris() { return countTris(inst.scene); }, get phase() { return inst.phase; }, inst, ctl };
   await h.fade(false, 350); T.busy = false;
@@ -407,6 +445,8 @@ export async function run(T, def, opts = {}) {
     def.state = 'result'; const got = []; let fresh = 0;
     for (const sid of res.suns || []) { const s = (def.suns || []).find((o) => o.id === sid); if (!s) continue; if (!S.msn[sid]) { S.msn[sid] = 1; fresh++; } got.push([s.name, !!fresh && !S.sun?.[sid]]); }
     if (res.win !== false) { S[id] = 2; } S.msnBest[def.id] = Math.max(S.msnBest[def.id] || 0, res.stars || 0); M.save();
+    if (res.win === false) { sfx.tone(392, 0.28, 'triangle', 0.2); sfx.tone(349, 0.28, 'triangle', 0.2, 0, 0.26); sfx.tone(262, 0.6, 'triangle', 0.22, -0.3, 0.52); juice.shake(0.18, 0.3); }
+    else { [523, 659, 784, 1046, 1318].forEach((f, i) => sfx.tone(f, i === 4 ? 0.6 : 0.16, 'triangle', 0.2, 0, i * 0.09)); juice.confetti(h.root, res.stars >= 3 ? 70 : 40); juice.shake(0.12, 0.25); }
     for (let i = 0; i < (res.stars || 0); i++) setTimeout(() => sfx.star(i), 250 + i * 260); if (fresh) setTimeout(() => sfx.sun(), 1100);
     def.result = res;
     showCard(h, { kicker: res.win === false ? 'NOT THIS TIME' : def.title, title: res.title || (res.win === false ? 'SO CLOSE' : 'DONE'), stars: res.stars, lines: res.lines || [],
@@ -421,10 +461,10 @@ export async function run(T, def, opts = {}) {
 }
 function showCard(h, { kicker = '', title = '', stars = null, lines = [], suns = [], buttons = [] }) {
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  h.card.innerHTML = `<b>${esc(kicker)}</b><h2>${esc(title)}</h2>` + (stars != null ? `<div class="stars">${'★'.repeat(stars)}<s>${'★'.repeat(3 - stars)}</s></div>` : '') + lines.map((l) => `<p>${esc(l)}</p>`).join('')
+  h.card.innerHTML = `<b>${esc(kicker)}</b><h2>${esc(title)}</h2>` + (stars != null ? `<div class="stars">${[0, 1, 2].map((i) => i < stars ? `<i style="animation-delay:${0.25 + i * 0.26}s">★</i>` : '<s>★</s>').join('')}</div>` : '') + lines.map((l) => `<p>${esc(l)}</p>`).join('')
     + (suns.length ? '<div>' + suns.map(([n, have, now]) => `<span class="sun${now && have ? ' new' : ''}">${have ? '☀ ' + esc(n) : '☀ ???'}</span>`).join('') + '</div>' : '')
     + `<div class="row">${buttons.map(([l], i) => `<button data-i="${i}"${buttons[i][2] ? '' : ' class="alt"'}>${esc(l)}</button>`).join('')}</div>`;
   h.card.querySelectorAll('button').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); sfx.tick(); buttons[+b.dataset.i][1](); }));
-  h.card.classList.add('on');
+  h.card.classList.toggle('lose', kicker === 'NOT THIS TIME'); h.card.classList.add('on');
 }
 export const missions = () => REG;

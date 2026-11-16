@@ -15,6 +15,7 @@ registerMission({
   rumour: 'Every night at 1:58 somebody pushes a dead car down Main St. He has never made it to the store by 2.',
   todo: "Build Wrench a car from Crow's junk and get him to the store by 2:00", doneMsg: '. Wrench made it. First time ever. He bought one gum.',
   suns: [{ id: 'nm_done', name: 'NEVER MADE IT', how: "Build Wrench a car from Crow's junk and get him there by 2" }, { id: 'nm_star', name: 'JUNK GENIUS', how: 'Three stars on the junk-car run' }, { id: 'nm_radio', name: 'ONE STATION', how: 'Build the car with a radio in it' }],
+  tip: 'PICK A PART FOR EACH SLOT · POWER MUST BEAT WEIGHT',
   create,
 });
 // [label, weight, power, grip, line]

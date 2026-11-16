@@ -14,6 +14,7 @@ registerMission({
   rumour: 'Moth has driven everybody home every night since 1979. Nobody has ever driven Moth home.',
   todo: "Drive Moth home (Moth's cab stand)", doneMsg: '. Moth is home. His mom left the light on.',
   suns: [{ id: 'mp_done', name: "MOTH'S PORCH LIGHT", how: 'Get Moth home' }, { id: 'mp_star', name: 'STEADY HANDS', how: "Three stars on Moth's last fare" }, { id: 'mp_zap', name: 'NOT TONIGHT, ZAPPER', how: 'Never get pulled under a bug zapper' }],
+  tip: 'STEER AGAINST THE PULL OF THE PORCH LIGHTS',
   create,
 });
 const CAMO = { dist: 7.0, height: 3.4, lookY: 1.4 };

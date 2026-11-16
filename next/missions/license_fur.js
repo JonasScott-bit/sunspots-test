@@ -5,7 +5,7 @@
 // Cross traffic, queues and walkers carry on around you. Stars: caught him · 2 bumps or fewer · under a minute. Secret: no reds.
 // QA: ?m=license_fur [&mauto]
 import * as THREE from 'three';
-import { registerMission, CAST, animPal, waddleCar, spinWheels, nightSky, nightLights, sign, mesh, box, cyl, ball, glowSprite, sfx, clamp, lerp, rng, toScreen, blobShadow, M4, Merge } from './kit.js';
+import { registerMission, CAST, animPal, waddleCar, spinWheels, nightSky, nightLights, sign, mesh, box, cyl, ball, glowSprite, sfx, clamp, lerp, rng, toScreen, blobShadow, M4, Merge, juice } from './kit.js';
 import { createDrive } from './drivecore.js';
 
 registerMission({
@@ -13,6 +13,7 @@ registerMission({
   rumour: 'The Lemon Kid blows past the diner every night. Officer Fuzz is running out of hat.',
   todo: 'Help Officer Fuzz catch the Lemon Kid (the Diner)', doneMsg: '. The Lemon Kid got a citation. It says "a lot".',
   suns: [{ id: 'lf_done', name: 'LICENSE AND FUR', how: 'Get deputised at the Diner and catch the Lemon Kid' }, { id: 'lf_star', name: 'DEPUTY OF THE NIGHT', how: 'Three stars chasing the Lemon Kid' }, { id: 'lf_law', name: 'BY THE BOOK', how: 'Catch the Lemon Kid without running one red light' }],
+  tip: 'PULL ALONGSIDE THE LEMON KID · HONK TO TAG HIM',
   create,
 });
 
@@ -45,7 +46,7 @@ function create({ hud: H }) {
     if (G.auto) setTimeout(() => { if (G.phase === 'talk') { H.subQ = []; H.skipSub(); } }, 500);
   };
   inst.stop = () => { G.phase = 'off'; };
-  function honk() { sfx.horn(); if (G.phase !== 'chase') return; if (G.window) { G.tags++; G.window = false; G.cool = 2.2; K.boost = 2.5; K.tx = -K.tx; sfx.good(); const sp = toScreen(kart.position.clone().setY(2.4), camera); H.float(sp.x, sp.y, `TAG ${G.tags}!`, '#ffe86a'); H.pill('tags', `TAGS ${G.tags}/3`);
+  function honk() { sfx.horn(); if (G.phase !== 'chase') return; if (G.window) { G.tags++; G.window = false; G.cool = 2.2; K.boost = 2.5; K.tx = -K.tx; sfx.good(); juice.burst(kart.position.clone().setY(1.6), '#f6d83a', 20, { speed: 5, size: 0.45 }); juice.shake(0.12, 0.2); const sp = toScreen(kart.position.clone().setY(2.4), camera); H.float(sp.x, sp.y, `TAG ${G.tags}!`, '#ffe86a'); H.pill('tags', `TAGS ${G.tags}/3`);
       H.say([[['LEMON KID', 'Not even close!'], ['MOTH', 'It was close.']], [['LEMON KID', 'Okay that was close.'], ['OFFICER FUZZ (radio)', 'Again, deputy.']], [['LEMON KID', 'FINE. Fine.']]][Math.min(2, G.tags - 1)]);
       if (G.tags >= 3) win(); } else if (!G.said.miss) { G.said.miss = 1; say(['MOTH', 'He has to be next to us. Then honk.']); } }
   function win() { G.cT = G.t; G.phase = 'caught'; G.t = 0; D.P.done = true; K.s = Math.max(K.s, D.P.s + 7); K.tx = D.HALF - 2; H.hint('GOT HIM', 2); H.pill('gap', 'CAUGHT'); if (ktag) ktag.textContent = 'CITED'; H.say([['LEMON KID', 'I just wanted to see the store close.'], ['OFFICER FUZZ', 'Everybody does, kid.'], ['OFFICER FUZZ', 'This is a citation. It says "a lot".']]); }
