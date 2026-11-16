@@ -37,7 +37,7 @@ function create({ hud: H }) {
   const inst = { scene, camera, G, D, get phase() { return G.phase; } }; let ctl = null;
   const say = (...L) => { if (!H.talking()) H.say(L); };
   inst.start = async (c) => {
-    ctl = c; G.auto = c.auto; Object.assign(G, { phase: 'talk', t: 0, tags: 0, lost: 0, said: {}, window: false });
+    ctl = c; G.auto = c.auto; Object.assign(G, { phase: 'talk', t: 0, tags: 0, lost: 0, said: {}, window: false, cool: 0, cT: 0 });
     D.reset(14, 3); Object.assign(K, { s: 70, x: -1.5, tx: -1.5, v: 0, weave: 2, drop: 5, boost: 0, stun: 0, panic: 0, cool: 0 }); ktag = H.tag('LEMON KID'); for (const st of stands) { st.s = -999; st.obj.visible = false; }
     H.pill('tags', 'TAGS 0/3'); H.pill('gap', 'LEMON KID —'); H.pill('time', '1:30');
     const hk = H.button('honk', 'HONK'); hk.onDown = honk; H.button('boost', 'PUNCH<br>IT', { alt: true });
@@ -57,12 +57,12 @@ function create({ hud: H }) {
     const chase = G.phase === 'chase';
     if (G.phase === 'count') { const n = 3 - Math.floor(G.t); H.hint(n > 0 ? String(n) : 'GO!', 0); if (G.t > 3) { G.phase = 'chase'; G.t = 0; H.hint('GO!', 0.8); sfx.ok(); } }
     D.P.cruise = chase ? 20 : 0;
-    D.update(dt, t, chase ? ax : { x: 0 }, chase && (H.btn.boost?.down || I.keys[' '] || (G.auto && D.P.boostCharge >= 1 && K.s - D.P.s > 4 && K.s - D.P.s < 30)));
+    D.update(dt, t, chase ? ax : { x: 0 }, chase && (H.btn.boost?.down || I.keys[' '] || (G.auto && D.P.boostCharge >= 1 && K.s - D.P.s > 8 && K.s - D.P.s < 40)));
     D.cam(camera, dt);
     // the kart
     if (chase || G.phase === 'count' || G.phase === 'caught') {
       const gapK = K.s - D.P.s; if (chase && gapK < 9 && gapK > -2 && K.panic <= 0 && K.cool <= 0 && D.P.boost <= 0) { K.panic = 1.4; K.cool = 3.5; } if (K.panic > 0) K.panic -= dt; if (K.cool > 0) K.cool -= dt;
-      const kv = G.phase === 'caught' ? 0 : chase ? (K.stun > 0 ? 9 : K.boost > 0 ? 30 : K.panic > 0 ? 24 : gapK > 60 ? 15 : 18.6) : 0; K.v = lerp(K.v, kv, Math.min(1, dt * 2)); if (K.boost > 0) K.boost -= dt; if (K.stun > 0) K.stun -= dt;
+      const kv = G.phase === 'caught' ? 0 : chase ? (K.stun > 0 ? 9 : K.boost > 0 ? 30 : K.panic > 0 ? 24 : gapK < -3 ? 27 : gapK > 60 ? 15 : gapK < 20 ? 17 : 18.6) : 0; K.v = lerp(K.v, kv, Math.min(1, dt * 2)); if (K.boost > 0) K.boost -= dt; if (K.stun > 0) K.stun -= dt;
       K.weave -= dt; if (chase && K.weave <= 0) { K.weave = 1.6 + R() * 2.4; K.tx = clamp(R() < 0.5 ? -3 : 3 + (R() - 0.5) * 2, -4.5, 4.5); }
       for (const n of D.npcs) { const ds = (n.s - K.s) * 1; if (ds > 0 && ds < 16 && Math.abs(n.x - K.tx) < 2) K.tx = K.tx > 0 ? -3 : 3; if (Math.abs(ds) < 3 && Math.abs(n.x - K.x) < 1.6 && K.stun <= 0) { K.stun = 0.8; sfx.bonk(); } }
       K.x = lerp(K.x, K.tx, Math.min(1, dt * 2.2)); K.s = Math.min(D.LEN - 4, K.s + K.v * dt);
@@ -70,7 +70,7 @@ function create({ hud: H }) {
       if (chase) { K.drop -= dt; if (K.drop <= 0 && K.s - D.P.s > 18) { K.drop = 4 + R() * 3; const st = stands.find((q) => q.s < D.P.s - 20) || stands[0]; st.s = K.s - 3; st.x = K.x; st.alive = true; st.obj.visible = true; D.place(st.obj, st.s, st.x); say(['LEMON KID', R.pick(['Lemonade! Fresh!', 'Free sample!', 'Watch the stand!'])]); } }
     }
     if (chase) {
-      const gap = K.s - D.P.s, dx = K.x - D.P.x; if (G.cool > 0) G.cool -= dt; G.window = G.cool <= 0 && Math.abs(gap) < 4.5 && Math.abs(dx) < 3.6;
+      const gap = K.s - D.P.s, dx = K.x - D.P.x; G.gap = Math.round(gap); G.dx = Math.round(dx * 10) / 10; G.kc = Math.round(K.cool * 10) / 10; G.v = Math.round(D.P.v ?? 0); G.kv = Math.round(K.v); if (G.cool > 0) G.cool -= dt; G.window = !(G.cool > 0) && Math.abs(gap) < 6 && Math.abs(dx) < 4;
       H.pill('gap', G.window ? 'HONK NOW!' : `LEMON KID ${Math.max(0, Math.round(gap))} m`, G.window); if (H.btn.honk) H.btn.honk.style.transform = G.window ? 'scale(1.15)' : '';
       if (G.auto && G.window) honk();
       H.place(ktag, _kv.copy(kart.position).setY(3.2), camera); ktag.textContent = G.window ? 'HONK!' : K.panic > 0 ? 'LEMON KID · ZOOM' : 'LEMON KID';

@@ -50,7 +50,7 @@ function create({ hud: H }) {
   function plan(n) { // each customer: come in, sit at a stool, eat, tip (reach), leave. Larry once a night, always.
     const others = R() < 0.5 ? ['crow', 'heron', 'reggie', 'goat'] : ['heron', 'crow', 'moth', 'fuzz', 'squid']; const list = ['larry', ...others.slice(0, 4)].sort(() => R() - 0.5); const used = [0, 0, 0, 0];
     return list.map((k, i) => { const tin = 2 + i * 6.4 + R() * 2, st = i % 4, eat = 7 + R() * 4; return { k, st, tin, tip: tin + 3 + eat * 0.6, out: tin + 3 + eat, chalk: k === 'larry', done: false, snapped: false }; }); }
-  function startNight() { G.night++; G.t = 0; G.film = 2; G.sched = plan(G.night); for (const c of chalks) c.visible = false; H.pill('night', `NIGHT ${G.night}/3`); H.pill('film', '📷 ●●'); H.pill('clues', `CLUES ${G.clues}/3`); G.phase = 'watch'; H.hint(`NIGHT ${G.night}: 10 PM`, 1.4); }
+  function startNight() { G.night++; G.t = 0; G.film = 2; G.sched = plan(G.night); for (const c of chalks) c.visible = false; H.pill('night', `🌙${G.night}/3 · 10:00PM`); H.pill('film', '📷 ●●'); H.pill('clues', `CLUES ${G.clues}/3`); G.phase = 'watch'; H.hint(`NIGHT ${G.night}: 10 PM`, 1.4); }
   function snap() {
     if (G.phase !== 'watch' || G.film <= 0) return; G.film--; H.pill('film', '📷 ' + '●'.repeat(G.film) + '○'.repeat(2 - G.film)); flash = 1; sfx.tone(2400, 0.04, 'square', 0.1); sfx.noise(0.12, 0.2, 3000);
     const c = G.reach; if (c && c.chalk && !c.snapped) { c.snapped = true; G.clues++; H.pill('clues', `CLUES ${G.clues}/3`); sfx.good(); H.panel(`<b>PHOTO · NIGHT ${G.night}</b>${CLUES[G.clues - 1]}`); setTimeout(() => H.panel(null), 3500); say(['SHAKE', G.clues === 1 ? 'Feathers. That is a bird.' : G.clues === 2 ? 'Pool cues. A bird who plays pool.' : 'Oh. Oh, it is him.']); }
@@ -73,7 +73,7 @@ function create({ hud: H }) {
   const _v = new THREE.Vector3();
   inst.update = (dt, t) => {
     if (G.phase === 'watch') G.t += dt;
-    const hr = 22 + (G.t / NIGHT) * 4, hh = Math.floor(hr) % 12 || 12, mm = Math.floor((hr % 1) * 60), cs = `${hh}:${String(mm).padStart(2, '0')}`; if (G.phase === 'watch') H.pill('clock', `${cs} ${hr >= 24 ? 'AM' : 'PM'}`);
+    const hr = 22 + (G.t / NIGHT) * 4, hh = Math.floor(hr) % 12 || 12, mm = Math.floor((hr % 1) * 60), cs = `${hh}:${String(mm).padStart(2, '0')}`; if (G.phase === 'watch') H.pill('night', `🌙${G.night}/3 · ${cs}${hr >= 24 ? 'AM' : 'PM'}`);
     for (const p of Object.values(pool)) p.visible = false; G.reach = null;
     for (const c of G.sched) { const p = pool[c.k]; const tt = G.t; if (tt < c.tin || tt > c.out + 3) continue; p.visible = true; const sx = STOOL[c.st];
       if (tt < c.tin + 3) { const k = (tt - c.tin) / 3; p.position.set(lerp(-9, sx, k), 0, lerp(1.5, -0.6, k)); p.rotation.y = Math.atan2(sx + 9, -2.1) * 0; p.rotation.y = -Math.PI / 2 + k * Math.PI / 2 * 0 + (k < 1 ? Math.PI / 2 : 0); animPal(p, dt, t, { walk: 1 }); p.rotation.y = Math.PI / 2; }

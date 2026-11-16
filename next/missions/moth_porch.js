@@ -54,7 +54,7 @@ function create({ hud: H }) {
   inst.update = (dt, t, I) => {
     G.t += dt; sky.follow(camera); const run = G.phase === 'run'; let ax = I.axis(); if (G.auto) ax = { x: autoAx() };
     // the pull: strongest light ahead within 22 m
-    let pull = 0, near = null; for (const l of lights) { const ds = l.s - D.P.s; if (ds < -4 || ds > 22) continue; const k = (1 - Math.abs(ds - 6) / 18) * (l.zap ? 1.15 : 0.62); if (k > Math.abs(pull)) { pull = l.side * k; near = l; } }
+    let pull = 0, near = null; for (const l of lights) { const ds = l.s - D.P.s; if (ds < -4 || ds > 22) continue; const k = (1 - Math.abs(ds - 6) / 18) * (l.zap ? 1.0 : 0.54); if (k > Math.abs(pull)) { pull = l.side * k; near = l; } }
     G.pull = lerp(G.pull, run ? pull : 0, Math.min(1, dt * 3)); l_flick(t);
     G.dazeT -= dt; const dazed = G.dazeT > 0; const steer = dazed ? { x: G.pull * 0.6 } : { x: clamp(ax.x + G.pull, -1.6, 1.6) };
     D.P.cruise = run ? (dazed ? 5 : 18) : 0; D.update(dt, t, run ? steer : { x: 0 }, run && !dazed && (H.btn.boost?.down || I.keys[' '] || (G.auto && D.P.boostCharge >= 1))); D.cam(camera, dt, CAMO);

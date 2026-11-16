@@ -13,7 +13,7 @@ registerMission({
   rumour: "Reggie bet his car on a game of pool. With Larry Byrd. Reggie walks home now.",
   todo: "Win Reggie's car back from Larry (Pool · Billiards)", doneMsg: '. Reggie has his car back. He drives it very slowly now.',
   suns: [{ id: 'rr_done', name: "REGGIE'S RIDE", how: "Win Reggie's car back from Larry Byrd" }, { id: 'rr_star', name: 'NEVER PLAY POOL WITH WOLF', how: "Three stars on Larry's trick shots" }, { id: 'rr_peach', name: 'PEACH ASSIST', how: 'Bounce the cue ball off Fuzzy Peach and still sink a ball' }],
-  tip: 'DRAG BACK FROM THE BALL · LET GO TO SHOOT',
+  tip: 'DRAG BACK FROM THE BALL · LET GO TO SHOOT', hintSide: 'right', tipMid: true,
   create,
 });
 const LX = 4, LZ = 2, BR = 0.17, PR = 0.42;   // table half-length/half-width (inside cushions), ball radius, pocket radius
@@ -75,7 +75,7 @@ function create({ hud: H }) {
     if (G.sunk >= G.need && !G.scratch) { G.made++; if (G.i === 4) G.firstTry = G.tries === 1; sfx.good(); G.phase = 'wait'; H.say([['LARRY BYRD', R.pick(['Hm.', 'Lucky.', 'Hm. Hm.', 'I have never seen that before. I have done that before.'])]], next); return; }
     if (G.scratch) { say(['LARRY BYRD', 'Scratch. The cue ball went home.']); }
     if (!G.scratch && S.perTry && G.tryStrokes < S.perTry && G.sunk > G.sunkBefore) { G.phase = 'aim'; H.hint('ONE MORE', 1); return; }
-    if (G.tries >= G.max) { G.fails++; sfx.bad(); G.phase = 'wait'; H.say([['LARRY BYRD', 'My turn.'], ['', 'Larry makes it. First try. Without looking.']], () => { if (G.fails >= 2) lose(); else next(); }); return; }
+    if (G.tries >= G.max) { G.fails++; sfx.bad(); G.phase = 'wait'; H.say([['LARRY BYRD', 'My turn.'], ['', 'Larry makes it. First try. Without looking.']], () => { if (G.fails >= 3) lose(); else next(); }); return; }
     setupKeep(); }
   function setupKeep() { const S = SHOTS[G.i]; // reset the shot (balls back) for another try
     B[0].x = S.cue[0]; B[0].z = S.cue[1]; B[0].vx = B[0].vz = 0; B[0].alive = true; S.balls.forEach((b, k) => { const o = B[k + 1]; o.x = b[0]; o.z = b[1]; o.vx = o.vz = 0; o.alive = true; }); G.sunk = 0; G.tryStrokes = 0; G.phase = 'aim'; sync(); }
@@ -83,7 +83,7 @@ function create({ hud: H }) {
   function win() { G.phase = 'done'; const stars = 1 + (G.strokes <= 8 ? 1 : 0) + (G.firstTry ? 1 : 0); const suns = ['rr_done']; if (stars === 3) suns.push('rr_star'); if (G.peachSun) suns.push('rr_peach');
     H.say([['LARRY BYRD', 'I have never lost a bet.'], ['LARRY BYRD', 'I have now lost a bet.'], ['', 'Larry slides the pink slip back across the felt.'], ['REGGIE', 'My car. My little car.'], ['FUZZY PEACH', 'Never play pool with the Wolf.']], () =>
       ctl.finish({ win: true, stars, title: "REGGIE'S RIDE", lines: [`${G.made}/5 trick shots · ${G.strokes} strokes`, 'REGGIE: "I am selling it. No. I am keeping it. I am driving it slowly."'], suns })); }
-  function lose() { G.phase = 'done'; H.say([['LARRY BYRD', 'Two misses. The car stays with me.'], ['REGGIE', 'It was a good car.']], () => ctl.finish({ win: false, stars: 0, title: 'LARRY KEEPS THE CAR', lines: [`${G.made}/5 trick shots`, 'FUZZY PEACH: "Pull back further. Let go softer."'], suns: [] })); }
+  function lose() { G.phase = 'done'; H.say([['LARRY BYRD', 'Three misses. The car stays with me.'], ['REGGIE', 'It was a good car.']], () => ctl.finish({ win: false, stars: 0, title: 'LARRY KEEPS THE CAR', lines: [`${G.made}/5 trick shots`, 'FUZZY PEACH: "Pull back further. Let go softer."'], suns: [] })); }
   inst.start = async (c) => {
     ctl = c; G.auto = c.auto; Object.assign(G, { phase: 'talk', i: 0, strokes: 0, made: 0, fails: 0, firstTry: false, peachSun: false, said: {} });
     H.root.appendChild(powEl); c.I.padOn = false; c.I.onRelease = (dx, dy) => shoot(dx, dy);

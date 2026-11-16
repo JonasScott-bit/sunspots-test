@@ -4,7 +4,7 @@
 // Climbing: drag anywhere to climb (up, down, around the tower). Grip drains while you hang on and refills on ledges
 // (the cross-brace, the catwalk, the rim). GUST warnings: hold still. Pigeons peck: tap them to shoo. Wet tie-dye is
 // slippery. Run out of grip and you slide to the last ledge. At the top Gecko climbs on your back: now climb DOWN.
-// Stars: home · 1 slide or fewer · under 2:30. Secret: a felt kite has been stuck round the back of the tank since spring.
+// Stars: home · 1 slide or fewer · under 1:30. Secret: a felt kite has been stuck round the back of the tank since spring.
 // QA: ?m=water_tower [&mauto] [&phase=down]
 import * as THREE from 'three';
 import { registerMission, CAST, animPal, felt, glowMat, glowSprite, sign, canvasTex, Merge, mesh, box, cyl, ball, nightSky, nightLights, sfx, clamp, lerp, rng, pickNear, toScreen, blobShadow, TAU, M4, angLerp } from './kit.js';
@@ -14,7 +14,7 @@ registerMission({
   rumour: 'Somebody has been tie-dyeing the water tower. Half of it, anyway. The beacon is blinking in a worried way.',
   todo: 'Get Gecko down off the water tower (start at his laundry room)', doneMsg: '. Gecko is down. The tower is still half tie-dye.',
   suns: [{ id: 'wt_done', name: 'THE WATER TOWER', how: 'Bring Gecko down off the water tower' }, { id: 'wt_star', name: 'STICKY FEET', how: 'Three stars on the water tower' }, { id: 'wt_kite', name: 'THE KITE', how: "Something's been stuck on the water tower since spring" }],
-  tip: 'DRAG TO CLIMB · REST ON LEDGES · HOLD STILL IN GUSTS',
+  tip: 'DRAG TO CLIMB · REST ON LEDGES · HOLD STILL IN GUSTS', hintSide: true,
   create,
 });
 
@@ -115,7 +115,7 @@ function create({ hud: H }) {
     const por = camera.aspect < 1; camS.th = angLerp(camS.th, P.th, Math.min(1, dt * 3)); camS.y = lerp(camS.y, P.y, Math.min(1, dt * 4));
     const cd = P.r + (por ? 15 : 9), ch = camS.y + (por ? 1.5 : 2.0); camera.position.set(Math.sin(camS.th) * cd, Math.max(1.2, ch), Math.cos(camS.th) * cd); camera.lookAt(Math.sin(camS.th) * P.r * 0.6, camS.y + (por ? 3.0 : 1.6), Math.cos(camS.th) * P.r * 0.6);
   };
-  function finish() { G.phase = 'done'; sfx.good(); const time = G.t, stars = 1 + (P.falls <= 1 ? 1 : 0) + (time < 150 ? 1 : 0); const suns = ['wt_done']; if (stars === 3) suns.push('wt_star'); if (G.kite) suns.push('wt_kite');
+  function finish() { G.phase = 'done'; sfx.good(); const time = G.t, stars = 1 + (P.falls <= 1 ? 1 : 0) + (time < 90 ? 1 : 0); const suns = ['wt_done']; if (stars === 3) suns.push('wt_star'); if (G.kite) suns.push('wt_kite');
     H.say([['GECKO', 'Solid ground. It is so boring. I love it.'], ['LYNX', 'You were great, Wolf. I mean it. Mostly the second half.']], () => ctl.finish({ win: true, stars, title: 'GECKO IS DOWN', lines: [`${Math.floor(time / 60)}:${String(Math.floor(time % 60)).padStart(2, '0')} · ${P.falls} slide${P.falls === 1 ? '' : 's'}`, 'GECKO: "Next week: the other half."'], suns })); }
   function autoAx() { // QA autopilot: rest on ledges, hold still in gusts, shoo pigeons, steer round wet paint
     if (G.gust) return { x: 0, y: 0 }; const goingUp = G.phase === 'up'; if (onLedge() && P.grip < 95 && P.y > 0.1 && P.y < TOP - 0.1) return { x: 0, y: 0 };

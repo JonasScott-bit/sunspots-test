@@ -86,6 +86,7 @@ export function pal(o = {}) {   // merged per moving part: torso, head, 4 limbs 
   const s = o.h || 1, g = new THREE.Group(), head = o.head || o.body || '#c9a37a', body = o.body || '#c9a37a', fat = o.fat || 1;
   const tm = new Merge(), hm = new Merge();
   tm.add(new THREE.CapsuleGeometry(0.3 * s * fat, 0.36 * s, 3, 10), o.shirt || body);
+  if (o.vest) { tm.add(new THREE.CylinderGeometry(0.325 * s * fat, 0.325 * s * fat, 0.46 * s, 14), o.vest, M4(0, 0.02 * s, 0)); if (o.pants) tm.add(new THREE.SphereGeometry(0.315 * s * fat, 14, 6, 0, TAU, Math.PI / 2, Math.PI / 2), o.pants, M4(0, -0.2 * s, 0)); }
   if (o.skirt) tm.add(new THREE.ConeGeometry(0.42 * s, 0.6 * s, 12, 1, true), o.skirt, M4(0, -0.25 * s, 0));
   if (o.tail) tm.add(new THREE.CapsuleGeometry(0.07 * s, 0.5 * s, 2, 6), o.tail, M4(0, -0.38 * s, -0.38 * s, -1.1));
   if (o.cape) tm.add(new THREE.BoxGeometry(0.62 * s, 0.8 * s, 0.04 * s), o.cape, M4(0, -0.05 * s, -0.3 * s, 0.12));
@@ -98,7 +99,8 @@ export function pal(o = {}) {   // merged per moving part: torso, head, 4 limbs 
     if (o.ears === 'long') hm.add(new THREE.CapsuleGeometry(0.06 * s, 0.42 * s, 2, 8), o.ear || head, M4(sx * 0.11 * s, 0.5 * s, -0.02, 0, 0, -sx * 0.18));
     if (o.ears === 'tall') hm.add(new THREE.ConeGeometry(0.07 * s, 0.3 * s, 6), o.ear || head, M4(sx * 0.15 * s, 0.32 * s, -0.02, 0, 0, -sx * 0.5));
     if (o.ears === 'antenna') { hm.add(new THREE.CylinderGeometry(0.012 * s, 0.012 * s, 0.42 * s, 4), '#3a2a2a', M4(sx * 0.1 * s, 0.4 * s, 0, 0, 0, -sx * 0.4)); hm.add(new THREE.SphereGeometry(0.06 * s, 6, 4), o.ear || '#3a2a2a', M4(sx * 0.19 * s, 0.6 * s, 0)); }
-    hm.add(new THREE.SphereGeometry(0.078 * s, 10, 8), '#f6f2e8', M4(sx * 0.11 * s, 0.07 * s, 0.22 * s));
+    hm.add(new THREE.SphereGeometry(0.078 * s, 10, 8), o.eyes || '#f6f2e8', M4(sx * 0.11 * s, 0.07 * s, 0.22 * s));
+    if (o.earIn && o.ears === 'long') hm.add(new THREE.CapsuleGeometry(0.035 * s, 0.34 * s, 2, 6), o.earIn, M4(sx * 0.11 * s, 0.5 * s, 0.035 * s, 0, 0, -sx * 0.18));
     hm.add(new THREE.SphereGeometry(0.036 * s, 6, 5), '#1d1416', M4(sx * 0.11 * s, 0.07 * s, 0.295 * s));
     if (o.horns) hm.add(new THREE.TorusGeometry(0.13 * s, 0.05 * s, 5, 10, Math.PI * 1.4), o.horns, M4(sx * 0.24 * s, 0.1 * s, -0.02, 0, sx * Math.PI / 2, 0.6));
     if (o.glasses) hm.add(new THREE.TorusGeometry(0.075 * s, 0.012 * s, 4, 12), o.glasses, M4(sx * 0.11 * s, 0.07 * s, 0.28 * s));
@@ -114,9 +116,9 @@ export function pal(o = {}) {   // merged per moving part: torso, head, 4 limbs 
   const hd = new THREE.Group(); hd.position.set(0, 1.4 * s, 0); hd.add(hm.mesh()); g.add(hd);
   const legs = [], arms = [];
   for (const sx of [-1, 1]) {
-    const lm = new Merge(); lm.add(new THREE.CylinderGeometry(0.075 * s, 0.085 * s, 0.44 * s, 7), o.tent || o.pants || body, M4(0, -0.22 * s, 0)); if (o.shoes) lm.add(new THREE.SphereGeometry(0.1 * s, 7, 5), o.shoes, M4(0, -0.42 * s, 0.05 * s, 0, 0, 0, 1, 0.6, 1.4));
+    const lm = new Merge(); lm.add(new THREE.CylinderGeometry(0.075 * s, 0.085 * s, 0.44 * s, 7), o.tent || o.pants || body, M4(0, -0.22 * s, 0)); if (o.shoes) lm.add(new THREE.SphereGeometry(0.1 * s, 7, 5), o.shoes, M4(0, -0.42 * s, 0.05 * s, 0, 0, 0, 1, 0.6, o.bigFeet ? 2.0 : 1.4));
     const lp = new THREE.Group(); lp.position.set(sx * 0.13 * s, 0.44 * s, 0); lp.add(lm.mesh()); g.add(lp); legs.push(lp);
-    const am = new Merge(); am.add(new THREE.CapsuleGeometry(0.065 * s, 0.32 * s, 2, 7), o.tent || o.sleeve || o.shirt || body, M4(0, -0.2 * s, 0));
+    const am = new Merge(); am.add(new THREE.CapsuleGeometry(0.065 * s, 0.32 * s, 2, 7), o.tent || o.sleeve || o.shirt || body, M4(0, -0.2 * s, 0)); if (o.hands) am.add(new THREE.SphereGeometry(0.075 * s, 7, 5), o.hands, M4(0, -0.42 * s, 0));
     const ap = new THREE.Group(); ap.position.set(sx * 0.34 * s, 1.02 * s, 0); ap.add(am.mesh()); ap.rotation.z = sx * 0.15; g.add(ap); arms.push(ap);
   }
   const sh = blobShadow(0.42 * s, 0.4); g.add(sh);
@@ -152,7 +154,7 @@ export const CAST = {
   fuzz: () => pal({ body: '#6a4a3a', ears: 'round', snout: '#b08a6a', nose: '#1a1214', shirt: '#2a3a6a', pants: '#2a3a6a', hat: '#1a2448', h: 1.05, fat: 1.1 }),
   lemon: () => pal({ body: '#f6e04a', head: '#f8e868', ears: null, shirt: '#3aa86a', pants: '#2a2a40', cap: '#3aa86a', h: 0.85 }),
   goat: () => pal({ body: '#e8e0cc', ears: 'pointy', snout: '#d8ccb4', horns: '#8a7a5a', shirt: '#4a5aa8', pants: '#3a3a40' }),
-  rabbit: () => pal({ body: '#e8dcd0', ears: 'long', ear: '#f0c8c8', snout: '#f6eee8', nose: '#e88a9a', shirt: '#a84a6a', pants: '#3a3a4a', h: 0.95 }),
+  rabbit: () => pal({ body: '#8c86a6', ears: 'long', ear: '#8c86a6', earIn: '#e0a090', snout: '#c9c2d4', nose: '#e0806e', eyes: '#f2c83a', shirt: '#f0dcb0', vest: '#3f8a3e', pants: '#d89a2a', shoes: '#8c86a6', bigFeet: true, hands: '#8c86a6', tail: null, h: 0.95 }),   // bible ref: lavender-grey fur, green vest over a cream shirt, mustard trousers
   reggie: () => pal({ body: '#7a7a82', ears: 'round', snout: '#e8e2d6', nose: '#1a1214', shirt: '#c98a3a', pants: '#3a3a4a', tail: '#5a5a62', glasses: '#1a1214' }),
   peach: () => pal({ body: '#f6a88a', head: '#f8b496', ears: null, shirt: '#f6a88a', pants: '#8a5a3a', h: 0.85 }),
   sal: () => pal({ body: '#c9c0c8', head: '#e8e2e6', ears: 'round', ear: '#2a2226', snout: '#f2e6ea', nose: '#e88a9a', tail: '#e8c8c8', shirt: '#f6f2e8', pants: '#3a3a4a', cap: '#f6f2e8', fat: 1.2 }),
@@ -284,7 +286,7 @@ export function hud() {
   #msn .card .sun.new{background:#e0a224;color:#2b1e3c} #msn .card .row{display:flex;gap:10px;margin-top:12px} #msn .card button{flex:1;min-height:54px;border-radius:16px} #msn .card button.alt{background:#2b1e3c;color:#ffe1a8;box-shadow:0 5px 0 #120a1c}
   #msn .fade{position:fixed;inset:0;background:#0d0a18;opacity:0;transition:opacity .35s;pointer-events:none;z-index:31}
   @media (orientation:portrait){#msn .ttl{display:none} #msn .top{top:calc(env(safe-area-inset-top) + 60px);padding:0 8px} #msn .meter{top:calc(env(safe-area-inset-top) + 104px)} #msn#msn .toast{top:calc(env(safe-area-inset-top) + 132px)}}
-  @media (orientation:portrait){#msn.btnsOn .sub{bottom:calc(env(safe-area-inset-bottom) + 18px);left:12px;transform:none;width:calc(100vw - 134px)} #msn.btnsOn.btns1 .sub{bottom:calc(env(safe-area-inset-bottom) + 118px);left:50%;transform:translateX(-50%);width:min(90vw,560px)}}
+  @media (orientation:portrait){#msn.btnsOn .sub{bottom:calc(env(safe-area-inset-bottom) + 18px);left:12px;transform:none;width:calc(100vw - 166px)} #msn.btnsOn.btns1 .sub{bottom:calc(env(safe-area-inset-bottom) + 118px);left:50%;transform:translateX(-50%);width:min(90vw,560px)}}
   @media (orientation:landscape){#msn .top{padding:0 calc(env(safe-area-inset-right) + 112px) 0 calc(env(safe-area-inset-left) + 112px)}}
   #msn .toast{position:absolute;left:50%;top:calc(env(safe-area-inset-top) + 92px);transform:translateX(-50%);background:#e0a224;color:#2b1e3c;border-radius:16px;padding:8px 14px;font:800 14px system-ui,sans-serif;letter-spacing:.06em;opacity:0;transition:opacity .3s;white-space:nowrap}
   #msn .pads{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 14px);display:none;justify-content:center;gap:10px;pointer-events:auto;padding:0 10px}
@@ -304,6 +306,11 @@ export function hud() {
   #msn .tip b{display:block;font-size:10px;letter-spacing:.24em;color:#ffd86a;margin-bottom:2px}
   #msn .tip.on{opacity:1;transform:none}
   @media (orientation:portrait){#msn .tip{left:50%;top:calc(env(safe-area-inset-top) + 128px);transform:translate(-50%,-6px);max-width:88vw;text-align:center;white-space:normal}#msn .tip.on{transform:translate(-50%,0)}}
+  @media (orientation:portrait){#msn#msn.tipOn .hint,#msn#msn.tipOn .toast{top:calc(env(safe-area-inset-top) + 214px)}}
+  @media (orientation:landscape){#msn#msn.hintL.tipOn .hint{top:212px} #msn#msn.tipOn:not(.hintL):not(.hintR) .hint{top:calc(env(safe-area-inset-top) + 168px)}}
+  @media (orientation:landscape){#msn#msn.hintR .hint{left:auto;right:calc(env(safe-area-inset-right) + 14px);top:46%;transform:none;text-align:right;max-width:150px;font-size:15px;white-space:normal}}
+  @media (orientation:portrait){#msn#msn.panelOn .tip{top:calc(env(safe-area-inset-top) + 236px)}}
+  #msn#msn.tipMid .tip{left:50%;top:38%;transform:translate(-50%,-6px);text-align:center;max-width:min(80vw,420px)} #msn#msn.tipMid .tip.on{transform:translate(-50%,0)}
   #msn .edge{position:fixed;inset:0;pointer-events:none;z-index:4;animation:edgeF .5s ease-out forwards}@keyframes edgeF{from{opacity:1}to{opacity:0}}
   #msn .lbl{position:absolute;transform:translate(-50%,-50%);font:800 14px Futura,Avenir,system-ui,sans-serif;letter-spacing:.1em;pointer-events:none;white-space:nowrap;text-shadow:0 1px 0 #000,0 0 6px #000,0 0 12px #000c}
   #msn .float{animation:fpop .35s ease-out}
@@ -324,7 +331,7 @@ export function hud() {
   const $ = (s) => root.querySelector(s);
   H = { root, layer: $('.layer'), top: $('.top'), ttl: $('.ttl'), meter: $('.meter'), hintEl: $('.hint'), tipEl: $('.tip'), subEl: $('.sub'), toastEl: $('.toast'), pad: $('.pad'), btnsEl: $('.btns'), padsEl: $('.pads'), panelEl: $('.panel'), bigEl: $('.big'), quitEl: $('.quit'), card: $('.card'), fadeEl: $('.fade'), pills: {}, btn: {}, tags: [] };
   for (const el of [H.padsEl, H.btnsEl, H.bigEl, H.quitEl, H.card]) el.addEventListener('pointerdown', (e) => e.stopPropagation());
-  H.reset = (title = '') => { H.tipEl.classList.remove('on'); H.top.innerHTML = ''; H.padsEl.innerHTML = ''; H.root.classList.remove('padsOn'); H.panelEl.classList.remove('on'); H.pills = {}; H.btnsEl.innerHTML = ''; H.btn = {}; H.root.classList.remove('btnsOn', 'btns1'); H.ttl.textContent = title; H.meter.style.display = 'none'; H.hint(''); H.subEl.classList.remove('on'); H.subQ = []; H.bigEl.style.display = 'none'; H.card.classList.remove('on'); for (const t of H.tags) t.remove(); H.tags = []; H.pad.style.display = 'none'; };
+  H.reset = (title = '') => { H.tipEl.classList.remove('on'); H.root.classList.remove('tipOn'); H.top.innerHTML = ''; H.padsEl.innerHTML = ''; H.root.classList.remove('padsOn'); H.panelEl.classList.remove('on'); H.pills = {}; H.btnsEl.innerHTML = ''; H.btn = {}; H.root.classList.remove('btnsOn', 'btns1'); H.ttl.textContent = title; H.meter.style.display = 'none'; H.hint(''); H.subEl.classList.remove('on'); H.subQ = []; H.bigEl.style.display = 'none'; H.card.classList.remove('on'); for (const t of H.tags) t.remove(); H.tags = []; H.pad.style.display = 'none'; };
   H.pill = (k, text, warn = false) => { let p = H.pills[k]; if (!p) { p = H.pills[k] = document.createElement('div'); p.className = 'pill'; H.top.appendChild(p); } if (p._t !== text) { p.textContent = text; p._t = text; } p.classList.toggle('warn', !!warn); return p; };
   H.setMeter = (v, label = '', show = true) => { H.meter.style.display = show ? 'block' : 'none'; H.meter.querySelector('u').style.width = Math.round(clamp(v, 0, 1) * 100) + '%'; H.meter.querySelector('b').textContent = label; };
   let hintT = null; H.hint = (t, sec = 0) => { clearTimeout(hintT); H.hintEl.textContent = t || ''; H.hintEl.classList.toggle('on', !!t); if (t && sec) hintT = setTimeout(() => H.hintEl.classList.remove('on'), sec * 1000); };
@@ -341,7 +348,7 @@ export function hud() {
     b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up); return b; };
   H.pads = (defs, onHit) => { H.padsEl.innerHTML = ''; H.root.classList.add('padsOn'); return defs.map((d, i) => { const b = document.createElement('button'); b.innerHTML = d.label; b.style.background = d.col; H.padsEl.appendChild(b);
     b.addEventListener('pointerdown', (e) => { e.preventDefault(); if (b.disabled) return; b.classList.add('on'); onHit(i, b); }); const up = () => b.classList.remove('on'); b.addEventListener('pointerup', up); b.addEventListener('pointerleave', up); b.addEventListener('pointercancel', up); return b; }); };
-  H.panel = (html) => { if (html == null) { H.panelEl.classList.remove('on'); return; } if (H.panelEl._h !== html) { H.panelEl.innerHTML = html; H.panelEl._h = html; } H.panelEl.classList.add('on'); };
+  H.panel = (html) => { H.root.classList.toggle('panelOn', html != null); if (html == null) { H.panelEl.classList.remove('on'); return; } if (H.panelEl._h !== html) { H.panelEl.innerHTML = html; H.panelEl._h = html; } H.panelEl.classList.add('on'); };
   H.flash = (b, ms = 160) => { b.classList.add('lit'); setTimeout(() => b.classList.remove('lit'), ms); };
   H.big = (label, fn) => new Promise((res) => { H.bigEl.textContent = label; H.bigEl.style.display = 'block'; H.bigEl.onclick = (e) => { e.stopPropagation(); H.bigEl.style.display = 'none'; sfx.ok(); fn?.(); res(); }; });
   H.fade = (on, ms = 350) => new Promise((r) => { H.fadeEl.style.transition = `opacity ${ms}ms`; H.fadeEl.style.opacity = on ? 1 : 0; setTimeout(r, ms + 20); });
@@ -435,9 +442,9 @@ export async function run(T, def, opts = {}) {
   let last = 0;
   const LANE = { scene: inst.scene, camera: inst.camera, update: (dt, t) => { const a = innerWidth / innerHeight; if (Math.abs(a - last) > 1e-3) { last = a; inst.camera.aspect = a; inst.resize?.(a); inst.camera.updateProjectionMatrix(); } h.tickSub(dt); const dd = Math.min(dt, 0.05); fxTick(dd, inst.camera); try { inst.update(dd, t, I); } catch (e) { console.warn(def.id, e); } fxPost(dd, inst.camera); }, end: () => detach() };
   const ctl = { finish, quit, I, hud: h, auto: Q.has('mauto'), opts };
-  FX.scene = inst.scene; FX.cam = inst.camera; fxClear(); h.root.classList.toggle('hintL', !!def.hintSide);
+  FX.scene = inst.scene; FX.cam = inst.camera; fxClear(); h.root.classList.toggle('hintL', def.hintSide === true); h.root.classList.toggle('hintR', def.hintSide === 'right'); h.root.classList.toggle('tipMid', !!def.tipMid); h.root.classList.remove('panelOn');
   try { await inst.start(ctl); } catch (e) { console.warn('mission start failed', def.id, e); }
-  if (def.tip) setTimeout(() => { if (def.state !== 'play') return; h.tipEl.innerHTML = `<b>HOW TO PLAY</b>`; h.tipEl.append(def.tip); h.tipEl.classList.add('on'); clearTimeout(h.tipT); h.tipT = setTimeout(() => h.tipEl.classList.remove('on'), 6000); }, 400);
+  if (def.tip) setTimeout(() => { if (def.state !== 'play') return; h.tipEl.innerHTML = `<b>HOW TO PLAY</b>`; h.tipEl.append(def.tip); h.tipEl.classList.add('on'); h.root.classList.add('tipOn'); clearTimeout(h.tipT); h.tipT = setTimeout(() => { h.tipEl.classList.remove('on'); h.root.classList.remove('tipOn'); }, 6000); }, 400);
   T.lane = LANE; T.scene = inst.scene; T.camera = inst.camera; last = 0; def.state = 'play';
   def.test = { get tris() { return countTris(inst.scene); }, get phase() { return inst.phase; }, inst, ctl };
   await h.fade(false, 350); T.busy = false;

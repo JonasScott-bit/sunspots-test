@@ -14,7 +14,7 @@ registerMission({
   rumour: 'LOST: NOTHING. A black cat. The flyer on the laundromat pole has been there for years. The tail was seen Tuesday.',
   todo: 'Find Nothing the cat (the laundromat, after hours)', doneMsg: '. You found Nothing. He was there the whole time.',
   suns: [{ id: 'nc_done', name: 'NOTHING THE CAT', how: 'Find Nothing the cat in the laundromat' }, { id: 'nc_star', name: 'QUIET AS NOTHING', how: 'Three stars finding Nothing' }, { id: 'nc_flyer', name: 'REWARD: NOTHING', how: 'Read the flyer' }],
-  tip: 'FOLLOW THE BELL ♪ · FREEZE WHEN HIS TAIL FLICKS',
+  tip: 'FOLLOW THE BELL ♪ · FREEZE WHEN HIS TAIL FLICKS', hintSide: true,
   create,
 });
 const SPOTS = [[-5, -3.2, 'IN DRYER 3'], [-1.6, -3.2, 'ON THE FOLDING TABLE'], [3.2, -3.2, 'IN DRYER 7'], [5.6, 0.4, 'IN THE LOST SOCKS BIN'], [1.0, 2.2, 'UNDER THE BENCH'], [-4.6, 2.6, 'IN A LAUNDRY BASKET'], [-0.8, -0.4, 'ON TOP OF WASHER 4']];
@@ -51,7 +51,7 @@ function create({ hud: H }) {
       const stars = 1 + (G.bolts <= 1 ? 1 : 0) + (G.sniffs <= 1 ? 1 : 0); const suns = ['nc_done']; if (stars === 3) suns.push('nc_star'); if (G.flyer) suns.push('nc_flyer');
       ctl.finish({ win: true, stars, title: 'YOU FOUND NOTHING', lines: [`${Math.round(G.t)} s · bolted ${G.bolts} · sniffed ${G.sniffs}`, 'ANTEATER: "He lives here. He is not lost. The flyer is lost."'], suns }); }); }
   inst.start = async (c) => {
-    ctl = c; G.auto = c.auto; Object.assign(G, { phase: 'talk', t: 0, at: 0, st: 'loaf', stT: 6, bolts: 0, sniffs: 0, sniffT: 0, flyer: false, jT: 1, said: {}, dash: null }); P.x = 0; P.z = 3.6; for (const p of prints) p.visible = false;
+    ctl = c; G.auto = c.auto; Object.assign(G, { phase: 'talk', t: 0, at: [2, 3, 5][Math.floor(Math.random() * 3)], st: 'loaf', stT: 6, bolts: 0, sniffs: 0, sniffT: 0, flyer: false, jT: 1, said: {}, dash: null }); P.x = 0; P.z = 3.6; for (const p of prints) p.visible = false;
     H.pill('b', 'BOLTED 0'); H.pill('t', '2:30'); const gb = H.button('grab', 'GRAB'); gb.onDown = grab; const sb = H.button('sniff', 'SNIFF<br>3', { alt: true }); sb.onDown = sniff; c.I.padOn = true;
     c.I.onTap = (x, y) => { if (!G.flyer && pickNear([flyer], x, y, camera, 80)) { G.flyer = true; sfx.star(2); H.toast('☀ REWARD: NOTHING'); H.say([['', 'LOST: NOTHING. Black cat. Answers to Nothing. Has never answered.'], ['', 'REWARD: NOTHING. (Small print: he is fine.)']]); } };
     H.say([['ANTEATER', 'Nothing lives here. Nobody has ever seen him.'], ['ANTEATER', 'Listen for the bell. When his tail flicks, freeze.'], ['ANTEATER', 'I can sniff him out. Three times. My nose gets tired.']], () => { G.phase = 'hunt'; G.t = 0; H.hint('LISTEN · DRAG TO SNEAK', 2); });

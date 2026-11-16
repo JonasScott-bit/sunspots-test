@@ -152,7 +152,7 @@ export function createDrive(scene, o = {}) {
       if (n.dir > 0) { const it = X.find((q) => q.s - n.s > 0 && q.s - n.s < 14); if (it && it.state !== 'g') want = (it.s - 8 - n.s) > 0.5 ? Math.min(want, (it.s - 8 - n.s) * 1.2) : 0; }
       else { const it = X.find((q) => n.s - q.s > 0 && n.s - q.s < 14); if (it && it.state !== 'g') want = (n.s - (it.s + 8)) > 0.5 ? Math.min(want, (n.s - it.s - 8) * 1.2) : 0; }
       for (const m of npcs) if (m !== n && m.dir === n.dir && Math.abs(m.x - n.x) < 1.5) { const gap = (m.s - n.s) * n.dir; if (gap > 0 && gap < 9) want = Math.min(want, Math.max(0, (gap - 5) * 2)); }
-      if (n.dir > 0 && Math.abs(P.x - n.x) < 1.8) { const gap = P.s - n.s; if (gap > 0 && gap < 8) want = Math.min(want, Math.max(0, P.v - 1)); }
+      if (n.dir > 0 && Math.abs(P.x - n.x) < 2.8) { const gap = P.s - n.s; if (gap > 0 && gap < 14) want = Math.min(want, Math.max(0, P.v - 1 - (gap < 10 ? 4 : 0))); }   // never tailgate into the chase cam
       n.v = lerp(n.v, want, Math.min(1, dt * 3)); n.s += n.v * n.dir * dt;
       if (n.s > LEN - 2) n.s = 2; if (n.s < 2) n.s = LEN - 3;
       place(n.obj, n.s, n.x, n.dir > 0 ? 0 : Math.PI); spinWheels(n.obj, n.v * dt);

@@ -1,7 +1,7 @@
 // missions/ant_farm.js — ANT FARM STRIKE (Night 2). The ants in Anteater's ant farm have walked off the job: tiny picket
 // signs, a tiny union, one demand per verse. Banana Squid speaks Ant (it's mostly rhythm). Call and response: the colony
 // plays a chant on its four chambers (STOMP, CLAP, HUM, KAZOO); you echo it back on the four pads. Get the order right and
-// keep the groove and they grant you the next clause. Six verses, three slip-ups allowed. Anteater has never eaten an ant.
+// keep the groove and they grant you the next clause. Six verses, three hearts, and each verse you win gives one back. Anteater has never eaten an ant.
 // Stars: settled · 1 slip-up or fewer · mostly PERFECT. Secret: one ant is not on strike. He's reading. Tap him.
 // QA: ?m=ant_farm [&mauto]
 import * as THREE from 'three';
@@ -79,15 +79,15 @@ function create({ hud: H }) {
     if (err < 0.11) { G.perfect++; H.float(sp.x, sp.y, 'PERFECT', '#ffe86a'); } else if (err < 0.26) H.float(sp.x, sp.y, 'GOOD', '#bff2e0'); else H.float(sp.x, sp.y, 'LATE-ISH', '#f2b0a0');
     G.k++; G.last = now; if (G.k >= G.pat.length) granted();
   }
-  function slip(why) { G.slips++; sfx.bad(); H.pill('slips', '❤'.repeat(Math.max(0, 3 - G.slips)) + '♡'.repeat(Math.min(3, G.slips))); setPads(false);
+  function slip(why) { G.slips++; G.slipsT = (G.slipsT || 0) + 1; sfx.bad(); H.pill('slips', '❤'.repeat(Math.max(0, 3 - G.slips)) + '♡'.repeat(Math.min(3, G.slips))); setPads(false);
     if (G.slips >= 3) { G.phase = 'done'; H.say([['BANANA SQUID', 'They are going back to the picket line.'], ['ANTEATER', 'I will make toast anyway.']], () => ctl.finish({ win: false, stars: 0, title: 'STILL ON STRIKE', lines: [`Got to verse ${G.v + 1} of 6.`, 'BANANA SQUID: "Listen to the first beat. Then the gaps."'], suns: [] })); return; }
     G.phase = 'wait'; H.say([['BANANA SQUID', why + ' ' + R.pick(['Again. Slower in your heart.', 'They will say it again.', 'Ant is a hard language.'])]], () => { if (G.phase === 'wait') { G.pat.forEach(() => 0); G.phase = 'call'; G.t = -beat * 2; G.k = 0; G.ticks = 0; } }); }
-  function granted() { setPads(false); G.phase = 'wait'; sfx.good(); for (const a of A) a.jump = 0.35; const V = VERSES[G.v]; H.pill('strike', `STRIKE ${Math.round((1 - (G.v + 1) / 6) * 100)}%`);
+  function granted() { setPads(false); if (G.slips > 0) { G.slips--; H.pill('slips', '❤'.repeat(3 - G.slips) + '♡'.repeat(G.slips)); } G.phase = 'wait'; sfx.good(); for (const a of A) a.jump = 0.35; const V = VERSES[G.v]; H.pill('strike', `STRIKE ${Math.round((1 - (G.v + 1) / 6) * 100)}%`);
     H.say([V.give, ...(G.v === 5 ? [['BANANA SQUID', 'They accept. They are going back to work.'], ['BANANA SQUID', 'Work is mostly carrying one crumb very far.']] : [])], () => { G.v++; if (G.v >= 6) done(); else { H.say([['BANANA SQUID', VERSES[G.v].squid]], () => verse()); } }); }
-  function done() { G.phase = 'done'; const pr = G.notes ? G.perfect / G.notes : 0, stars = 1 + (G.slips <= 1 ? 1 : 0) + (pr >= 0.6 ? 1 : 0); const suns = ['af_done']; if (stars === 3) suns.push('af_star'); if (G.book) suns.push('af_book');
-    ctl.finish({ win: true, stars, title: 'STRIKE SETTLED', lines: [`${G.perfect}/${G.notes} PERFECT · ${G.slips} slip-up${G.slips === 1 ? '' : 's'}`, 'ANTEATER: "Toast. Every morning. It is in writing now."'], suns }); }
+  function done() { G.phase = 'done'; const pr = G.notes ? G.perfect / G.notes : 0, stars = 1 + ((G.slipsT || 0) <= 1 ? 1 : 0) + (pr >= 0.6 ? 1 : 0); const suns = ['af_done']; if (stars === 3) suns.push('af_star'); if (G.book) suns.push('af_book');
+    ctl.finish({ win: true, stars, title: 'STRIKE SETTLED', lines: [`${G.perfect}/${G.notes} PERFECT · ${G.slipsT || 0} slip-up${G.slipsT === 1 ? "" : "s"}`, 'ANTEATER: "Toast. Every morning. It is in writing now."'], suns }); }
   inst.start = async (c) => {
-    ctl = c; G.auto = c.auto; Object.assign(G, { phase: 'talk', t: 0, v: 0, slips: 0, perfect: 0, notes: 0, k: 0, said: {}, book: false });
+    ctl = c; G.auto = c.auto; Object.assign(G, { phase: 'talk', t: 0, v: 0, slips: 0, slipsT: 0, perfect: 0, notes: 0, k: 0, said: {}, book: false });
     pads = H.pads(PADS, hit); setPads(false); H.pill('verse', 'VERSE 1/6'); H.pill('slips', '❤❤❤'); H.pill('strike', 'STRIKE 100%');
     c.I.padOn = false; c.I.onTap = (x, y) => { if (pickNear([reader], x, y, camera, 60) && !G.book) { G.book = true; sfx.star(2); H.toast('☀ THE ONE WHO READS'); H.say([['', 'One ant, off by himself, with a very small book.'], ['BANANA SQUID', 'He is not on strike. He is on page two hundred and twelve.']]); } };
     for (const [k, i] of [['1', 0], ['2', 1], ['3', 2], ['4', 3], ['arrowleft', 0], ['arrowup', 1], ['arrowdown', 2], ['arrowright', 3]]) G['k' + k] = i;

@@ -13,7 +13,7 @@ registerMission({
   rumour: 'Nan is out on the back porch of the tan Victorian with a treat tin. Pickles is out again.',
   todo: "Find Pickles in Nan's garden (the tan Victorian)", doneMsg: '. Pickles is home. He was never lost. He says.',
   suns: [{ id: 'pk_done', name: 'PICKLES', how: "Find Pickles in Nan's garden" }, { id: 'pk_star', name: 'HAMSTER WHISPERER', how: "Three stars in Nan's garden" }, { id: 'pk_glass', name: "NAN'S OTHER GLASSES", how: "Nan's other glasses are out in the garden" }],
-  tip: 'DRAG TO SWEEP THE TORCH · AMBER EYES = PICKLES',
+  tip: 'DRAG TO SWEEP THE TORCH · AMBER EYES = PICKLES', hintSide: true,
   create,
 });
 

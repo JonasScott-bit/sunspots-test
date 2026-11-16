@@ -1,7 +1,7 @@
 // missions/return_sender.js — RETURN TO SENDER (Night 1). Every letter in town goes to the pink apartment, and every one
 // is for the wrong name. SOMEONE (Apt. 6) has never been seen. Mailbox (the actual mailbox) is sick of it.
 //  1 THE SORT — the Post Office back room. Read each envelope, put it in the right cubby (BEAR, HERON, MOTH, APT 6, HORSE).
-//    The addresses are wrong in the way only this town gets wrong. 50 seconds.
+//    The addresses are wrong in the way only this town gets wrong. 60 seconds.
 //  2 THE ROUTE — Mailbox rides shotgun in the mail car. Drive the round; when a stop comes up on your right, TOSS (stay in
 //    the right lane). Each cubby's letters go to that stop. Wrong-sorted letters come straight back out: "Not me."
 // Stars: route done · 1 sorting mistake or fewer · every letter landed. Secret: one envelope is addressed to Mailbox. Tap him.
@@ -79,7 +79,7 @@ function create({ hud: H }) {
     ctl = c; G.auto = c.auto; Object.assign(G, { phase: 'talk', t: 0, i: 0, wrong: 0, bins: [[], [], [], [], []], landed: 0, missed: 0, returned: 0, self: false, said: {} });
     if (c.opts?.phase === 'route') { LETTERS.forEach((L) => L[2] >= 0 && G.bins[L[2]].push(L)); G.self = false; toRoute(); return; }
     c.I.padOn = false; c.I.onTap = (x, y) => { if (pickNear([mbox], x, y, camera, 90)) tapMailbox(); };
-    pads = H.pads(BINS.map((b) => ({ label: b.k, col: b.col })), sortHit); H.pill('t', '0:50'); H.pill('w', 'WRONG 0');
+    pads = H.pads(BINS.map((b) => ({ label: b.k, col: b.col })), sortHit); H.pill('t', '1:00'); H.pill('w', 'WRONG 0');
     camera.fov = 50; camera.updateProjectionMatrix();
     H.say([['MAILBOX', 'Every letter in town comes to me. Every letter is wrong.'], ['MAILBOX', 'Read the envelope. Pick the cubby. Fast.'], ['WOLF', 'Who lives in Apartment 6?'], ['MAILBOX', 'Someone.']], () => { G.phase = 'sort'; G.t = 0; showLetter(); });
     if (G.auto) G.autoT = setInterval(() => { if (H.talking()) H.skipSub(); }, 600);
@@ -91,7 +91,7 @@ function create({ hud: H }) {
       const por = camera.aspect < 1, hf = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect; D.root.visible = false; camera.position.set(3000, por ? 4.2 : 3.8, por ? 5.0 / hf : 9.5); camera.lookAt(3000, por ? 2.9 : 3.0, -0.5);
       animPal(sorter, dt, t, { wave: G.flyT < 0.4 ? 1 : 0 }); mbox.rotation.z = Math.sin(t * 2) * 0.03;
       if (G.flyT !== undefined && G.flyT < 1) { G.flyT += dt * 2.6; env.position.lerpVectors(new THREE.Vector3(-0.4, 2.4, 1.2), G.flyTo, Math.min(1, G.flyT)); env.position.y += Math.sin(Math.min(1, G.flyT) * Math.PI) * 0.8; env.rotation.z += dt * 9; if (G.flyT >= 1) env.visible = false; }
-      if (G.phase === 'sort') { const left = Math.max(0, 50 - G.t); H.pill('t', `0:${String(Math.ceil(left)).padStart(2, '0')}`, left < 10); H.pill('w', `WRONG ${G.wrong}`, G.wrong > 1);
+      if (G.phase === 'sort') { const left = Math.max(0, 60 - G.t), lc = Math.ceil(left); H.pill('t', `${Math.floor(lc / 60)}:${String(lc % 60).padStart(2, '0')}`, left < 10); H.pill('w', `WRONG ${G.wrong}`, G.wrong > 1);
         if (G.auto && G.t > (G.i + 1) * 1.1) { const L = cur(); if (L) { if (L[2] === -1) tapMailbox(); else { H.flash(pads[L[2]]); sortHit(L[2]); } } }
         if (left <= 0) { while (cur()) { const L = cur(); if (L[2] >= 0) { G.bins[(L[2] + 1) % 5].push(L); G.wrong++; } G.i++; } say(['MAILBOX', 'Time. I put the rest in. Somewhere.']); sortDone(); } }
       return; }
