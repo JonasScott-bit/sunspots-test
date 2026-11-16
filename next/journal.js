@@ -36,6 +36,11 @@ export function installJournal({ T, QT, level, audio }) {
     { id: 'motel', name: 'ROOM 11', how: 'Rent a room at the Motel', got: () => (S.rooms || 0) > 0 },
     { id: 'homes', name: 'GOOD NEIGHBOUR', how: 'Walk into every home on Mesa', got: () => HOMES.every((k) => S.visited[k]) },
     { id: 'tourist', name: 'TOURIST', how: 'Walk into every building in town', got: () => roomKeys().every((k) => S.visited[k]) },
+    // the two headline Nights that are not on missions/kit.js (brawler.js, swimlesson.js): done + three stars, like the kit missions
+    { id: 'brawl', name: 'BACK-LANE CHAMP', how: "Win the brawl behind Taco Tuesday's (Night 2)", got: () => (S.brawl?.wins || 0) > 0 },
+    { id: 'brawl3', name: 'NOT A SCRATCH', how: 'Three stars in the back lane', got: () => (S.brawl?.best || 0) >= 3 },
+    { id: 'swim', name: 'LATE NIGHT SWIM LESSON', how: "Finish Ram's swim lesson (Night 3)", got: () => (S.swimBest?.stars || 0) > 0 },
+    { id: 'swim3', name: 'GOLD STAR SWIMMER', how: 'Three stars at the swim lesson', got: () => (S.swimBest?.stars || 0) >= 3 },
   ];
   const HOMES = ['wolf', 'living90', 'lynx', 'crow', 'heron', 'gecko', 'ram', 'anteater', 'apt_vict', 'moth', 'apt_pink', 'mansion', 'farm'].filter((k) => !Object.keys(ROOMS).length || ROOMS[k]);
   const roomKeys = () => Object.keys(ROOMS);

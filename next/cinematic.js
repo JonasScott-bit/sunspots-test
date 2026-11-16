@@ -4,10 +4,18 @@
 // QA: ?cine=swim_lesson_intro plays it once the title is gone.
 export const CINE = { swim_lesson_intro: { src: 'video/swim_lesson_intro.mp4', poster: 'video/swim_lesson_intro.jpg', title: 'LATE NIGHT SWIM LESSON' } };
 let busy = null;
+// video/clips.json lists the clips that exist, so a mission whose intro is not shot yet skips without a 404 request
+// (add a new clip's file name there; if the list itself is missing, every clip is tried as before)
+let clipList = null;
+const clips = () => clipList ||= fetch('video/clips.json', { cache: 'no-cache' }).then((r) => r.ok ? r.json() : null).then((j) => Array.isArray(j?.clips) ? j.clips : null).catch(() => null);
 export function playCinematic(name, { onStart } = {}) {
   if (busy) return busy;
   const c = CINE[name] || { src: `video/${name}.mp4` };
-  busy = new Promise((resolve) => {
+  busy = clips().then((list) => { if (list && !list.includes(c.src.split('/').pop())) { busy = null; return { played: false }; } return show(c, onStart); });
+  return busy;
+}
+function show(c, onStart) {
+  return new Promise((resolve) => {
     const css = document.getElementById('cineCss') || Object.assign(document.head.appendChild(document.createElement('style')), { id: 'cineCss',
       textContent: `#cine{position:fixed;inset:0;z-index:60;background:#000;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .4s}
       #cine.on{opacity:1} #cine video{width:100%;height:100%;object-fit:contain;background:#000}
@@ -33,7 +41,6 @@ export function playCinematic(name, { onStart } = {}) {
     v.play().then(() => onStart?.()).catch(() => { if (v.error) end(false); });   // autoplay may need the tap; a missing file errors -> ends
     setTimeout(() => { if (!done && v.readyState === 0 && v.networkState === 3) end(false); }, 4000);
   });
-  return busy;
 }
 export function installCinematicQA() {
   const n = new URLSearchParams(location.search).get('cine'); if (!n) return;

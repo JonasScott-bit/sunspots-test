@@ -258,6 +258,10 @@ export function installSnackRun(C) {
   const arrow = hudEl.querySelector('#srArrow');
   const listEl = el('div', 'srList'); const ask = el('div', 'srAsk'); const card = el('div', 'srCard'); const shop = el('div', 'srShop'); const fade = el('div', 'srFade');
   const clockEl = $('clk'), subEl = $('clkSub'), objEl = $('obj'), distEl = $('dist');
+  // Sunspots: a win = LAST MINUTE SNACKS (journal.js 'snacks', same as the opening level); ★★★ and the Squid lift add one each (kit.js-style S.msn ids)
+  const SR_SUNS = [{ id: 'sr_star', name: 'SNACK RUN ★★★', how: 'Late Night Snack Run: the whole list, home by 2:15' }, { id: 'sr_squid', name: 'ONE MORE FOR THE COUCH', how: 'Late Night Snack Run: give Banana Squid a lift from the bus stop' }];
+  { const X = (window.__jnX ||= { start: {}, plain: {}, suns: [], night: {} }); for (const s of SR_SUNS) if (!X.suns.some((o) => o.id === s.id)) X.suns.push({ ...s, got: () => !!(window.__town?.state?.msn || {})[s.id] }); }
+  const townS = () => (T || window.__town)?.state;
   const fmt = (g) => { g = Math.floor(g); const h = Math.floor(g / 3600), m = Math.floor(g / 60) % 60; return `${h === 0 ? 12 : h}:${String(m).padStart(2, '0')} AM`; };
   const fmtS = (g) => { g = Math.floor(g); const h = Math.floor(g / 3600), m = Math.floor(g / 60) % 60, s = g % 60; return `${h === 0 ? 12 : h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')} AM`; };
   const toast = (m, s = 2.6) => L.toast?.(m, s);
@@ -357,6 +361,7 @@ export function installSnackRun(C) {
     S.phase = 'end'; S.won = true; S.homeAt = S.clock; L.free.v = 0; askHide();
     S.stars = 1 + (S.listOK ? 1 : 0) + (S.homeAt <= STAR_HOME ? 1 : 0);
     if (!S.bonks) S.badges.add('NO BONKS');
+    { const st = townS(); S.gotSuns = []; if (st) { st.msn ||= {}; if (!st.snacks) { st.snacks = 1; S.gotSuns.push('LAST MINUTE SNACKS'); } if (S.stars === 3 && !st.msn.sr_star) { st.msn.sr_star = 1; S.gotSuns.push(SR_SUNS[0].name); } if (S.squid && !st.msn.sr_squid) { st.msn.sr_squid = 1; S.gotSuns.push(SR_SUNS[1].name); } try { (T || window.__town).M?.save?.(); } catch (_) { } } }
     try { const k = 'sunspots.snackrun.v1', b = JSON.parse(localStorage.getItem(k) || '{}'); if (!b.stars || S.stars > b.stars) b.stars = S.stars; b.runs = (b.runs || 0) + 1; localStorage.setItem(k, JSON.stringify(b)); S.best = b.stars; } catch (_) { }
     A(() => { audio.ev('finish', { won: true }); audio.stingDone = false; });
     if (S.squid) { squidHome.visible = true; }
@@ -369,7 +374,7 @@ export function installSnackRun(C) {
     const tips = won ? [S.listOK ? '★ whole list right' : '☆ get the whole list right (the BIG bag, not the mini)', S.homeAt <= STAR_HOME ? '★ home by 2:15' : '☆ be home by 2:15 AM'] : ['Tip: the shortcut is shorter but bumpy. Draft Moth on the long road. Officer Fuzz stops anyone over 15.'];
     card.innerHTML = `<div class="in"><h1>${won ? 'SNACKS ACQUIRED' : 'CLOSED.'}</h1><h2>LATE NIGHT SNACK RUN${won && S.best ? ` · BEST ${'★'.repeat(S.best)}` : ''}</h2>
       <div class="stars">${st}</div>${lines.map((l) => `<p>${l}</p>`).join('')}<p style="font-size:11px;opacity:.8">${tips.join('<br>')}</p>
-      <div class="badges">${[...S.badges].map((b) => `<span>${b}</span>`).join('')}</div>
+      <div class="badges">${(won ? S.gotSuns || [] : []).map((n) => `<span>☀ ${n}</span>`).join('')}${[...S.badges].map((b) => `<span>${b}</span>`).join('')}</div>
       <div class="row"><button class="srBig again">TRY AGAIN</button><button class="srBig no done">BACK TO TOWN</button></div></div>`;
     card.classList.add('on');
     card.querySelector('.again').onclick = () => { quit(); setTimeout(() => start(), 700); };
@@ -404,6 +409,12 @@ export function installSnackRun(C) {
     // the start button: outside, on foot, nothing else going on
     const showBtn = !S.on && okToStart() && !Q.has('nosnackrun'); if (showBtn !== (btn.style.display === 'block')) btn.style.display = showBtn ? 'block' : 'none';
     if (!S.on && BASE_NIGHT) neonTick(L.ended && L.mode === 'lost' ? 0 : L.left, t);   // the opening run: same sign, its own 1:57:30 clock
+    if (!S.on && townS()?.snacks && !L.ended && (L.mode === 'walk' || L.mode === 'solo')) {   // snacks delivered (either run): no stale pickup line, no 2:00 CLOSED
+      if (S.pinLeft == null) S.pinLeft = Math.max(L.left, 31); L.left = S.pinLeft;
+      const n = T?.M?.errands?.().length || 0, ob = L.mode === 'solo' ? 'Your waddle car. Drive anywhere. GET OUT to park.' : n ? 'Snacks delivered. Run your errands.' : 'Snacks delivered. The JOURNAL has rumours.';
+      if (objEl && objEl.textContent !== ob) objEl.textContent = ob; if (distEl && distEl.textContent) distEl.textContent = ''; if (subEl && subEl.textContent !== 'SNACKS DELIVERED') subEl.textContent = 'SNACKS DELIVERED';
+      if (L.pickupRing) L.pickupRing.material.opacity = 0;
+    }
     if (!S.on && nightK <= 0) return;
     if (!SR.root.visible) return;
     for (const [k, p] of Object.entries(crew)) animPal(p, dt, t, { wave: (S.phase === 'brief' || S.phase === 'end') ? 1 : 0 }); void 0;

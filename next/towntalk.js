@@ -175,6 +175,23 @@ export function installTalk({ T, level, TS, wolfState }) {
   let bn = 0; if (TS.spots.board) T.addSpot({ id: 'board', x: TS.spots.board.x, z: TS.spots.board.z, r: 2.4, label: 'READ THE BOARD', act: () => BOARD_LINES[bn++ % BOARD_LINES.length] });
   T.boardLines = BOARD_LINES;
   // walk-by: homes talk through the door now and then
+  // keep the bubble inside the safe area and off the HUD / errand list / perf bar / top buttons (it slides down past them)
+  const safe = document.createElement('div'); safe.style.cssText = 'position:fixed;inset:0;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)'; document.body.appendChild(safe);
+  el.style.width = 'max-content';   // size from the text, not from the room left at the screen edge (max-width still caps it)
+  const AVOID = ['hud', 'townObj', 'pfHud', 'srList', 'wildBtn', 'eyeBtn', 'jnBtn', 'qtBtn', 'mmap', 'shPauseBtn', 'sndBtn', 'srBtn', 'getIn', 'roomBtn'];
+  function placeBubble(x0, y0) {   // x0,y0 = the speaker's head on screen; the bubble sits above it (translate -50%,-100%)
+    const cs = getComputedStyle(safe), pad = 10, w = el.offsetWidth || 200, h = el.offsetHeight || 60;
+    const L = parseFloat(cs.paddingLeft) + pad, R = innerWidth - parseFloat(cs.paddingRight) - pad, Tp = parseFloat(cs.paddingTop) + pad, Bt = innerHeight - parseFloat(cs.paddingBottom) - pad - 12;
+    const fit = (x, y) => [Math.max(L + w / 2, Math.min(R - w / 2, x)), Math.max(Tp + h, Math.min(Bt, y))];
+    const rs = []; for (const id of AVOID) { const e = document.getElementById(id); if (!e) continue; const st = getComputedStyle(e); if (st.display === 'none' || st.visibility === 'hidden' || +st.opacity === 0) continue; const r = e.getBoundingClientRect(); if (r.width && r.height) rs.push(r); }
+    const hits = (x, y) => rs.some((r) => x + w / 2 > r.left - 6 && x - w / 2 < r.right + 6 && y > r.top - 6 && y - h < r.bottom + 6);
+    let [x, y] = fit(x0, y0);
+    if (hits(x, y)) {   // nearest free spot: just below, left of or right of whatever it overlaps
+      const c = []; for (const r of rs) c.push(fit(x, r.bottom + 8 + h), fit(r.left - 8 - w / 2, y), fit(r.right + 8 + w / 2, y), fit(r.right + 8 + w / 2, r.bottom + 8 + h), fit(r.left - 8 - w / 2, r.bottom + 8 + h));
+      let best = null, bd = 1e9; for (const [cx, cy] of c) { if (hits(cx, cy)) continue; const d = Math.hypot(cx - x, cy - y); if (d < bd) { bd = d; best = [cx, cy]; } }
+      if (best) [x, y] = best; }
+    el.style.left = Math.round(x) + 'px'; el.style.top = Math.round(y) + 'px';
+  }
   let walkT = 6; const heard = {};
   T.tick.push((dt) => {
     // bubble follow + queue
@@ -182,7 +199,7 @@ export function installTalk({ T, level, TS, wolfState }) {
       const wp = level.solo && level.free?.pos ? level.free.pos : wolfState.pos; if (p && Math.hypot(wp.x - p.x, wp.z - p.z) > 14) { B.t = 0; B.q = []; }   // walked away: the line ends
       if (cam && p && !T.active) { v.x = p.x; v.y = B.h + 0.35; v.z = p.z; const e = cam.matrixWorldInverse.elements, pe = cam.projectionMatrix.elements;
         const cx = e[0] * v.x + e[4] * v.y + e[8] * v.z + e[12], cy = e[1] * v.x + e[5] * v.y + e[9] * v.z + e[13], cz = e[2] * v.x + e[6] * v.y + e[10] * v.z + e[14];
-        if (cz < -0.3) { const sx = (pe[0] * cx / -cz) * 0.5 + 0.5, sy = 0.5 - (pe[5] * cy / -cz) * 0.5; el.style.left = Math.max(80, Math.min(innerWidth - 80, sx * innerWidth)) + 'px'; el.style.top = Math.max(70, Math.min(innerHeight - 60, sy * innerHeight)) + 'px'; el.style.visibility = 'visible'; }
+        if (cz < -0.3) { const sx = (pe[0] * cx / -cz) * 0.5 + 0.5, sy = 0.5 - (pe[5] * cy / -cz) * 0.5; placeBubble(sx * innerWidth, sy * innerHeight); el.style.visibility = 'visible'; }
         else el.style.visibility = 'hidden'; }
       if (B.t <= 0) { if (B.q.length) { const l = B.q.shift(); bubble(l[0], l[1], B.at, B.h); } else el.classList.remove('on'); } }
     if (T.active) { el.classList.remove('on'); B.t = 0; return; }
