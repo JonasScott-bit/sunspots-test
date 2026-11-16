@@ -11,6 +11,7 @@ import { framedPainting } from './bearwall.js';   // run 9b: Scott's paintings o
 import { gesturer, castOffsets, CAST_POOL, PROP_POOL } from './idles.js';   // run 15: idle variety
 import { createDiner } from './diner.js';   // run 10: the Diner trio, ORDER, mission Table For Four, party followers
 import { createPool, createHoops, larryByrd } from './minigames.js';   // run 11 (M4): playable pool (Pool Hall) + shoot-around vs Larry Byrd (the court)
+import { brawlerRoom, createBrawler, placeTacoShack, TACO_ROOM, TACO_DOOR } from './missions/brawler.js';   // Next Level: TACO TUESDAY'S BACKLANE BRAWLER (first-person fist-fight)
 
 import { homes16 } from './homes16.js';   // run 16: interiors for ram, anteater, apt_vict, moth, apt_pink, mansion, farm
 const M = './models/';
@@ -79,12 +80,14 @@ const DOORS = [
   { room: 'mansion', x: 0, z: 0, sign: null },
   { room: 'farm', x: 0, z: 0, sign: null },
 ];
+ROOMS.taco = TACO_ROOM; DOORS.push({ room: 'taco', x: TACO_DOOR.x, z: TACO_DOOR.z, sign: null });   // Next Level: the taco shack's back door (missions/brawler.js)
 let DRIVEIN = { x: 24.0, z: 19.0 }; // the outdoor Eye-Max screen (felt placeholder)
 let FENCE = { x: -15, z: 10.8 }; // the Crow's roadside collection (fence-stool), south of the town street
 
 export function createTown(ctx) {
   // run 11: the real-scale town moves every door / outdoor spot onto its building (townscape.js marks)
   const TSC = ctx.townscape;
+  if (TSC) placeTacoShack(TSC, ctx.mainScene, ctx.feltMat, ctx.colliders);   // Next Level: Taco Tuesday's (Neon Strip), door mark 'taco'
   if (TSC) { for (const d of DOORS) { const m = TSC.doors[d.room]; if (m) { d.x = m.x; d.z = m.z; d.ry = m.ry; if (m.built) d.sign = null; else if (!d.sign) d.sign = ROOMS[d.room].name.replace('THE ', ''); } }
     if (TSC.spots.fence) Object.assign(FENCE, TSC.spots.fence); if (TSC.spots.drivein) Object.assign(DRIVEIN, TSC.spots.drivein); }
   const { renderer, mainScene, load, normalize, feltMat, level, wolfState, audio = {} } = ctx;
@@ -1624,6 +1627,11 @@ export function createTown(ctx) {
   function hoopsGame() { if (HG) return HG;
     HG = createHoops({ feltMat, audio, say: (L) => say(L), onLeave: () => leaveGame(), onDone: (r) => { S.hoops = { w: r.wolf, l: r.larry }; save(); return null; } });
     return HG; }
+  // Next Level: TACO TUESDAY'S BACKLANE BRAWLER (missions/brawler.js) — the back-lane room + the first-person fight as T.lane
+  let BG = null; const brawlGame = () => BG || (BG = createBrawler({ feltMat, audio, glb, say: (L) => say(L), onLeave: () => leaveGame(),
+    onDone: (r) => { const b = S.brawl || { best: 0, wins: 0 }; if (r.win) { b.wins++; b.best = Math.max(b.best, r.stars); } S.brawl = b; save(); return r.win ? [['BEAR', r.stars >= 3 ? 'Three stars. Not a scratch on the sleeves.' : `${r.stars} star${r.stars > 1 ? 's' : ''}. The back lane is yours, Tuesday.`], ['EL SCORCHO', 'Rematch next Tuesday. Bring napkins.']] : null; } }));
+  Object.assign(BUILD, brawlerRoom({ glb, feltMat, S, play: (A) => startGame(A, brawlGame()) }));
+  Object.defineProperty(T, 'brawl', { get: () => BG && Object.assign(BG.test, { active: T.lane === BG, G: BG }) });
   async function startGame(A, G) {
     if (T.busy || T.lane || T.active !== A.key) return; T.busy = true; chips.innerHTML = ''; curtain.querySelector('b').textContent = ROOMS[A.key].name; curtain.classList.add('shut'); await wait(560);
     T.focus = null; T.goal = null; G.begin(); T.lane = G; T.scene = G.scene; T.camera = G.camera; G.update?.(0, 0); renderer.compile(G.scene, G.camera); await wait(120); curtain.classList.remove('shut'); T.busy = false; }
