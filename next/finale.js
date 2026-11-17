@@ -130,7 +130,7 @@ function modelRot(u, list, k = 1) {   // [bone, rx, ry, rz] in model space (+X t
 // Nov 16 couch fix: the sit is solved per character against the couch's real boxes and the character's own skinned mesh
 // (it used to pin the hip BONE at 0.5 m: the seat of the trousers ended ~15 cm inside the cushion, the knees rode above the
 // hips, the Wolf's feet were inside the couch base, and the extras behind it had snouts / bellies through the back).
-const CUSH = 0.32, SEAT_FRONT = -0.39, SINK = 0.02;   // build(): cushion top, its front edge (couch-local z; it faces -z), felt give under a seated body
+const CUSH = 0.36, SEAT_FRONT = -0.12, SEAT_BACK = 0.26, SINK = 0.04, HIP_MIN = -0.02;   // build(): cushion top, front edge, cushion back (couch-local z; it faces -z), felt give, hips stay this far behind the front so the pelvis reads ON the seat
 let COUCH_BOX = [];   // build(): [{ inv: couch-local -> box-local, bb }] for every box of Moth's couch
 const _sp = new THREE.Vector3(), _sq = new THREE.Vector3();
 const ARMS = /Arm|Hand/, SEATB = /^(Hips|LeftUpLeg|RightUpLeg|Spine)$/;   // the solve ignores the arms (handsOnKnees puts the hands on the knees every frame); what sits on the cushion
@@ -165,31 +165,46 @@ function seatSolve(c) {   // per leg: thigh level, shin plumb; the seat of the p
     c.th[s] = pick; best = 9; pick = -c.th[s];
     for (let kn = -c.th[s] - 1.0; kn <= -c.th[s] + 0.8; kn += 0.02) { c.kn[s] = kn; pose(); const k = W(sd + 'Leg'), f = W(sd + 'Foot'); const e = Math.hypot(k.x - f.x, k.z - f.z) + (f.y > k.y ? 9 : 0); if (e < best) { best = e; pick = kn; } }
     c.kn[s] = pick; });
+  { const th = (c.th[0] + c.th[1]) / 2, kn = (c.kn[0] + c.kn[1]) / 2; c.th[0] = th + 0.03; c.th[1] = th - 0.03; c.kn[0] = kn - 0.03; c.kn[1] = kn + 0.03; }   // idle legs aren't symmetric; a shared sit so both feet can reach the floor
   pose();
-  const settle = () => { pose(); skinVerts(u, A, 1, seatPart); let lo = 9;   // the bottom and the thighs rest on the cushion
-    for (let i = 0; i < A.n; i += 3) { const z = A[i + 2] - cz; if (z > SEAT_FRONT && z < 0.27) lo = Math.min(lo, A[i + 1]); }
+  const settle = () => { pose(); skinVerts(u, A, 1, (b) => /^(Hips|Spine)$/.test(b)); let lo = 9;   // the seat of the pants ON the cushion (not the hanging thighs, or sloping the knees would lift him off the seat)
+    for (let i = 0; i < A.n; i += 3) { const z = A[i + 2] - cz; if (z > SEAT_FRONT && z < SEAT_BACK) lo = Math.min(lo, A[i + 1]); }
     if (lo < 9) g.position.y += CUSH - SINK - lo; pose(); };
-  g.position.z += cz + 0.22 - W('Hips').z; settle();
-  // back against the back cushions: slide forward until nothing above the cushion is inside the couch
-  for (let i = 0; i < 40; i++) { skinVerts(u, A, 2, noArms); if (!couchHits(A, cx, cz, 0.01, CUSH + 0.05)[0]) break; g.position.z -= 0.015; pose(); }
-  settle();
-  // short legs on a deep seat: sit forward until the calves clear the front of the couch (a perch, not legs through the upholstery)
-  for (let i = 0; i < 30; i++) { skinVerts(u, A, 2, noArms); if (!couchHits(A, cx, cz, 0.01, -1, CUSH - 0.06)[0]) break; g.position.z -= 0.015; settle(); }
-  // feet to the floor: short legs (the cast are toons) sit forward and let the thighs slope off the front edge (shins kept
-  // plumb) - the least slope / slide that puts the soles on the floor with nothing pressed into the couch
-  const footY = () => { skinVerts(u, A, 2, noArms); let f = 9; for (let j = 0; j < A.n; j += 3) if (A[j + 2] - cz < SEAT_FRONT) f = Math.min(f, A[j + 1]); return f; };
-  if (footY() > 0.015) { const z0 = g.position.z, th0 = c.th.slice(), kn0 = c.kn.slice(); let best = null;
-    for (let d = 0; d <= 0.61; d += 0.06) for (let k = 0; k <= 14; k++) {
-      c.th = th0.map((v) => v + d); c.kn = kn0.map((v) => v - d); g.position.z = z0 - k * 0.03; settle();
-      if (W('Hips').z - cz < SEAT_FRONT + 0.12) break;   // still sitting ON the couch
-      skinVerts(u, A, 2, noArms); if (couchHits(A, cx, cz, -SINK - 0.005)[0]) continue;
-      const f = footY(), cost = (f < -0.01 ? 9 : 0) + Math.abs(f) * 10 + d * 0.3 + k * 0.015; if (!best || cost < best.cost) best = { cost, d, k }; }
-    if (best) { c.th = th0.map((v) => v + best.d); c.kn = kn0.map((v) => v - best.d); g.position.z = z0 - best.k * 0.03; } else { c.th = th0; c.kn = kn0; g.position.z = z0; }
-    settle(); }
-  // soles never under the floor: long shins angle forward only as much as they need
-  for (let i = 0; i < 30; i++) { skinVerts(u, A, 2, noArms); let foot = 9; for (let j = 0; j < A.n; j += 3) if (A[j + 2] - cz < SEAT_FRONT) foot = Math.min(foot, A[j + 1]);
-    if (foot >= -0.005) break; c.kn[0] -= 0.03; c.kn[1] -= 0.03; pose(); }
-  skinVerts(u, A, 2, noArms); c.seatCheck = couchHits(A, cx, cz, -SINK - 0.005)[0]; c.footY = footY();   // QA: verts inside the couch besides the cushion give (window.__finale.st.crew.*.seatCheck)
+  const hipZ = () => W('Hips').z - cz;
+  const clampHip = () => { const h = hipZ(); if (h < HIP_MIN) { g.position.z += HIP_MIN - h; pose(); } };
+  const soles = () => Math.min(W('LeftFoot').y, W('RightFoot').y);
+  const calfHit = () => { skinVerts(u, A, 2, noArms); return couchHits(A, cx, cz, 0.01, -1, CUSH - 0.06)[0]; };
+  const backHit = () => { skinVerts(u, A, 2, noArms); return couchHits(A, cx, cz, 0.01, CUSH + 0.05)[0]; };
+  const deepHit = () => { skinVerts(u, A, 2, noArms); return couchHits(A, cx, cz, -SINK - 0.005)[0]; };
+  const slope = (d) => { c.th[0] += d; c.th[1] += d; c.kn[0] -= d; c.kn[1] -= d; };
+
+  g.position.z += cz + 0.04 - W('Hips').z; settle(); clampHip();   // start over the middle of the cushion
+  // torso in the back cushions: slide forward only as far as HIP_MIN
+  for (let i = 0; i < 40; i++) { if (!backHit() || hipZ() <= HIP_MIN + 0.01) break; g.position.z -= 0.012; pose(); clampHip(); }
+  settle(); clampHip();
+  const TH_HI = -1.05;   // sitting thigh: level to a little down; past this it reads as a stand
+  // calves in the seat: a little thigh slope (knees over the front edge), then slide the hips forward only as far as HIP_MIN. Do not re-settle (that lifts or buries the butt).
+  for (let i = 0; i < 10 && calfHit() && Math.max(c.th[0], c.th[1]) < TH_HI; i++) { slope(0.04); pose(); }
+  for (let i = 0; i < 20; i++) { if (!calfHit() || hipZ() <= HIP_MIN + 0.01) break; g.position.z -= 0.01; pose(); clampHip(); }
+  // sit back: as far toward the back cushions as the torso allows; if the calves catch, slope a little and keep going
+  for (let i = 0; i < 30; i++) {
+    const z0 = g.position.z, th0 = c.th.slice(), kn0 = c.kn.slice();
+    g.position.z += 0.012; pose();
+    if (backHit() || hipZ() > SEAT_BACK - 0.05) { g.position.z = z0; c.th = th0; c.kn = kn0; pose(); break; }
+    if (calfHit()) {
+      if (Math.max(c.th[0], c.th[1]) < TH_HI) slope(0.04);
+      pose();
+      if (backHit() || calfHit()) { g.position.z = z0; c.th = th0; c.kn = kn0; pose(); break; }
+    }
+  }
+  clampHip();
+  // feet to the floor, butt stays put. Knees may sit a little high.
+  for (let i = 0; i < 24 && soles() > 0.03 && Math.max(c.th[0], c.th[1]) < TH_HI; i++) {
+    const th0 = c.th.slice(), kn0 = c.kn.slice(); slope(0.05); pose();
+    if (calfHit()) { c.th = th0; c.kn = kn0; pose(); break; }
+  }
+  for (let i = 0; i < 24 && soles() < -0.005; i++) { slope(-0.05); pose(); }   // long legs: fold the thighs a little (knees up) until the soles clear the floor
+  skinVerts(u, A, 2, noArms); c.seatCheck = couchHits(A, cx, cz, -SINK - 0.005)[0]; c.footY = soles();   // QA: verts inside the couch besides the cushion give (window.__finale.st.crew.*.seatCheck)
 }
 function clearCouch(c, couch) {   // a standing extra: step away from the couch until his whole mesh (plus a 5 cm idle margin) is clear of it
   const g = c.g, u = g.userData; if (!u.root || !g.visible || !COUCH_BOX.length) return; const A = [];
@@ -200,7 +215,7 @@ const KEEP = ['Hips', 'Spine02', 'Spine01', 'Spine', 'neck', 'Head', 'LeftShould
 const SEAT_POOL = { look: [1, 3.2], nod: [1, 1.8], shrug: [0.7, 1.8], sun: [1, 2.6], lean: [0.8, 2.6] };
 function seatPose(c) {   // [bone, rx, ry, rz] model space; c.th / c.kn [left, right] from seatSolve(), the feet kept flat on the floor
   const [tl, tr] = c.th, [kl, kr] = c.kn;
-  return [['Spine02', -0.06, 0, 0], ['Spine01', -0.05, 0, 0], ['Spine', -0.03, 0, 0],
+  return [['Spine02', -0.05, 0, 0], ['Spine01', -0.08, 0, 0], ['Spine', -0.10, 0, 0],
     ['LeftUpLeg', tl, 0, 0.05], ['RightUpLeg', tr, 0, -0.05], ['LeftLeg', kl, 0, 0], ['RightLeg', kr, 0, 0], ['LeftFoot', -(tl + kl), 0, 0], ['RightFoot', -(tr + kr), 0, 0],
   ];
 }
@@ -360,19 +375,24 @@ function build(MODELS) {
   for (const o of scene.getObjectByName('livingworld')?.children || []) { let n = 0; o.traverse((m) => { if (m.isMesh) n += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; }); if (n >= 110) hide(o); }
   // Moth's couch, carried out into the middle of Sun St (felt, no brands)
   const couch = new THREE.Group(); couch.position.copy(O); set.add(couch);
-  const cm = M('#b8443a'), cc = M('#d06a52');
-  mesh(new THREE.BoxGeometry(4.6, 0.18, 0.92), cm, 0, 0.09, 0.06, couch); mesh(new THREE.BoxGeometry(4.0, 0.14, 0.66), cc, 0, 0.25, -0.06, couch);   // seat: cushion top 0.32 (a low, sunk-in couch: the cast's toon legs reach the floor), front edge z -0.39
-  mesh(new THREE.BoxGeometry(4.6, 1.0, 0.3), cm, 0, 0.6, 0.42, couch); for (const x of [-1.34, 0, 1.34]) { const bc = mesh(new THREE.BoxGeometry(1.28, 0.52, 0.32), cc, x, 0.58, 0.13, couch); bc.rotation.x = -0.12; }   // back + three fat back cushions (a seat as deep as their thighs)
-  for (const sx of [-1, 1]) mesh(new THREE.BoxGeometry(0.34, 0.54, 0.92), cm, sx * 2.17, 0.27, 0.06, couch);
+  const cm = M('#b8443a'), cc = M('#d06a52'), ca = M('#c4533e');
+  // a 3-seat felt couch, readable from the establishing cam: short enough that the arms sit next to Bear and Moth,
+  // a slightly higher / shallower seat so they can sit BACK on the cushion with knees over the front edge,
+  // fat back cushions and taller arms so it reads as a couch, not a long low wall.
+  mesh(new THREE.BoxGeometry(2.00, 0.26, 0.48), cm, 0, 0.13, 0.24, couch);   // seat board fully under the cushion (front at z 0.00, top 0.26) so the calves hang clear
+  mesh(new THREE.BoxGeometry(1.88, 0.10, 0.38), cc, 0, 0.31, 0.07, couch);   // cushion pad: top 0.36, 10 cm thick, front edge z -0.12, so a sit doesn't count as a deep clip
+  mesh(new THREE.BoxGeometry(2.00, 0.86, 0.18), cm, 0, 0.57, 0.48, couch);   // back (visible over the sitters from the establishing cam)
+  for (const x of [-0.64, 0, 0.64]) { const bc = mesh(new THREE.BoxGeometry(0.62, 0.52, 0.16), cc, x, 0.66, 0.34, couch); bc.rotation.x = -0.10; }   // three back cushions, set back so the pelvis can sit over the seat
+  for (const sx of [-1, 1]) mesh(new THREE.BoxGeometry(0.28, 0.74, 0.84), ca, sx * 1.14, 0.37, 0.10, couch);   // arms (top 0.74, clearly above the seat)
   couch.updateMatrixWorld(true); COUCH_BOX = couch.children.map((m) => { m.geometry.computeBoundingBox(); return { inv: m.matrix.clone().invert(), bb: m.geometry.boundingBox.clone() }; });   // seatSolve / clearCouch
 
   // the crew: the game's own models (the same lo GLBs + Sunspots felt look the town and missions use; the Wolf is the
   // player's own wolf_armsdown_felt.glb). Wolf + Moth + Bear on the couch, everyone else around it, all facing the sun (-z).
   const crew = {}; const put = (k, x, z, ry = 0, sit = false) => { const g = MODELS[k]; if (!g) return; if (LOWQ() && EXTRAS.includes(k)) return; g.position.set(O.x + x, 0, O.z + z); g.rotation.y = Math.PI + ry; set.add(g); crew[k] = rig(k, g, sit); };
-  put('bear', -1.36, 0, 0.1, true); put('wolf', 0.0, 0, 0, true); put('moth', 1.36, 0, -0.08, true);   // on the couch (hips at the front of the cushion, feet on the ground)
-  put('lynx', 0.62, 1.2, 0.08); put('ram', -2.3, 1.1, -0.3); put('heron', 2.25, 1.15, 0.22);   // leaning on the back of it
-  put('gecko', -1.9, 1.2, -0.15); put('anteater', -2.7, 1.3, -0.45);
-  put('squid', 3.7, 0.35, 0.55); put('crow', 2.85, 1.25, 0.6);
+  put('bear', -0.50, 0.06, 0.08, true); put('wolf', 0.0, 0.06, 0, true); put('moth', 0.52, 0.06, -0.06, true);   // on the couch (hips over the cushion; seatSolve sits them back)
+  put('lynx', 0.42, 1.15, 0.08); put('ram', -1.35, 1.05, -0.25); put('heron', 1.35, 1.10, 0.20);   // leaning on the back of it
+  put('gecko', -1.15, 1.15, -0.12); put('anteater', -1.70, 1.25, -0.40);
+  put('squid', 1.85, 0.28, 0.50); put('crow', 1.70, 1.18, 0.55);
   if (Q.get('finale') === 'lineup') { const order = ['wolf', 'moth', 'bear', 'ram', 'heron', 'crow', 'lynx', 'gecko', 'anteater', 'squid']; order.forEach((k, i) => { const c = crew[k]; if (c) { c.g.position.set(O.x + (i - 4.5) * 1.3, 0, O.z + 4); c.g.rotation.y = 0; c.sit = false; c.g.userData.inner.position.y = 0; } }); }
   for (const c of Object.values(crew)) setLive(c, true);
   const cam0 = { fov: cam.fov, near: cam.near, pos: cam.position.clone(), q: cam.quaternion.clone() };
@@ -433,8 +453,8 @@ let shotFov = 0;
 // Staging. 'tight' (every portrait shot, and the sunrise in both): Ram and Heron stand behind the couch's ends,
 // Squid stands off the right arm, the four non-speaking extras step out of frame, so the crew is one compact group a narrow frame can
 // hold without slicing anyone. The sunrise also rolls the couch 0.65 m back toward the plinth so the lens can sit close over their heads - a cheat on the cut, the way film does it. Everything goes back on the cut out of it.
-const RISE = { from: 14.01, to: 20.01, dz: 0.65, pos: { ram: [-1.95, 0.8, 0.05], heron: [1.95, 0.8, -0.05], squid: [2.0, -0.55, 0.35] },
-  rise: { bear: [-0.86, null, 0.05], moth: [0.9, null, -0.05], ram: [-0.46, -1.0, 0.05], heron: [0.46, -1.0, -0.05], squid: [1.25, -0.8, -0.1] } };   // sunrise: from behind and above, Bear and Moth shuffled in next to the Wolf, Ram and Heron just past the couch between their heads
+const RISE = { from: 14.01, to: 20.01, dz: 0.65, pos: { ram: [-1.15, 0.75, 0.05], heron: [1.15, 0.75, -0.05], squid: [1.45, -0.50, 0.35] },
+  rise: { bear: [-0.42, null, 0.05], moth: [0.42, null, -0.05], ram: [-0.36, -1.0, 0.05], heron: [0.36, -1.0, -0.05], squid: [0.95, -0.8, -0.1] } };   // sunrise: from behind and above, Bear and Moth shuffled in next to the Wolf, Ram and Heron just past the couch between their heads
 function stage(s, tight, rise) {
   const key = (tight ? 1 : 0) + (rise ? 2 : 0); if (s.stageKey === key) return; s.stageKey = key; s.rise = rise; const dz = rise ? RISE.dz : 0;
   for (const o of s.set.children) { const u = o.userData; if (!u.home) { u.home = o.position.clone(); u.homeRy = o.rotation.y; } o.position.copy(u.home); o.rotation.y = u.homeRy; o.position.z += dz; }
@@ -509,13 +529,15 @@ const DAYFOG = [45, 330], _ss = new THREE.Vector3(), _ts = new THREE.Vector3(), 
 let irisX = 0, irisY = 0;
 function render(dt, tally) {
   const s = st, t = Math.min(s.t, 400), portrait = innerHeight > innerWidth, F = s.F;
-  // sunrise: the town's own night palette turns into its own daylight palette (cobalt sky, coral ground, mustard sun)
-  const k = ease((t - 2) / 19), P = F.PAL, Dp = F.PAL_DAY, NK = F.NK;
+  // sunrise: the town's own night palette turns into its own daylight palette (cobalt sky, coral ground, mustard sun).
+  // pre-dawn establishing (SUNDAY 6:04 AM): a faint warm horizon so the plaza isn't pitch-night; the eye sun still eases up over the same 19 s.
+  const k = 0.28 + 0.72 * ease((t - 2) / 19), P = F.PAL, Dp = F.PAL_DAY, NK = F.NK;
+  const dawn = 1 - ease((t - 2) / 19);   // fades as the real sunrise lerp takes over; not a restage
   scene.background.lerpColors(P.sky[0], Dp.sky[0], k);
-  scene.fog.color.lerpColors(P.fog[0], Dp.fog[0], k); scene.fog.near = lerp(F.FOG[0], DAYFOG[0], k); scene.fog.far = lerp(F.FOG[1], DAYFOG[1], k);
+  scene.fog.color.lerpColors(P.fog[0], Dp.fog[0], k).lerp(CG.set('#c47a4a'), 0.14 * dawn); scene.fog.near = lerp(F.FOG[0], DAYFOG[0], k); scene.fog.far = lerp(F.FOG[1], DAYFOG[1], k);
   F.groundMat.color.lerpColors(P.ground[0], Dp.ground[0], k);
   F.hemi.color.lerpColors(P.hemiSky[0], Dp.hemiSky[0], k); F.hemi.groundColor.copy(F.groundMat.color).lerp(CG.set('#e6e2da'), 0.8); F.hemi.intensity = 1.55 * lerp(NK.hemi, 1, k);
-  F.key.color.lerpColors(P.key[0], Dp.key[0], k); F.key.intensity = 2.3 * lerp(NK.key, 1, k); F.fill.intensity = 3.2 * lerp(NK.fill, 1, k);
+  F.key.color.lerpColors(P.key[0], Dp.key[0], k).lerp(CG.set('#e8a060'), 0.16 * dawn); F.key.intensity = 2.3 * lerp(NK.key, 1, k); F.fill.intensity = 3.2 * lerp(NK.fill, 1, k);
   F.key.position.copy(O).add(F.KEY_OFFSET); F.key.target.position.copy(O); F.key.target.updateMatrixWorld();
   F.discMat.color.lerpColors(P.sun[0], Dp.sun[0], k); F.lidMat.color.copy(F.discMat.color).multiplyScalar(0.9);
   { const qa = Q.get('finale') === 'lineup', rise = !tally && !qa && t >= RISE.from && t < RISE.to; stage(s, !qa && (rise || innerHeight > innerWidth), rise); }
@@ -526,7 +548,7 @@ function render(dt, tally) {
   if (Q.get('finale') === 'lineup') { V.set(O.x, 1.0, O.z + 15); L.set(O.x, 0.95, O.z + 4); cam.fov = 30; }   // QA: refcheck lineup
   cam.aspect = innerWidth / innerHeight; cam.near = 0.1; cam.position.copy(V); cam.lookAt(L); cam.updateProjectionMatrix(); cam.updateMatrixWorld();
   // the eye sun itself (main.js placeSun, with the elevation rising out of the north end of Sun St); its lid opens on the Heron's line
-  const land = cam.aspect > 1, e = lerp(-0.07, land ? 0.165 : 0.25, ease((t - 1) / 19));
+  const land = cam.aspect > 1, e = lerp(-0.03, land ? 0.165 : 0.25, ease((t - 1) / 19));
   _sd.set(0, e, -1).normalize(); F.sun.position.copy(cam.position).addScaledVector(_sd, F.SUN_DIST); F.sun.quaternion.copy(cam.quaternion); F.sun.scale.setScalar(land ? F.SUN_R * 1.08 : F.SUN_R);
   const open = ease((t - 12.5) / 1.6), blink = (t > 18 && ((t * 0.7) % 4.3) < 0.14) ? 0.85 : 0; F.updateLid(Math.max(1 - open, blink));
   _ss.copy(F.sun.position).project(cam); _ts.set(O.x, 1.2, O.z + (s.rise ? RISE.dz : 0)).project(cam);   // the pupil finds the couch (main.js tracks the Wolf the same way)
