@@ -541,7 +541,7 @@ function buildHead(H, sp, R, Sg) {
     H.add(sweep(pts, pts.map((_, i) => bw * (1 - i / 5.6) + R * 0.01), Sg(12, 6), { sq: [1, b.flat ?? 0.78] }), b.col || '#e0a03a', 0);
     { const ck = rec ? 0 : b.cere ?? 1; if (ck > 0) H.add(blob((R * 0.22 + bw * 0.35) * ck, (R * 0.2 + bw * 0.3) * ck, R * 0.26 * ck, Sg(12, 6), Sg(8, 4)), face, 1, M4(0, by + R * 0.02, bz0 - R * 0.06 - R * 0.1 * (1 - ck))); }   // feathered base of the beak
     H.add(sweep([[-bw * 0.9, by - bw * 0.15, bz0 + R * 0.04], [0, by - bw * 0.15 - L * drop * 0.4, bz0 + L * 0.5], [0, by - L * drop * 0.9, bz0 + L * 0.92]], [R * 0.012, R * 0.01, R * 0.008], 3, { caps: false }), shade(b.col || '#e0a03a', 0.55), 0);
-    if (kind === 'hen') { for (let i = 0; i < 4; i++) H.add(blob(R * 0.2, R * 0.3, R * 0.1, 8, 6), sp.comb || '#d8302a', 1, M4(0, ry * 0.92 + R * 0.16 - Math.abs(i - 1.5) * R * 0.06, R * (0.4 - i * 0.24), -0.3 + i * 0.22)); for (const sx of [-1, 1]) H.add(blob(R * 0.08, R * 0.16, R * 0.06, 8, 5), sp.comb || '#d8302a', 1, M4(sx * R * 0.06, by - R * 0.3, bz0 + R * 0.04)); }
+    if (kind === 'hen') { for (let i = 0; i < 3; i++) H.add(blob(R * 0.2, R * 0.27, R * 0.15, Sg(10, 6), Sg(8, 5)), sp.comb || '#d8302a', 1, M4(0, ry * 0.9 + R * (i === 1 ? 0.22 : 0.14), R * (0.3 - i * 0.26), -0.35 + i * 0.35)); for (const sx of [-1, 1]) H.add(blob(R * 0.08, R * 0.16, R * 0.06, 8, 5), sp.comb || '#d8302a', 1, M4(sx * R * 0.06, by - R * 0.3, bz0 + R * 0.04)); }
     if (sp.crest) for (const k of [-1, 0, 1]) H.add(sweep([[k * R * 0.12, ry * 0.75, -R * 0.1], [k * R * 0.2, ry * 0.95 + R * 0.1, -R * 0.75], [k * R * 0.25, ry * 0.95 + (k ? 0 : R * 0.25), -R * 1.7]], [R * 0.09, R * 0.06, R * 0.012], Sg(6, 4), { sq: [0.5, 1] }), sp.crest, 1);
   }
   if (kind === 'fruit' || kind === 'plain' || kind === 'lizard' || kind === 'moth') {   // small nose bump + deadpan mouth
@@ -719,7 +719,7 @@ function lodSwitch(meshes, u) { return function (renderer, scene, camera) {
   if (want !== u.lodLvl) { u.lodLvl = want; for (const m of meshes) { const g = m.userData.lod[want]; if (g) m.geometry = g; } } }; }
 export function folk(spec, opts = {}) {
   const sp = typeof spec === 'string' ? FOLK[spec] : spec; if (!sp) return folk('someone');
-  let B = BUILT.get(sp); if (!B) { B = { hi: buildFolk(sp, 0.8), lo: buildFolk(sp, 0.4) }; BUILT.set(sp, B); }
+  let B = BUILT.get(sp); if (!B) { B = { hi: buildFolk(sp, sp.q || 0.8), lo: buildFolk(sp, 0.4) };   // sp.q: background townsfolk build a lighter near LOD BUILT.set(sp, B); }
   const { hi, lo } = B, pv = hi.pv, s = pv.s, mat = folkMat(), g = new THREE.Group(), meshes = [];
   EMPTY ||= new THREE.BufferGeometry();
   const mk = (k, parent) => { if (!hi.geos[k]) return null; const m = new THREE.Mesh(hi.geos[k], mat); m.userData.lod = [hi.geos[k], lo.geos[k]]; m.castShadow = false; m.receiveShadow = false; parent.add(m); meshes.push(m); return m; };
@@ -751,7 +751,7 @@ export function palSpec(o = {}) {
     glasses: o.glasses ? { col: o.glasses } : null, hair: o.hair ? { col: o.hair, bun: o.bun } : null, hat: o.hat ? { kind: 'police', col: o.hat } : o.cap ? { kind: 'cap', col: o.cap } : null,
     beak: o.beak ? { col: o.beak, len: (o.beakLen || 0.5) / 0.28 * 0.55 } : null, feet: kind === 'bird' ? 'bird' : o.bigFeet ? 'paw' : 'shoe', bigFeet: o.bigFeet, shoes: o.shoes || '#3a2a26', collar: 'crew', tent: o.tent };
   if (kind === 'bird') { sp.legStyle = 'shorts'; sp.hand = 'wing'; sp.hands = body; }
-  LEGACY.set(key, sp); return sp;
+  sp.name = 'pal_' + kind; LEGACY.set(key, sp); return sp;
 }
 
 // ------------------------------------------------------------------ motion (same contract as the old animPal)

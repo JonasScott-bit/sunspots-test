@@ -112,9 +112,10 @@ export const CAST = Object.fromEntries(['wolf', 'bear', 'grandma', 'gecko', 'lyn
 export const feltCast = (k) => feltFolk(FOLK[k]);   // the felt build of anyone, for the crewGLB fallback
 // townsfolk: a handful of town faces in varied clothes (specs memoised so copies share geometry)
 const FOLKV = new Map();
-export function folk(r = Math.random, h = 0.9 + Math.random() * 0.25) { const KS = ['pig', 'duck', 'cat', 'dog', 'sheep', 'someone'], SH = ['#3a6a8a', '#f2c230', '#2fae8a', '#c9302a', '#8a7ab8', '#ff6fae', '#f6efe0', '#e0705a'], PA = ['#3a3a4a', '#5a4a3a', '#2f4a6a', '#e8dcc8'];
+export function folk(r = Math.random, h = 0.9 + Math.random() * 0.25) { const KS = ['pig', 'duck', 'cat', 'dog', 'sheep', 'pig'],   // Nov 16: every townsfolk face is a real species (no blank 'someone' ball)
+    SH = ['#3a6a8a', '#f2c230', '#2fae8a', '#c9302a', '#8a7ab8', '#ff6fae', '#f6efe0', '#e0705a'], PA = ['#3a3a4a', '#5a4a3a', '#2f4a6a', '#e8dcc8'];
   const k = KS[Math.floor(r() * KS.length) % KS.length], a = Math.floor(r() * SH.length) % SH.length, b = Math.floor(r() * PA.length) % PA.length, hh = Math.round(h * 10) / 10, key = k + a + b + hh;
-  if (!FOLKV.has(key)) FOLKV.set(key, { ...FOLK[k], top: SH[a], sleeve: SH[a], pants: PA[b], h: hh * (FOLK[k].h || 1) });
+  if (!FOLKV.has(key)) FOLKV.set(key, { ...FOLK[k], name: 'town_' + k, q: 0.62, top: SH[a], sleeve: SH[a], pants: PA[b], h: hh * (FOLK[k].h || 1) });
   return feltFolk(FOLKV.get(key)); }
 
 // ------------------------------------------------------------------ the waddle car (felt capsule, bubble cabin, bumpers, headlights)
@@ -180,7 +181,7 @@ const ROT = new WeakMap();
 function rotOnly(gl) { if (!ROT.has(gl)) ROT.set(gl, (gl.animations || []).map((c) => new THREE.AnimationClip(c.name, c.duration, c.tracks.filter((tr) => tr.name.endsWith('.quaternion'))))); return ROT.get(gl); }
 export const liveRigs = () => LIVE.size;
 export async function crewGLB(k, h = 1.8) {
-  const f = { bear: 'town2/bear_lo.glb', heron: 'town2/heron_lo.glb', ram: 'town2/ram_lo.glb', wolf: 'wolf_armsdown_felt.glb', lynx: 'town2/lynx_lo.glb', crow: 'town2/crow_lo.glb', gecko: 'town2/gecko_lo.glb', anteater: 'cast2/anteater.glb', moth: 'town2/moth_lo.glb', cake: 'town2/cake_lo.glb', shake: 'town2/shake_lo.glb', peach: 'town2/fuzzy_peach_lo.glb' }[k];
+  const f = { bear: 'town2/bear_lo.glb', heron: 'town2/heron_lo.glb', ram: 'town2/ram_lo.glb', wolf: 'wolf_armsdown_felt_mid.glb', lynx: 'town2/lynx_lo.glb', crow: 'town2/crow_lo.glb', gecko: 'town2/gecko_lo.glb', anteater: 'cast2/anteater.glb', moth: 'town2/moth_lo.glb', cake: 'town2/cake_lo.glb', shake: 'town2/shake_lo.glb', peach: 'town2/fuzzy_peach_lo.glb' }[k];
   try { if (!f) throw new Error('no glb ' + k);
     const gl = await (glbCache[f] ||= new Promise((res, rej) => loader.load(new URL('../models/' + f, import.meta.url).href, res, undefined, rej)));
     const root = skClone(gl.scene); root.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = false; if (o.isSkinnedMesh) { o.skeleton.pose(); o.frustumCulled = false; } } });
