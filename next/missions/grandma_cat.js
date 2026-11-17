@@ -177,35 +177,41 @@ function create({ T, S, hud: H }) {
     const who = (H.subEl?.querySelector('i')?.textContent || 'GRANDMA').trim().toLowerCase();
     const p = crew[who] || crew.grandma;
     p.updateWorldMatrix(true, true);
-    const head = new THREE.Vector3();
-    // Prefer the GLB Head bone. The wrapper's userData.hd is a standing-height pivot, so a seated
-    // Bear/Wolf CU used to look at chest height (or float above the skull) and fill the frame with torso.
-    let hb = null;
+    const head = new THREE.Vector3(), crown = new THREE.Vector3(), snout = new THREE.Vector3();
+    // The Head bone is the neck joint, not the face: a tight CU at Head.y+0.04 filled the
+    // frame with Bear's chest or the underside of the Wolf's muzzle. Aim at the face
+    // (midpoint of head_end / headfront) and sit the lens a little further back.
+    let hb = null, he = null, hf = null;
     const glb = p.userData.glbW;
     if (glb) {
-      glb.traverse((o) => { if (!hb && o.isBone && /^(Head|head)$/.test(o.name)) hb = o; });
+      glb.traverse((o) => {
+        if (!o.isBone) return;
+        if (!hb && /^(Head|head)$/.test(o.name)) hb = o;
+        if (!he && /^head_end$/i.test(o.name)) he = o;
+        if (!hf && /^headfront$/i.test(o.name)) hf = o;
+      });
       hb = hb || glb.userData?.head?.bone;
     }
     if (hb) hb.getWorldPosition(head);
     else if (p.userData.hd) p.userData.hd.getWorldPosition(head);
     else { p.getWorldPosition(head); head.y += ((p.userData.h || 1) * 1.1); }
+    if (he && hf) { he.getWorldPosition(crown); hf.getWorldPosition(snout); _fsLook.lerpVectors(crown, snout, 0.55); }
+    else if (he) { he.getWorldPosition(crown); _fsLook.lerpVectors(head, crown, 0.65); }
+    else _fsLook.set(head.x, head.y + 0.12, head.z);
     const body = car.userData.body || car;
     body.updateWorldMatrix(true, true);
-    // 3/4 from outside the open cab: 0.5 m along the windshield axis (car +Z) and 1.2 m to the side.
-    // A deep push along +Z from Grandma in the back seat sat the lens in the front row (Bear/Wolf filled the frame).
+    // 3/4 from outside the open cab, orbiting the face (not the neck).
     const e = body.matrixWorld.elements;
     const fl = Math.hypot(e[8], e[10]) || 1, fwdX = e[8] / fl, fwdZ = e[10] / fl, sideX = -fwdZ, sideZ = fwdX;
-    const por = cam.aspect < 1, dist = por ? 0.42 : 0.55, sh = por ? 0.92 : 1.15;
-    _fsLook.set(head.x, head.y + 0.04, head.z);
+    const por = cam.aspect < 1, dist = por ? 0.85 : 0.95, sh = por ? 1.15 : 1.35;
     const blockers = [];
     for (const o of Object.values(crew)) { if (o === p) continue; o.traverse((m) => { if (m.isMesh && m.visible) blockers.push(m); }); }
     const trySide = (sign, extra) => {
-      _fsP.set(head.x + fwdX * dist + sideX * (sh + extra) * sign, head.y + 0.10, head.z + fwdZ * dist + sideZ * (sh + extra) * sign);
+      _fsP.set(_fsLook.x + fwdX * dist + sideX * (sh + extra) * sign, _fsLook.y + 0.10, _fsLook.z + fwdZ * dist + sideZ * (sh + extra) * sign);
       _fsD.subVectors(_fsLook, _fsP);
       const L = _fsD.length() || 1; _fsD.multiplyScalar(1 / L);
       _fsRC.set(_fsP, _fsD); _fsRC.near = 0.02; _fsRC.far = Math.max(0.05, L - 0.08);
       const hit = blockers.length ? _fsRC.intersectObjects(blockers, false).find((h) => h.distance > 0.02) : null;
-      // also reject a placement that would put a body inside the near plane
       const nearHit = hit && hit.distance < (cam.near || 0.08) + 0.05;
       return { sign, extra, blocked: !!hit, nearHit: !!nearHit, dist: hit ? hit.distance : Infinity, x: _fsP.x, y: _fsP.y, z: _fsP.z };
     };
@@ -218,7 +224,7 @@ function create({ T, S, hud: H }) {
     }
     cam.position.set(pick.x, pick.y, pick.z);
     cam.lookAt(_fsLook.x, _fsLook.y, _fsLook.z);
-    cam.fov = por ? 28 : 26; cam.near = 0.08; cam.updateProjectionMatrix();
+    cam.fov = por ? 36 : 32; cam.near = 0.08; cam.updateProjectionMatrix();
   }
   // ================================================================== per-frame
   const _w = new THREE.Vector3();
