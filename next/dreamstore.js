@@ -208,7 +208,7 @@ body.dsIn #chatBubble,body.scene #chatBubble,body.dsIn #fuzzo{display:none!impor
   const lineBusy = () => DS.lineT > 0 || DS.lines.length > 0;
 
   // ---------------------------------------------------------------- the beat
-  const _v = new THREE.Vector3(), _c = new THREE.Vector3(), _l = new THREE.Vector3();
+  const _v = new THREE.Vector3(), _c = new THREE.Vector3(), _l = new THREE.Vector3(), _cl = new THREE.Vector3();
   function collide(p) {
     p.x = clamp(p.x, -HW + 0.35, HW - 0.35); p.z = clamp(p.z, -HD + 0.35, HD + 1.6);
     for (const [x0, x1, z0, z1] of COLL) { const r = 0.3; if (p.x > x0 - r && p.x < x1 + r && p.z > z0 - r && p.z < z1 + r) {
@@ -282,9 +282,11 @@ body.dsIn #chatBubble,body.scene #chatBubble,body.dsIn #fuzzo{display:none!impor
       DS.blob.position.set(S.p.x, 0.035, S.p.z); DS.blob.scale.setScalar(1 - bob * 1.4);
       // snacks: drift, bob, spin
       const M4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sv = new THREE.Vector3(), pv = new THREE.Vector3();
+      _cl.copy(camera.position).sub(DS.root.position);
       for (const { im, st } of DS.inst) { for (let i = 0; i < st.length; i++) { const s = st[i], u = t * s.a + s.ph;
         pv.set(s.x + Math.sin(u) * 0.28, s.y + Math.sin(u * 1.7) * 0.16, s.z + Math.cos(u * 0.8) * 0.22);
-        e.set(Math.sin(u * 0.9) * s.tilt, t * s.s + s.ph, Math.cos(u * 0.7) * s.tilt * 0.6); q.setFromEuler(e); sv.setScalar(s.sc); M4.compose(pv, q, sv); im.setMatrixAt(i, M4); }
+        e.set(Math.sin(u * 0.9) * s.tilt, t * s.s + s.ph, Math.cos(u * 0.7) * s.tilt * 0.6); q.setFromEuler(e);
+        const dc = pv.distanceTo(_cl), near = dc < 1.6 ? smooth(clamp((dc - 0.7) / 0.9, 0, 1)) : 1; sv.setScalar(s.sc * near); M4.compose(pv, q, sv); im.setMatrixAt(i, M4); }   // near the lens they shrink away instead of filling the screen
         im.instanceMatrix.needsUpdate = true; }
       for (const h of DS.heroes) {
         if (h.got) { if (h.fly > 0 && h.fly < 1) { h.fly = Math.min(1, h.fly + dt / 0.4); const f = smooth(h.fly); h.g.position.lerp(_l.set(S.p.x, 1.1, S.p.z), f * 0.5); h.g.scale.setScalar(1 - f * 0.85); if (h.fly >= 1) h.g.visible = false; } continue; }
@@ -306,12 +308,18 @@ body.dsIn #chatBubble,body.scene #chatBubble,body.dsIn #fuzzo{display:none!impor
     if (!DS.active || DS.phase === 'in') return false;
     const w = getWolf(); if (!w) return false;
     const por = innerHeight > innerWidth, lx = w.position.x - O.x, lz = w.position.z - O.z;
+    if (DS.phase === 'checkout' || DS.phase === 'outro') {   // a two-shot at the counter: the Wolf and the Clerk, the floating aisles behind
+      const want = _c.set(O.x + COUNTER.x - (por ? 2.3 : 2.9), por ? 2.05 : 1.85, O.z + COUNTER.z + (por ? 2.9 : 2.3));
+      camP.lerp(want, 1 - Math.exp(-dt * 2.2)); c.position.copy(camP); c.lookAt(_l.set(O.x + (lx + CLERK_AT[0]) / 2, 1.25, O.z + (lz + CLERK_AT[1]) / 2));
+      const fov = por ? 62 : 46; if (Math.abs(c.fov - fov) > 0.01) { c.fov = fov; c.updateProjectionMatrix(); } c.updateMatrixWorld(); grade(); return true; }
     const want = _c.set(O.x + clamp(lx * 0.5, -2.4, 2.4), por ? 3.0 : 2.7, O.z + clamp(lz + (por ? 3.7 : 3.3), 0.4, FR - 0.15));
     if (!camP || dt > 0.5) camP = want.clone(); else camP.lerp(want, 1 - Math.exp(-dt * 3.2));
     c.position.copy(camP); c.lookAt(_l.set(O.x + lx * 0.85, 0.9, O.z + lz - 1.1));
     const fov = por ? 66 : 50; if (Math.abs(c.fov - fov) > 0.01) { c.fov = fov; c.updateProjectionMatrix(); } c.updateMatrixWorld();
+    grade(); return true;
+  }
+  function grade() {
     const fin = window.__sunspots?.fin; if (fin) { fin.hemi.color.set('#ffd9c4'); fin.hemi.groundColor.set('#d08a9a'); fin.hemi.intensity = 1.3; fin.key.color.set('#ffcf9a'); fin.key.intensity = 1.25; if (fin.fill) fin.fill.intensity = 0.6; }
-    return true;
   }
   const api = { build, task, camera: cam, get active() { return DS.active; }, DS, reset() { if (DS.active) { DS.active = false; DS.phase = 'off'; if (DS.root) DS.root.visible = false; if (ov) ov.style.display = 'none'; document.body.classList.remove('dsIn'); fade(false); } } };
   window.__ds = api;   // QA
