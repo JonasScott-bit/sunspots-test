@@ -206,7 +206,7 @@ export function createTownscape(C) {
     ['bus_shelter', 32.5, -0.2, 0, 0, 2.3], ['payphone', 9.4, 14.6, Math.PI, 0.5, 0.9],
     ...[-170, -146, -122, -98, -74, -50, -26, -2, 22].flatMap(x => [['lamp', x + 4, 1.6, 0, 0.35, 0.8], ['lamp', x - 8, 12.4, Math.PI, 0.35, 0.8]]),
   ];
-  TS.posts = TS.props.filter((p) => p[4] > 0).map(([, x, z, , r]) => ({ x, z, r: r + 0.14, h: 3.6 }));
+  TS.posts = TS.props.filter((p) => p[4] > 0).map(([, x, z, , r]) => ({ x, z, r: r + 0.14, h: 5.5 })); // lamp GLB is 5.3 m; 3.6 let the portrait follow-cam ray clear the post and sit in the lantern
   TS.bench = [28.6, 0.2, 0];
   TS.busStops = [{ name: 'MAIN ST', x: 31, z: 1.2 }];
 
