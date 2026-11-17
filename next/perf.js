@@ -108,14 +108,18 @@ export function installPerf({ scene, camera, renderer, key }) {
       if (m.userData.noCull || m.userData.cactusCell) return;
       if (m.parent?.name === 'ts_streets' && m.castShadow) m.castShadow = false;   // flat streets/kerbs: shadow pass cost (12.7k tris) for no visible shadow; they still receive
       const tri = triOf(m); const skin = !!m.isSkinnedMesh;
-      if (!skin && tri < 800) return;   // 800+: felt cacti/lamp clones get LODs too (one build per shared geometry)
+      let fair = false; for (let q = m; q; q = q.parent) if (/carnival|ride |plush wall|fair /i.test(q.name || '')) { fair = true; break; }
+      const small = !skin && tri < 800 && tri >= 100 && quality.t.smallCull > 0 && !/^ts_/.test(m.parent?.name || '');   // town perf pass: small props are distance-culled on MEDIUM/LOW (draw calls)
+      if (!skin && tri < 800 && !small && !fair) return;   // 800+: felt cacti/lamp clones get LODs too (one build per shared geometry)
       const g = m.geometry; if (!g.boundingSphere) g.computeBoundingSphere(); const bs = g.boundingSphere; if (!bs || !isFinite(bs.radius)) return;
       if (m.isInstancedMesh) return;   // instanced crowds manage themselves
       const char = skin || m.frustumCulled === false || /^(Mesh_0|char\d|mesh_0)$/.test(m.name || '');
       const scale = (() => { m.updateWorldMatrix(true, false); return m.matrixWorld.getMaxScaleOnAxis(); })();
-      if (!char && bs.radius * scale > 45) return;   // ground, terrain, whole-street merges: leave to the frustum
+      const town = /^ts_/.test(m.parent?.name || '');
+      if (!char && !town && !fair && bs.radius * scale > 45) return;   // (town merges stay: their shadow is tier-gated below)   // ground, terrain, whole-street merges: leave to the frustum
       const it = { m, char, tri, c: bs.center.clone(), r0: bs.radius, hidden: false, shadow0: m.castShadow, noShadow: false, g0: m.geometry, lod: null };
-      items.push(it); if (LOD_ON && (tri >= 6000 || (!char && !skin))) lodQ.push(it);
+      it.small = small; it.town = town; it.fair = fair;
+      items.push(it); if (LOD_ON && !small && (tri >= 6000 || (!char && !skin))) lodQ.push(it);
     });
     stats.items = items.length; stats.chars = items.filter((i) => i.char).length;
   }
@@ -132,6 +136,7 @@ export function installPerf({ scene, camera, renderer, key }) {
       const type = t.soft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap; if (renderer.shadowMap.type !== type) { renderer.shadowMap.type = type; renderer.shadowMap.needsUpdate = true; }
       key.shadow.radius = t.soft ? 4 : 1.5;   // plain PCF uses radius as tap spacing: 4 texels apart = ghosted, stripy shadow edges on MEDIUM/LOW
     }
+    if (key?.shadow) key.shadow.camera.layers.enable(5);   // townscape shadow proxies (shadow pass only)
     for (const c of cells()) { const u = c.userData.cactusCell; c.count = Math.max(u.solid, Math.round(u.total * t.cacti / 300)); }
   }
   onSettings((k) => { if (k === 'quality') applyTier(); });
@@ -169,6 +174,7 @@ export function installPerf({ scene, camera, renderer, key }) {
     const t = quality.t, cp = camera.position;
     camera.updateMatrixWorld(); pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); fr.setFromProjectionMatrix(pm);
     let hid = 0, ns = 0;
+    const SS = window.__sunspots, pp = SS && !SS.level?.inCar && !SS.puppet?.on ? SS.wolfState?.pos : null;   // character shadows are kept around the PLAYER (theirs always), not the camera
     for (let i = items.length - 1; i >= 0; i--) {
       const it = items[i], m = it.m;
       if (!m.parent) { items.splice(i, 1); continue; }   // removed from the scene
@@ -177,14 +183,29 @@ export function installPerf({ scene, camera, renderer, key }) {
       const d = Math.max(0, cp.distanceTo(wc) - r);
       let h;
       // heavy rigs drop their shadow sooner (a 100k-tri Moth costs as much in the shadow pass as in the view)
-      if (it.char) { h = d > t.charCull; if (!h && d > 10 && m.frustumCulled === false) { sph.set(wc, r + 2.5); h = !fr.intersectsSphere(sph); } shadow(it, d > t.charShadow * Math.min(1, Math.max(0.3, 20000 / it.tri))); }
-      else h = it.tri >= 1500 && d > t.propCull;
+      const mine = pp && Math.hypot(wc.x - pp.x, wc.z - pp.z) < 2.8;   // the player (or whoever is under the follow cam)
+      let fair = it.fair; if (fair === undefined) { fair = false; for (let q = m; q; q = q.parent) if (/carnival|ride |plush wall/i.test(q.name || '')) { fair = true; break; } it.fair = fair; }
+      if (it.char) {
+        h = d > t.charCull;
+        // Meshy rigs have frustumCulled = false (their bounds are wrong on some LODs); still drop anyone clearly off screen,
+        // including close-up (the old d>10 gate left the whole yard crew drawn behind the camera on the wolf shot).
+        if (!h && !mine) { sph.set(wc, r + 3.5); h = !fr.intersectsSphere(sph); }
+        const ds = pp ? Math.max(0, Math.hypot(wc.x - pp.x, wc.z - pp.z) - r) : d;
+        shadow(it, t.charShadow <= 0 || ds >= t.charShadow * Math.min(1, Math.max(0.3, 20000 / it.tri)));
+      } else if (it.small && !fair) { h = d > t.smallCull; shadow(it, !(d < (t.propShadow ?? 999))); }
+      else {
+        const lim = fair ? (t.fairCull ?? t.propCull) : t.propCull;
+        // rides are one big mesh (a 40 m wheel bound made the fair look 'close' from the wolf's yard, 50 m away)
+        const df = fair ? Math.max(0, cp.distanceTo(wc) - Math.min(r, 8)) : d;
+        h = !it.town && (fair || it.tri >= 800) && df > lim;
+        shadow(it, !(d < (it.town ? t.townShadow ?? 999 : t.propShadow ?? 999)));
+      }   // town perf pass: buildings cast shadows only close (LOW: never)
       hide(it, h); if (it.hidden) hid++; if (it.noShadow) ns++;
       if (it.lod && FORCE) { const want = FORCE === '2' && it.lod2 ? it.lod2 : it.lod; if (m.geometry !== want) m.geometry = want; }
-      else if (it.lod) { const ld = t.lodDist * Math.min(1, Math.max(0.6, 20000 / it.tri)); const want = it.lod2 && d > ld * 3 ? it.lod2 : d > ld ? it.lod : it.g0; if (m.geometry !== want) m.geometry = want; }   // heavy rigs simplify sooner; L2 past 3x
+      else if (it.lod) { const ld = t.lodDist * Math.min(1, Math.max(t.charLodMin ?? 0.6, (t.charLodK ?? 20000) / it.tri)); const want = it.lod2 && d >= Math.max(ld * 3, t.l2Min ?? 0) ? it.lod2 : (ld <= 0 || d >= ld) ? it.lod : it.g0; if (m.geometry !== want) m.geometry = want; }   // heavy rigs simplify sooner; L2 past 3x. ld<=0 (LOW) uses L1 even when the camera is inside the bounds.
     }
     const fogFar = scene.fog?.far || 1e9;
-    let cv = 0; for (const c of cells()) { if (!c.boundingSphere) c.computeBoundingSphere(); const d = cp.distanceTo(c.boundingSphere.center) - c.boundingSphere.radius; const show = d < Math.min(fogFar, t.propCull + 40); c.layers.mask = show ? 1 : 0; if (show) cv++; }
+    let cv = 0; for (const c of cells()) { if (!c.boundingSphere) c.computeBoundingSphere(); const d = cp.distanceTo(c.boundingSphere.center) - c.boundingSphere.radius; const show = d < Math.min(fogFar, t.cactiCull ?? t.propCull + 40); c.layers.mask = show ? 1 : 0; c.castShadow = d < (t.cactiShadow ?? 999); if (show) cv++; }
     stats.hidden = hid; stats.noShadow = ns; stats.cells = cv;
   }
   applyTier(); scan();

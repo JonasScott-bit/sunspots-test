@@ -13,15 +13,21 @@ const Q = new URLSearchParams(location.search);
 export const PHONE = Q.has('phone') ? (Q.get('phone') === 'low' ? 'low' : 'medium') : null;
 if (PHONE) { try { Object.defineProperty(window, 'devicePixelRatio', { get: () => 3, configurable: true }); } catch (_) {} }
 // build stamp (shown in the pause menu with the tier + pixel ratio, so a phone report says exactly what it ran)
-export const BUILD = '2026-11-16 felttown';
+export const BUILD = '2026-11-17 felttown-perf';
 window.__build = BUILD;
 export const TIERS = {
-  //            pixel ratio cap, shadow map, soft shadows, characters hidden past (m), character shadows past (m), props hidden past (m), far cacti, simplified mesh past (m)
+  //            pixel ratio cap, shadow map, soft shadows, characters hidden past (m), character shadows past (m, measured from the player), props hidden past (m), far cacti, simplified mesh past (m)
   // mud fix: LODs are seam-preserving now and swap in much further out (MEDIUM was 6 m -> almost every character on the
   // phone was a 12% mesh); simplified mesh distance = lodDist x max(0.6, 20k / tris), L2 past 3x that
-  high:   { id: 'high',   label: 'HIGH',   dprMax: 2,   shadowMap: 1024, soft: true,  charCull: 95, charShadow: 30, propCull: 240, cacti: 300, lodDist: 24 },
-  medium: { id: 'medium', label: 'MEDIUM', dprMax: 1.5, shadowMap: 1024, soft: false, charCull: 42, charShadow: 14, propCull: 175, cacti: 150, lodDist: 16 },
-  low:    { id: 'low',    label: 'LOW',    dprMax: 1,   shadowMap: 512,  soft: false, charCull: 32, charShadow: 8, propCull: 125, cacti: 60, lodDist: 10 },
+  // town perf pass (Nov 16): townLod = scale on each building's detail->massing distance, townTrim = small trim pieces
+  // (pickets, balusters, knobs, brackets) drawn only this close (m), townShadow = detail meshes cast shadows only this close (0 = never),
+  // townProxy = buildings cast their shadow from the massing boxes instead (no popping), cactiCull/cactiShadow = cactus cell draw / shadow distance (m),
+  // propShadow = props cast shadows only this close, charLodK/charLodMin/l2Min = character LOD distance shaping (see perf.js)
+  // smallCull = small props (100+ tris) hidden past this (0 = never), charLodMin = floor of the rig LOD
+  // distance factor (heavy rigs simplify sooner), cham = soft clay bevels on town boxes (LOW: plain boxes)
+  high:   { id: 'high',   label: 'HIGH',   dprMax: 2,   shadowMap: 1024, soft: true,  charCull: 95, charShadow: 30, propCull: 240, cacti: 300, lodDist: 24, townLod: 1,    townTrim: 60, townShadow: 999, townProxy: false, cactiCull: 280, cactiShadow: 999, smallCull: 0,   charLodMin: 0.6,  charLodK: 20000, l2Min: 0, propShadow: 999,  cham: true,  fairCull: 200, extras: 110, extrasNear: 60 },
+  medium: { id: 'medium', label: 'MEDIUM', dprMax: 1.5, shadowMap: 1024, soft: false, charCull: 42, charShadow: 7,  propCull: 110, cacti: 150, lodDist: 16, townLod: 0.45, townTrim: 22, townShadow: 0,   townProxy: true,  cactiCull: 140, cactiShadow: 24,  smallCull: 90,  charLodMin: 0.10, charLodK: 5000, l2Min: 0, propShadow: 16,  cham: true,  fairCull: 64,  extras: 90, extrasNear: 50 },
+  low:    { id: 'low',    label: 'LOW',    dprMax: 1,   shadowMap: 512,  soft: false, charCull: 16, charShadow: 0,   propCull: 70,  cacti: 60, lodDist: 8,  townLod: 0.36, townTrim: 12, townShadow: 0,   townProxy: true,  cactiCull: 80,  cactiShadow: 0,   smallCull: 50,  charLodMin: 0,    charLodK: 0,    l2Min: 0, propShadow: 0,  cham: false, fairCull: 36,  extras: 70, extrasNear: 40 },
 };
 const ORDER = ['low', 'medium', 'high'];
 const DEF = { quality: 'auto', invert: 'off', textSize: 'm', fps: 'off' };   // fps: the PERF overlay (perfhud.js)

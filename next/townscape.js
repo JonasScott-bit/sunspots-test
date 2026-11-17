@@ -3,7 +3,7 @@
 // Each building = one merged vertex-coloured felt mesh (+ unlit glow mesh + distance massing mesh). Colours are
 // point-sampled from the reference photos (median of a small patch, daylight side) — see PAL.
 import * as THREE from 'three';
-import { Kit, textPlane, patternize } from './townkit.js';
+import { Kit, textPlane, patternize, FELT_TOWN } from './townkit.js';
 import { buildCommercial } from './townshops.js';
 import { buildStreet } from './townstreet.js';
 import { EXTRA, EXTRA_NAMES } from './collide_extra.js';
@@ -49,7 +49,7 @@ export function createTownscape(C) {
 
   // ---------------------------------------------------------------- placing a building
   function place(name, x, z, ry, fn, o = {}) {
-    const k = new Kit(); fn(k, o);
+    const k = new Kit().site(x, z); fn(k, o);
     const g = k.build(mats, { shadow: !LOW }); g.name = 'ts_' + name; g.position.set(x, 0, z); g.rotation.y = ry;
     for (const m of k.extras) g.add(m);
     scene.add(g); g.updateMatrixWorld(true);
@@ -76,10 +76,18 @@ export function createTownscape(C) {
       TS.pads.push(pad);
     }
     for (const [mk, v] of Object.entries(k.marks)) { const p = new THREE.Vector3(v.x, 0, v.z).applyMatrix4(W); TS.marks[mk] = { ...v, x: p.x, z: p.z, ry: (v.ry || 0) + ry }; }
-    const bs = new THREE.Box3().setFromObject(g); const c = bs.getCenter(new THREE.Vector3()), r = bs.getSize(new THREE.Vector3()).length() / 2;
-    const b = { name, g, c, r, detail: g.userData.detail, lo: g.userData.lo, glow: g.userData.glow, extras: k.extras, lodNear: o.lodNear ?? 70 };
+    const bs = new THREE.Box3().setFromObject(g); const sph = bs.getBoundingSphere(new THREE.Sphere()); const c = sph.center.clone(), r = sph.radius;
+    const b = { name, g, c, r, detail: g.userData.detail, lo: g.userData.lo, glow: g.userData.glow, trim: g.userData.trim, extras: k.extras, lodNear: o.lodNear ?? 70 };
     if (g.userData.detail) TS.stats.tris += g.userData.detail.geometry.attributes.position.count / 3;
+    if (g.userData.trim) TS.stats.tris += g.userData.trim.geometry.attributes.position.count / 3;
     if (o.melt !== false) makeMeltable(g, { tint: o.tint || '#ff7f86', puddle: 0, drips: o.drips === false ? null : { drip: 'box', footprint: o.foot || [Math.min(14, bs.max.x - bs.min.x), Math.min(14, bs.max.z - bs.min.z)], height: o.dripY, kind: 'building' } });
+    if (b.lo && FELT_TOWN) {   // town perf pass: shadow proxy = the massing boxes, drawn ONLY in the shadow pass (layer 5; perf.js enables it on the
+      // sun's shadow camera). On MEDIUM/LOW the detail mesh casts nothing, so building shadows never pop and cost ~100 tris each.
+      // 3% narrower in x/z so it stays hidden inside the walls for any camera that sees every layer (cockpit mirror).
+      const L = b.lo, gb = L.geometry; if (!gb.boundingBox) gb.computeBoundingBox(); const cc = gb.boundingBox.getCenter(new THREE.Vector3());
+      const px = new THREE.Mesh(gb, L.material); px.name = 'shadowproxy'; px.layers.set(5); px.castShadow = true; px.receiveShadow = false; px.userData.noCull = true;
+      px.customDepthMaterial = L.customDepthMaterial; px.scale.set(0.97, 1, 0.97); px.position.set(cc.x * 0.03, 0, cc.z * 0.03); g.add(px); b.sp = px;
+    }
     TS.buildings.push(b); return b;
   }
   TS.place = place;
@@ -94,7 +102,7 @@ export function createTownscape(C) {
       for (const side of [-1, 1]) {
         const zc = s.z + side * s.hw, zo = zc + side * WALK;
         for (const [u, v] of segs(s.x0, s.x1, cutsEW(zc))) { k.aab(u, 0, Math.min(zc, zo), v, 0.08, Math.max(zc, zo), S.walk); k.aab(u, 0, zc - 0.11, v, 0.14, zc + 0.11, S.curb);
-          for (let x = u + 1.8; x < v - 0.5; x += 1.8) k.aab(x - 0.02, 0.08, Math.min(zc, zo) + 0.2, x + 0.02, 0.083, Math.max(zc, zo) - 0.2, '#c4b8aa'); } // expansion joints
+          if (!FELT_TOWN) for (let x = u + 1.8; x < v - 0.5; x += 1.8) k.aab(x - 0.02, 0.08, Math.min(zc, zo) + 0.2, x + 0.02, 0.083, Math.max(zc, zo) - 0.2, '#c4b8aa'); } // expansion joints (felt town: plain felt walk, ~2.5k fewer boxes)
       }
       for (const [u, v] of segs(s.x0 + 2, s.x1 - 2, GRID.ns.map(n => [n.x - n.hw - 2, n.x + n.hw + 2]))) for (let x = u; x < v - 2; x += 6) k.aab(x, 0.035, s.z - 0.08, x + 3, 0.04, s.z + 0.08, S.dash);
     }
@@ -118,11 +126,15 @@ export function createTownscape(C) {
   const _cp = new THREE.Vector3();
   TS.update = (camera) => {
     _cp.copy(camera.position);
+    // town perf pass: the detail->massing distance and the trim distance scale with the quality tier; nothing is drawn
+    // past the fog's far plane (fully fogged anyway, so no visible pop)
+    const qt = window.__quality?.t || {}, lk = qt.townLod ?? 1, trimD = qt.townTrim ?? 1e9, fogFar = scene.fog?.far ?? 1e9;
     for (const b of TS.buildings) {
-      const d = _cp.distanceTo(b.c) - b.r, near = d < b.lodNear;
-      if (b.detail) b.detail.visible = near || !b.lo; if (b.lo) b.lo.visible = !near;
-      if (b.glow) b.glow.visible = d < 260;
-      if (b.extras.length) { const v = d < 110, nv = d < 60; if (b.extrasOn !== v || b.extrasNear !== nv) { b.extrasOn = v; b.extrasNear = nv; for (const e of b.extras) e.visible = (e.userData.near ? nv : v) || !!e.userData.far; } }
+      const d = _cp.distanceTo(b.c) - b.r, near = d < b.lodNear * lk, gone = d > fogFar;
+      if (b.detail) b.detail.visible = !gone && (near || !b.lo); if (b.lo) b.lo.visible = !gone && !near; if (b.trim) b.trim.visible = !gone && near && d < trimD;
+      if (b.glow) b.glow.visible = !gone && d < 260;
+      if (b.sp) { b.sp.visible = !gone; b.sp.castShadow = !!qt.townProxy; }
+      if (b.extras.length) { const v = d < (qt.extras ?? 110), nv = d < (qt.extrasNear ?? 60); if (b.extrasOn !== v || b.extrasNear !== nv) { b.extrasOn = v; b.extrasNear = nv; for (const e of b.extras) e.visible = (e.userData.near ? nv : v) || !!e.userData.far; } }
     }
   };
   // ---------------------------------------------------------------- collision (Nov 16 pass)
@@ -254,7 +266,7 @@ function buildHouses(TS, place) {
     k.aab(-3.0, 0, 0.12, -0.45, 0.2, 0.32, '#a85a42', { pat: 'brick', ps: 0.07 }); k.aab(2.2, 0, 0.12, 2.6, 0.2, 1.5, '#a85a42', { pat: 'brick', ps: 0.07 });
     walkTo(k, 4.0, 3.0, 0, MN.yard + 3.5, '#cfc6b8');                                      // driveway
     walkTo(k, 0.9, 1.2, 3.0, MN.yard, '#cfc6b8');
-    for (const [x, z, s] of [[-0.9, 0.6, 1], [2.9, 0.6, 0.85], [-2.6, 0.5, 0.9]]) { k.blob(x, 0.45 * s, z, 0.75 * s, 0.55 * s, 0.55 * s, P.hydrLeaf); for (let i = 0; i < 5; i++) k.blob(x + Math.cos(i * 1.3) * 0.45 * s, 0.75 * s + (i % 2) * 0.12, z + Math.sin(i * 1.3) * 0.3, 0.26 * s, 0.24 * s, 0.24 * s, P.hydr); }
+    for (const [x, z, s] of [[-0.9, 0.6, 1], [2.9, 0.6, 0.85], [-2.6, 0.5, 0.9]]) { k.blob(x, 0.45 * s, z, 0.75 * s, 0.55 * s, 0.55 * s, P.hydrLeaf); const hn = FELT_TOWN ? 3 : 5; for (let i = 0; i < hn; i++) k.blob(x + Math.cos(i * 1.3) * 0.45 * s, 0.75 * s + (i % 2) * 0.12, z + Math.sin(i * 1.3) * 0.3, (FELT_TOWN ? 0.34 : 0.26) * s, (FELT_TOWN ? 0.3 : 0.24) * s, (FELT_TOWN ? 0.3 : 0.24) * s, P.hydr); }
     k.box(9.6, 0, 0, 0.12, 1.2, 0.12, '#6a5040'); k.box(9.6, 1.2, 0, 0.4, 0.3, 0.5, '#2a3a5a');   // mailbox post (real mailbox character lands in M4)
   }, { tint: '#ff7a86', foot: [9, 10] });
 
@@ -271,7 +283,7 @@ function buildHouses(TS, place) {
     k.aab(-6.6, H - 0.2, 0.0, 6.6, H, 0.55, P.trim);                                  // red fascia band
     // garage door: cream panels in a red grid
     const gx = 3.35, gw = 4.8, gh = 2.2; k.box(gx, 0, 0.42, gw + 0.2, gh + 0.1, 0.05, P.trim);
-    for (let i = 0; i < 4; i++) for (let j = 0; j < 5; j++) k.box(gx - gw / 2 + gw * (i + 0.5) / 4, 0.06 + gh * j / 5, 0.46, gw / 4 - 0.14, gh / 5 - 0.1, 0.04, P.garage);
+    if (FELT_TOWN) { for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) k.box(gx - gw / 2 + gw * (i + 0.5) / 2, 0.1 + gh * j / 2, 0.48, gw / 2 - 0.22, gh / 2 - 0.18, 0.08, P.garage); } else { for (let i = 0; i < 4; i++) for (let j = 0; j < 5; j++) k.box(gx - gw / 2 + gw * (i + 0.5) / 4, 0.06 + gh * j / 5, 0.46, gw / 4 - 0.14, gh / 5 - 0.1, 0.04, P.garage); }
     // M5 detail: red louvred gable vents, window header band, red-capped chimney, brick bed edging, porch post + lamp, curb number, the leafy tree
     k.box(3.35, H + 0.75, 0.47, 0.62, 0.48, 0.04, P.trim, { pat: 'louver', ps: 0.07 }); k.box(-4.4, H + 0.42, 0.25, 0.5, 0.4, 0.04, P.trim, { pat: 'louver', ps: 0.07 });
     k.aab(-5.65, 2.3, 0, -3.15, 2.5, 0.1, P.trim); for (const u of [-6.3, -5.2]) k.aab(u - 0.06, 0, -3.5, u + 0.06, 5.0, -2.38, P.trim);

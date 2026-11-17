@@ -34,18 +34,28 @@ const FT_ROOFS = ['#b4473a', '#6e3a5e', '#2f7d78', '#a8622c', '#3f4f9a', '#c2603
 const FT_HUES = [[0, '#d9443a'], [18, '#e8662e'], [36, '#e8a030'], [48, '#ecc23a'], [64, '#7a9e36'], [95, '#5f9a3a'], [135, '#3f8a4e'], [170, '#2f9a8f'], [200, '#3a8ac8'], [222, '#2f5fc4'], [265, '#6e48a8'], [295, '#9a4a9a'], [325, '#d0548c'], [345, '#e2647e'], [360, '#d9443a']];
 const SRGB = THREE.SRGBColorSpace;   // HSL decisions in display (sRGB) space, not linear
 const _h = {}, _h2 = {}, _fc = new THREE.Color();
-const FT = { seed: 0 };
+const FT = { seed: 0, wall: 0, roof: 0 };
+// every sited building picks a wall + roof slot no neighbour within FT_NEAR m already uses (greedy, hashed start so the
+// street doesn't stripe). Kit.site(x, z) is called by townscape.place().
+const FT_SITES = [], FT_NEAR = 42;
+function ftSlots(x, z, seed) {
+  const near = FT_SITES.filter(q => Math.hypot(q.x - x, q.z - z) < FT_NEAR);
+  const pick = (n, key, off) => { const used = new Set(near.map(q => q[key])); for (let i = 0; i < n; i++) { const k = ((seed * off + i) % n + n) % n; if (!used.has(k)) return k; }
+    let best = 0, bd = -1; for (let k = 0; k < n; k++) { const dd = Math.min(...near.filter(q => q[key] === k).map(q => Math.hypot(q.x - x, q.z - z)), 1e9); if (dd > bd) { bd = dd; best = k; } } return best; };
+  const r = { x, z, wall: pick(FT_WALLS.length, 'wall', 7), roof: pick(FT_ROOFS.length, 'roof', 3) }; FT_SITES.push(r); return r;
+}
 function ftPick(list, k) { return list[((k % list.length) + list.length) % list.length]; }
+const ftWall = (d = 0) => FT_WALLS[(FT.wall + d) % FT_WALLS.length], ftRoof = () => FT_ROOFS[FT.roof % FT_ROOFS.length];
 function feltColor(c, role) {
   if (!FELT_TOWN) return c;
   const hx = '#' + c.getHexString(); if (hx === '#ffffff') return c; if (FT_EXACT[hx]) return c.set(FT_EXACT[hx]);   // pure white = a tint base (the car fleet takes per-car colours on top)
   c.getHSL(_h, SRGB); const L = _h.l, S = _h.s * (1 - Math.abs(2 * L - 1)); // S = chroma (0..1): low for whites/greys/near-blacks
   const big = role === 'big' || role === 'roof', sd = FT.seed;
-  if (role === 'roof') { _fc.set(ftPick(FT_ROOFS, sd * 3 + 1)); _fc.getHSL(_h2, SRGB); return c.setHSL(_h2.h, _h2.s, THREE.MathUtils.clamp(_h2.l + (L - 0.5) * 0.25, 0.22, 0.6), SRGB); }
+  if (role === 'roof') { _fc.set(ftRoof()); _fc.getHSL(_h2, SRGB); return c.setHSL(_h2.h, _h2.s, THREE.MathUtils.clamp(_h2.l + (L - 0.5) * 0.25, 0.22, 0.6), SRGB); }
   if (S < 0.09 || (L < 0.2 && S < 0.2)) { // neutrals: whites, greys, blacks
-    if (L > 0.84) { if (big) { _fc.set(ftPick(FT_WALLS, sd)); _fc.getHSL(_h2, SRGB); return c.setHSL(_h2.h, _h2.s * 0.88, _h2.l * 0.94, SRGB); } return c.set('#f6e3bd'); }
-    if (L > 0.6) { if (big) { _fc.set(ftPick(FT_WALLS, sd)); _fc.getHSL(_h2, SRGB); return c.setHSL(_h2.h, _h2.s * 0.88, _h2.l * 0.86, SRGB); } return c.set('#e2b47e'); }
-    if (L > 0.3) return c.set(big ? ftPick(FT_ROOFS, sd * 3 + 1) : (L > 0.45 ? '#a87080' : '#7e4c62'));
+    if (L > 0.84) { if (big) { _fc.set(ftWall()); _fc.getHSL(_h2, SRGB); return c.setHSL(_h2.h, _h2.s * 0.88, _h2.l * 0.94, SRGB); } return c.set('#f6e3bd'); }
+    if (L > 0.6) { if (big) { _fc.set(ftWall()); _fc.getHSL(_h2, SRGB); return c.setHSL(_h2.h, _h2.s * 0.88, _h2.l * 0.86, SRGB); } return c.set('#e2b47e'); }
+    if (L > 0.3) return c.set(big ? ftRoof() : (L > 0.45 ? '#a87080' : '#7e4c62'));
     return c.setHSL(0.86, 0.28, Math.max(0.1, L * 0.85 + 0.03), SRGB); // near-black: ink plum
   }
   const hd = _h.h * 360;
@@ -53,7 +63,7 @@ function feltColor(c, role) {
     return c.setHSL(0.06, 0.48, THREE.MathUtils.clamp(L * 0.9 + 0.06, 0.16, 0.48), SRGB);
   }
   if (hd > 44 && hd < 80 && L < 0.62 && S < 0.36) return c.setHSL(0.26, 0.46, THREE.MathUtils.clamp(L * 0.35 + 0.2, 0.26, 0.4), SRGB); // olive lawns / hedges -> one felt grass green
-  if (big && L > 0.62 && S < 0.3) { _fc.set(ftPick(FT_WALLS, sd + 5)); _fc.getHSL(_h2, SRGB); return c.setHSL(_h2.h, _h2.s * 0.88, _h2.l * 0.94, SRGB); } // pale tinted wall paint
+  if (big && L > 0.62 && S < 0.3) { _fc.set(ftWall(5)); _fc.getHSL(_h2, SRGB); return c.setHSL(_h2.h, _h2.s * 0.88, _h2.l * 0.94, SRGB); } // pale tinted wall paint
   let best = FT_HUES[0], bd = 1e9; for (const e of FT_HUES) { const d = Math.abs(e[0] - hd); if (d < bd) { bd = d; best = e; } }
   _fc.set(best[1]); _fc.getHSL(_h2, SRGB);
   return c.setHSL(_h2.h, Math.max(_h2.s, 0.55), THREE.MathUtils.clamp(_h2.l * 0.55 + L * 0.45, 0.16, 0.82), SRGB);
@@ -95,35 +105,50 @@ function chamBox(w, h, d, r) {
 export const KIT_STATS = { boxes: 0, cham: 0 };
 
 export class Kit {
-  constructor() { this.seed = FT.seed = (FT.n = (FT.n || 0) + 1) * 7 + 3; this.parts = []; this.lo = []; this.glow = []; this.solids = []; this.pads = []; this.marks = {}; this.extras = []; this.stack = [new THREE.Matrix4()]; }
+  constructor() { this.sited = false; this.seed = FT.seed = (FT.n = (FT.n || 0) + 1) * 7 + 3; this.slot = { wall: this.seed % FT_WALLS.length, roof: (this.seed * 3 + 1) % FT_ROOFS.length }; this.trim = []; this.parts = []; this.lo = []; this.glow = []; this.solids = []; this.pads = []; this.marks = {}; this.extras = []; this.stack = [new THREE.Matrix4()]; }
   get M() { return this.stack[this.stack.length - 1]; }
+  site(x, z) { this.sited = true; this.at = [x, z]; this.slot = ftSlots(x, z, this.seed); return this; }   // trim split + a wall/roof colour no neighbour already uses
   // nested sub-frame: (x, y, z, rotY) relative to the current frame
   frame(x, y, z, ry, fn) { const m = new THREE.Matrix4().makeRotationY(ry || 0).setPosition(x, y, z); this.stack.push(this.M.clone().multiply(m)); fn(this); this.stack.pop(); return this; }
   _add(src, mat, color, o = {}, loSrc = null) {
     let g = src.index ? src.toNonIndexed() : src.clone(); g.applyMatrix4(_m.multiplyMatrices(this.M, mat));
-    let role = null; if (FELT_TOWN && !o.glow) { FT.seed = this.seed; if (o.role) role = o.role; else { if (!g.boundingBox) g.computeBoundingBox(); const b = g.boundingBox, sz = [b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z].sort((p, q) => q - p); role = sz[0] * sz[1] > 3.2 && sz[1] > 1.1 ? 'big' : 'small'; } }
+    let role = null; if (FELT_TOWN && !o.glow) { FT.seed = this.seed; FT.wall = this.slot.wall; FT.roof = this.slot.roof; if (o.role) role = o.role; else { if (!g.boundingBox) g.computeBoundingBox(); const b = g.boundingBox, sz = [b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z].sort((p, q) => q - p); role = sz[0] * sz[1] > 3.2 && sz[1] > 1.1 ? 'big' : 'small'; } }
     const n = g.attributes.position.count, c = col(color, role), ca = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) { ca[i * 3] = c[0]; ca[i * 3 + 1] = c[1]; ca[i * 3 + 2] = c[2]; }
     g.setAttribute('color', new THREE.BufferAttribute(ca, 3));
     if (!g.attributes.normal) g.computeVertexNormals();
     planarUV(g, o.pat && keepPat(o.pat) ? PAT[o.pat] : 0, o.ps || PAT_S[o.pat] || 0.2, o.pdx || 0);
+    // perf: small trim pieces (pickets, balusters, knobs, brackets, vents: every side < 0.5 m) go in their own mesh that is
+    // only drawn close up (quality townTrim) and never casts a shadow
+    if (this.sited && !o.glow && !o.lod) { if (!g.boundingBox) g.computeBoundingBox(); const b = g.boundingBox; if (Math.max(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z) < 0.5) { this.trim.push(g); return g; } }
     (o.glow ? this.glow : this.parts).push(g);
-    if (o.lod) { if (loSrc) { const gl = loSrc.clone(); gl.applyMatrix4(_m.multiplyMatrices(this.M, mat)); gl.setAttribute('color', new THREE.BufferAttribute(ca.slice(0, gl.attributes.position.count * 3), 3)); planarUV(gl, o.pat && keepPat(o.pat) ? PAT[o.pat] : 0, o.ps || PAT_S[o.pat] || 0.2, o.pdx || 0); this.lo.push(gl); } else this.lo.push(g); }
+    // felt town: every massing-sized piece (or anything marked lod) contributes a 12-tri bounding box to the distance
+    // mesh, so buildings that never set lod:true still collapse to cheap clay slabs past townLod (motel, shops, etc.)
+    if (FELT_TOWN && this.sited && !o.glow) this._loMaybe(g, o);
+    else if (o.lod) { if (loSrc) { const gl = loSrc.clone(); gl.applyMatrix4(_m.multiplyMatrices(this.M, mat)); gl.setAttribute('color', new THREE.BufferAttribute(ca.slice(0, gl.attributes.position.count * 3), 3)); planarUV(gl, o.pat && keepPat(o.pat) ? PAT[o.pat] : 0, o.ps || PAT_S[o.pat] || 0.2, o.pdx || 0); this.lo.push(gl); } else this.lo.push(g); }
     return g;
+  }
+  _loMaybe(g, o) {
+    if (!g.boundingBox) g.computeBoundingBox();
+    const b = g.boundingBox, sx = b.max.x - b.min.x, sy = b.max.y - b.min.y, sz = b.max.z - b.min.z;
+    if (!o.lod && !(Math.max(sx, sy, sz) >= 0.9 && Math.min(sx, sy, sz) >= 0.12 && sx * sy * sz > 0.8)) return;
+    const gl = BOX.clone(); gl.applyMatrix4(new THREE.Matrix4().makeScale(sx, sy, sz).setPosition((b.min.x + b.max.x) / 2, b.min.y, (b.min.z + b.max.z) / 2));
+    const col = g.attributes.color, ca = new Float32Array(gl.attributes.position.count * 3);
+    if (col) { const r = col.getX(0), g0 = col.getY(0), b0 = col.getZ(0); for (let i = 0; i < ca.length; i += 3) { ca[i] = r; ca[i + 1] = g0; ca[i + 2] = b0; } }
+    gl.setAttribute('color', new THREE.BufferAttribute(ca, 3)); this.lo.push(gl);
   }
   // box: centre x, bottom y0, centre z, size w,h,d; o.rx/ry/rz rotate about the box centre
   box(x, y0, z, w, h, d, color, o = {}) {
     _e.set(o.rx || 0, o.ry || 0, o.rz || 0); _q.setFromEuler(_e);
     if (o.pad) this.pad(x - w / 2, z - d / 2, x + w / 2, z + d / 2, y0 + h);
     KIT_STATS.boxes++;
+    if (FELT_TOWN && !o.glow && !o.keep && Math.max(w, h, d) < 0.16) return null;   // crumbs (knobs, tiny brackets, screws) dropped: fewer, bigger trims
     const mn = Math.min(w, h, d), mx = Math.max(w, h, d);
-    if (FELT_TOWN && !o.glow && mn >= 0.2 && mx >= 0.8) { // soft clay edge
-      KIT_STATS.cham++; const r = Math.min(0.14, mn * 0.22);
-      const T = new THREE.Matrix4().compose(_v.set(x, y0 + h / 2, z), _q, _s.set(1, 1, 1)), B = new THREE.Matrix4().compose(_v.set(x, y0 + h / 2, z), _q, _s.set(w, h, d)).multiply(new THREE.Matrix4().makeTranslation(0, -0.5, 0));
-      // the chamfer is built at real size, then only rotated / placed; the distance LOD keeps the 12-tri box
-      const g = this._add(chamBox(w, h, d, r), T, color, o, null);
-      if (o.lod) { this.lo.pop(); const gl = BOX.clone(); gl.applyMatrix4(_m.multiplyMatrices(this.M, B)); gl.setAttribute('color', new THREE.BufferAttribute(g.attributes.color.array.slice(0, 36 * 3), 3)); planarUV(gl, o.pat && keepPat(o.pat) ? PAT[o.pat] : 0, o.ps || PAT_S[o.pat] || 0.2, o.pdx || 0); this.lo.push(gl); }
-      return g;
+    if (FELT_TOWN && !o.glow && mn >= 0.2 && mx >= 0.8 && globalThis.__quality?.t?.cham !== false) { // soft clay edge (LOW: plain boxes)
+      KIT_STATS.cham++; const r = Math.min(0.24, mn * 0.36);
+      const T = new THREE.Matrix4().compose(_v.set(x, y0 + h / 2, z), _q, _s.set(1, 1, 1));
+      // the chamfer is built at real size, then only rotated / placed; _loMaybe keeps a 12-tri box for the distance mesh
+      return this._add(chamBox(w, h, d, r), T, color, o, null);
     }
     const T = new THREE.Matrix4().compose(_v.set(x, y0 + h / 2, z), _q, _s.set(w, h, d)).multiply(new THREE.Matrix4().makeTranslation(0, -0.5, 0));
     return this._add(BOX, T, color, o);
@@ -145,7 +170,7 @@ export class Kit {
     return this._add(src, T, color, o);
   }
   // blob (shrub / tree crown / hydrangea): squashed icosphere
-  blob(x, y, z, rx, ry, rz, color, o = {}) { const T = new THREE.Matrix4().compose(_v.set(x, y, z), _q.identity(), _s.set(rx, ry, rz)); return this._add(icoT(o.detail ?? 0), T, color, o); }
+  blob(x, y, z, rx, ry, rz, color, o = {}) { const T = new THREE.Matrix4().compose(_v.set(x, y, z), _q.identity(), _s.set(rx, ry, rz)); return this._add(icoT(FELT_TOWN ? 0 : (o.detail ?? 0)), T, color, o); }
   // extrude a polygon drawn in the local XY plane (x across, y up) through z0..z0+depth
   ext(pts, z0, depth, color, o = {}) {
     const sh = new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y)));
@@ -159,7 +184,7 @@ export class Kit {
   }
   // gable roof over a w x d rectangle centred at (cx, cz), eaves at height y. ridge:'z' = gable faces the street.
   gable(cx, cz, w, d, y, rise, roofCol, wallCol, o = {}) {
-    const ov = o.over ?? 0.35, th = o.thick ?? 0.16, ridgeZ = (o.ridge || 'z') === 'z';
+    const ov = (o.over ?? 0.35) * (FELT_TOWN ? 1.35 : 1), th = Math.max(o.thick ?? 0.16, FELT_TOWN ? 0.34 : 0), ridgeZ = (o.ridge || 'z') === 'z';
     const span = ridgeZ ? w : d, len = ridgeZ ? d : w, half = span / 2;
     const ang = Math.atan2(rise, half), sl = Math.hypot(half + ov, rise + ov * Math.tan(ang));
     const L = len + 2 * (o.overEnd ?? ov);
@@ -191,20 +216,21 @@ export class Kit {
     this.box(x, y0, z + 0.02, w, h, 0.04, glass, { glow: o.glow });
     this.box(x, y0 - ft, z + 0.05, w + ft * 2, ft, 0.08, f); this.box(x, y0 + h, z + 0.05, w + ft * 2, ft, 0.08, f);
     this.box(x - w / 2 - ft / 2, y0, z + 0.05, ft, h, 0.08, f); this.box(x + w / 2 + ft / 2, y0, z + 0.05, ft, h, 0.08, f);
-    const [nx, ny] = o.mull || [0, 0], mt = (o.mt ?? 0.05) * (FELT_TOWN ? 1.6 : 1), mc = o.mullCol || f;
+    let [nx, ny] = o.mull || [0, 0]; if (FELT_TOWN) { nx = Math.min(nx, 1); ny = Math.min(ny, 1); }   // one bar each way: a toy pane, not joinery
+    const mt = (o.mt ?? 0.05) * (FELT_TOWN ? 1.6 : 1), mc = o.mullCol || f;
     for (let i = 1; i <= nx; i++) this.box(x - w / 2 + w * i / (nx + 1), y0, z + 0.05, mt, h, 0.05, mc);
     for (let j = 1; j <= ny; j++) this.box(x, y0 + h * j / (ny + 1) - mt / 2, z + 0.05, w, mt, 0.05, mc);
     if (o.sill) this.box(x, y0 - ft - 0.08, z + 0.09, w + ft * 2 + 0.16, 0.1, 0.16, o.sill);
     if (o.shutters) for (const s of [-1, 1]) this.box(x + s * (w / 2 + ft + 0.03 + (o.shW ?? w * 0.32) / 2), y0 - ft * 0.5, z + 0.05, o.shW ?? w * 0.32, h + ft, 0.06, o.shutters);
     if (o.blind) this.box(x, y0 + h * (1 - o.blind), z + 0.03, w, h * o.blind, 0.03, o.blindCol || '#e6dec5');
-    if (o.grille) { for (let i = 1; i < 5; i++) this.box(x - w / 2 + w * i / 5, y0, z + 0.11, 0.025, h, 0.025, o.grille); for (let j = 1; j < 4; j++) this.box(x, y0 + h * j / 4, z + 0.11, w, 0.025, 0.025, o.grille); }
+    if (o.grille) { const gn = FELT_TOWN ? 3 : 5, gm = FELT_TOWN ? 2 : 4, gt = FELT_TOWN ? 0.06 : 0.025; for (let i = 1; i < gn; i++) this.box(x - w / 2 + w * i / gn, y0, z + 0.11, gt, h, gt, o.grille); for (let j = 1; j < gm; j++) this.box(x, y0 + h * j / gm, z + 0.11, w, gt, gt, o.grille); }
     return this;
   }
   door(x, y0, z, w, h, color, o = {}) {
     const f = o.frame || '#f2ece2';
     this.box(x, y0, z + 0.03, w, h, 0.06, color, { pat: o.pat, ps: o.ps, pdx: o.pdx });
     if (o.frame !== null) { this.box(x - w / 2 - 0.06, y0, z + 0.05, 0.12, h + 0.12, 0.08, f); this.box(x + w / 2 + 0.06, y0, z + 0.05, 0.12, h + 0.12, 0.08, f); this.box(x, y0 + h, z + 0.05, w + 0.24, 0.12, 0.08, f); }
-    if (o.panels) { for (const py of [0.25, 0.62]) this.box(x, y0 + h * py, z + 0.07, w * 0.7, h * 0.28, 0.02, o.panels); }
+    if (o.panels && !FELT_TOWN) { for (const py of [0.25, 0.62]) this.box(x, y0 + h * py, z + 0.07, w * 0.7, h * 0.28, 0.02, o.panels); }
     if (o.lite) this.box(x, y0 + h * 0.62, z + 0.07, w * 0.55, h * 0.28, 0.02, o.lite);
     this.box(x + w * 0.36, y0 + 1.0, z + 0.1, 0.06, 0.06, 0.06, o.knob || '#c9a24a');
     return this;
@@ -221,21 +247,21 @@ export class Kit {
   }
   // a run of pickets / posts between two points (x,z) — height h
   pickets(a, b, h, color, o = {}) {
-    const gap = o.gap ?? 0.16, L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.round(L / gap)), ry = Math.atan2(-(b[1] - a[1]), b[0] - a[0]);
-    for (let i = 0; i <= n; i++) { const t = i / n; this.box(a[0] + (b[0] - a[0]) * t, o.y0 ?? 0, a[1] + (b[1] - a[1]) * t, o.pw ?? 0.08, h, 0.04, o.alt && i % 2 ? o.alt : color, { ry }); }
-    if (o.rail !== false) for (const ry2 of o.rails || [h * 0.3, h * 0.78]) this.beam([a[0], ry2 + (o.y0 ?? 0), a[1]], [b[0], ry2 + (o.y0 ?? 0), b[1]], 0.05, o.railCol || color, {}, 0.05);
+    const gap = (o.gap ?? 0.16) * (FELT_TOWN ? 2.2 : 1), L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.round(L / gap)), ry = Math.atan2(-(b[1] - a[1]), b[0] - a[0]);
+    for (let i = 0; i <= n; i++) { const t = i / n; this.box(a[0] + (b[0] - a[0]) * t, o.y0 ?? 0, a[1] + (b[1] - a[1]) * t, (o.pw ?? 0.08) * (FELT_TOWN ? 1.9 : 1), h, FELT_TOWN ? 0.09 : 0.04, o.alt && i % 2 ? o.alt : color, { ry }); }
+    if (o.rail !== false) for (const ry2 of o.rails || [h * 0.3, h * 0.78]) this.beam([a[0], ry2 + (o.y0 ?? 0), a[1]], [b[0], ry2 + (o.y0 ?? 0), b[1]], FELT_TOWN ? 0.1 : 0.05, o.railCol || color, {}, FELT_TOWN ? 0.1 : 0.05);
     return this;
   }
   // a simple rail: posts + top rail (+ optional balusters) along a polyline
   rail(pts, h, color, o = {}) {
-    for (let i = 0; i < pts.length; i++) { const [x, z, y = 0] = pts[i]; this.box(x, y, z, o.post ?? 0.06, h, o.post ?? 0.06, color); }
-    for (let i = 1; i < pts.length; i++) { const [x0, z0, y0 = 0] = pts[i - 1], [x1, z1, y1 = 0] = pts[i]; this.beam([x0, y0 + h, z0], [x1, y1 + h, z1], 0.05, color);
-      if (o.bal) { const L = Math.hypot(x1 - x0, z1 - z0), n = Math.round(L / o.bal); for (let k = 1; k < n; k++) { const t = k / n; this.box(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, z0 + (z1 - z0) * t, 0.025, h, 0.025, color); } } }
+    for (let i = 0; i < pts.length; i++) { const [x, z, y = 0] = pts[i]; const pw = (o.post ?? 0.06) * (FELT_TOWN ? 2 : 1); this.box(x, y, z, pw, h, pw, color); }
+    for (let i = 1; i < pts.length; i++) { const [x0, z0, y0 = 0] = pts[i - 1], [x1, z1, y1 = 0] = pts[i]; this.beam([x0, y0 + h, z0], [x1, y1 + h, z1], FELT_TOWN ? 0.12 : 0.05, color);
+      if (o.bal) { const L = Math.hypot(x1 - x0, z1 - z0), n = Math.round(L / (o.bal * (FELT_TOWN ? 2.6 : 1))); for (let k = 1; k < n; k++) { const t = k / n; this.box(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, z0 + (z1 - z0) * t, FELT_TOWN ? 0.07 : 0.025, h, FELT_TOWN ? 0.07 : 0.025, color); } } }
     return this;
   }
   // horizontal lap siding strips across a face facing +z at z, from x0..x1, y0..y1
   // M5: one skin panel carrying the lap-siding pattern (was one box per board). o.base = wall colour (default: color)
-  siding(x0, x1, y0, y1, z, color, o = {}) { this.box((x0 + x1) / 2, y0, z + 0.008, x1 - x0, y1 - y0, 0.016, o.base || color, { pat: o.pat || 'siding', ps: o.step ?? 0.24 }); return this; }
+  siding(x0, x1, y0, y1, z, color, o = {}) { if (FELT_TOWN) return this; this.box((x0 + x1) / 2, y0, z + 0.008, x1 - x0, y1 - y0, 0.016, o.base || color, { pat: o.pat || 'siding', ps: o.step ?? 0.24 }); return this; }
   // register an axis-aligned solid (local corners) for walking collisions + camera occlusion
   solid(x0, z0, x1, z1, h = 4) { this.solids.push([x0, z0, x1, z1, h, this.M.clone()]); return this; }
   // walkable top of a stoop / tread (y = top height). Not a wall: collide leaves these alone, groundY uses them.
@@ -251,6 +277,13 @@ export class Kit {
     out.userData.detail = mk(this.parts, mats.felt, 'detail');
     if (out.userData.detail) { out.userData.detail.castShadow = shadow; out.userData.detail.receiveShadow = true; }
     out.userData.glow = mk(this.glow, mats.glow, 'glow');
+    out.userData.trim = mk(this.trim, mats.felt, 'trim'); if (out.userData.trim) { out.userData.trim.castShadow = false; out.userData.trim.receiveShadow = true; }
+    if (!this.lo.length && this.solids.length) { // last-resort massing from the collision boxes (same footprint)
+      for (const [x0, z0, x1, z1, h, M] of this.solids) {
+        const gl = BOX.clone(); gl.applyMatrix4(_m.copy(M).multiply(new THREE.Matrix4().makeTranslation((x0 + x1) / 2, 0, (z0 + z1) / 2)).multiply(new THREE.Matrix4().makeScale(Math.abs(x1 - x0), h, Math.abs(z1 - z0))));
+        const ca = new Float32Array(gl.attributes.position.count * 3); ca.fill(0.7); gl.setAttribute('color', new THREE.BufferAttribute(ca, 3)); this.lo.push(gl);
+      }
+    }
     out.userData.lo = mk(this.lo, mats.felt, 'lo'); if (out.userData.lo) { out.userData.lo.visible = false; out.userData.lo.receiveShadow = true; }
     return out;
   }

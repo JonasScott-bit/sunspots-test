@@ -399,7 +399,12 @@ export function createCarnival({ scene, feltMat, TS, colliders, LOW }) {
   C.setNight = (on) => { C.nightT = on ? 1 : 0; };
   C.update = (dt, t, w, wolfPos) => {
     C.wildK = w; C.night += Math.max(-dt / 2.2, Math.min(dt / 2.2, C.nightT - C.night)); const n = C.night;
-    const d = Math.hypot(wolfPos.x - FAIR.cx, wolfPos.z - FAIR.cz); root.visible = d < 420; near.visible = d < 170;
+    const qt = window.__quality?.t || {};
+    const far = (qt.fairCull ?? 200) + 24, mid = qt.fairNear ?? Math.round((qt.fairCull ?? 200) * 0.75);
+    const cam = window.__sunspots?.camera;
+    const dW = Math.hypot(wolfPos.x - FAIR.cx, wolfPos.z - FAIR.cz);
+    const d = cam ? Math.min(dW, Math.hypot(cam.position.x - FAIR.cx, cam.position.z - FAIR.cz)) : dW;
+    root.visible = d < far; near.visible = d < mid;   // was 420 / 170: the fair stayed fully drawn from the wolf's yard (~90 m)
     if (n > 0.001 || C._wasN) { C._wasN = n > 0.001; scene.background.lerp(NIGHT_BG, n * 0.9); if (scene.fog) scene.fog.color.lerp(NIGHT_FOG, n * 0.9);
       for (const L of lights) { if (Math.abs(L.o.intensity - L.last) > 1e-5) L.b = L.o.intensity; L.o.intensity = L.b * (1 - 0.72 * n); L.last = L.o.intensity; } }
     glow.intensity = n * 60 + w * 25;
