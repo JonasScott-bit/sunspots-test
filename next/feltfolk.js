@@ -719,7 +719,7 @@ function lodSwitch(meshes, u) { return function (renderer, scene, camera) {
   if (want !== u.lodLvl) { u.lodLvl = want; for (const m of meshes) { const g = m.userData.lod[want]; if (g) m.geometry = g; } } }; }
 export function folk(spec, opts = {}) {
   const sp = typeof spec === 'string' ? FOLK[spec] : spec; if (!sp) return folk('someone');
-  let B = BUILT.get(sp); if (!B) { B = { hi: buildFolk(sp, sp.q || 0.8), lo: buildFolk(sp, 0.4) };   // sp.q: background townsfolk build a lighter near LOD BUILT.set(sp, B); }
+  let B = BUILT.get(sp); if (!B) { B = { hi: buildFolk(sp, sp.q || 0.8), lo: buildFolk(sp, 0.4) }; BUILT.set(sp, B); }   // sp.q: background townsfolk build a lighter near LOD
   const { hi, lo } = B, pv = hi.pv, s = pv.s, mat = folkMat(), g = new THREE.Group(), meshes = [];
   EMPTY ||= new THREE.BufferGeometry();
   const mk = (k, parent) => { if (!hi.geos[k]) return null; const m = new THREE.Mesh(hi.geos[k], mat); m.userData.lod = [hi.geos[k], lo.geos[k]]; m.castShadow = false; m.receiveShadow = false; parent.add(m); meshes.push(m); return m; };
