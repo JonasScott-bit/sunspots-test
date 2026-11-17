@@ -73,7 +73,7 @@ export function installOpening(L, { toast } = {}) {
       try { localStorage.setItem(KEY, '1'); } catch (_) {}
       document.body.classList.add('cine239'); css(); place = 'SUNSPOTS'; superOn(true); turnCrew(false);
       cab.pos.set(CAB0[0], 0, CAB0[1]); cab.yaw = Math.PI / 2; cab.v = 0; cab.root.position.copy(cab.pos); cab.root.rotation.y = cab.yaw; cab.root.visible = true;
-      const w = wolf(); puppet.on = true; puppet.speed = 0; w.setPos(WOLF_AT[0], WOLF_AT[1], 0); w.setYaw(yawTo(WOLF_AT, COUCH)); w.obj.scale.setScalar(puppet.base || w.obj.scale.x);
+      const w = wolf(); puppet.on = true; puppet.speed = 0; w.setPos(WOLF_AT[0], WOLF_AT[1], 0); w.setYaw(yawTo(WOLF_AT, COUCH) + Math.PI);   // the puppeted Wolf's model faces -z (checked on the live build): turn him to the crew w.obj.scale.setScalar(puppet.base || w.obj.scale.x);
     };
     const finish = () => {
       superOn(false); document.body.classList.remove('cine239');
@@ -108,11 +108,9 @@ export function installOpening(L, { toast } = {}) {
         { do: 'say', who: 'ram', text: "It's his fridge.", dur: 1.5 },
         // 3. the Wolf
         { do: 'cam', pos: () => new THREE_V(27.7, 2.25, 53.6), look: () => { const h = wolf().headWorld(new THREE_V()); h.y -= 0.12; return h; }, fov: PORTRAIT ? 42 : 30 },   // high enough to clear his mailbox
-        { do: 'look', who: 'wolf', at: C('ram'), track: 2.5, body: false },
         { do: 'say', who: 'wolf', text: 'Two minutes. I can do two minutes.', vo: 'vo_wolf_15' },
         // 4. headlights: Moth's cab walks up Mesa Rd on its boots and stops outside the house
         { do: 'cam', pos: [35.0, 0.75, 57.2], look: { who: 'car', y: 0.9 }, fov: 34 },
-        { do: 'look', who: 'wolf', at: { who: 'car', y: 1.2 }, track: 7, body: false },
         { do: 'move', who: 'car', path: [[12, 59.8], [CAB[0], CAB[1]]], dur: 3.6, ease: 'out', endYaw: Math.PI / 2 },
         { do: 'audio', cue: 'sfx_boots_stop' },
         // 5. Moth leans out of his window at the Wolf (moth.js lean); one line
