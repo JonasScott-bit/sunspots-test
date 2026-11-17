@@ -31,6 +31,15 @@ export function installOpening(L, { toast } = {}) {
   { const h = document.getElementById('hint'); let done = false; try { done = !!localStorage.getItem('sunspots.hint'); } catch (_) {}
     if (h && done) h.style.display = 'none';
     else if (h) { const iv = setInterval(() => { if (getComputedStyle(h).opacity === '0' || (window.__sunspots?.wolfState?.speed || 0) > 0.5) { clearInterval(iv); try { localStorage.setItem('sunspots.hint', '1'); } catch (_) {} setTimeout(() => { h.style.display = 'none'; }, 1200); } }, 500); } }
+  // ---- Night 1 on foot: one thing to do (get in the cab). Hide the HUD a first-timer doesn't need yet: the journal / sunspot
+  // counter, GO (quick travel), WILD, the first-person eye and the minimap + compass. They all come back once he's in the cab
+  // (the minimap helps on the drive) and for good after the snacks are home.
+  if (!Q.has('oldtown')) {
+    const st = document.createElement('style'); st.id = 'n1Css';
+    st.textContent = 'body.n1 #jnBtn,body.n1 #qtBtn,body.n1 #wildBtn,body.n1 #eyeBtn,body.n1 #mmap{display:none!important}';
+    document.head.appendChild(st);
+    setInterval(() => { const on = L.mode === 'walk' && !L.ended && !!L.snacksDone && !L.snacksDone() && !window.__town?.active; if (on !== document.body.classList.contains('n1')) document.body.classList.toggle('n1', on); }, 250);
+  }
   // ---- the crew in the yard (Night 1 only)
   const crew = {}; let crewOn = false;
   const S0w = () => window.__sunspots;
