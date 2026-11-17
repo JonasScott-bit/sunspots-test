@@ -416,7 +416,9 @@ export function createLevel(C) {
   const fmt = (left) => { const s = Math.max(0, Math.ceil((NIGHT ? 2 : 14) * 3600 - left)); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, ss = s % 60; return `${h > 12 ? h - 12 : h || 12}:${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')} ${NIGHT ? 'AM' : 'PM'}`; };
   const fmtLeft = (left) => { const s = Math.max(0, Math.ceil(left)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
   L.fmt = fmt;
-  function toast(msg, sec = 3) { if (!hud.toast) return; hud.toast.textContent = msg; hud.toast.style.opacity = 1; L.toastT = sec; }
+  let toastTO = 0;
+  function toast(msg, sec = 3) { if (!hud.toast) return; hud.toast.textContent = msg; hud.toast.style.opacity = 1; L.toastT = sec;
+    clearTimeout(toastTO); toastTO = setTimeout(() => { if (hud.toast) hud.toast.style.opacity = 0; L.toastT = 0; }, sec * 1000 + 400); }   // Nov 16: also wall-clock timed (it stuck on screen when L.update didn't run)
   L.toast = toast;
   const ctl = { left: false, right: false, gas: false, brake: false, tilt: null };
   L.ctl = ctl;
@@ -446,7 +448,7 @@ export function createLevel(C) {
   $('retry')?.addEventListener('click', () => L.reset());
 
   // -------------------------------------------------------------- state machine
-  L.enterCar = () => { if (L.mode !== 'walk' || L.ended) return; L.mode = 'drive'; L.inCar = true; document.body.classList.add('driving'); hud.getIn.style.display = 'none'; toast(NEWTOWN && L.car.pos.z > 30 ? 'MOTH: Up East St. Right on Main. Then north until it closes.' : 'The driver nods once. You steer.', 4); audio.ev('enterCar'); C.onEnterCar?.(); };
+  L.enterCar = () => { if (L.mode !== 'walk' || L.ended) return; L.mode = 'drive'; L.inCar = true; document.body.classList.add('driving'); hud.getIn.style.display = 'none'; toast(NEWTOWN && L.car.pos.z > 30 ? 'MOTH: Store closes at two. I drive like it closes at two.' : 'The driver nods once. You steer.', 4); audio.ev('enterCar'); C.onEnterCar?.(); };
   L.enterFree = () => { if (L.mode !== 'walk' || L.ended || L.frozen || !L.free.model) return; L.mode = 'solo'; L.solo = true; L.exitPending = false; L.free.v = 0;
     document.body.classList.add('driving', 'solo'); hud.getIn.style.display = 'none'; toast('Your own waddle car. Just you and the radio.', 2.6); audio.ev('enterSolo'); C.onEnterCar?.(); };
   // GET OUT: brakes first if moving, then the Wolf steps out beside the driver door; the car stays parked where it stopped

@@ -35,6 +35,8 @@ export function installOpening(L, { toast } = {}) {
       const on = !L.snacksDone?.() && !window.__snackrun?.S?.on && !window.__town?.active; if (on !== crewOn) { crewOn = on; for (const o of Object.values(crew)) o.visible = on; }
       if (on) for (const o of Object.values(crew)) breathe(o, t, {}); requestAnimationFrame(tick2); }; tick2(); })();
   L.openingCrew = crew;
+  // the cold open: nobody looks at anybody, then ("It's his fridge.") all three look at the Wolf
+  const turnCrew = (atWolf) => { for (const [k, , x, z] of CREW) { const o = crew[k]; if (o) o.rotation.y = atWolf ? Math.atan2(25.4 - x, 54.4 - z) : Math.atan2(x - 25.4, 62 - z) * 0.4 + (k === 'heron' ? 0.5 : k === 'bear' ? -0.6 : 0.3); } };
   if (Q.has('noopening') || Q.has('shot') || Q.get('scene') || Q.has('unlock') || Q.has('finale') || Q.get('room') || Q.get('m') || Q.has('oldtown')) return;
   const seen = () => { try { return !!localStorage.getItem(KEY); } catch (_) { return false; } };
   const CAB0 = [-6, 59.8], CAB = [27, 59.8], WOLF_AT = [25.4, 54.4], LEFT0 = L.left;
@@ -64,7 +66,7 @@ export function installOpening(L, { toast } = {}) {
     const yawTo = (a, b) => Math.atan2(b[0] - a[0], b[1] - a[1]);
     const setup = () => {
       try { localStorage.setItem(KEY, '1'); } catch (_) {}
-      document.body.classList.add('cine239'); css(); place = 'SUNSPOTS'; superOn(true);
+      document.body.classList.add('cine239'); css(); place = 'SUNSPOTS'; superOn(true); turnCrew(false);
       cab.pos.set(CAB0[0], 0, CAB0[1]); cab.yaw = Math.PI / 2; cab.v = 0; cab.root.position.copy(cab.pos); cab.root.rotation.y = cab.yaw; cab.root.visible = true;
       const w = wolf(); puppet.on = true; puppet.speed = 0; w.setPos(WOLF_AT[0], WOLF_AT[1], 0); w.setYaw(yawTo(WOLF_AT, COUCH)); w.obj.scale.setScalar(puppet.base || w.obj.scale.x);
     };
@@ -84,15 +86,20 @@ export function installOpening(L, { toast } = {}) {
         { do: 'audio', cue: 'amb_radio_outside', radio: 0 },
         // 1. Sunspots, 1:57 AM: a slow descending crane straight down Main St, lamps and neon, nobody about
         { do: 'cam', pos: [30, 15, 7.5], look: [-70, 1, 7], fov: 36, to: { pos: [20, 8.5, 7.2], look: [-70, 2, 7] }, dur: 4.6, ease: 'inout' },
-        { wait: 3.6 },
+        { wait: 0.4 },
+        { do: 'say', who: 'ksun dj', text: 'KSUN 1490. One fifty-seven. Last Minute Snacks closes at two.', dur: 2.6 },
+        { do: 'say', who: 'ksun dj', text: "If you're out of something, you're out of time.", dur: 2.0 },
         { do: 'call', fn: () => { place = 'MESA LANE'; } },
         // 2. Mesa Lane: the crew in the Wolf's front yard, by the couch. Slow push in from the street.
         { do: 'cam', pos: [29.0, 1.6, 58.4], look: [29.3, 1.15, 52.6], fov: 40, to: { pos: [29.1, 1.5, 57.0], look: [29.3, 1.2, 52.8] }, dur: 9.5, ease: 'out' },
-        { wait: 0.6 },
-        { do: 'say', who: 'ram', text: "We're out.", dur: 1.5 },
-        { do: 'say', who: 'bear', text: 'Of what.', dur: 1.3 },
-        { do: 'say', who: 'ram', text: 'All of it.', dur: 1.6 },
+        { wait: 1.0 },
+        { do: 'say', who: 'ram', text: "We're out.", dur: 1.4 },
+        { do: 'say', who: 'bear', text: 'Of what.', dur: 1.2 },
+        { do: 'say', who: 'ram', text: 'All of it.', dur: 1.5 },
+        { do: 'say', who: 'heron', text: 'Store closes at two.', dur: 1.5 },
         { do: 'say', who: 'bear', text: "Two o'clock? I usually get there around three.", vo: 'vo_bear_10' },
+        { do: 'call', fn: () => turnCrew(true) },
+        { do: 'say', who: 'ram', text: "It's his fridge.", dur: 1.5 },
         // 3. the Wolf
         { do: 'cam', pos: () => new THREE_V(27.0, 1.5, 52.2), look: () => { const h = wolf().headWorld(new THREE_V()); h.y -= 0.08; return h; }, fov: 30 },
         { do: 'look', who: 'wolf', at: C('ram'), track: 2.5, body: false },

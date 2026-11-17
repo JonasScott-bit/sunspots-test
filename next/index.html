@@ -137,7 +137,7 @@
   #sndToast.show{animation:toast 1.4s ease forwards} @keyframes toast{0%{opacity:0;transform:translateX(-6px)}12%,70%{opacity:1;transform:none}100%{opacity:0}}
   body.intro #sndToast,body.map #sndToast{display:none}
   body.map #sndBtn{display:none}
-  #toast{position:fixed;left:0;right:0;top:44%;text-align:center;z-index:6;color:#fff3dc;font-size:15px;letter-spacing:.12em;pointer-events:none;opacity:0;transition:opacity .5s;text-shadow:0 2px 6px rgba(40,10,30,.6)}
+  #toast{position:fixed;left:50%;transform:translateX(-50%);top:44%;width:max-content;max-width:calc(100vw - 32px - env(safe-area-inset-left) - env(safe-area-inset-right));box-sizing:border-box;padding:8px 14px;border-radius:12px;background:rgba(22,10,26,.66);text-align:center;z-index:6;color:#fff3dc;font-size:15px;line-height:1.35;letter-spacing:.06em;overflow-wrap:anywhere;pointer-events:none;opacity:0;transition:opacity .5s;text-shadow:0 2px 6px rgba(40,10,30,.6)}   /* Nov 16: backed, inside safe margins, wraps (was edge to edge, could run off a 390px screen) */
   #endScr{position:fixed;inset:0;z-index:9;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 30px;color:#fff3dc;background:rgba(43,30,70,.55);backdrop-filter:blur(2px)}
   body.ended #endScr{display:flex} body.ended #drive,body.ended #getIn{display:none!important}
   body.won #endScr{background:rgba(40,110,90,.5)} body.lost #endScr{background:rgba(120,30,70,.55)}
