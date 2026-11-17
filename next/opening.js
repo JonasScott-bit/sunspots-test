@@ -73,8 +73,12 @@ export function installOpening(L, { toast } = {}) {
       try { localStorage.setItem(KEY, '1'); } catch (_) {}
       document.body.classList.add('cine239'); css(); place = 'SUNSPOTS'; superOn(true); turnCrew(false);
       cab.pos.set(CAB0[0], 0, CAB0[1]); cab.yaw = Math.PI / 2; cab.v = 0; cab.root.position.copy(cab.pos); cab.root.rotation.y = cab.yaw; cab.root.visible = true;
-      const w = wolf(); puppet.on = true; puppet.speed = 0; w.setPos(WOLF_AT[0], WOLF_AT[1], 0); w.setYaw(yawTo(WOLF_AT, COUCH) + Math.PI);   // the puppeted Wolf's model faces -z (checked on the live build): turn him to the crew w.obj.scale.setScalar(puppet.base || w.obj.scale.x);
+      const w = wolf(); puppet.on = true; puppet.speed = 0; w.setPos(WOLF_AT[0], WOLF_AT[1], 0); pose(); w.obj.scale.setScalar(puppet.base || w.obj.scale.x);
     };
+    // (re)place the Wolf facing the crew. Called at the top and again right before his line: NEW GAME's reset can land
+    // after the cold open has started and put him back on wolfStart (we were shooting the back of his head)
+    const pose = () => { const w = wolf(), ws = S0.wolfState, y = yawTo(WOLF_AT, COUCH); puppet.on = true; puppet.speed = 0;
+      w.setPos(WOLF_AT[0], WOLF_AT[1], 0); w.setYaw(y); ws.pos.set(WOLF_AT[0], 0, WOLF_AT[1]); ws.yaw = y; ws.speed = 0; };
     const finish = () => {
       superOn(false); document.body.classList.remove('cine239');
       cab.pos.set(CAB[0], 0, CAB[1]); cab.yaw = Math.PI / 2; cab.v = 0;
@@ -107,6 +111,7 @@ export function installOpening(L, { toast } = {}) {
         { do: 'call', fn: () => turnCrew(true) },
         { do: 'say', who: 'ram', text: "It's his fridge.", dur: 1.5 },
         // 3. the Wolf
+        { do: 'call', fn: pose },
         { do: 'cam', pos: () => new THREE_V(27.7, 2.25, 53.6), look: () => { const h = wolf().headWorld(new THREE_V()); h.y -= 0.12; return h; }, fov: PORTRAIT ? 42 : 30 },   // high enough to clear his mailbox
         { do: 'say', who: 'wolf', text: 'Two minutes. I can do two minutes.', vo: 'vo_wolf_15' },
         // 4. headlights: Moth's cab walks up Mesa Rd on its boots and stops outside the house
