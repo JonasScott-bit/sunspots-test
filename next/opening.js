@@ -87,13 +87,14 @@ export function installOpening(L, { toast } = {}) {
       cab.pos.set(CAB0[0], 0, CAB0[1]); cab.yaw = Math.PI / 2; cab.v = 0; cab.root.position.copy(cab.pos); cab.root.rotation.y = cab.yaw; cab.root.visible = true;
       const w = wolf(); puppet.on = true; puppet.speed = 0; w.setPos(WOLF_AT[0], WOLF_AT[1], 0); pose(); w.obj.scale.setScalar(puppet.base || w.obj.scale.x);
     };
-    // (re)place the Wolf facing the crew. Called at the top and again right before his line: NEW GAME's reset can land
-    // after the cold open has started and put him back on wolfStart (we were shooting the back of his head)
-    let holdT = 0;
-    const pose = () => { const w = wolf(), ws = S0.wolfState, y = yawTo(WOLF_AT, COUCH); puppet.on = true; puppet.speed = 0;
+    // (re)place the Wolf facing the crew. A late NEW GAME reset can still land him on wolfStart; we pose once
+    // at the hold and again inside the MCU shot. The actual mid-line slip was the idle clip turning his head
+    // (and a 40 ms setInterval(pose) could not stop bone-level rotation). puppet.holdFace freezes the idle.
+    const faceYaw = () => yawTo(WOLF_AT, COUCH);
+    const pose = () => { const w = wolf(), ws = S0.wolfState, y = faceYaw(); puppet.on = true; puppet.speed = 0; puppet.holdFace = true; puppet.headYaw = 0; puppet.headTilt = 0;
       w.setPos(WOLF_AT[0], WOLF_AT[1], 0); w.setYaw(y); ws.pos.set(WOLF_AT[0], 0, WOLF_AT[1]); ws.yaw = y; ws.speed = 0; };
     const finish = () => {
-      clearInterval(holdT);
+      puppet.holdFace = false;
       superOn(false); document.body.classList.remove('cine239');
       cab.pos.set(CAB[0], 0, CAB[1]); cab.yaw = Math.PI / 2; cab.v = 0;
       const ws = S0.wolfState, w = wolf(); const y = yawTo(WOLF_AT, CAB);
@@ -124,13 +125,14 @@ export function installOpening(L, { toast } = {}) {
         { do: 'say', who: 'bear', text: "Two o'clock? I usually get there around three.", vo: 'vo_bear_10' },
         { do: 'call', fn: () => turnCrew(true) },
         // hold the Wolf on his mark through Ram's line AND his own, so he's already facing the crew at the cut
-        { do: 'call', fn: () => { pose(); clearInterval(holdT); holdT = setInterval(pose, 40); } },   // until finish() — an 8s cap expired mid-line once the hold started on Ram's line
+        { do: 'call', fn: pose },
         { do: 'say', who: 'ram', text: "It's his fridge.", dur: 1.5 },
-        // 3. the Wolf: eye-level MCU in front of the facing-the-crew yaw (live obj.rotation.y at the cut was still mid-turn,
-        // so phone runs often showed his back or a profile). Fixed mark, closer; portrait fov 24 becomes ~49 after portraitFov.
+        // 3. the Wolf: eye-level MCU in front of the facing-the-crew yaw. Camera uses that yaw (not a turning head
+        // bone) so the lens stays on his face. holdFace keeps the idle clip from rotating the head mid-line.
+        // vo_wolf_15 is 3.77 s; an explicit dur keeps the headlights cut from arriving while the line is still up.
         { wait: 0.2 },
-        { do: 'cam', pos: () => { const h = wolf().headWorld(new THREE_V()), y = yawTo(WOLF_AT, COUCH), d = PORTRAIT ? 1.25 : 1.45, s = 0.16; return new THREE_V(h.x + Math.sin(y) * d - Math.cos(y) * s, h.y + 0.02, h.z + Math.cos(y) * d + Math.sin(y) * s); }, look: () => { const h = wolf().headWorld(new THREE_V()); h.y -= 0.02; return h; }, fov: PORTRAIT ? 24 : 28 },
-        { do: 'say', who: 'wolf', text: 'Two minutes. I can do two minutes.', vo: 'vo_wolf_15' },
+        { do: 'cam', pos: () => { pose(); const h = wolf().headWorld(new THREE_V()), y = faceYaw(), d = PORTRAIT ? 1.25 : 1.45, s = 0.16; return new THREE_V(h.x + Math.sin(y) * d - Math.cos(y) * s, h.y + 0.02, h.z + Math.cos(y) * d + Math.sin(y) * s); }, look: () => { const h = wolf().headWorld(new THREE_V()); h.y -= 0.02; return h; }, fov: PORTRAIT ? 24 : 28 },
+        { do: 'say', who: 'wolf', text: 'Two minutes. I can do two minutes.', vo: 'vo_wolf_15', dur: 4.3 },
         // 4. headlights: closer low shot so the arriving cab fills the portrait letterbox
         { do: 'cam', pos: [32.6, 0.82, 57.5], look: { who: 'car', y: 0.95 }, fov: 28 },
         { do: 'move', who: 'car', path: [[12, 59.8], [CAB[0], CAB[1]]], dur: 3.6, ease: 'out', endYaw: Math.PI / 2 },

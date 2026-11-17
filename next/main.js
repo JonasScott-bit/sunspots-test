@@ -550,7 +550,7 @@ function prop(gltf, { h, x, z, ry = 0, tint = '#ff8a8a', puddle = 1, collide = 0
 
 let wolf, mixer, actWalk, actRun, actIdle, wolfReady = false, wolfBaseScale = 1;
 // scenes.js drives the Wolf on foot during cutscenes through this puppet (gait from speed, head look)
-const puppet = { on: false, speed: 0, headYaw: 0, headTilt: 0, base: 1 };
+const puppet = { on: false, speed: 0, headYaw: 0, headTilt: 0, base: 1, holdFace: false };
 let director = null;
 let town = null, HORSE = null; // town.js: diorama interiors + errands (created after loadAll)
 const wolfState = { pos: new THREE.Vector3(LAYOUT.wolfStart[0], 0, LAYOUT.wolfStart[1]), yaw: LAYOUT.wolfStart[2], speed: 0 };
@@ -822,14 +822,24 @@ function frame() {
     if (cockpit.rm) cockpit.rm.value = rk; wolfRM.value = level.inCar && !puppet.on ? rk : 0; moth?.update(dt, t, wolfState.pos, rk); mothLegs(); }
   // wolf as a scene puppet: scenes.js sets position/yaw/scale + puppet.speed; same shared-phase gait as walking
   if (wolfReady && puppet.on) {
-    const sp = puppet.speed, move = clamp(sp / 1.4, 0, 1), idle = 1 - move;
+    const sp = puppet.speed, move = puppet.holdFace ? 0 : clamp(sp / 1.4, 0, 1), idle = 1 - move;
     wolf.userData.phase = (wolf.userData.phase + dt * 0.95 * clamp(sp / 2.4, 0.45, 1.25) * move) % 1; const ph = wolf.userData.phase;
-    actWalk.setEffectiveWeight(move); actRun.setEffectiveWeight(0); actIdle.setEffectiveWeight(idle); actWalk.time = ph * actWalk.getClip().duration; actWalk.timeScale = actRun.timeScale = 0;
-    const body = wolf.userData.body, shift = Math.sin(t * 0.55) * 0.6 + Math.sin(t * 0.23 + 1.3) * 0.4;
-    body.rotation.set(0.02 * move, 0, Math.sin(ph * Math.PI * 2) * 0.02 * move + idle * shift * 0.012); body.position.x = idle * shift * 0.012;
-    body.scale.y = wolf.userData.sy;
-    mixer.update(dt);
-    const hd = wolf.userData.head; if (hd) { hd.yaw = puppet.headYaw || 0; hd.tilt = puppet.headTilt || 0; hd.e.set(hd.tilt * 0.4, hd.yaw, hd.tilt); hd.q.setFromEuler(hd.e); hd.bone.quaternion.multiply(hd.q); }
+    const body = wolf.userData.body;
+    if (puppet.holdFace) {
+      // freeze a standing idle frame so the clip cannot turn his head mid close-up (opening.js MCU)
+      actWalk.setEffectiveWeight(0); actRun.setEffectiveWeight(0); actIdle.setEffectiveWeight(1); actIdle.timeScale = 0; actWalk.timeScale = actRun.timeScale = 0;
+      if (actIdle.time > 0.05) actIdle.time = 0;
+      body.rotation.set(0, 0, 0); body.position.x = 0; body.scale.y = wolf.userData.sy;
+      mixer.update(0);
+      const hd = wolf.userData.head; if (hd) { hd.yaw = 0; hd.tilt = 0; }
+    } else {
+      actWalk.setEffectiveWeight(move); actRun.setEffectiveWeight(0); actIdle.setEffectiveWeight(idle); actWalk.time = ph * actWalk.getClip().duration; actWalk.timeScale = actRun.timeScale = 0;
+      const shift = Math.sin(t * 0.55) * 0.6 + Math.sin(t * 0.23 + 1.3) * 0.4;
+      body.rotation.set(0.02 * move, 0, Math.sin(ph * Math.PI * 2) * 0.02 * move + idle * shift * 0.012); body.position.x = idle * shift * 0.012;
+      body.scale.y = wolf.userData.sy;
+      mixer.update(dt);
+      const hd = wolf.userData.head; if (hd) { hd.yaw = puppet.headYaw || 0; hd.tilt = puppet.headTilt || 0; hd.e.set(hd.tilt * 0.4, hd.yaw, hd.tilt); hd.q.setFromEuler(hd.e); hd.bone.quaternion.multiply(hd.q); }
+    }
     wolfState.pos.copy(wolf.position); if (TS) wolfState.pos.y = TS.groundY(wolfState.pos.x, wolfState.pos.z, 0.28); else wolfState.pos.y = 0; wolfState.yaw = wolf.rotation.y; wolfState.speed = sp;
   }
   // wolf movement
