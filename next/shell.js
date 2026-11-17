@@ -147,6 +147,13 @@ html body #title{left:calc(env(safe-area-inset-left) + 120px)!important}
   #titleScr .panel[data-p=settings]>.note{padding:8px 10px;line-height:1.35}
 }
 #shOv .nts{display:flex;flex-direction:column;gap:8px}
+/* Nights: the list scrolls inside the card; the buttons sit in a footer under it (never stacked over WATCH THE ENDING) */
+#shOv .card[data-v=nights]{overflow:hidden}
+#shOv .card[data-v=nights]>*{flex:none}
+#shOv .card[data-v=nights]>.nts{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:3px;margin:-3px}
+#shOv .ntFoot{display:flex;flex-direction:column;gap:10px}
+#shOv .nts.more{-webkit-mask-image:linear-gradient(#000 calc(100% - 30px),#0000);mask-image:linear-gradient(#000 calc(100% - 30px),#0000)}
+#shOv .ntBtns{display:flex;flex-direction:column;gap:10px}
 #shOv .card>.felt[data-a=back],#shOv .card>.felt[data-a=close]{position:sticky;bottom:0;z-index:2}
 @media (orientation:landscape) and (max-height:500px){
   #shOv .card[data-v=settings],#shOv .card[data-v=nights]{width:min(94vw,800px)}
@@ -158,6 +165,13 @@ html body #title{left:calc(env(safe-area-inset-left) + 120px)!important}
   #shOv .card[data-v=settings] .shRows>:nth-child(9){grid-column:1;grid-row:5} #shOv .card[data-v=settings] .shRows>:nth-child(10){grid-column:2;grid-row:5}
   #shOv .card[data-v=settings] .shNote{margin:0}
   #shOv .nts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px} #shOv .nts>.nt:last-child:nth-child(3n+1){grid-column:1/-1}
+  #shOv .card[data-v=nights]{padding:14px 18px 12px;gap:8px}
+  #shOv .card[data-v=nights] h2{font-size:18px} #shOv .card[data-v=nights]>p{font-size:13px;line-height:1.3}
+  #shOv .card[data-v=nights] .nts{align-content:start}
+  #shOv .card[data-v=nights] .nt{padding:7px 10px;gap:10px} #shOv .card[data-v=nights] .nt i{flex-basis:28px;height:28px;font-size:13px}
+  #shOv .card[data-v=nights] .nt b{font-size:13px} #shOv .card[data-v=nights] .nt small{font-size:12px;line-height:1.25}
+  #shOv .ntBtns.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  #shOv .card[data-v=nights] .ntBtns .felt{height:46px;font-size:14px}
   #shOv .card[data-v=nights] .nt{padding:7px 10px} #shOv .card[data-v=nights] .nt i{flex-basis:30px;height:30px;font-size:14px}
 }
 @media (orientation:landscape) and (max-height:500px){#shOv .card{width:min(76vw,560px);padding:14px 18px 12px;gap:8px} #shOv .felt{height:48px} #shOv .scroll{height:52vh}}
@@ -267,7 +281,9 @@ function nightsView() {
     return `<div class="nt${open ? ' open' : ''}${N.n === cur ? ' now' : ''}"><i>${open ? N.n : '🔒'}</i><div><b>${esc(rest.join(' · ') || num)}</b><small>${lockDemo ? 'Full game' : open ? 'Open · ' + esc(N.opens) : `${N.need} ☀ to open · ${esc(N.opens)}`}</small></div></div>`; }).join('');
   const nx = NIGHTS()[cur]; const pct = nx && !(DEMO) ? Math.min(100, Math.round(100 * (c - NIGHTS()[cur - 1].need) / Math.max(1, nx.need - NIGHTS()[cur - 1].need))) : 100;
   show('nights', `<h2>NIGHTS</h2><p>${c} ☀ Sunspots found. Every errand, game and secret leaves one.</p><div class="bar"><u style="width:${pct}%"></u></div><div class="nts">${rows}</div>
-    ${DEMO ? `<p>Seven Nights in the full game. Your save carries over.</p>` : ''}${loadP().finaleSeen ? '<button class="felt mustard" data-a="ending">WATCH THE ENDING</button>' : ''}<button class="felt cream" data-a="${paused() ? 'back' : 'close'}">BACK</button>`);
+    <div class="ntFoot">${DEMO ? `<p>Seven Nights in the full game. Your save carries over.</p>` : ''}<div class="ntBtns${loadP().finaleSeen ? ' two' : ''}">${loadP().finaleSeen ? '<button class="felt mustard" data-a="ending">WATCH THE ENDING</button>' : ''}<button class="felt cream" data-a="${paused() ? 'back' : 'close'}">BACK</button></div></div>`);
+  const L = card.querySelector('.nts'), more = () => L.isConnected && L.classList.toggle('more', L.scrollTop + L.clientHeight < L.scrollHeight - 2);   // fade the last row when the list scrolls
+  L.addEventListener('scroll', more, { passive: true }); requestAnimationFrame(more); if (!nightsView.rs) { nightsView.rs = 1; addEventListener('resize', () => { if (view === 'nights') { const l = card.querySelector('.nts'); l?.dispatchEvent(new Event('scroll')); } }); }
 }
 function settingsView() { show('settings', `<h2>SETTINGS</h2>${settingsHTML(true)}<button class="felt cream" data-a="back">BACK</button>`); }
 function creditsView() { show('credits', `<h2>CREDITS</h2><div class="scroll"><div class="roll">${CREDITS_HTML}</div></div><button class="felt cream" data-a="back">BACK</button>`); }

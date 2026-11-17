@@ -215,7 +215,7 @@ export function installSnackRun(C) {
   `;
   document.head.appendChild(css);
   const el = (tag, id, html = '') => { const e = document.createElement(tag); if (id) e.id = id; e.innerHTML = html; document.body.appendChild(e); return e; };
-  const btn = el('button', 'srBtn', '🌙 <b>LATE NIGHT</b> SNACK RUN');
+  const btn = el('button', 'srBtn', '<span>🌙 <b>LATE NIGHT</b> SNACK RUN</span>');   // one span: in a flex button the space after </b> was trimmed ("LATE NIGHTSNACK RUN")
   const hudEl = el('div', 'srHud', '<svg id="srArrow" viewBox="0 0 44 44"><path d="M22 3 L36 34 L22 27 L8 34 Z" fill="#ffe1a8" stroke="#2b1e46" stroke-width="3" stroke-linejoin="round"/></svg>');
   const arrow = hudEl.querySelector('#srArrow');
   const listEl = el('div', 'srList'); const ask = el('div', 'srAsk'); const card = el('div', 'srCard'); const shop = el('div', 'srShop'); const fade = el('div', 'srFade');
