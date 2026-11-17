@@ -264,11 +264,12 @@ function addEye(H, o, Sg) {
     add(blob(r * 0.3, r * 0.3, r * 0.12, Sg(8, 4), Sg(5, 3)), '#120c0e', 0, M4((o.look || 0) * 1.1, -r * 0.08, r * 0.95));
     add(blob(r * 0.1, r * 0.1, r * 0.05, 5, 3), '#ffffff', 0, M4(-sx * r * 0.18 + (o.look || 0), -r * 0.2, r * 0.99)); }
   else add(blob(r * 0.8, r * 0.8, r * 0.3, Sg(10, 5), Sg(6, 3)), '#120c0e', 0, M4(0, 0, r * 0.75));
-  if (o.noLid) return;
+  if (o.noLid) { if (o.ring) add(new THREE.TorusGeometry(r * 1.18, r * 0.1, 5, Sg(12, 6)), o.ring, 1, M4(0, 0, r * 0.28, PI / 2)); return; }
   const th = PI / 2 - e, lr = r * 1.13, roll = -sx * (o.droop ?? 0.14);
   add(new THREE.SphereGeometry(lr, Sg(14, 7), Sg(6, 3), 0, TAU, 0, th), lidC, 1, M4(0, 0, 0, 0.0, 0, roll));
   add(new THREE.TorusGeometry(lr * Math.cos(e), r * 0.08, 4, Sg(14, 7)), o.rim || shade(lidC, 0.62), 1, new THREE.Matrix4().makeRotationZ(roll).multiply(M4(0, lr * Math.sin(e), 0, PI / 2)));
   add(new THREE.SphereGeometry(r * 1.08, Sg(12, 6), 2, 0, TAU, PI - 0.6, 0.6), lidC, 1);
+  if (o.ring) add(new THREE.TorusGeometry(r * 1.18, r * 0.1, 5, Sg(12, 6)), o.ring, 1, M4(0, 0, r * 0.28, PI / 2));
 }
 
 // Scott, Nov 16: the Goat keeps his ORIGINAL head (face + horns) exactly as first built in 8780a37 -- he is the one exception
@@ -471,6 +472,7 @@ function buildHead(H, sp, R, Sg) {
   if (kind === 'goat' || kind === 'ram' || kind === 'sheep') { ry *= 0.98; rx *= 0.8; rz *= 0.9; eyeX = R * 0.42; eyeY = R * 0.22; }
   if (kind === 'fruit') { rx = R * 1.0; ry = R * 1.08; rz = R * 0.98; eyeY = R * 0.15; eyeX = R * 0.32; }
   if (bird) { eyeX = R * 0.58; eyeY = R * 0.2; eyeR = R * 0.2 * (sp.eyeK || 1); }
+  if (sp.eggHead) { rx *= 0.8; ry *= 1.22; rz *= 0.88; }   // hummingbird / Larry: a smaller egg, not a green ball
   if (kind === 'lizard') { rx *= 1.2; ry *= 0.86; rz *= 1.05; eyeX = R * 0.66; eyeY = R * 0.48; eyeR = R * 0.34; }
   if (kind === 'moth') { eyeX = R * 0.48; eyeR = R * 0.3; }
   const skullCol = sp.headFn || (sp.throat ? (x, y, z) => (y < -R * 0.22 && z > -R * 0.25 ? sp.throat : face) : null) || ((sp.mask && sp.maskPaint) ? (x, y, z) => { // raccoon mask band over the eyes
@@ -506,7 +508,7 @@ function buildHead(H, sp, R, Sg) {
       H.add(sweep([[-R * 0.22, tp[1] - tr * 1.05, tp[2] - tr * 0.3], [0, tp[1] - tr * 1.15, tp[2] - tr * 0.05], [R * 0.22, tp[1] - tr * 1.05, tp[2] - tr * 0.3]], [R * 0.016, R * 0.016, R * 0.016], 4), shade(mz, 0.5), 1); }
     else if (kind === 'sheep' || kind === 'cow') { for (const sx of [-1, 1]) H.add(blob(R * 0.06, R * 0.04, R * 0.03, 5, 4), sp.nostril || shade(mz, 0.5), 0, M4(sx * tr * 0.42, tp[1] + tr * 0.2, tp[2] + tr * 0.82, -0.3));
       H.add(sweep([[-tr * 0.5, tp[1] - tr * 0.5, tp[2] + tr * 0.55], [0, tp[1] - tr * 0.62, tp[2] + tr * 0.72], [tr * 0.5, tp[1] - tr * 0.5, tp[2] + tr * 0.55]], [R * 0.018, R * 0.018, R * 0.018], 4), shade(mz, 0.55), 1); }
-    else { const nr = kind === 'bear' ? [R * 0.22, R * 0.15, R * 0.14] : kind === 'rodent' ? [R * 0.15, R * 0.12, R * 0.12] : kind === 'dog' ? [R * 0.17, R * 0.13, R * 0.13] : [R * 0.14, R * 0.11, R * 0.11];
+    else { const nr = kind === 'bear' ? (sp.hair?.updo ? [R * 0.11, R * 0.08, R * 0.09] : [R * 0.22, R * 0.15, R * 0.14]) : kind === 'rodent' ? [R * 0.15, R * 0.12, R * 0.12] : kind === 'dog' ? [R * 0.17, R * 0.13, R * 0.13] : [R * 0.14, R * 0.11, R * 0.11];
       H.add(blob(nr[0], nr[1], nr[2], Sg(10, 5), Sg(8, 4), (v) => { if (v.y < 0) v.x *= 1 + v.y * 2.2; }), nose, 0, M4(tp[0], tp[1] + tr * 0.4, tp[2] + tr * 0.78));
       const mw = Math.max(tr * 1.1, R * 0.2); H.add(sweep([[-mw, tp[1] - tr * 0.75, tp[2] - tr * 0.9 - R * 0.06], [0, tp[1] - tr * 0.72, tp[2] + tr * 0.55], [mw, tp[1] - tr * 0.75, tp[2] - tr * 0.9 - R * 0.06]], [R * 0.016, R * 0.016, R * 0.016], 4), shade(mz, 0.5), 1);
       if (sp.teeth) H.add(blob(R * 0.1, R * 0.08, R * 0.03, 6, 4), '#f6f2ea', 0, M4(0, tp[1] - tr * 0.95, tp[2] + tr * 0.1)); }
@@ -530,7 +532,7 @@ function buildHead(H, sp, R, Sg) {
       const tp = pts[pts.length - 1], tr = rad[rad.length - 1];
       if (kind === 'pig') { H.add(new THREE.CylinderGeometry(tr * 1.02, tr * 1.04, R * 0.08, Sg(14, 6)), shade(mz, 0.95), 1, M4(tp[0], tp[1], tp[2] + tr * 0.3, PI / 2)); for (const sx of [-1, 1]) H.add(blob(R * 0.05, R * 0.07, R * 0.03, 5, 4), shade(mz, 0.55), 0, M4(sx * R * 0.1, tp[1], tp[2] + tr * 0.36)); }
       else if (kind === 'goat' || kind === 'ram' || kind === 'sheep' || kind === 'cow') { for (const sx of [-1, 1]) H.add(blob(R * 0.05, R * 0.035, R * 0.03, 5, 4), sp.nostril || shade(mz, 0.5), 0, M4(sx * R * 0.12, tp[1] + tr * 0.25, tp[2] + tr * 0.85, -0.3)); H.add(sweep([[-R * 0.12, tp[1] - tr * 0.45, tp[2] + tr * 0.6], [0, tp[1] - tr * 0.55, tp[2] + tr * 0.72], [R * 0.12, tp[1] - tr * 0.45, tp[2] + tr * 0.6]], [R * 0.018, R * 0.018, R * 0.018], 4), shade(mz, 0.55), 1); }
-      else { const nr0 = 0; const nr = kind === 'bear' ? [R * 0.2, R * 0.13, R * 0.12] : kind === 'anteater' ? [R * 0.13, R * 0.11, R * 0.07] : kind === 'rodent' ? [R * 0.16, R * 0.13, R * 0.12] : [R * 0.15, R * 0.11, R * 0.11];
+      else { const nr0 = 0; const nr = kind === 'bear' ? (sp.hair?.updo ? [R * 0.11, R * 0.08, R * 0.09] : [R * 0.2, R * 0.13, R * 0.12]) : kind === 'anteater' ? [R * 0.13, R * 0.11, R * 0.07] : kind === 'rodent' ? [R * 0.16, R * 0.13, R * 0.12] : [R * 0.15, R * 0.11, R * 0.11];
         H.add(blob(nr[0], nr[1], nr[2], Sg(10, 5), Sg(8, 4), (v) => { if (v.y < 0) v.x *= 1 + v.y * 2.2; }), nose, 0, M4(tp[0], tp[1] + tr * 0.35, tp[2] + tr * 0.72));
         if (kind !== 'anteater') H.add(sweep([[-tr * 0.55, tp[1] - tr * 0.55, tp[2] - tr * 0.2], [0, tp[1] - tr * 0.62, tp[2] + tr * 0.35], [tr * 0.55, tp[1] - tr * 0.55, tp[2] - tr * 0.2]], [R * 0.016, R * 0.016, R * 0.016], 4), shade(mz, 0.5), 1); }
       if (sp.teeth) H.add(blob(R * 0.1, R * 0.08, R * 0.03, 6, 4), '#f6f2ea', 0, M4(0, tp[1] - tr * 0.78, tp[2] + tr * 0.05));
@@ -560,7 +562,7 @@ function buildHead(H, sp, R, Sg) {
   // ---- ears
   const et = sp.ears ?? ({ bear: 'round', canine: 'pointy', dog: 'floppy', cat: 'pointy', lynx: 'tufted', rodent: 'mouse', raccoon: 'round', possum: 'round', goat: 'side', ram: 'side', sheep: 'side', cow: 'side', rabbit: 'long', pig: 'pointy', anteater: 'round', moth: 'antenna' }[kind] || null);
   for (const sx of [-1, 1]) {
-    if (et === 'round') { const ek = kind === 'raccoon' ? 1.35 : 1.1; H.add(blob(R * 0.2 * ek, R * 0.2 * ek, R * 0.08, Sg(10, 5), Sg(8, 4)), ear, 1, M4(sx * R * 0.7, R * 0.7, -R * 0.1, -0.1, sx * 0.25, -sx * 0.5)); H.add(blob(R * 0.12 * ek, R * 0.12 * ek, R * 0.04, Sg(8, 4), Sg(6, 3)), inner, 1, M4(sx * R * 0.72, R * 0.7, -R * 0.03, -0.1, sx * 0.25, -sx * 0.5)); }
+    if (et === 'round') { const ek = (kind === 'raccoon' ? 1.35 : 1.1) * (sp.hair?.updo ? 1.18 : 1); H.add(blob(R * 0.2 * ek, R * 0.2 * ek, R * 0.08, Sg(10, 5), Sg(8, 4)), ear, 1, M4(sx * R * 0.7, R * 0.7, -R * 0.1, -0.1, sx * 0.25, -sx * 0.5)); H.add(blob(R * 0.12 * ek, R * 0.12 * ek, R * 0.04, Sg(8, 4), Sg(6, 3)), inner, 1, M4(sx * R * 0.72, R * 0.7, -R * 0.03, -0.1, sx * 0.25, -sx * 0.5)); }
     else if (et === 'mouse') { H.add(blob(R * 0.56, R * 0.56, R * 0.08, Sg(14, 6), Sg(10, 5)), ear, 1, M4(sx * R * 1.05, R * 0.6, -R * 0.12, -0.1, sx * 0.3, -sx * 0.5)); H.add(blob(R * 0.41, R * 0.41, R * 0.04, Sg(12, 5), Sg(8, 4)), inner, 1, M4(sx * R * 1.07, R * 0.6, -R * 0.05, -0.1, sx * 0.3, -sx * 0.5)); }
     else if (et === 'pointy' || et === 'tufted') { const tall = et === 'tufted' ? 1.05 : (sp.earK || 0.62);
       const eg = new THREE.ConeGeometry(R * 0.26 * (sp.earW || 1), R * tall, Sg(10, 5), 1); eg.translate(0, R * tall / 2, 0); const eg2 = weld(eg); const mm = M4(sx * R * 0.5, R * 0.62, -R * 0.12, -0.12, 0, -sx * 0.38, 1, 1, 0.42);
@@ -586,7 +588,7 @@ function buildHead(H, sp, R, Sg) {
   if (sp.beard) H.add(sweep([[0, -R * 0.8, R * 1.15], [0, -R * 1.15, R * 1.2], [0, -R * 1.55, R * 1.05]], [R * 0.16, R * 0.11, R * 0.02], Sg(8, 4)), sp.beard, 1);
   // ---- eyes
   if (kind !== 'wrench') for (const sx of [-1, 1]) { const x = sx * eyeX, y = eyeY, z = zAt(x, y) - eyeR * 0.35;
-    addEye(H, { x, y, z, r: eyeR, yaw: Math.asin(THREE.MathUtils.clamp(x / rx, -1, 1)) * 0.85, pitch: -0.05, lid: sp.lid || (sp.mask ? sp.mask : face), open: eyeOpen, iris: sp.iris, dark: sp.darkEyes, droop: sp.droop, noLid: sp.noLid }, Sg); }
+    addEye(H, { x, y, z, r: eyeR, yaw: Math.asin(THREE.MathUtils.clamp(x / rx, -1, 1)) * 0.85, pitch: -0.05, lid: sp.lid || (sp.mask ? sp.mask : face), open: eyeOpen, iris: sp.iris, dark: sp.darkEyes, ring: sp.eyeRing, droop: sp.droop, noLid: sp.noLid }, Sg); }
   if (sp.mask && !rec) for (const sx of [-1, 1]) { const x = sx * eyeX * 0.98, z = Math.sqrt(Math.max(0, 1 - (x / rx) ** 2 - (eyeY / ry) ** 2)) * rz, yw = Math.asin(THREE.MathUtils.clamp(x / rx, -1, 1)) * 0.85;   // Nov 16: the raccoon mask is felt, not a painted band
     H.add(blob(eyeR * 2.2, eyeR * 1.3, R * 0.16, Sg(14, 7), Sg(8, 4)), sp.mask, 1, M4(x + sx * eyeR * 0.25, eyeY - eyeR * 0.3, z - R * 0.1, 0, yw, -sx * 0.18));
     H.add(blob(eyeR * 1.3, eyeR * 0.42, R * 0.12, Sg(10, 5), Sg(6, 3)), sp.brow || '#efe8dc', 1, M4(x, eyeY + eyeR * 1.75, z - R * 0.12, -0.2, yw, sx * 0.25)); }
@@ -600,8 +602,14 @@ function buildHead(H, sp, R, Sg) {
     H.add(sweep([[-eyeX + gr * 0.9, eyeY + R * 0.02, rz * 0.92 + eyeR * 0.4], [0, eyeY + R * 0.05, rz * 1.0 + eyeR * 0.5], [eyeX - gr * 0.9, eyeY + R * 0.02, rz * 0.92 + eyeR * 0.4]], [R * 0.02, R * 0.02, R * 0.02], 4, { caps: false }), g.col || '#2a1e1a', 0); }
   // ---- hair / hats
   if (sp.hair) { const hc = sp.hair.col;
-    H.add(blob(rx * 1.06, ry * 0.7, rz * 1.04, Sg(18, 8), Sg(10, 5), (v, n) => { if (n.y < 0.15) v.y = Math.max(v.y, ry * 0.08 - (n.z < 0 ? R * 0.35 : 0)); v.x += Math.sin(n.z * 9 + n.x * 7) * R * 0.025; }), hc, 1, M4(0, R * 0.35, -R * 0.05));
-    if (sp.hair.bun) H.add(blob(R * 0.3, R * 0.26, R * 0.28, Sg(12, 6), Sg(9, 4), (v, n) => { v.x += Math.sin(n.y * 10) * R * 0.02; }), hc, 1, M4(0, ry * 1.05, -R * 0.45)); }
+    if (sp.hair.updo) {
+      // a crown of white hair with the bun on top — not a cap sitting on the back of the head
+      H.add(blob(rx * 0.7, ry * 0.28, rz * 0.68, Sg(16, 8), Sg(10, 5), (v, n) => { if (n.z > 0.35 && n.y < 0.15) v.multiplyScalar(0.55); v.x += Math.sin(n.z * 8 + n.x * 6) * R * 0.02; }), hc, 1, M4(0, ry * 0.78, -R * 0.08));
+      H.add(blob(R * 0.28, R * 0.22, R * 0.28, Sg(12, 6), Sg(9, 4), (v, n) => { v.x += Math.sin(n.y * 10) * R * 0.015; }), hc, 1, M4(0, ry * 1.28, -R * 0.02));
+    } else {
+      H.add(blob(rx * 1.06, ry * 0.7, rz * 1.04, Sg(18, 8), Sg(10, 5), (v, n) => { if (n.y < 0.15) v.y = Math.max(v.y, ry * 0.08 - (n.z < 0 ? R * 0.35 : 0)); v.x += Math.sin(n.z * 9 + n.x * 7) * R * 0.025; }), hc, 1, M4(0, R * 0.35, -R * 0.05));
+      if (sp.hair.bun) H.add(blob(R * 0.3, R * 0.26, R * 0.28, Sg(12, 6), Sg(9, 4), (v, n) => { v.x += Math.sin(n.y * 10) * R * 0.02; }), hc, 1, M4(0, ry * 1.05, -R * 0.45)); }
+    }
   if (sp.hat) { const h = sp.hat, hc = h.col;
     if (h.kind === 'police') { H.add(lathe([[0, ry * 0.62], [rx * 1.02, ry * 0.6], [rx * 1.08, ry * 0.85], [rx * 1.25, ry * 1.05], [rx * 1.2, ry * 1.12], [0, ry * 1.1]], Sg(18, 8)), hc, 1, M4(0, 0, -R * 0.05));
       H.add(blob(rx * 0.75, R * 0.03, R * 0.38, Sg(12, 6), 4, (v, n) => { if (n.z < 0) v.z *= 0.1; }), '#141822', 0, M4(0, ry * 0.63, rz * 0.7, 0.25));
@@ -670,7 +678,7 @@ const swirl = (x, y, z) => { const a = Math.sin(x * 23 + Math.sin(y * 17) * 2.2 
 export const FOLK = {
   wolf: { kind: 'canine', fur: '#4a4a54', face: '#4e4e58', muzzle: '#5a5a64', nose: '#141214', iris: '#e0482a', ears: 'pointy', earK: 1.25, earW: 1.3, earIn: '#3a3a42', top: '#e2a83a', collar: 'turtle', sweater: 1, pants: '#e0705a', legStyle: 'straight', feet: 'paw', feetCol: '#2e2e34', hands: '#3a3a42', tail: { kind: 'bushy', col: '#40404a' }, fat: 1.05 },
   bear: { kind: 'bear', fur: '#6a4430', muzzle: '#8a6040', nose: '#1e1410', top: '#6e1f2a', collar: 'turtle', sweater: 1, pants: '#1f7a7a', shoes: '#3a2418', hands: '#5a3a28', fat: 1.22, wide: 1.06, h: 1.12, headR: 0.25, neck: 0.04 },
-  grandma: { kind: 'bear', q: 0.66, fur: '#8a5a3a', muzzle: '#b08560', nose: '#2a1a14', glasses: { col: '#3a2a22' }, hair: { col: '#efece6', bun: 1 }, top: '#efe2c6', sleeve: '#7a2232', coat: { col: '#efe2c6', len: -0.12, gap: 0.6, buttons: '#7a2232' }, dress: '#6a6e34', skirt: '#6a6e34', skirtLen: -0.44, shoes: '#5a3a24', hands: '#7a4e32', fat: 1.16, h: 0.98, headR: 0.245, open: 0.1 },
+  grandma: { kind: 'bear', q: 0.7, fur: '#c99658', face: '#d4a66a', muzzle: '#efd4b0', nose: '#3a2418', earIn: '#e8b898', glasses: { col: '#2a1e18' }, hair: { col: '#f3f0ea', bun: 1, updo: 1 }, top: '#efe6d2', sleeve: '#8a2e3a', coat: { col: '#efe6d2', len: -0.08, gap: 0.55, buttons: '#c4a070' }, dress: '#6b7340', skirt: '#6b7340', skirtLen: -0.44, shoes: '#5a3a24', hands: '#c99658', fat: 1.18, h: 0.98, headR: 0.23, open: 0.1 },
   gecko: { kind: 'lizard', fur: swirl, face: '#7a3a9a', headFn: swirl, lid: '#7a3a9a', top: swirl, onepiece: 0, pants: '#efe2c8', legStyle: 'flare', feet: 'paw', feetCol: '#7a3a9a', hands: '#5ab04a', tail: { kind: 'curl', col: swirl }, h: 0.92, iris: '#e8c03a' },
   lynx: { kind: 'lynx', fur: '#d8b98a', muzzle: '#f2e6cc', nose: '#3a2226', iris: '#8ac8e8', ears: 'tufted', top: '#2f8a86', collar: 'turtle', pants: '#efe2c8', legStyle: 'flare', shoes: '#5a3a28', hands: '#d0b080', tail: { kind: 'puff', col: '#d8b98a' } },
   heron: { kind: 'bird', fur: '#cfd6dc', face: '#eef0f2', crest: '#1e1e24', beak: { col: '#e8a82a', len: 3.3, w: 0.28, drop: 0.1, flat: 0.7 }, top: '#5a2a7a', collar: 'hood', pants: '#efe2c6', legStyle: 'shorts', feet: 'bird', legCol: '#e8822a', hand: 'wing', hands: '#cfd6dc', h: 1.08, legs: 1.12, headR: 0.2, iris: '#e8c03a' },
@@ -680,7 +688,7 @@ export const FOLK = {
   squid: { kind: 'banana', fur: '#f2d64a', tent: '#e8c23a', h: 0.95 },
   anteater: { kind: 'anteater', fur: '#2e2a2c', face: '#d8ccb4', muzzle: '#d0c2a8', headFn: (x, y, z) => (z < -0.05 ? '#2e2a2c' : '#d8ccb4'), top: '#e0a83a', chevron: '#6e1f2a', collar: 'crew', pants: '#6e1f2a', shoes: '#2a2024', hands: '#2e2a2c', tail: { kind: 'bushy', col: '#2e2a2c', tip: '#d8ccb4' } },
   vulture: { kind: 'bird', fur: '#2a2224', face: '#e89a9a', beak: { col: '#e8d8b0', len: 1.3, w: 0.46, drop: 0.25, hook: 1, flat: 0.95, cere: 0.55 }, glasses: { col: '#141014', dark: 1 }, top: '#1e2a4a', vneck: '#e8e2d6', collar: 'lapel', coat: { col: '#22305a', len: -0.55, gap: 0.55, flare: 1.25, w: 1.16, fur: '#9a7a5a' }, pants: '#1e2a4a', shoes: '#141822', hands: '#e89a9a', h: 1.15, neck: 0.11, neckW: 0.8, neckCol: '#e89a9a' },
-  larry: { kind: 'bird', fur: '#3a8a4a', face: '#2e7a42', throat: '#f08a8a', browFur: '#2a6a3e', beak: { col: '#3a2a22', len: 2.5, w: 0.28, drop: 0.08 }, iris: '#1a1410', top: '#e8705a', collar: 'lapel', lapelCol: '#c85040', pants: '#c4b49a', legStyle: 'shorts', feet: 'bird', legCol: '#4a4a42', hand: 'wing', hands: '#3a8a4a', h: 0.74, headR: 0.22, tail: { kind: 'feather', col: '#2e7a42' } },
+  larry: { kind: 'bird', fur: '#3a8a4a', face: '#2e7a42', throat: '#f08a8a', browFur: '#2a6a3e', beak: { col: '#2a1c16', len: 3.5, w: 0.16, drop: 0.08 }, iris: '#1a1410', eyeRing: '#f2efe6', eggHead: 1, top: '#e8705a', collar: 'lapel', lapelCol: '#c85040', pants: '#c4b49a', legStyle: 'shorts', feet: 'bird', legCol: '#4a4a42', hand: 'wing', hands: '#3a8a4a', h: 0.78, headR: 0.155, tail: { kind: 'feather', col: '#2e7a42' } },
   fuzz: { kind: 'bear', fur: '#4a3024', muzzle: '#9a7458', nose: '#141010', top: '#1e2a52', collar: 'uniform', collarCol: '#24325e', badge: '#e8c04a', pocket: 1, belt: '#141418', buttons: '#e8c04a', pants: '#1e2a52', shoes: '#141418', hat: { kind: 'police', col: '#1a2448', badge: '#e8c04a' }, hands: '#3e281e', fat: 1.22, h: 1.05, headR: 0.25, open: 0.0 },
   lemon: { kind: 'fruit', face: '#f6dc3a', fur: '#f6dc3a', nubs: 1, headR: 0.32, neck: 0.0, top: '#3a9a4a', shortSleeve: 1, collar: 'crew', pants: '#22305a', legStyle: 'shorts', bareLegs: '#f2d43a', feet: 'sneaker', shoes: '#f2efe8', sole: '#d8d0c4', hat: { kind: 'cap', col: '#3a9a4a' }, hands: '#f2d43a', h: 0.85, smirk: 1, iris: '#4a2e22' },
   goat: { kind: 'goat', fur: '#e8e0cc', face: '#ece4d2', muzzle: '#e2d8c4', nose: '#8a7a6a', earIn: '#d8b8a8', horns: '#8a6a4a', beard: '#e2d8c2', iris: '#c8a040', top: '#3e4ea6', collar: 'shirt', buttons: '#e8e2d6', pants: '#3a3a40', feet: 'hoof', hoof: '#5a4a3e', hands: '#e2d8c4', open: 0.12 },
@@ -690,7 +698,7 @@ export const FOLK = {
   dot: { kind: 'hen', fur: '#f6f2e8', face: '#faf7f0', beak: { col: '#f4c42a', len: 0.95, w: 0.4, drop: 0.3, flat: 0.8 }, comb: '#d8302a', top: '#6ab8b8', dress: '#6ab8b8', skirt: '#6ab8b8', apron: '#f6f2ea', collar: 'crew', feet: 'bird', legCol: '#e8a83a', legStyle: 'none', hand: 'wing', hands: '#f2e6d2', fat: 1.1 },
   nan: { kind: 'rodent', fur: '#c8b8b0', face: '#d0c0b8', muzzle: '#dccfc6', nose: '#d88a8a', earIn: '#e8b8b8', hair: { col: '#f2f0ea' }, glasses: { col: '#6a4a3a' }, top: '#efe6dc', collar: 'shirt', sleeve: '#b8a0d8', coat: { col: '#b8a0d8', len: -0.06, gap: 0.55, buttons: '#efe6dc' }, skirt: '#6a4a8a', dress: '#efe6dc', shoes: '#5a3a2a', hands: '#d0c0b8', h: 0.92, open: 0.14, tail: { kind: 'thin', col: '#e0b8b8' } },
   wrench: { kind: 'wrench', fur: '#c8a27a', sleeve: '#e86a2a', hands: '#f2b632', gloves: 1 },
-  hummer: { kind: 'bird', fur: '#2e9a6a', face: '#3aa87a', throat: '#f08a8a', browFur: '#2a7a58', beak: { col: '#3a2a22', len: 2.5, w: 0.28, drop: 0.08 }, iris: '#1a1410', top: '#e8705a', collar: 'lapel', lapelCol: '#c85040', pants: '#c4b49a', legStyle: 'shorts', feet: 'bird', legCol: '#4a4a42', hand: 'wing', hands: '#2e9a6a', h: 0.72, headR: 0.22, tail: { kind: 'feather', col: '#2a8a58' } },
+  hummer: { kind: 'bird', fur: '#2e9a6a', face: '#3aa87a', throat: '#f08a8a', browFur: '#2a7a58', beak: { col: '#2a1c16', len: 3.6, w: 0.15, drop: 0.06 }, iris: '#1a1410', eyeRing: '#f2efe6', eggHead: 1, top: '#e8705a', collar: 'lapel', lapelCol: '#c85040', pants: '#c4b49a', legStyle: 'shorts', feet: 'bird', legCol: '#4a4a42', hand: 'wing', hands: '#2e9a6a', h: 0.76, headR: 0.15, tail: { kind: 'feather', col: '#2a8a58' } },
   farmhand: { kind: 'shovel', fur: '#c9925f', face: '#c8b8a0', top: plaidFn('#c42a26', '#4a1418', '#f2d6a0'), sleeve: plaidFn('#c42a26', '#4a1418', '#f2d6a0'), collar: 'shirt', collarCol: '#c42a26', buttons: '#f2e6c8', pants: '#3a4a6a', shoes: '#e8c03a', hands: '#c9925f' },
   someone: { kind: 'plain', fur: '#a8a0b8', top: '#f2a6b8', pants: '#4ab8b0', shoes: '#3a2a2a', h: 0.95 },
   peach: { kind: 'fruit', face: '#f6a88a', fur: '#f6a88a', headR: 0.28, neck: 0, top: '#f6a88a', pants: '#8a5a3a', bareLegs: '#f6a88a', hands: '#f6a88a', h: 0.85 },

@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { mergeGeometries, mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import { sunspotsApply, bothMats, matteGLB } from '../sunspots_material.js';
 import { folk as feltFolk, FOLK, palSpec, animFolk } from '../feltfolk.js';
 import { clone as skClone } from 'three/addons/utils/SkeletonUtils.js';
@@ -186,6 +186,19 @@ export async function crewGLB(k, h = 1.8) {
   const f = { bear: 'town2/bear_lo.glb', heron: 'town2/heron_lo.glb', ram: 'town2/ram_lo.glb', wolf: 'town2/wolf_lo.glb', lynx: 'town2/lynx_lo.glb', crow: 'town2/crow_lo.glb', gecko: 'town2/gecko_lo.glb', anteater: 'cast2/anteater.glb', moth: 'town2/moth_lo.glb', cake: 'town2/cake_lo.glb', shake: 'town2/shake_lo.glb', peach: 'town2/fuzzy_peach_lo.glb' }[k];
   try { if (!f) throw new Error('no glb ' + k);
     const gl = await (glbCache[f] ||= new Promise((res, rej) => loader.load(new URL('../models/' + f, import.meta.url).href, res, undefined, rej)));
+    // Weld coincident verts then recompute normals once on the cached source (clones share the geometry).
+    // Meshy lo-GLBs arrive unwelded, so each face has its own verts and computeVertexNormals alone stays faceted
+    // (Bear read as a crumpled paper bag, Wolf as shards). mergeVertices keeps UVs / skin weights that differ, so
+    // UV seams and the rig stay intact. A little leftover normalMap is tamed so it can't re-sharpen the facets.
+    if (!gl.userData.feltSmooth) {
+      gl.scene.traverse((o) => { if (o.isSkinnedMesh) o.skeleton.pose(); if (!o.isMesh || !o.geometry) return;
+        try { const g = mergeVertices(o.geometry, 1e-4); g.computeVertexNormals();
+          if (g.attributes.uv && g.attributes.normal) try { g.computeTangents(); } catch (_) {}
+          o.geometry = g; } catch (_) { try { o.geometry.computeVertexNormals(); } catch (__) {} }
+        for (const m of bothMats(o)) { if (!m) continue; m.flatShading = false; if (m.normalScale) m.normalScale.set(0.16, 0.16); m.needsUpdate = true; }
+      });
+      gl.userData.feltSmooth = true;
+    }
     const root = skClone(gl.scene); root.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = false; if (o.isSkinnedMesh) { o.skeleton.pose(); o.frustumCulled = false; } } });
     root.updateMatrixWorld(true); const b = new THREE.Box3().setFromObject(root), s = h / Math.max(0.01, b.max.y - b.min.y); root.scale.multiplyScalar(s); root.updateMatrixWorld(true);
     const b2 = new THREE.Box3().setFromObject(root); root.position.x -= (b2.min.x + b2.max.x) / 2; root.position.z -= (b2.min.z + b2.max.z) / 2; root.position.y -= b2.min.y;
