@@ -28,7 +28,7 @@ async function crewModel(k) {
   try { sunspotsApply(root, look, h); } catch (_) {}
   const bones = {}; root.traverse((o) => { if (o.isBone) bones[o.name] = o; });
   const w = new THREE.Group(), inner = new THREE.Group(); inner.add(root); w.add(inner); if (blobShadow) { const sh = blobShadow(0.42 * h / 1.8, 0.4); w.add(sh); w.userData.shadow = sh; }
-  Object.assign(w.userData, { inner, h, ph: Math.random() * 6, root, bones, mixer }); return w;
+  Object.assign(w.userData, { inner, h, ph: Math.random() * 6, root, bones, mixer, idleDur: idle ? idle.duration : 0 }); return w;
 }
 async function loadCrew() { const out = {}; await Promise.all(Object.keys(CREW).map(async (k) => { try { out[k] = await crewModel(k); } catch (e) { console.warn('finale: model', k, e?.message || e); } })); return out; }
 import { creditsHTML, CREATOR_NAME, STUDIO } from './credits.js';
@@ -127,13 +127,81 @@ function modelRot(u, list, k = 1) {   // [bone, rx, ry, rz] in model space (+X t
 }
 // Seated (Wolf, Moth, Bear): a frozen idle frame as the base, then a real sit: back against the cushions, thighs flat on the
 // seat, shins down to the floor (angled only as much as the leg length needs), hands resting on the knees, a gentle breathe.
-const SEATY = 0.5, ANKLE = 0.09, SEAT_Z = 0.02;   // hip height on the cushion; hips this far forward of the couch centre
+// Nov 16 couch fix: the sit is solved per character against the couch's real boxes and the character's own skinned mesh
+// (it used to pin the hip BONE at 0.5 m: the seat of the trousers ended ~15 cm inside the cushion, the knees rode above the
+// hips, the Wolf's feet were inside the couch base, and the extras behind it had snouts / bellies through the back).
+const CUSH = 0.32, SEAT_FRONT = -0.39, SINK = 0.02;   // build(): cushion top, its front edge (couch-local z; it faces -z), felt give under a seated body
+let COUCH_BOX = [];   // build(): [{ inv: couch-local -> box-local, bb }] for every box of Moth's couch
+const _sp = new THREE.Vector3(), _sq = new THREE.Vector3();
+const ARMS = /Arm|Hand/, SEATB = /^(Hips|LeftUpLeg|RightUpLeg|Spine)$/;   // the solve ignores the arms (handsOnKnees puts the hands on the knees every frame); what sits on the cushion
+function skinVerts(u, out, step = 2, only = null) {   // world positions of what's drawn for this character right now (skinned or its baked snapshot); only(boneName) filters skinned verts by their main bone
+  u.root.updateMatrixWorld(true); let n = 0;
+  u.root.traverse((m) => { if (!m.isMesh || !m.geometry?.attributes?.position) return; for (let q = m; q && q !== u.root; q = q.parent) if (!q.visible) return;
+    const P = m.geometry.attributes.position, SI = m.geometry.attributes.skinIndex, SW = m.geometry.attributes.skinWeight;
+    let vb = null; if (only && m.isSkinnedMesh && SI && SW) { vb = m.userData.vb; if (!vb) { vb = m.userData.vb = new Uint16Array(P.count);
+      for (let i = 0; i < P.count; i++) { let bw = 0, bi = 0; for (let j = 0; j < 4; j++) { const w = SW.getComponent(i, j); if (w > bw) { bw = w; bi = SI.getComponent(i, j); } } vb[i] = bi; } } }
+    const bs = m.skeleton?.bones || [];
+    for (let i = 0; i < P.count; i += step) { if (vb && !only(bs[vb[i]]?.name || '')) continue; _sp.fromBufferAttribute(P, i); if (m.isSkinnedMesh) m.applyBoneTransform(i, _sp); _sp.applyMatrix4(m.matrixWorld); out[n++] = _sp.x; out[n++] = _sp.y; out[n++] = _sp.z; } });
+  out.n = n; return out;
+}
+const noArms = (b) => !ARMS.test(b), seatPart = (b) => SEATB.test(b);
+function couchHits(A, cx, cz, m = 0, y0 = -9, y1 = 9) {   // verts inside the couch (boxes grown by m) with y in [y0, y1]: [count, deepest]
+  let n = 0, deep = 0;
+  for (let i = 0; i < A.n; i += 3) { const y = A[i + 1]; if (y < y0 || y > y1) continue;
+    for (const b of COUCH_BOX) { _sq.set(A[i] - cx, y, A[i + 2] - cz).applyMatrix4(b.inv); const bb = b.bb;
+      const d = Math.min(_sq.x - bb.min.x, bb.max.x - _sq.x, _sq.y - bb.min.y, bb.max.y - _sq.y, _sq.z - bb.min.z, bb.max.z - _sq.z) + m;
+      if (d > 0) { n++; if (d > deep) deep = d; break; } } }
+  return [n, deep];
+}
+function seatSolve(c) {   // per leg: thigh level, shin plumb; the seat of the pants ON the cushion, back to the back cushions (or as far back as the legs allow), soles never under the floor
+  const g = c.g, u = g.userData, B = u.bones, A = [], W = (n) => B[n].getWorldPosition(new THREE.Vector3());
+  c.th = [-1.52, -1.52]; c.kn = [1.4, 1.4];
+  if (!['LeftUpLeg', 'RightUpLeg', 'LeftLeg', 'RightLeg', 'LeftFoot', 'RightFoot'].every((n) => B[n])) return;
+  const pose = () => { c.restore(); modelRot(u, seatPose(c)); g.updateMatrixWorld(true); };
+  const cx = O.x, cz = O.z;
+  ['Left', 'Right'].forEach((sd, s) => {   // the idle frame isn't symmetric: each leg is solved on its own
+    let best = 9, pick = -1.52; c.kn[s] = 1.52;
+    for (let th = -0.8; th >= -2.3; th -= 0.02) { c.th[s] = th; pose(); const e = Math.abs(W(sd + 'Leg').y - W(sd + 'UpLeg').y); if (e < best) { best = e; pick = th; } }
+    c.th[s] = pick; best = 9; pick = -c.th[s];
+    for (let kn = -c.th[s] - 1.0; kn <= -c.th[s] + 0.8; kn += 0.02) { c.kn[s] = kn; pose(); const k = W(sd + 'Leg'), f = W(sd + 'Foot'); const e = Math.hypot(k.x - f.x, k.z - f.z) + (f.y > k.y ? 9 : 0); if (e < best) { best = e; pick = kn; } }
+    c.kn[s] = pick; });
+  pose();
+  const settle = () => { pose(); skinVerts(u, A, 1, seatPart); let lo = 9;   // the bottom and the thighs rest on the cushion
+    for (let i = 0; i < A.n; i += 3) { const z = A[i + 2] - cz; if (z > SEAT_FRONT && z < 0.27) lo = Math.min(lo, A[i + 1]); }
+    if (lo < 9) g.position.y += CUSH - SINK - lo; pose(); };
+  g.position.z += cz + 0.22 - W('Hips').z; settle();
+  // back against the back cushions: slide forward until nothing above the cushion is inside the couch
+  for (let i = 0; i < 40; i++) { skinVerts(u, A, 2, noArms); if (!couchHits(A, cx, cz, 0.01, CUSH + 0.05)[0]) break; g.position.z -= 0.015; pose(); }
+  settle();
+  // short legs on a deep seat: sit forward until the calves clear the front of the couch (a perch, not legs through the upholstery)
+  for (let i = 0; i < 30; i++) { skinVerts(u, A, 2, noArms); if (!couchHits(A, cx, cz, 0.01, -1, CUSH - 0.06)[0]) break; g.position.z -= 0.015; settle(); }
+  // feet to the floor: short legs (the cast are toons) sit forward and let the thighs slope off the front edge (shins kept
+  // plumb) - the least slope / slide that puts the soles on the floor with nothing pressed into the couch
+  const footY = () => { skinVerts(u, A, 2, noArms); let f = 9; for (let j = 0; j < A.n; j += 3) if (A[j + 2] - cz < SEAT_FRONT) f = Math.min(f, A[j + 1]); return f; };
+  if (footY() > 0.015) { const z0 = g.position.z, th0 = c.th.slice(), kn0 = c.kn.slice(); let best = null;
+    for (let d = 0; d <= 0.61; d += 0.06) for (let k = 0; k <= 14; k++) {
+      c.th = th0.map((v) => v + d); c.kn = kn0.map((v) => v - d); g.position.z = z0 - k * 0.03; settle();
+      if (W('Hips').z - cz < SEAT_FRONT + 0.12) break;   // still sitting ON the couch
+      skinVerts(u, A, 2, noArms); if (couchHits(A, cx, cz, -SINK - 0.005)[0]) continue;
+      const f = footY(), cost = (f < -0.01 ? 9 : 0) + Math.abs(f) * 10 + d * 0.3 + k * 0.015; if (!best || cost < best.cost) best = { cost, d, k }; }
+    if (best) { c.th = th0.map((v) => v + best.d); c.kn = kn0.map((v) => v - best.d); g.position.z = z0 - best.k * 0.03; } else { c.th = th0; c.kn = kn0; g.position.z = z0; }
+    settle(); }
+  // soles never under the floor: long shins angle forward only as much as they need
+  for (let i = 0; i < 30; i++) { skinVerts(u, A, 2, noArms); let foot = 9; for (let j = 0; j < A.n; j += 3) if (A[j + 2] - cz < SEAT_FRONT) foot = Math.min(foot, A[j + 1]);
+    if (foot >= -0.005) break; c.kn[0] -= 0.03; c.kn[1] -= 0.03; pose(); }
+  skinVerts(u, A, 2, noArms); c.seatCheck = couchHits(A, cx, cz, -SINK - 0.005)[0]; c.footY = footY();   // QA: verts inside the couch besides the cushion give (window.__finale.st.crew.*.seatCheck)
+}
+function clearCouch(c, couch) {   // a standing extra: step away from the couch until his whole mesh (plus a 5 cm idle margin) is clear of it
+  const g = c.g, u = g.userData; if (!u.root || !g.visible || !COUCH_BOX.length) return; const A = [];
+  const lx = g.position.x - couch.position.x, lz = g.position.z - couch.position.z, dx = lz > 0.3 || lz < -0.45 ? 0 : Math.sign(lx) || 1, dz = dx ? 0 : Math.sign(lz);
+  for (let i = 0; i < 25; i++) { g.updateMatrixWorld(true); skinVerts(u, A, 3); if (!couchHits(A, couch.position.x, couch.position.z, 0.05)[0]) break; g.position.x += dx * 0.03; g.position.z += dz * 0.03; }
+}
 const KEEP = ['Hips', 'Spine02', 'Spine01', 'Spine', 'neck', 'Head', 'LeftShoulder', 'RightShoulder', 'LeftArm', 'RightArm', 'LeftForeArm', 'RightForeArm', 'LeftHand', 'RightHand', 'LeftUpLeg', 'RightUpLeg', 'LeftLeg', 'RightLeg', 'LeftFoot', 'RightFoot'];
 const SEAT_POOL = { look: [1, 3.2], nod: [1, 1.8], shrug: [0.7, 1.8], sun: [1, 2.6], lean: [0.8, 2.6] };
-function seatPose(c) {   // [bone, rx, ry, rz] model space; c.knee from the leg length
-  const kn = c.knee;
+function seatPose(c) {   // [bone, rx, ry, rz] model space; c.th / c.kn [left, right] from seatSolve(), the feet kept flat on the floor
+  const [tl, tr] = c.th, [kl, kr] = c.kn;
   return [['Spine02', -0.06, 0, 0], ['Spine01', -0.05, 0, 0], ['Spine', -0.03, 0, 0],
-    ['LeftUpLeg', -1.52, 0, 0.05], ['RightUpLeg', -1.52, 0, -0.05], ['LeftLeg', kn, 0, 0], ['RightLeg', kn, 0, 0], ['LeftFoot', 0.05, 0, 0], ['RightFoot', 0.05, 0, 0],
+    ['LeftUpLeg', tl, 0, 0.05], ['RightUpLeg', tr, 0, -0.05], ['LeftLeg', kl, 0, 0], ['RightLeg', kr, 0, 0], ['LeftFoot', -(tl + kl), 0, 0], ['RightFoot', -(tr + kr), 0, 0],
   ];
 }
 // turn the head (and a little of the chest) so the face points at a world target, k = how far (1 = all the way)
@@ -184,14 +252,16 @@ function rig(k, g, sit) {
   if (u.mixer && u.bones.Hips && !sit) { c.mixer = u.mixer;
     c.gest = wolfIdle({ root: u.root, bones: u.bones }, 'fin_' + k); c.gest.g.wait = 1 + Math.random() * 7; c.gest.g.min = 5; c.gest.g.max = 13; }
   else if (sit && u.bones.Hips) {
+    if (u.mixer && u.idleDur && u.bones.LeftUpLeg && u.bones.RightUpLeg) {   // sit from an idle frame with the pelvis square to the couch (a random frame can have the hips turned 90 degrees)
+      let bt = 0, bs = -9; const l = new THREE.Vector3(), r = new THREE.Vector3();
+      for (let i = 0; i < 12; i++) { u.mixer.setTime(u.idleDur * i / 12); g.updateMatrixWorld(true); g.worldToLocal(u.bones.LeftUpLeg.getWorldPosition(l)); g.worldToLocal(u.bones.RightUpLeg.getWorldPosition(r));
+        const sc = Math.abs(l.x - r.x) - Math.abs(l.z - r.z) - Math.abs(l.y - r.y); if (sc > bs) { bs = sc; bt = u.idleDur * i / 12; } }
+      u.mixer.setTime(bt); g.updateMatrixWorld(true); }
     c.snap = KEEP.map((n) => [u.bones[n], u.bones[n]?.quaternion.clone()]).filter((x) => x[0]);
     c.gest = gesturer(SEAT_POOL, 'fin_' + k, { first: 2 + Math.random() * 6, min: 5, max: 11 });
-    g.updateMatrixWorld(true); const b = u.bones, P = (n) => b[n].getWorldPosition(new THREE.Vector3());
-    const L = P('LeftLeg').distanceTo(P('LeftFoot'));                       // shin length -> how far the shin tilts to reach the floor
-    c.knee = 1.52 - Math.acos(clamp((SEATY - ANKLE) / Math.max(0.05, L), 0, 1));
     c.restore = () => { for (const [bn, q] of c.snap) bn.quaternion.copy(q); };
-    c.restore(); modelRot(u, seatPose(c)); g.updateMatrixWorld(true);
-    const hp = P('Hips'); g.position.y += SEATY - hp.y; g.position.z += O.z + SEAT_Z - hp.z;   // the couch is centred on O c.baseY = 0; if (u.shadow) u.shadow.visible = false;
+    seatSolve(c);   // measured against the couch and this character's own mesh
+    if (u.shadow) u.shadow.visible = false;   // the couch shades him; his ground blob would sit under the floor
   }
   else c.gest = gesturer(CAST_POOL, 'fin_' + k, { first: 2 + Math.random() * 6, min: 5, max: 12 });
   return c;
@@ -291,9 +361,10 @@ function build(MODELS) {
   // Moth's couch, carried out into the middle of Sun St (felt, no brands)
   const couch = new THREE.Group(); couch.position.copy(O); set.add(couch);
   const cm = M('#b8443a'), cc = M('#d06a52');
-  mesh(new THREE.BoxGeometry(4.6, 0.32, 0.92), cm, 0, 0.16, 0.06, couch); mesh(new THREE.BoxGeometry(4.0, 0.14, 0.66), cc, 0, 0.39, -0.06, couch);   // seat: cushion top 0.46, front edge z -0.39
-  mesh(new THREE.BoxGeometry(4.6, 1.0, 0.3), cm, 0, 0.6, 0.42, couch); for (const x of [-1.34, 0, 1.34]) { const bc = mesh(new THREE.BoxGeometry(1.28, 0.52, 0.16), cc, x, 0.72, 0.21, couch); bc.rotation.x = -0.12; }   // back + three back cushions
-  for (const sx of [-1, 1]) mesh(new THREE.BoxGeometry(0.34, 0.68, 0.92), cm, sx * 2.17, 0.34, 0.06, couch);
+  mesh(new THREE.BoxGeometry(4.6, 0.18, 0.92), cm, 0, 0.09, 0.06, couch); mesh(new THREE.BoxGeometry(4.0, 0.14, 0.66), cc, 0, 0.25, -0.06, couch);   // seat: cushion top 0.32 (a low, sunk-in couch: the cast's toon legs reach the floor), front edge z -0.39
+  mesh(new THREE.BoxGeometry(4.6, 1.0, 0.3), cm, 0, 0.6, 0.42, couch); for (const x of [-1.34, 0, 1.34]) { const bc = mesh(new THREE.BoxGeometry(1.28, 0.52, 0.32), cc, x, 0.58, 0.13, couch); bc.rotation.x = -0.12; }   // back + three fat back cushions (a seat as deep as their thighs)
+  for (const sx of [-1, 1]) mesh(new THREE.BoxGeometry(0.34, 0.54, 0.92), cm, sx * 2.17, 0.27, 0.06, couch);
+  couch.updateMatrixWorld(true); COUCH_BOX = couch.children.map((m) => { m.geometry.computeBoundingBox(); return { inv: m.matrix.clone().invert(), bb: m.geometry.boundingBox.clone() }; });   // seatSolve / clearCouch
 
   // the crew: the game's own models (the same lo GLBs + Sunspots felt look the town and missions use; the Wolf is the
   // player's own wolf_armsdown_felt.glb). Wolf + Moth + Bear on the couch, everyone else around it, all facing the sun (-z).
@@ -306,7 +377,7 @@ function build(MODELS) {
   for (const c of Object.values(crew)) setLive(c, true);
   const cam0 = { fov: cam.fov, near: cam.near, pos: cam.position.clone(), q: cam.quaternion.clone() };
   for (const k in crew) crew[k].g.traverse((o) => { o.userData.finK = k; });   // for the LOD pass in render()
-  return { F, set, hid, cam0, crew, scene };
+  return { F, set, hid, cam0, crew, scene, couch };
 }
 
 // ------------------------------------------------------------------ the script
@@ -369,6 +440,7 @@ function stage(s, tight, rise) {
   for (const o of s.set.children) { const u = o.userData; if (!u.home) { u.home = o.position.clone(); u.homeRy = o.rotation.y; } o.position.copy(u.home); o.rotation.y = u.homeRy; o.position.z += dz; }
   for (const [k, c] of Object.entries(s.crew)) { const p = tight && (rise ? RISE.rise : RISE.pos)[k]; if (p) { c.g.position.x = O.x + p[0]; if (p[1] !== null) c.g.position.z = O.z + dz + p[1]; c.g.rotation.y = Math.PI + p[2]; }
     if (EXTRAS.includes(k)) c.g.visible = !tight; }
+  s.couch.updateMatrixWorld(true); for (const c of Object.values(s.crew)) if (!c.restore) clearCouch(c, s.couch);   // nobody standing stands IN the couch
 }
 function camAt(t, out, look, portrait) {
   let i = 0; while (i < SHOT.length - 2 && SHOT[i + 1][0] <= t) i++;
