@@ -6,6 +6,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { createLevel, LAYOUT, NIGHT } from './level.js';
 import { createCockpit } from './cockpit.js';
 import { createMoth } from './moth.js';
+import { createSitter } from './seat.js';   // Nov 16 (B1-B3): real seated pose in the cars (no legs through the floor, hands on the wheel)
 import { createDirector } from './scenes.js';
 import { createTown } from './town.js';
 import { createTownscape } from './townscape.js';
@@ -620,6 +621,7 @@ async function loadAll() {
   void hydrant; // the static hydrant is replaced by the rigged mainst_hydrant_spin townsperson (level.js)
   level.setBootCar(car.scene, normalize);
   level.setBootCar(car2, normalize, level.free);
+  level.seatScale = 0.9; fitSoloWheel(); installBackSeat();   // Nov 16 (B1-B3): seated Wolf a touch bigger (head + shoulders over the sill), wheel in reach, real back-seat riders
   // the real moth driver (rigged Meshy model, meshopt + 1024 webp): replaces the felt stand-in + placeholder gloves
   load(M + 'moth_driver.glb').then(g => { moth = createMoth(g, level, cockpit, { scene, patchRider, look: r => sunspotsApply(r, 'moth', 1.7), bothMats }); cockpit.useMoth(moth); window.__moth = moth; })
     .catch(e => console.warn('moth driver model failed, keeping the stand-in', e)); // the boot car is the rideshare: parked at the pickup, drivable, walks on its boots
@@ -805,17 +807,19 @@ function frame() {
     _sm.copy(fc.body.matrixWorld).multiply(_sm2.makeTranslation(ss.x, ss.y, ss.z)); _sm.decompose(wolf.position, wolf.quaternion, tmpV); wolf.scale.setScalar(wolfBaseScale * level.seatScale);
     wolfState.pos.copy(wolf.position).setY(0); wolfState.yaw = fc.yaw; wolfState.speed = 0;
     actWalk.setEffectiveWeight(0); actRun.setEffectiveWeight(0); actIdle.setEffectiveWeight(1); actIdle.timeScale = 1;
-    const body = wolf.userData.body; body.rotation.set(0, 0, Math.sin(t * 7) * 0.01 * clamp(fc.v / 10, 0, 1)); body.position.x = 0; body.scale.y = wolf.userData.sy; mixer.update(dt); }
+    const body = wolf.userData.body; body.rotation.set(0, 0, Math.sin(t * 7) * 0.01 * clamp(fc.v / 10, 0, 1)); body.position.x = 0; body.scale.y = wolf.userData.sy; mixer.update(dt);
+    sitInCar(_sm.copy(fc.body.matrixWorld).multiply(_sm2.makeTranslation(ss.x, 0, ss.z)), SOLO_SIT, fc.wheel, !level.soloChase); }
   // wolf riding shotgun
   if (wolfReady && level.inCar && !puppet.on) {
     level.car.root.updateMatrixWorld(true); cockpit.wolfRig.matrixWorld.decompose(wolf.position, wolf.quaternion, tmpV); wolf.scale.setScalar(wolfBaseScale * level.seatScale); wolfState.pos.copy(wolf.position).setY(0);
     actWalk.setEffectiveWeight(0); actRun.setEffectiveWeight(0); actIdle.setEffectiveWeight(1); actIdle.timeScale = 1;
     const body = wolf.userData.body; body.rotation.set(0, 0, Math.sin(t * 7) * 0.01 * clamp(level.car.v / 10, 0, 1)); body.position.x = 0; body.scale.y = wolf.userData.sy; mixer.update(dt);
+    sitInCar(cockpit.wolfRig.matrixWorld, RIDE_SIT, null, false);
     const hd0 = wolf.userData.head; if (hd0) { hd0.e.set(cockpit.wolfHeadTilt || 0, cockpit.wolfHeadYaw || 0, 0); hd0.q.setFromEuler(hd0.e); hd0.bone.quaternion.multiply(hd0.q); }
   }
-  cockpit.wolfH = 1.75 * wolfBaseScale * level.seatScale; cockpit.update(dt, t);
+  cockpit.wolfH = 1.75 * wolfBaseScale * level.seatScale; cockpit.update(dt, t); backSeat?.update();
   { const rk = smooth(clamp(wild, 0, 1)); level.car.body.updateMatrixWorld(true); RIDE.uCar.value.copy(level.car.body.matrixWorld); RIDE.uCarInv.value.copy(level.car.body.matrixWorld).invert();
-    if (cockpit.rm) cockpit.rm.value = rk; wolfRM.value = level.inCar && !puppet.on ? rk : 0; moth?.update(dt, t, wolfState.pos, rk); }
+    if (cockpit.rm) cockpit.rm.value = rk; wolfRM.value = level.inCar && !puppet.on ? rk : 0; moth?.update(dt, t, wolfState.pos, rk); mothLegs(); }
   // wolf as a scene puppet: scenes.js sets position/yaw/scale + puppet.speed; same shared-phase gait as walking
   if (wolfReady && puppet.on) {
     const sp = puppet.speed, move = clamp(sp / 1.4, 0, 1), idle = 1 - move;
@@ -1095,6 +1099,51 @@ window.__sunspots = { puppet, get director() { return director; }, DEBUG, toggle
 // finale.js hook: the real sun, lights, palettes and town, so THE END plays in the actual town under the actual sun
 window.__sunspots.fin = { sun, SUN_DIST, SUN_R, discMat, lidMat, halo, iris, EY, updateLid, PAL, PAL_DAY, NK, hemi, key, fill, groundMat, KEY_OFFSET, FOG: [scene.fog.near, scene.fog.far],
   get TS() { return TS; }, get wolf() { return wolf; }, get LW() { return LW; }, get CARN() { return CARN; }, get PET() { return PET; }, get SR() { return SR; } };
+
+// ---------------------------------------------------------------- Nov 16 (B1-B3): sitting in the boot cars
+// The car's cabin (measured from the GLB): floor y 0.73, front cushion ~1.0, beltline ~1.2, roof lining ~1.8 (car-local).
+// The Wolf used to play his STANDING idle at the seat point, shrunk to 0.82, so his legs went through the floor.
+// Now: idle on top, then seat.js pins his hips on the cushion, thighs along the seat, shins to the floor, and
+// (driving) both hands on the wheel grips, (riding) hands on his thighs. Frames are car-local (x = his left, z = forward).
+const SOLO_SIT = { hip: [0, 1.08, -0.2], knee: 0.08, spread: 0.07, shin: 0.25, lean: 0.12 };          // frame: car body at the driver seat (x,z)
+const RIDE_SIT = { hip: [0, 0.58, -0.2], knee: 0.08, spread: 0.08, shin: 0.25, lean: 0.04 };          // frame: cockpit.wolfRig (seat point y 0.5)
+let wolfSit = null; const _g0 = new THREE.Vector3(), _g1 = new THREE.Vector3(), _grips = [_g0, _g1];
+function sitInCar(frame, P, wheel, fp) {
+  if (!wolfSit) wolfSit = createSitter(wolf, wolf.userData.body);
+  const tn = window.__sitTune; const Q2 = tn ? { ...P, ...tn } : P;
+  if (wheel) { wheel.updateMatrixWorld(true); wheel.localToWorld(_g0.set(0.17, -0.02, 0.03)); wheel.localToWorld(_g1.set(-0.17, -0.02, 0.03)); Q2.grips = _grips; } else Q2.grips = null;
+  wolfSit.pose(frame, Q2);
+  const hd = wolfSit.B.Head; if (hd) hd.scale.setScalar(fp ? 0.001 : 1);   // his own eyes (FP): no snout in the shot
+}
+// his own car: the wheel sits where his arms reach (it floated 0.83 m in front of him, at the windshield) + a column to the dash
+function fitSoloWheel() {
+  const fw = level.free?.wheel; if (!fw || fw.userData.fit) return; fw.userData.fit = true;
+  fw.position.set(0, 1.3, 0.32); fw.rotation.x = -1.2; fw.scale.setScalar(1.05);
+  const col = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.42, 10), fw.material); col.position.set(0, 0, -0.2); col.rotation.x = Math.PI / 2; fw.add(col);
+}
+// the moth's seated clip leaves his shins hanging through the car floor (feet at y 0.1, floor 0.73): fold them forward under the dash
+let mothSit = null; const MOTH_LEGS = { legsOnly: true, knee: 0.05, spread: 0.05, shin: 1.15 };
+function mothLegs() { if (!moth || moth.state !== 'seat' || !moth.holder) return; if (!mothSit) mothSit = createSitter(moth.holder);
+  moth.holder.parent?.updateWorldMatrix(true, false); mothSit.pose(moth.holder.parent.matrixWorld, window.__mothLegs || MOTH_LEGS); }
+// back seat: the real Squid + Farmhand GLBs, seated (were felt blockouts: box torso + sphere head). They ride on the
+// blockout roots (cockpit.js keeps animating those: lean, turn, bob, nod) and the blockout meshes are switched off.
+let backSeat = null;
+function installBackSeat() {
+  const cast = cockpit.cast || []; const SPEC = [['banana squid', 'models/cast/wanderer_banana_squid_walking.glb', 'squid'], ['farmhand', 'models/cast/wanderer_shovel_farmhand_walking.glb', 'farmhand']];
+  const riders = []; const P = { hip: [0, 0.58, -0.06], knee: 0.1, spread: 0.07, shin: 0.3, lean: 0.03, handUp: 1 };
+  const _f = new THREE.Matrix4();
+  backSeat = { riders, update() {
+    for (const r of riders) { if (!r.m.root.visible) continue; r.S.reset(); r.m.root.updateWorldMatrix(true, false); _f.copy(r.m.root.matrixWorld); r.S.pose(_f, P);
+      const hd = r.S.B.Head; if (hd) { _re.set(r.m.headG.rotation.x, 0, 0); _rq.setFromEuler(_re); hd.quaternion.multiply(_rq); } } } };
+  SPEC.forEach(([name, url, look], i) => { const m = cast.find(c => c.name === name); if (!m) return;
+    load(url).then(g => { const mdl = normalize(g.scene, 1.42); sunspotsApply(mdl, look, 1.42);
+      mdl.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; if (cockpit.rm) for (const mt of bothMats(o)) patchRider(mt, 3.7 + i * 1.7, cockpit.rm); } });
+      const holder = new THREE.Group(); holder.add(mdl); holder.rotation.y = 0;
+      m.root.traverse(o => { if ((o.isMesh) && !o.isSprite) Object.defineProperty(o, 'visible', { get: () => false, set() {}, configurable: true }); });
+      m.root.add(holder); const S = createSitter(holder, mdl); if (!S.ok) { holder.removeFromParent(); return; }
+      riders.push({ m, holder, S }); })
+      .catch(e => console.warn('back seat rider failed, keeping the blockout', name, e)); });
+}
 
 // ---------------------------------------------------------------- horses: riding GRAVY (Bear's horse). RIDE at the horse, DISMOUNT like GET OUT
 const _rq = new THREE.Quaternion(), _re = new THREE.Euler(), _rv = new THREE.Vector3();
