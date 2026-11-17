@@ -3,7 +3,7 @@
 // Big static assets (models, vendor, audio, title art, icons) are stale-while-revalidate: instant from the cache, refreshed
 // in the background so an updated model shows up on the next launch. Videos and range requests
 // are never cached. Scope is /next/ only; the live root is untouched.
-const CACHE = 'sunspots-next-v1';
+const CACHE = 'sunspots-next-v2'; // v2: mud-fix cleaned Meshy textures
 const SHELL = ['./', './index.html', './mobile.css', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).catch(() => {}).then(() => self.skipWaiting())); });
 self.addEventListener('activate', (e) => { e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith('sunspots-next-') && k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())); });

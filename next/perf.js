@@ -13,6 +13,7 @@
 // Off inside rooms (their own scene), in the top-down map, and with ?perf=0. window.__perf.stats() for QA.
 import * as THREE from 'three';
 import { quality, onSettings } from './quality.js';
+import { setSunspotsDetail, SS_DETAIL } from './sunspots_material.js';
 let SIMP = null;   // meshoptimizer 1.3.0 simplifier (WASM, MIT; vendor/meshopt), loaded lazily
 const simp = () => SIMP ||= import('./vendor/meshopt/meshopt_simplifier.module.js').then(async (m) => { await m.MeshoptSimplifier.ready; return m.MeshoptSimplifier; });
 
@@ -25,7 +26,7 @@ export function installPerf({ scene, camera, renderer, key }) {
   const fr = new THREE.Frustum(), pm = new THREE.Matrix4(), wc = new THREE.Vector3(), sph = new THREE.Sphere();
   let frame = 0, lastScan = -1e9, lastCull = 0, lastLod = 0, paused = false, ftLast = performance.now(), ftAvg = 16.7;
   const LOD_ON = Q.get('lod') !== '0', FORCE = Q.get('lodshow');   // QA: ?lodshow=1|2 forces that LOD level at every distance
-  const lodQ = [], lodCache = new Map();   // geometry uuid -> simplified geometry (clones share geometry)
+  const lodQ = [], lodCache = new Map(), UVW = [2, 2]; // lodCache: geometry uuid -> simplified geometry; UVW: UV weights for seam-preserving simplifyWithAttributes
   let lodBusy = false;
   // LODs: L1 (~28%, tight error) past a few metres; Meshy cast/statics also get L2 (~12%) past 3x that. Only the index
   // buffer changes, so skinning, morphs, UVs and the felt shader are untouched. Non-indexed townscape detail is left alone.
@@ -36,7 +37,7 @@ export function installPerf({ scene, camera, renderer, key }) {
   // result. Builds start while the title is up (all LODs are usually done before play). Main-thread fallback if no worker.
   let W = null, wid = 0; const wcb = new Map();
   try { W = new Worker(new URL('./lodworker.js', import.meta.url), { type: 'module' }); W.onmessage = (e) => { const f = wcb.get(e.data.id); wcb.delete(e.data.id); f?.(e.data); }; W.onerror = () => { W = null; for (const f of wcb.values()) f({ error: 'worker' }); wcb.clear(); }; } catch (_) { W = null; }
-  const viaWorker = (pos, idx, uv, jobs) => new Promise((res) => { const id = ++wid; wcb.set(id, res); W.postMessage({ id, pos, idx, uv, jobs }, [pos.buffer, idx.buffer].concat(uv ? [uv.buffer] : [])); });
+  const viaWorker = (pos, idx, uv, jobs) => new Promise((res) => { const id = ++wid; wcb.set(id, res); W.postMessage({ id, pos, idx, uv, jobs, uvw: UVW }, [pos.buffer, idx.buffer].concat(uv ? [uv.buffer] : [])); });
   const copyF = (a, n, k) => (!a.isInterleavedBufferAttribute && a.itemSize === k && a.array instanceof Float32Array) ? a.array.slice(0, n * k) : (() => { const o = new Float32Array(n * k); for (let i = 0; i < n; i++) { o[i * k] = a.getX(i); o[i * k + 1] = a.getY(i); if (k === 3) o[i * k + 2] = a.getZ(i); } return o; })();
   function wrapLod(g, n, idx) {
     if (!idx) return null; const L = new THREE.BufferGeometry(); for (const k in g.attributes) L.setAttribute(k, g.attributes[k]);
@@ -51,13 +52,16 @@ export function installPerf({ scene, camera, renderer, key }) {
     if (!g.boundingSphere) g.computeBoundingSphere(); if (!g.boundingBox) g.computeBoundingBox();
     const t0 = performance.now(), n = g.attributes.position.count, T0 = g.index.count / 3;
     const pos = copyF(g.attributes.position, n, 3), uv = g.attributes.uv ? copyF(g.attributes.uv, n, 2) : null, idx = new Uint32Array(g.index.array);
-    // Meshy cast/statics (it.char): seam-permissive L1 + a far L2. Hard-edged props (lamps, cacti, shelters): a plain L1 only.
-    const jobs = [{ frac: 0.28, err: 0.012, minTri: Math.min(1500, T0 * 0.3), perm: it.char }]; if (it.char) jobs.push({ frac: 0.12, err: 0.04, minTri: Math.min(600, T0 * 0.12), perm: true });
+    // Mud fix (Nov 16 2026): LODs are SEAM-PRESERVING. The old 'Permissive' collapse merged vertices across UV seams, so on
+    // MEDIUM (L1 past ~2 m, L2 past ~5 m) seam triangles stretched across neighbouring atlas islands = the brown/orange
+    // blotches on every character and car on Scott's phone. Now: never collapse a seam, UVs weighted hard, and an L2 only
+    // where the plain simplifier still gets well below L1. (A seam-locked Meshy rig stops at ~35-45%: that's the price.)
+    const jobs = [{ frac: 0.3, err: 0.01, minTri: Math.min(1500, T0 * 0.3), perm: false }]; if (it.char) jobs.push({ frac: 0.15, err: 0.03, minTri: Math.min(600, T0 * 0.15), perm: false });
     let out;
     if (W) { const tm = performance.now() - t0; const r = await viaWorker(pos, idx, uv, jobs); if (r.error) throw new Error(r.error); out = r.out; stats.lodMainMs += tm; }
     else { const S = await simp(); const t1 = performance.now();
       out = jobs.map((j) => { const target = Math.max(Math.floor(j.minTri) * 3, Math.floor(idx.length * j.frac / 3) * 3), fl = j.perm ? ['Permissive'] : [];
-        const [r] = uv ? S.simplifyWithAttributes(idx, pos, 3, uv, 2, [0.5, 0.5], null, target, j.err, fl) : S.simplify(idx, pos, 3, target, j.err, fl); return r.length > idx.length * 0.8 ? null : r; });
+        const [r] = uv ? S.simplifyWithAttributes(idx, pos, 3, uv, 2, UVW, null, target, j.err, fl) : S.simplify(idx, pos, 3, target, j.err, fl); return r.length > idx.length * 0.8 ? null : r; });
       const tm = performance.now() - t1; stats.lodMainMs += tm; if (tm > 30) mark(`LOD build on main thread ${tm.toFixed(0)} ms`); }
     const t2 = performance.now(); const L1 = wrapLod(g, n, out[0]), L2 = wrapLod(g, n, out[1]);
     if (!L1 && !L2) { lodCache.set(key, null); return; }
@@ -122,9 +126,11 @@ export function installPerf({ scene, camera, renderer, key }) {
 
   function applyTier() {
     const t = quality.t; stats.tier = t.id;
+    setSunspotsDetail(SS_DETAIL[t.id] ?? 1);   // felt fibre/bump detail per tier (LOW: flat bold colour + rim)
     if (key?.shadow) {
       const want = t.shadowMap; if (key.shadow.mapSize.x !== want) { key.shadow.mapSize.set(want, want); key.shadow.map?.dispose(); key.shadow.map = null; }
       const type = t.soft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap; if (renderer.shadowMap.type !== type) { renderer.shadowMap.type = type; renderer.shadowMap.needsUpdate = true; }
+      key.shadow.radius = t.soft ? 4 : 1.5;   // plain PCF uses radius as tap spacing: 4 texels apart = ghosted, stripy shadow edges on MEDIUM/LOW
     }
     for (const c of cells()) { const u = c.userData.cactusCell; c.count = Math.max(u.solid, Math.round(u.total * t.cacti / 300)); }
   }
@@ -175,7 +181,7 @@ export function installPerf({ scene, camera, renderer, key }) {
       else h = it.tri >= 1500 && d > t.propCull;
       hide(it, h); if (it.hidden) hid++; if (it.noShadow) ns++;
       if (it.lod && FORCE) { const want = FORCE === '2' && it.lod2 ? it.lod2 : it.lod; if (m.geometry !== want) m.geometry = want; }
-      else if (it.lod) { const ld = t.lodDist * Math.min(1, Math.max(0.3, 20000 / it.tri)); const want = it.lod2 && d > ld * 3 ? it.lod2 : d > ld ? it.lod : it.g0; if (m.geometry !== want) m.geometry = want; }   // heavy rigs simplify sooner; L2 past 3x
+      else if (it.lod) { const ld = t.lodDist * Math.min(1, Math.max(0.6, 20000 / it.tri)); const want = it.lod2 && d > ld * 3 ? it.lod2 : d > ld ? it.lod : it.g0; if (m.geometry !== want) m.geometry = want; }   // heavy rigs simplify sooner; L2 past 3x
     }
     const fogFar = scene.fog?.far || 1e9;
     let cv = 0; for (const c of cells()) { if (!c.boundingSphere) c.computeBoundingSphere(); const d = cp.distanceTo(c.boundingSphere.center) - c.boundingSphere.radius; const show = d < Math.min(fogFar, t.propCull + 40); c.layers.mask = show ? 1 : 0; if (show) cv++; }

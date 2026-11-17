@@ -95,19 +95,23 @@ const fill = new THREE.DirectionalLight('#f4f5ff', NEWTOWN ? 3.2 : 0); fill.posi
 const KEY_OFFSET = new THREE.Vector3(-30, 34, 30); // warm light from front-left like the concept art: lit fronts, shadows fall back-right
 
 // ---------------------------------------------------------------- felt texture (procedural speckle)
-function feltTexture(size = 256, base = 235, spread = 40) {
+// mud fix (Nov 16 2026): was per-pixel white noise with 15% of texels at DOUBLE darkness -> at phone resolution it read as
+// brown dirt specks on every felt surface. Now a soft, low-contrast, blurred flock (no dark outliers), mostly lighter fibres.
+function feltTexture(size = 256, base = 244, spread = 12) {
   const c = document.createElement('canvas'); c.width = c.height = size;
   const g = c.getContext('2d'); const img = g.createImageData(size, size);
-  for (let i = 0; i < size * size; i++) {
-    const v = base - Math.random() * spread * (Math.random() < .15 ? 2 : 1);
-    img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = v; img.data[i * 4 + 3] = 255;
+  const r = new Float32Array(size * size); for (let i = 0; i < r.length; i++) r[i] = Math.random();
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {   // 3x3 wrap blur: fuzzy flock, not grit
+    let a = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) a += r[((y + dy + size) % size) * size + ((x + dx + size) % size)];
+    const v = base - (1 - a / 9) * spread * 2.2, i = y * size + x;
+    img.data[i * 4] = img.data[i * 4 + 1] = img.data[i * 4 + 2] = Math.max(0, Math.min(255, v)); img.data[i * 4 + 3] = 255;
   }
   g.putImageData(img, 0, 0);
   const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
 const FELT = feltTexture();
-const FELT_BUMP = feltTexture(256, 200, 120); FELT_BUMP.colorSpace = THREE.NoColorSpace;
+const FELT_BUMP = feltTexture(256, 200, 40); FELT_BUMP.colorSpace = THREE.NoColorSpace;
 
 // ---------------------------------------------------------------- global uniforms
 const G = { uWild: { value: 0 }, uTime: { value: 0 } };
@@ -315,7 +319,7 @@ function bakeGroup(group) { // merge-free: just mark shadows
 // ---------------------------------------------------------------- ground
 const groundMat = new THREE.MeshStandardMaterial({ color: PAL.ground[0].clone(), roughness: 1, map: FELT, bumpMap: FELT_BUMP, bumpScale: 0.4 });
 FELT.repeat.set(1, 1);
-const GROUND_FELT = feltTexture(256, 238, 20); // finer, cleaner speckle for the big flat ground
+const GROUND_FELT = feltTexture(256, 246, 7); // finer, cleaner speckle for the big flat ground
 const groundTex = GROUND_FELT; groundTex.repeat.set(220, 220); groundTex.needsUpdate = true;
 groundMat.map = groundTex;
 const groundBump = FELT_BUMP.clone(); groundBump.repeat.set(220, 220); groundBump.needsUpdate = true; groundMat.bumpMap = groundBump;

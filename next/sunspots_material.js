@@ -41,6 +41,14 @@ export function sunspotsNoise(size = 256) {
   return NOISE;
 }
 
+// ---------------------------------------------------------------- quality tier detail (mud fix, Nov 16 2026)
+// One uniform shared by every Sunspots material: 1 = full felt fibre/bump (HIGH), 0.6 = MEDIUM, 0 = LOW (flat bold colour +
+// soft rim, no noise at all). perf.js applyTier() sets it. Fibres only ever LIGHTEN now: no dark specks, no grime.
+const DETAIL = { value: 1 };
+export const SS_DETAIL = { high: 1, medium: 0.6, low: 0 };
+export function setSunspotsDetail(v) { DETAIL.value = Math.max(0, Math.min(1, v)); }
+export function ssDetailUniform() { return DETAIL; }
+
 // ---------------------------------------------------------------- cloth masks (picked from the Meshy albedo, no extra texture)
 // hue in 0..1, width = half-range, minSat/minLum gates. Up to 2 ranges per character.
 export const CLOTH_PRESETS = {
@@ -75,7 +83,7 @@ function NONE2() { return [NONE, NONE]; }
 
 const GLSL_COMMON = /* glsl */`
 uniform sampler2D uNoise; uniform float uNScale, uFibreFreq, uClayFreq, uFlatten, uBumpCloth, uBumpClay, uRim, uSheen, uSpeck, uClothMaxSat2;
-uniform float uDetFreq, uCordFreq, uRibFreq, uFurAniso;
+uniform float uDetFreq, uCordFreq, uRibFreq, uFurAniso, uDetail;
 uniform vec4 uCloth0, uCloth1, uHard; uniform vec3 uRimSky; uniform float uFur, uHardLum, uClothBySat, uShell, uShellCut, uYMin, uYH; uniform vec3 uYFelt; uniform vec2 uYClay;
 varying vec3 vSsObj; varying vec3 vSsObjN;
 vec3 ssRgb2hsv(vec3 c){ vec4 K=vec4(0.,-1./3.,2./3.,-1.); vec4 p=mix(vec4(c.bg,K.wz),vec4(c.gb,K.xy),step(c.b,c.g)); vec4 q=mix(vec4(p.xyw,c.r),vec4(c.r,p.yzx),step(p.x,c.r)); float d=q.x-min(q.w,q.y); float e=1e-6; return vec3(abs(q.z+(q.w-q.y)/(6.*d+e)),d/(q.x+e),q.x); }
@@ -108,8 +116,8 @@ export function applySunspotsLook(root, opts = {}) {
     const U = {
       uNoise: { value: noise }, uNScale: { value: (opts.height || 1.75) / H }, // geometry units -> metres
       uFibreFreq: { value: opts.fibreFreq ?? 2.6 }, uClayFreq: { value: opts.clayFreq ?? 2.2 }, // tiles per metre (256px tile)
-      uFlatten: { value: opts.flatten ?? 0.55 }, uBumpCloth: { value: opts.bumpCloth ?? 1.2 }, uBumpClay: { value: opts.bumpClay ?? 0.5 },
-      uRim: { value: opts.rim ?? 0.62 }, uSheen: { value: opts.sheen ?? 1.0 }, uSpeck: { value: opts.speck ?? 0.35 },
+      uFlatten: { value: opts.flatten ?? 0.55 }, uBumpCloth: { value: opts.bumpCloth ?? 0.7 }, uBumpClay: { value: opts.bumpClay ?? 0.2 },
+      uRim: { value: opts.rim ?? 0.62 }, uSheen: { value: opts.sheen ?? 1.0 }, uSpeck: { value: opts.speck ?? 0.0 }, uDetail: DETAIL,
       uCloth0: { value: new THREE.Vector4(...cloth[0]) }, uCloth1: { value: new THREE.Vector4(...cloth[1]) }, uClothMaxSat2: { value: opts.maxSat2 ?? cl.maxSat2 ?? 0.42 },
       uRimSky: { value: new THREE.Color(opts.rimSky || '#a9b8d6') },
       uDebug: { value: opts.debug || 0 },
@@ -165,9 +173,9 @@ export function applySunspotsLook(root, opts = {}) {
   #else
     vec4 ssNc = ssTri(ssP * uClayFreq + 0.37, ssW); // clay
   #endif
-  float ssFoot = length(fwidth(ssP * uFibreFreq)) * 256.0; float ssLod = 1.0 - smoothstep(2.5, 7.0, ssFoot); // fade detail when sub-pixel
+  float ssFoot = length(fwidth(ssP * uFibreFreq)) * 256.0; float ssLod = (1.0 - smoothstep(2.0, 5.0, ssFoot)) * uDetail; // fade detail when sub-pixel; uDetail = quality tier (LOW 0: flat colour + rim only)
   // 4) albedo: felt = lighter fibre tips / darker roots; clay = dark specks + light flecks + soft lumps
-  float ssFel = mix(0.80, 1.14, ssNf.r);
+  float ssFel = mix(0.97, 1.07, ssNf.r);   // mud fix: fibres only lift (lighter tips), never dark roots/grime
   float ssRimK = 1.0, ssRoughK = 1.0, ssH = ssNf.r;
   #ifdef SS_REGION
   { // per-region materials (MR map R channel: fur 40 | sweater 110 | cuff 150 | pants 190 | hard 240); +3 triplanar fetches +1 map fetch
@@ -188,18 +196,18 @@ export function applySunspotsLook(root, opts = {}) {
     float ridge = mix(0.66, pow(abs(sin(3.14159 * th * uCordFreq)), 0.5), cLod);
     float rLod = (1.0 - smoothstep(0.25, 0.6, fwidth(th * uRibFreq))) * (1.0 - ssW.y);
     float rib = mix(0.6, smoothstep(0.15, 0.85, abs(sin(3.14159 * th * uRibFreq))), rLod);
-    float fFur = mix(0.74, 1.15, ssD.r) * mix(0.96, 1.03, ssNf.r);
-    float fSw = mix(0.90, 1.06, smoothstep(0.2, 0.8, ssD.b)) * mix(0.84, 1.10, ssD.r);
-    float fCf = mix(0.86, 1.04, rib) * mix(0.93, 1.05, ssNf.r);
-    float fPa = mix(0.88, 1.04, ridge) * mix(0.94, 1.05, ssNf.r);
+    float fFur = mix(0.94, 1.07, ssD.r) * mix(0.99, 1.02, ssNf.r);
+    float fSw = mix(0.97, 1.04, smoothstep(0.2, 0.8, ssD.b)) * mix(0.96, 1.05, ssD.r);
+    float fCf = mix(0.93, 1.03, rib) * mix(0.98, 1.03, ssNf.r);
+    float fPa = mix(0.94, 1.03, ridge) * mix(0.98, 1.03, ssNf.r);
     ssFel = (wFur * fFur + wSw * fSw + wCf * fCf + wPa * fPa + wO * ssFel) / wS;
     ssH = (wFur * ssD.r * 0.9 + wSw * (ssD.b * 0.9 + ssD.r * 0.55) + wCf * (rib * 0.55 + ssNf.r * 0.2) + wPa * (ridge * 0.42 + ssNf.r * 0.18) + wO * ssNf.r) / wS;
     ssRimK = (wFur * 1.1 + wSw * 1.2 + wCf * 1.0 + wPa * mix(0.55, 0.95, ridge) + wO) / wS;
     ssRoughK = mix(1.0, mix(1.0, 0.84, ridge), wPa / wS);
-    ssLod = max(ssLod, 0.35); // keep some fleece/fur grain at game distance (mips handle aliasing)
+    ssLod = max(ssLod, 0.35 * uDetail); // keep some fleece/fur grain at game distance (mips handle aliasing)
   }
   #endif
-  float ssCla = (1.0 - uSpeck * ssNc.g * ssLod) * (1.0 + 0.22 * ssNc.a * ssLod) * mix(0.94, 1.05, ssNc.b);
+  float ssCla = (1.0 - uSpeck * ssNc.g * ssLod) * (1.0 + 0.08 * ssNc.a * ssLod) * mix(1.0, mix(0.985, 1.015, ssNc.b), ssLod);   // matte clay: no dark specks, no lumps
   diffuseColor.rgb = ssBase * mix(ssCla, mix(1.0, ssFel, ssLod), ssCloth);
   #ifdef SS_SHELL
     { vec4 n2 = ssTri(ssP * uFibreFreq * 2.3 + 0.21, ssW); if (ssCloth < 0.5 || n2.r < uShellCut + (1.0 - ssLod) * 0.5) discard; diffuseColor.rgb *= 1.06; }
@@ -208,7 +216,7 @@ export function applySunspotsLook(root, opts = {}) {
         .replace('#include <normal_fragment_maps>', /* glsl */`
   #include <normal_fragment_maps>
   { float h = mix(ssNc.b * 0.6 + ssNc.g * 0.4, ssH, ssCloth);
-    float bs = mix(uBumpClay, uBumpCloth, ssCloth) * ssLod;
+    float bs = mix(uBumpClay, uBumpCloth, ssCloth) * ssLod;   // ssLod carries uDetail: no bump on LOW
     normal = ssBump(-vViewPosition, normal, vec2(dFdx(h), dFdy(h)) * bs, faceDirection); }`)
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n#ifdef SS_REGION\n roughnessFactor = texelRoughness.g * ssRoughK;\n#else\n roughnessFactor = mix(0.93, 1.0, ssCloth);\n#endif')
         .replace('#include <lights_physical_fragment>', /* glsl */`

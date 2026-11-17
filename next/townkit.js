@@ -181,7 +181,7 @@ export const PAT = { siding: 1, shingle: 2, brick: 3, stucco: 4, batten: 5, tile
 const PAT_S = { siding: 0.2, shingle: 0.2, brick: 0.085, stucco: 0.5, batten: 0.4, tile: 0.3, scale: 0.16, block: 0.2, louver: 0.07, lattice: 0.18, metal: 0.08, shake: 0.22, panel: 0.6, stone: 0.3 };
 const PAT_FRAG = /* glsl */`
 varying vec4 vPat;
-float pH(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float pH(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }   // sine-free hash: Apple GPUs evaluate sin() of big world coords imprecisely (blotches)
 float pLine(float f, float w, float fw) { float d = min(f, 1.0 - f); return 1.0 - smoothstep(w, w + fw * 1.5, d); }
 vec3 patShade(vec3 c) {
   float id = floor(vPat.x + 0.5); if (id < 0.5) return c;
@@ -189,30 +189,30 @@ vec3 patShade(vec3 c) {
   float fade = 1.0 - smoothstep(0.18, 0.5, fw); if (fade <= 0.0) return c;
   float m = 1.0; vec3 tint = c; float tm = 0.0;
   if (id < 1.5) { // lap siding: each board shadowed under the lap above, groove line
-    float f = fract(q.y), r = floor(q.y); m = (0.86 + 0.14 * smoothstep(0.0, 0.55, f)) * (0.97 + 0.06 * pH(vec2(r, 3.1)));
+    float f = fract(q.y), r = floor(q.y); m = (0.93 + 0.07 * smoothstep(0.0, 0.55, f)) * (0.995 + 0.01 * pH(vec2(r, 3.1)));
     m *= 1.0 - 0.28 * pLine(f, 0.025, fw);
   } else if (id < 2.5) { // asphalt tab shingles
     float r = floor(q.y), f = fract(q.y); float x = q.x * 0.5 + 0.5 * mod(r, 2.0); float cx = floor(x), fx = fract(x);
-    m = 0.86 + 0.22 * pH(vec2(cx, r)); m *= 0.88 + 0.12 * smoothstep(0.0, 0.4, f);
+    m = 0.985 + 0.03 * pH(vec2(cx, r)); m *= 0.94 + 0.06 * smoothstep(0.0, 0.4, f);
     m *= 1.0 - 0.35 * pLine(f, 0.03, fw); m *= 1.0 - 0.3 * pLine(fx, 0.012, fw) * step(0.3, f);
   } else if (id < 3.5) { // brick, running bond, light mortar
     float r = floor(q.y), f = fract(q.y); float x = q.x / 2.7 + 0.5 * mod(r, 2.0); float fx = fract(x);
-    m = 0.84 + 0.26 * pH(vec2(floor(x), r)); float mort = max(pLine(f, 0.09, fw), pLine(fx, 0.035, fw)); tint = vec3(0.78, 0.74, 0.68); tm = mort * 0.85;
+    m = 0.985 + 0.03 * pH(vec2(floor(x), r)); float mort = max(pLine(f, 0.09, fw), pLine(fx, 0.035, fw)); tint = c * 1.12 + 0.04; tm = mort * 0.45;
   } else if (id < 4.5) { // stucco swirl: overlapping trowel arcs
     vec2 g = floor(q), fq = fract(q); float best = 9.0, ring = 0.0;
     for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { vec2 o = vec2(float(i), float(j)); vec2 c2 = o + vec2(pH(g + o), pH(g + o + 7.7)); float d = length(fq - c2); if (d < best) { best = d; ring = sin(d * 26.0 + pH(g + o) * 6.0); } }
-    m = 0.95 + 0.07 * ring + 0.04 * (pH(floor(q * 6.0)) - 0.5);
+    m = 1.0 + 0.008 * ring;
   } else if (id < 5.5) { // board & batten
     float fx = fract(q.x); m = 1.0 - 0.18 * pLine(fx, 0.06, fw) + 0.07 * smoothstep(0.08, 0.0, abs(fx - 0.1));
-    m *= 0.97 + 0.05 * pH(vec2(floor(q.x), 1.0));
+    m *= 0.995 + 0.01 * pH(vec2(floor(q.x), 1.0));
   } else if (id < 6.5) { // barrel tile (spanish)
-    float r = floor(q.y), f = fract(q.y), fx = fract(q.x * 0.8); m = 0.72 + 0.36 * sin(fx * 3.14159); m *= 0.82 + 0.18 * smoothstep(0.0, 0.3, f); m *= 0.94 + 0.12 * pH(vec2(floor(q.x * 0.8), r));
+    float r = floor(q.y), f = fract(q.y), fx = fract(q.x * 0.8); m = 0.72 + 0.36 * sin(fx * 3.14159); m *= 0.82 + 0.18 * smoothstep(0.0, 0.3, f); m *= 0.99 + 0.02 * pH(vec2(floor(q.x * 0.8), r));
   } else if (id < 7.5) { // fish-scale shingles
     float r = floor(q.y); float x = q.x + 0.5 * mod(r, 2.0); vec2 c2 = vec2(fract(x) - 0.5, fract(q.y)); float d = length(vec2(c2.x, c2.y * 1.1));
-    m = (0.88 + 0.16 * smoothstep(0.55, 0.2, d)) * (1.0 - 0.3 * smoothstep(0.42, 0.5, d) * (1.0 - smoothstep(0.5, 0.56, d))) * (0.95 + 0.1 * pH(vec2(floor(x), r)));
+    m = (0.88 + 0.16 * smoothstep(0.55, 0.2, d)) * (1.0 - 0.3 * smoothstep(0.42, 0.5, d) * (1.0 - smoothstep(0.5, 0.56, d))) * (0.99 + 0.02 * pH(vec2(floor(x), r)));
   } else if (id < 8.5) { // block / cinder
     float r = floor(q.y), f = fract(q.y); float x = q.x / 2.0 + 0.5 * mod(r, 2.0); float fx = fract(x);
-    m = 0.93 + 0.1 * pH(vec2(floor(x), r)); m *= 1.0 - 0.22 * max(pLine(f, 0.04, fw), pLine(fx, 0.02, fw));
+    m = 0.99 + 0.02 * pH(vec2(floor(x), r)); m *= 1.0 - 0.22 * max(pLine(f, 0.04, fw), pLine(fx, 0.02, fw));
   } else if (id < 9.5) { // louvres (gable vents, shutters, grilles)
     float f = fract(q.y); m = 0.62 + 0.45 * smoothstep(0.0, 0.7, f);
   } else if (id < 10.5) { // lattice / diamond grille
@@ -221,13 +221,13 @@ vec3 patShade(vec3 c) {
     m = 0.86 + 0.18 * sin(q.x * 6.283);
   } else if (id < 12.5) { // wood shakes
     float r = floor(q.y), f = fract(q.y); float x = q.x * 1.3 + pH(vec2(r, 9.0)); float cx = floor(x + 0.4 * pH(vec2(floor(x), r)));
-    m = (0.82 + 0.26 * pH(vec2(cx, r))) * (0.85 + 0.15 * smoothstep(0.0, 0.5, f)); m *= 1.0 - 0.3 * pLine(f, 0.03, fw);
+    m = (0.98 + 0.04 * pH(vec2(cx, r))) * (0.93 + 0.07 * smoothstep(0.0, 0.5, f)); m *= 1.0 - 0.3 * pLine(f, 0.03, fw);
   } else if (id < 13.5) { // raised panels (doors, wainscot, storefront kick plates)
     vec2 f = fract(q); float e = min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y)); m = 1.0 - 0.2 * (1.0 - smoothstep(0.06, 0.06 + fw, e)) + 0.06 * smoothstep(0.1, 0.16, e) * step(f.y, 0.5);
   } else { // fieldstone
     vec2 g = floor(q), fq = fract(q); float d1 = 9.0, d2 = 9.0; vec2 cid = g;
     for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { vec2 o = vec2(float(i), float(j)); vec2 c2 = o + 0.15 + 0.7 * vec2(pH(g + o), pH(g + o + 3.3)); float d = length(fq - c2); if (d < d1) { d2 = d1; d1 = d; cid = g + o; } else if (d < d2) d2 = d; }
-    m = 0.82 + 0.3 * pH(cid); tint = vec3(0.7, 0.67, 0.62); tm = 0.8 * (1.0 - smoothstep(0.04, 0.04 + fw * 2.0, d2 - d1));
+    m = 0.97 + 0.06 * pH(cid); tint = c * 1.1 + 0.04; tm = 0.8 * (1.0 - smoothstep(0.04, 0.04 + fw * 2.0, d2 - d1));
   }
   vec3 o = mix(c * m, tint, tm);
   return mix(c, o, fade);

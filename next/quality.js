@@ -4,13 +4,24 @@
 // - Quality AUTO picks a tier from the device (phone/desktop, memory, cores, GPU string). perf.js applies it and steps
 //   AUTO up/down at runtime on steady frame times (remembered per GPU, see 'sunspots.autoTier' below).
 // - ?quality=high|medium|low forces a tier for QA. 0 tris, 0 rigs.
+// - ?phone (mud fix, Nov 16 2026): QA renders exactly what Scott's iPhone starts at: MEDIUM tier, phone rules (top tier
+//   MEDIUM, phone culling), device pixel ratio 3 -> capped to 1.5 by the tier, no auto stepping. ?phone=low = the tier the
+//   phone steps down to (pixel ratio 1). Use it for every review shot (see QA_PHONE.md). ?shot (still captures) now also
+//   defaults to MEDIUM unless ?quality= says otherwise, so no QA path silently renders at HIGH again.
 const KEY = 'sunspots.settings';
 const Q = new URLSearchParams(location.search);
+export const PHONE = Q.has('phone') ? (Q.get('phone') === 'low' ? 'low' : 'medium') : null;
+if (PHONE) { try { Object.defineProperty(window, 'devicePixelRatio', { get: () => 3, configurable: true }); } catch (_) {} }
+// build stamp (shown in the pause menu with the tier + pixel ratio, so a phone report says exactly what it ran)
+export const BUILD = '2026-11-16 mudfix';
+window.__build = BUILD;
 export const TIERS = {
   //            pixel ratio cap, shadow map, soft shadows, characters hidden past (m), character shadows past (m), props hidden past (m), far cacti, simplified mesh past (m)
-  high:   { id: 'high',   label: 'HIGH',   dprMax: 2,   shadowMap: 1024, soft: true,  charCull: 95, charShadow: 30, propCull: 240, cacti: 300, lodDist: 16 },
-  medium: { id: 'medium', label: 'MEDIUM', dprMax: 1.5, shadowMap: 1024, soft: false, charCull: 42, charShadow: 14, propCull: 175, cacti: 150, lodDist: 6 },
-  low:    { id: 'low',    label: 'LOW',    dprMax: 1,   shadowMap: 512,  soft: false, charCull: 32, charShadow: 8, propCull: 125, cacti: 60, lodDist: 5 },
+  // mud fix: LODs are seam-preserving now and swap in much further out (MEDIUM was 6 m -> almost every character on the
+  // phone was a 12% mesh); simplified mesh distance = lodDist x max(0.6, 20k / tris), L2 past 3x that
+  high:   { id: 'high',   label: 'HIGH',   dprMax: 2,   shadowMap: 1024, soft: true,  charCull: 95, charShadow: 30, propCull: 240, cacti: 300, lodDist: 24 },
+  medium: { id: 'medium', label: 'MEDIUM', dprMax: 1.5, shadowMap: 1024, soft: false, charCull: 42, charShadow: 14, propCull: 175, cacti: 150, lodDist: 16 },
+  low:    { id: 'low',    label: 'LOW',    dprMax: 1,   shadowMap: 512,  soft: false, charCull: 32, charShadow: 8, propCull: 125, cacti: 60, lodDist: 10 },
 };
 const ORDER = ['low', 'medium', 'high'];
 const DEF = { quality: 'auto', invert: 'off', textSize: 'm', fps: 'off' };   // fps: the PERF overlay (perfhud.js)
@@ -27,6 +38,7 @@ function gpuString() {
   return gpu;
 }
 export function isPhone() {
+  if (PHONE) return true;
   const ua = navigator.userAgent || '';
   return /Android|iPhone|iPod|Mobile/i.test(ua) || (/iPad|Macintosh/.test(ua) && navigator.maxTouchPoints > 1) || (matchMedia?.('(pointer:coarse)').matches && Math.min(screen.width, screen.height) < 820);
 }
@@ -54,11 +66,13 @@ const failed = () => (L.failed ?? 9);   // lowest tier index that was too slow h
 function learn() { L.tier = ORDER[cur]; L.gpu = DET.gpu; try { localStorage.setItem(LKEY, JSON.stringify(L)); } catch (_) {} }
 export function tierId() {
   const f = Q.get('quality'); if (TIERS[f]) return f;
+  if (PHONE) return PHONE;
+  if (Q.has('shot')) return 'medium';
   if (S.quality !== 'auto' && TIERS[S.quality]) return S.quality;
   return ORDER[cur];
 }
 export const quality = {
-  get tier() { return tierId(); }, get t() { return TIERS[tierId()]; }, get auto() { return !TIERS[Q.get('quality')] && S.quality === 'auto'; },
+  get tier() { return tierId(); }, get t() { return TIERS[tierId()]; }, get auto() { return !TIERS[Q.get('quality')] && !PHONE && !Q.has('shot') && S.quality === 'auto'; }, phone: PHONE,
   detected: DET,
   get learned() { return { ...L, start: DET.tier }; },
   stepDown() { if (!this.auto || cur === 0) return false; L.failed = Math.min(failed(), cur); cur--; learn(); emit('quality'); return true; },

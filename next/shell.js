@@ -248,7 +248,8 @@ function pauseView() {
   const n = night(), c = count(), tt = total(), N = NIGHTS()[n], nx = N && !(DEMO && N.n > 1) ? `${Math.max(0, N.need - c)} more ☀ opens Night ${N.n}` : (DEMO ? 'Free demo: Night 1' : 'Every Night is open');
   show('pause', `<h2>PAUSED</h2><h3>${esc(nightName(n))}</h3><p>${c}${tt ? ' of ' + tt : ''} ☀ Sunspots · ${esc(nx)}</p>
     <button class="felt mustard" data-a="resume">RESUME</button><div class="row2"><button class="felt cobalt" data-a="nights">NIGHTS</button><button class="felt coral" data-a="settings">SETTINGS</button></div>
-    <div class="row2"><button class="felt cream" data-a="credits">CREDITS</button><button class="felt cream" data-a="menu">MAIN MENU</button></div>`);
+    <div class="row2"><button class="felt cream" data-a="credits">CREDITS</button><button class="felt cream" data-a="menu">MAIN MENU</button></div>
+    <small class="build" style="display:block;margin-top:10px;opacity:.55;font-size:11px;letter-spacing:.06em">build ${esc(window.__build || '?')} · ${esc(window.__quality?.t?.label || '')} · ${(window.__sunspots?.renderer?.getPixelRatio?.() || 0).toFixed(2)}x</small>`);
 }
 function nightsView() {
   const c = count(), cur = night();
