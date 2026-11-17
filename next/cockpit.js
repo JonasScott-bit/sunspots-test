@@ -5,6 +5,7 @@
 // The mirror does not count as being watched, so it can catch them mid-act.
 // Car-local axes (body group): +z forward, +x = car's LEFT (driver side), y up.
 import * as THREE from 'three';
+import { rider as feltRider } from './feltfolk.js';   // Nov 16: the back seat is the real felt cast, not capsule blockouts
 
 export function createCockpit(L, H) {
   const { feltMat, rbox, clamp, lerp, rnd } = H;
@@ -20,6 +21,7 @@ export function createCockpit(L, H) {
   const headParts = [];
   driver.traverse(o => { if (o.isMesh && o.position.y > 1.3 && o.parent === driver) headParts.push(o); });
   for (const a of L.antennae || []) headParts.push(a);
+  if (L.driverHead) headParts.push(L.driverHead);   // the felt Moth's head (hidden in first person: we are his eyes)
   // old stub arms + wheel replaced by the cockpit set below
   driver.children.filter(o => o.isMesh && Math.abs(o.position.y - 1.12) < 0.01).forEach(o => o.visible = false);
   c.wheel.visible = false;
@@ -46,6 +48,7 @@ export function createCockpit(L, H) {
   }
   // felt arms: shoulder -> glove, re-aimed every frame
   const arms = [1, -1].map(sx => { const m = cyl(0.055, 0.065, 1, TAN, 10); m.castShadow = true; driver.add(m); return { m, sh: new THREE.Vector3(sx * 0.21, 1.3, 0.02) }; });
+  if (L.mothFelt) for (const A of arms) A.m.visible = false;   // the felt Moth has his own sleeves
   const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
   function aimArms() {
     driver.updateMatrixWorld(true);
@@ -107,13 +110,16 @@ export function createCockpit(L, H) {
   }
 
   // ---------------------------------------------------------------- the cast in the car
-  // Wolf rides shotgun (rig drives the skinned wolf from main.js). Two felt blockouts in the back seat.
+  // Wolf rides shotgun (rig drives the skinned wolf from main.js). Banana Squid and the Farmhand (feltfolk riders) in the back seat.
   const wolfRig = new THREE.Group(); wolfRig.position.copy(L.seat); body.add(wolfRig);
   const wolfFingers = new THREE.Group(); wolfRig.add(wolfFingers); wolfFingers.visible = false;
   for (const sx of [-1, 1]) { const p = new THREE.Group(); p.position.set(sx * 0.13, 0, 0.02); wolfFingers.add(p);
     add(p, sph(0.06, '#8d8a86'), 0, 0, 0); const f = add(p, cyl(0.016, 0.02, 0.16, '#8d8a86', 8), 0, 0.1, 0); f.rotation.z = sx * -0.25; p.userData.f = f; }
   CK.wolfRig = wolfRig; CK.wolfHeadYaw = 0;
   function blockout(name, x, z, col, extra) {
+    if (extra.folk) { const r = feltRider(extra.folk); r.root.position.set(x, 0.42, z); body.add(r.root);
+      const note = new THREE.Sprite(new THREE.SpriteMaterial({ map: noteTex(), transparent: true, depthWrite: false, opacity: 0 })); note.scale.setScalar(0.12); note.position.set(0.12, 1.12, 0.2); r.root.add(note);
+      return { name, root: r.root, torso: r.torso, headG: r.headG, head: r.head, eyes: r.eyes, mouth: r.mouth, tongue: r.tongue, arms: r.arms, note, side: Math.sign(x) || 1, isBlock: true }; }
     const root = new THREE.Group(); root.position.set(x, 0.42, z); body.add(root);
     const torso = add(root, box(0.42, 0.55, 0.34, 0.16, col), 0, 0.55, 0);
     const headG = new THREE.Group(); headG.position.set(0, 0.98, 0.02); root.add(headG);
@@ -134,10 +140,10 @@ export function createCockpit(L, H) {
   }
   let _nt = null; function noteTex() { if (_nt) return _nt; const cv = document.createElement('canvas'); cv.width = cv.height = 64; const g = cv.getContext('2d'); g.fillStyle = '#fff3dc'; g.font = 'bold 54px serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('♪', 32, 34); _nt = new THREE.CanvasTexture(cv); _nt.colorSpace = THREE.SRGBColorSpace; return _nt; }
   // back-left (directly behind the driver): banana squid. back-right: shovel farmhand.
-  const squid = blockout('banana squid', 0.42, -1.02, '#f2d04a', { hand: '#f2d04a', build(root, hg, add2, sph2) {
+  const squid = blockout('banana squid', 0.42, -1.02, '#f2d04a', { folk: 'squid', hand: '#f2d04a', build(root, hg, add2, sph2) {
     const tip = add2(hg, sph2(0.09, '#6b4a2a'), 0, 0.17, -0.02); tip.scale.set(0.6, 0.8, 0.6);                 // banana stem cap
     for (let k = 0; k < 4; k++) { const t2 = add2(root, cyl(0.03, 0.015, 0.22, '#f2c43a', 6), -0.15 + k * 0.1, 0.26, 0.17); t2.rotation.x = 0.9; } } });
-  const farm = blockout('farmhand', -0.44, -1.02, '#5a7ab0', { hand: '#d8a77a', build(root, hg, add2, sph2, cyl2) {
+  const farm = blockout('farmhand', -0.44, -1.02, '#5a7ab0', { folk: 'farmhand', hand: '#d8a77a', build(root, hg, add2, sph2, cyl2) {
     hg.children[0].material = feltMat('#d8a77a');
     const brim = add2(hg, cyl2(0.27, 0.27, 0.02, '#e7cf7c', 20), 0, 0.12, 0); void brim;
     add2(hg, cyl2(0.13, 0.15, 0.12, '#e7cf7c', 16), 0, 0.19, 0); } });
@@ -301,9 +307,10 @@ export function createCockpit(L, H) {
     for (const A of arms) A.m.visible = false;
     for (const o of headParts) o.visible = false;
     driver.children.forEach(o => { if (o.isMesh && o !== m.holder) o.visible = false; });
+    if (L.mothFelt) L.mothFelt.visible = false;
   };
   // wild mode: the back-seat blockouts get the rider fuzzy-melt too
-  if (H.patchRider) { CK.rm = { value: 0 }; let sd = 2; for (const b of [squid, farm]) { sd += 1.7; b.root.traverse(o => { if (o.isMesh && !o.isSprite) H.patchRider(o.material, sd, CK.rm); }); } }
+  if (H.patchRider) { CK.rm = { value: 0 }; let sd = 2; for (const b of [squid, farm]) { sd += 1.7; const seen = new Set(); b.root.traverse(o => { if (o.isMesh && !o.isSprite && !seen.has(o.material)) { seen.add(o.material); H.patchRider(o.material, sd, CK.rm); } }); } }
   // cabin fill: the roof shades the cockpit, so give the props a soft warm self-light (cheaper than another light)
   for (const g of [dash, wheelTilt, mirrorG]) g.traverse(o => { if (o.isMesh && o.material && o.material.emissive && !o.material.map?.isRenderTargetTexture) { o.material.emissive.copy(o.material.color).multiplyScalar(0.28); } });
   return CK;

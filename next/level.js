@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { sunspotsApply } from './sunspots_material.js';
 import { audio } from './audio.js';
-import { feltCow } from './feltfolk.js';   // Nov 16: the felt cows on the desert road
+import { feltCow, folk as feltFolk, animFolk } from './feltfolk.js';   // Nov 16: the felt cows on the desert road
 import { gesturer, castOffsets, CAST_POOL, PROP_POOL } from './idles.js';   // run 15
 
 // ------------------------------------------------------------------ layout (metres; -z = north, toward the sun)
@@ -129,21 +129,11 @@ export function createLevel(C) {
   const topper = add(body, rbox(0.9, 0.3, 0.3, 0.1, '#ffd36b'), 0, 1.93, -0.55); topper.material = topper.material.clone(); topper.material.emissive = new THREE.Color('#ff9a2a'); topper.material.emissiveIntensity = 0.5;
   add(body, signBoard('RIDE', 0.8, 0.24, { bg: '#ffd36b', fg: '#5a2a10', font: 'bold 120px Futura, Avenir, sans-serif' }), 0, 2.08, -0.39);
   const wheels = [];
-  // driver: the moth (approved in concept, not modelled yet) -> tan felt seated stand-in with two feathery antennae
-  const TAN = '#cfae84', TAN_D = '#b48f63';
+  // driver: the moth. The rigged moth_driver.glb takes the seat when it loads (moth.js / cockpit.useMoth); until then (or if it
+  // fails) the felt Moth from feltfolk.js sits there, seated with his hands on the wheel (Nov 16: no tan-box stand-in)
   const driver = new THREE.Group(); driver.position.set(0.48, 0.0, -0.05); body.add(driver);
-  add(driver, rbox(0.62, 0.62, 0.5, 0.24, TAN), 0, 0.78, 0);                       // fuzzy torso (seated; legs hidden in the body)
-  const mHead = add(driver, sph(0.23, TAN), 0, 1.6, 0.04); mHead.scale.set(1, 0.92, 0.95);
-  for (const sx of [-0.1, 0.1]) { const e = add(driver, sph(0.075, '#3a2622'), sx, 1.8, 0.24); e.scale.set(1, 1.2, 0.6); e.position.y = 1.62; } // big dark moth eyes, half-lidded look
-  add(driver, rbox(0.66, 0.16, 0.5, 0.08, TAN_D), 0, 1.36, 0.0);                  // fluffy collar
-  for (const sx of [-1, 1]) { // feathery antennae: a curved stalk with little felt barbs either side
-    const ant = new THREE.Group(); ant.position.set(sx * 0.09, 1.79, 0.1); ant.rotation.set(-0.95, 0, sx * -0.3); driver.add(ant);
-    const stalk = cyl(0.014, 0.32, TAN_D, 6); stalk.position.y = 0.16; ant.add(stalk);
-    for (let k = 0; k < 6; k++) { const y = 0.06 + k * 0.045, len = 0.05 + Math.sin((k + 1) / 8 * Math.PI) * 0.07;
-      for (const side of [-1, 1]) { const barb = rbox(len, 0.012, 0.02, 0.005, TAN); barb.geometry = barb.geometry.clone(); barb.position.set(side * len / 2, y, 0); barb.rotation.z = side * 0.5; ant.add(barb); } }
-    L.antennae = (L.antennae || []).concat(ant);
-  }
-  for (const sx of [-0.24, 0.24]) { const a = add(driver, rbox(0.12, 0.12, 0.5, 0.06, TAN), sx, 1.12, 0.3); a.rotation.x = -0.5; }
+  { const m = feltFolk('moth'), u = m.userData; animFolk(m, 0, 0, { sit: 1 }); u.shadow.visible = false; const sc = 1.47 / Math.max(0.5, u.hd.position.y); m.scale.setScalar(sc);
+    m.position.y = 0.05; for (const a of u.arms) { a.rotation.x = -1.15; a.rotation.z *= 0.5; } driver.add(m); L.mothFelt = m; L.driverHead = u.hd; }
   const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.035, 8, 20), feltMat('#3a2a26')); wheel.position.set(0, 1.2, 0.58); wheel.rotation.x = -1.0; driver.add(wheel);
   L.car = { root: car, body, wheels, driver, wheel, pos: new THREE.Vector3(), yaw: 0, v: 0, hop: 0, hopV: 0, steer: 0, bonkT: 0, step: 0, stepAmp: 0 };
   L.seat = new THREE.Vector3(-0.5, 0.5, -0.05); L.seatScale = 0.82; // wolf rides shotgun (car-local; legs hidden below the window line)

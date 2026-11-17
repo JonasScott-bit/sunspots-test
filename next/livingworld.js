@@ -9,6 +9,8 @@ import { textPlane } from './townkit.js';
 import { GRID } from './townscape.js';
 import { gesturer, palGesture, PAL_POOL } from './idles.js';   // run 15
 import { folk as feltFolk, FOLK, animFolk, folkTris } from './feltfolk.js';
+import { CAST as KIT_CAST, animPal as kitAnimPal } from './missions/kit.js';
+const CREW_GLB = new Set(['moth', 'bear', 'gecko']);
 
 const TAU = Math.PI * 2, R = Math.random, pick = (a) => a[Math.floor(R() * a.length)];
 const wrapA = (a) => { while (a > Math.PI) a -= TAU; while (a < -Math.PI) a += TAU; return a; };
@@ -29,9 +31,9 @@ export function installLivingWorld({ T, TS, level, wolfState, scene, camera, fel
   const logEv = (s) => { LW.log.push(s); if (LW.log.length > 30) LW.log.shift(); };
 
   // ------------------------------------------------------------------ the town cast: feltfolk.js characters (felt + clay, ref-matched; 0 rigs, 2 LODs)
-  const pal = (k) => { const g = feltFolk(FOLK[k]); g.userData.shadow.visible = true; return g; };
+  const pal = (k) => { const g = CREW_GLB.has(k) ? KIT_CAST[k]() : feltFolk(FOLK[k]); g.userData.shadow.visible = true; return g; };   // Nov 16: the real crew are their GLBs
   function animPal(g, dt, spd, t) {   // walk cycle + idle bob
-    const u = g.userData; animFolk(g, dt, t, { spd });   // walk cycle + idle (feltfolk), then run 15's random idle gestures when standing
+    const u = g.userData; if (u.crewWrap) { kitAnimPal(g, dt, t, { walk: spd > 0.05 ? spd : 0 }); return; } animFolk(g, dt, t, { spd });   // walk cycle + idle (feltfolk), then run 15's random idle gestures when standing
     u.G ||= gesturer(PAL_POOL, 'pal'); u.G.update(dt, spd > 0.05 ? 0 : 1); palGesture(u, u.G, t);
   }
   const talkArms = (g, t) => { const u = g.userData; u.arms[0].rotation.x = -0.8 + Math.sin(t * 7) * 0.5; u.arms[1].rotation.x = -0.4 + Math.cos(t * 5) * 0.4; };

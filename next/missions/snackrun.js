@@ -13,7 +13,9 @@
 import * as THREE from 'three';
 import { playCinematic, CINE } from '../cinematic.js';
 import { NIGHT as BASE_NIGHT } from '../level.js';
-import { folk as feltFolk, FOLK, palSpec, animFolk, feltCow } from '../feltfolk.js';   // the opening level is night too (?day = old look, QA only)   // shared clip player (TAP FOR SOUND, HOLD TO SKIP)
+import { folk as feltFolk, FOLK, palSpec, feltCow } from '../feltfolk.js';
+import { CAST, animPal as kitAnimPal } from './kit.js';
+const CREW_GLB = new Set(['bear', 'heron', 'ram', 'gecko', 'moth', 'wolf', 'lynx', 'crow', 'anteater']);   // the opening level is night too (?day = old look, QA only)   // shared clip player (TAP FOR SOUND, HOLD TO SKIP)
 
 const SCALE = 11;                       // game seconds per real second (1:40 -> 2:00 = ~109 s of real driving)
 const T0 = 6000, CLOSE = 7200, STAR_HOME = 8100;   // 1:40:00, 2:00:00, 2:15:00 (seconds after midnight)
@@ -64,8 +66,8 @@ export function installSnackRun(C) {
   const glowSprite = (c, sx, sy, o = 0.7) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: c, transparent: true, opacity: o, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); s.scale.set(sx, sy, 1); return s; };
 
   // the cast: feltfolk.js characters (felt + clay, ref-matched, 2 LODs, 0 rigs); one-off figures go through palSpec()
-  const pal = (o) => feltFolk(typeof o === 'string' ? FOLK[o] : palSpec(o));
-  const animPal = (g, dt, t, o = {}) => animFolk(g, dt, t, o);
+  const pal = (o) => (typeof o === 'string' && CREW_GLB.has(o) ? CAST[o]() : feltFolk(typeof o === 'string' ? FOLK[o] : palSpec(o)));   // Nov 16: the real crew are their GLBs
+  const animPal = (g, dt, t, o = {}) => kitAnimPal(g, dt, t, o);
   const at = (o, x, z, yaw = 0, parent = SR.root) => { o.position.set(x, 0, z); o.rotation.y = yaw; parent.add(o); return o; };
   const face = (o, x, z) => { o.rotation.y = Math.atan2(x - o.position.x, z - o.position.z); };
 

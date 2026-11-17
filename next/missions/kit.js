@@ -87,9 +87,29 @@ export function sign(text, w, h, { bg = '#f2e6c8', fg = '#3a1f2a', font = '800 6
 // userData { torso, hd, legs, arms, h, ph, shadow } (pivots), driven by animPal(). Two LODs each, shared geometry, 0 rigs.
 export function pal(o = {}) { return feltFolk(palSpec(o)); }
 // procedural motion: walk cycle, idle breathe, wave, cheer, panic, sit
-export function animPal(g, dt, t, o = {}) { animFolk(g, dt, t, o); }
+export function animPal(g, dt, t, o = {}) { if (g.userData?.crewWrap) crewAnim(g, t, o); else animFolk(g, dt, t, o); }
+// Nov 16: the real crew (Wolf, Bear, Moth, Ram, Heron, Crow, Lynx, Gecko, Anteater, Fuzzy Peach) are their own GLBs, not felt stand-ins.
+// CAST.<crew>() returns a wrapper at once (same pivot contract, so mission code is unchanged) and drops the GLB in when it lands
+// (cached after the first load). Felt figures are only for the characters with no GLB.
+const CREW_H = { wolf: 1.75, moth: 1.95, bear: 1.95, ram: 1.8, heron: 1.95, crow: 1.6, lynx: 1.75, gecko: 1.45, anteater: 1.7, peach: 1.5 };
+function crewCast(k) {
+  const h = CREW_H[k], w = new THREE.Group(), pv = (x, y) => { const g = new THREE.Group(); g.position.set(x, y, 0); w.add(g); return g; };
+  const sh = blobShadow(0.42 * h / 1.8, 0.4); w.add(sh); w.name = 'crew:' + k;
+  w.userData = { crewWrap: k, h: h / 1.75, ph: Math.random() * 6, shadow: sh, torso: pv(0, h * 0.55), hd: pv(0, h * 0.88), legs: [pv(-0.12, h * 0.45), pv(0.12, h * 0.45)], arms: [pv(-0.24, h * 0.76), pv(0.24, h * 0.76)], glbW: null };
+  crewGLB(k, h).then((o) => { if (o.userData.shadow) o.userData.shadow.visible = false; w.add(o); w.userData.glbW = o; }).catch(() => {});
+  return w;
+}
+function crewAnim(w, t, { walk = 0, wave = 0, cheer = 0, panic = 0 } = {}) {
+  const o = w.userData.glbW; if (!o) return; const u = o.userData;
+  if (!u.glb) { animFolk(o, 0.016, t, { walk, wave, cheer, panic }); return; }
+  const live = u.rig ? rigTick(o, t, walk) : false, i = u.inner, k = Math.sin(t * (panic ? 18 : 10));
+  i.position.y = (cheer || panic) ? Math.abs(k) * 0.06 * u.h : wave ? Math.abs(Math.sin(t * 6)) * 0.015 * u.h : 0;
+  i.rotation.z = (live ? 0 : Math.sin(t * 1.3 + u.ph) * 0.03) + (panic ? Math.sin(t * 22) * 0.05 : wave ? Math.sin(t * 5) * 0.03 : 0);
+  i.scale.y = live ? 1 : 1 + Math.sin(t * 2 + u.ph) * 0.012;
+}
 export const CAST = Object.fromEntries(['wolf', 'bear', 'grandma', 'gecko', 'lynx', 'heron', 'ram', 'crow', 'moth', 'squid', 'anteater', 'vulture', 'larry', 'fuzz', 'lemon', 'goat', 'rabbit', 'reggie', 'peach', 'sal', 'dot', 'nan', 'wrench', 'hummer', 'farmhand', 'someone']
-  .map((k) => [k, () => feltFolk(FOLK[k])]));
+  .map((k) => [k, CREW_H[k] ? () => crewCast(k) : () => feltFolk(FOLK[k])]));
+export const feltCast = (k) => feltFolk(FOLK[k]);   // the felt build of anyone, for the crewGLB fallback
 // townsfolk: a handful of town faces in varied clothes (specs memoised so copies share geometry)
 const FOLKV = new Map();
 export function folk(r = Math.random, h = 0.9 + Math.random() * 0.25) { const KS = ['pig', 'duck', 'cat', 'dog', 'sheep', 'someone'], SH = ['#3a6a8a', '#f2c230', '#2fae8a', '#c9302a', '#8a7ab8', '#ff6fae', '#f6efe0', '#e0705a'], PA = ['#3a3a4a', '#5a4a3a', '#2f4a6a', '#e8dcc8'];
@@ -154,6 +174,10 @@ const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
 const glbCache = {};
 export const RIG_MAX = 3;
 const LIVE = new Map();
+// The Meshy clips carry bone position/scale tracks in the source file's units: played on a resized copy they blow the mesh up into
+// giant sheets. Rotation tracks alone give the right idle/walk at any size.
+const ROT = new WeakMap();
+function rotOnly(gl) { if (!ROT.has(gl)) ROT.set(gl, (gl.animations || []).map((c) => new THREE.AnimationClip(c.name, c.duration, c.tracks.filter((tr) => tr.name.endsWith('.quaternion'))))); return ROT.get(gl); }
 export const liveRigs = () => LIVE.size;
 export async function crewGLB(k, h = 1.8) {
   const f = { bear: 'town2/bear_lo.glb', heron: 'town2/heron_lo.glb', ram: 'town2/ram_lo.glb', wolf: 'town2/wolf_lo.glb', lynx: 'town2/lynx_lo.glb', crow: 'town2/crow_lo.glb', gecko: 'town2/gecko_lo.glb', anteater: 'town2/anteater_lo.glb', moth: 'town2/moth_lo.glb', cake: 'town2/cake_lo.glb', shake: 'town2/shake_lo.glb', peach: 'town2/fuzzy_peach_lo.glb' }[k];
@@ -163,29 +187,30 @@ export async function crewGLB(k, h = 1.8) {
     root.updateMatrixWorld(true); const b = new THREE.Box3().setFromObject(root), s = h / Math.max(0.01, b.max.y - b.min.y); root.scale.multiplyScalar(s); root.updateMatrixWorld(true);
     const b2 = new THREE.Box3().setFromObject(root); root.position.x -= (b2.min.x + b2.max.x) / 2; root.position.z -= (b2.min.z + b2.max.z) / 2; root.position.y -= b2.min.y;
     try { sunspotsApply(root, k, h); } catch (_) { }
-    const w = new THREE.Group(); const inner = new THREE.Group(); inner.add(root); w.add(inner); w.add(blobShadow(0.45 * h / 1.8, 0.4)); w.userData = { glb: true, inner, h, ph: Math.random() * 6 };
-    const clips = gl.animations || [], find = (re) => clips.find((c) => re.test(c.name));
+    const w = new THREE.Group(); const inner = new THREE.Group(); inner.add(root); w.add(inner); const sh = blobShadow(0.45 * h / 1.8, 0.4); w.add(sh); w.userData = { glb: true, inner, h, ph: Math.random() * 6, shadow: sh };
+    const clips = rotOnly(gl), find = (re) => clips.find((c) => re.test(c.name));
     const ic = find(/idle/i) || find(/seated/i), wc = find(/walk/i);
     if (ic || wc) { const mixer = new THREE.AnimationMixer(root), R = { mixer, idle: ic ? mixer.clipAction(ic) : null, walk: wc ? mixer.clipAction(wc) : null, wW: 0, spd: 0 };
       if (R.walk) { R.walk.play(); R.walk.setEffectiveWeight(R.idle ? 0 : 1); }
       if (R.idle) { R.idle.play(); R.idle.setEffectiveWeight(1); }
       mixer.update(((ic || wc).duration || 1) * Math.random()); w.userData.rig = R; }   // a natural idle pose from frame one
     return w;
-  } catch (e) { console.warn('kit: crew glb fallback', k, e?.message || e); const p = (CAST[k] || CAST.wolf)(); p.scale.setScalar(h / 1.75); return p; }
+  } catch (e) { console.warn('kit: crew glb fallback', k, e?.message || e); const p = feltFolk(FOLK[k] || FOLK.wolf); p.scale.setScalar(h / 1.75); return p; }
 }
 const _rw = new THREE.Vector3();
-function rigTick(o, t) {
+function rigTick(o, t, hint = 0) {
   const u = o.userData, R = u.rig, now = performance.now(); for (const [k, v] of LIVE) if (now - v > 700 || !k.parent) LIVE.delete(k);
   if (!LIVE.has(o) && LIVE.size >= RIG_MAX) return false;
   let vis = o.visible; for (let p = o.parent; p && vis; p = p.parent) vis = p.visible !== false; if (!vis) { LIVE.delete(o); return false; }
   LIVE.set(o, now); const dt = THREE.MathUtils.clamp(t - (u.rt ?? t), 0, 0.1); u.rt = t;
   o.getWorldPosition(_rw); const v = u.rp && dt > 0 ? Math.hypot(_rw.x - u.rp.x, _rw.z - u.rp.z) / dt : 0; (u.rp ||= new THREE.Vector3()).copy(_rw);
-  R.spd += (Math.min(v, 6) - R.spd) * Math.min(1, dt * 6);
+  R.spd += (Math.max(Math.min(v, 6), hint * 1.3) - R.spd) * Math.min(1, dt * 6);
   if (R.walk && R.idle) { R.wW += ((R.spd > 0.35 ? 1 : 0) - R.wW) * Math.min(1, dt * 5); R.walk.setEffectiveWeight(R.wW); R.idle.setEffectiveWeight(1 - R.wW); }
   if (R.walk) R.walk.timeScale = THREE.MathUtils.clamp(R.spd / (1.25 * (u.h / 1.8)), 0.6, 1.8);   // feet keep pace with the ground
   R.mixer.update(dt); return true;
 }
 export function breathe(o, t, { bob = 0, lean = 0, hop = 0 } = {}) { const u = o.userData; if (!u) return;
+  if (u.crewWrap) { if (u.glbW) breathe(u.glbW, t, { bob, lean, hop }); return; }
   if (u.glb) { const i = u.inner, live = u.rig ? rigTick(o, t) : false; i.scale.y = live ? 1 : 1 + Math.sin(t * 2 + u.ph) * 0.012; i.position.y = Math.abs(Math.sin(t * 9 + u.ph)) * hop + Math.sin(t * 2.2 + u.ph) * bob; i.rotation.z = (live ? 0 : Math.sin(t * 1.3 + u.ph) * 0.03) + lean; }
   else animPal(o, 0.016, t, {}); }
 
