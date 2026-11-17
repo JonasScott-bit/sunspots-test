@@ -22,7 +22,7 @@ const CSS = `
 #manOv .mCnt{flex:none;border:0;border-radius:999px;padding:8px 14px;min-height:36px;background:rgba(20,16,44,.55);color:#fbf0d9;font:800 13px Futura,"Avenir Next",Avenir,system-ui,sans-serif;letter-spacing:.14em;box-shadow:inset 0 0 0 1.5px rgba(255,246,225,.25);cursor:pointer;touch-action:manipulation}
 #manOv .mCnt i{font-style:normal;opacity:.6;margin-left:6px;font-size:11px}
 #manOv .mLinks{flex:none;display:flex;gap:8px} #manOv .mLk{display:flex;align-items:center;justify-content:center;height:40px;padding:0 14px;font-size:13px;letter-spacing:.14em;text-decoration:none;border-radius:18px} #manOv .mLk:before{inset:4px;border-radius:14px}
-#manOv .mX{flex:none;width:44px;height:44px;border-radius:50%;padding:0;font-size:0}
+#manOv .mX{flex:0 0 44px;width:44px;height:44px;min-width:44px;min-height:44px;box-sizing:border-box;border-radius:50%;padding:0;font-size:0}
 #manOv .mX:before{inset:5px;border-radius:50%}
 #manOv .mX svg{width:18px;height:18px;display:block;margin:auto;position:relative}
 #manOv .mStage{position:relative;flex:1;--foot:0px;min-height:0;overflow:hidden;touch-action:none}
@@ -43,7 +43,7 @@ const CSS = `
 #manOv .mArr svg{width:16px;height:16px;display:block;margin:auto;position:relative}
 #manOv .mPrev{left:calc(env(safe-area-inset-left) + 8px)} #manOv .mNext{right:calc(env(safe-area-inset-right) + 8px)}
 #manOv .mArr[disabled]{opacity:0;pointer-events:none} #manOv.zoomed .mArr{opacity:0;pointer-events:none}
-#manOv .mHint{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom) + 10px);transform:translateX(-50%);z-index:2;white-space:nowrap;padding:7px 14px;border-radius:999px;background:rgba(20,16,44,.62);font-size:12px;letter-spacing:.1em;pointer-events:none;transition:opacity .6s}
+#manOv .mHint{flex:none;position:relative;z-index:2;align-self:center;box-sizing:border-box;max-width:calc(100% - 24px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:6px auto calc(env(safe-area-inset-bottom) + 8px);padding:7px 14px;border-radius:999px;background:rgba(20,16,44,.62);font-size:12px;letter-spacing:.1em;pointer-events:none;transition:opacity .6s}
 #manOv .mHint.off{opacity:0}
 #manOv .mGrid{position:absolute;inset:0;z-index:4;display:none;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;background:rgba(14,22,66,.94);
   padding:14px calc(env(safe-area-inset-right) + 14px) calc(env(safe-area-inset-bottom) + 18px) calc(env(safe-area-inset-left) + 14px)}
@@ -51,8 +51,8 @@ const CSS = `
 #manOv .mGrid button{border:0;padding:0;background:none;color:#fbf0d9;font:700 11px Futura,Avenir,system-ui,sans-serif;letter-spacing:.12em;cursor:pointer;touch-action:manipulation}
 #manOv .mGrid img{display:block;width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px;background:#efe2c4;box-shadow:0 4px 10px rgba(0,0,0,.4);margin-bottom:5px}
 #manOv .mGrid button.now img{outline:3px solid #ffd36a;outline-offset:2px}
-@media (orientation:portrait){#manOv .mStage{--foot:100px} #manOv .mArr{top:auto;margin-top:0;bottom:calc(env(safe-area-inset-bottom) + 12px)} #manOv .mHint{bottom:calc(env(safe-area-inset-bottom) + 66px)}}
-@media (orientation:landscape) and (max-height:500px){#manOv .mTop{padding-top:calc(env(safe-area-inset-top) + 5px);padding-bottom:4px} #manOv .mX{width:40px;height:40px} #manOv .mName small{display:none}}
+@media (orientation:portrait){#manOv .mStage{--foot:58px} #manOv .mArr{top:auto;margin-top:0;bottom:8px}}
+@media (orientation:landscape) and (max-height:500px){#manOv .mTop{padding-top:calc(env(safe-area-inset-top) + 5px);padding-bottom:4px} #manOv .mName small{display:none}}
 `;
 
 const X_SVG = '<svg viewBox="0 0 20 20"><path d="M4 4L16 16M16 4L4 16" stroke="#fbf0d9" stroke-width="3.2" stroke-linecap="round"/></svg>';
@@ -67,7 +67,7 @@ function build() {
   const st = document.createElement('style'); st.id = 'manCss'; st.textContent = CSS; document.head.appendChild(st);
   root = document.createElement('div'); root.id = 'manOv'; root.setAttribute('role', 'dialog'); root.setAttribute('aria-modal', 'true'); root.setAttribute('aria-label', 'Sunspots instruction manual');
   root.innerHTML = `<div class="mTop"><div class="mName">SUNSPOTS<small>INSTRUCTION MANUAL</small></div><button class="mCnt" aria-label="All pages"></button>${standalone ? '<div class="mLinks"><a class="felt cream mLk" href="./Sunspots_Manual.pdf" target="_blank" rel="noopener">PDF</a><a class="felt mustard mLk" href="../">PLAY</a></div>' : `<button class="felt coral mX" aria-label="Close the manual">${X_SVG}</button>`}</div>
-<div class="mStage"><div class="mZoom"><div class="mBook"></div></div><button class="felt cream mArr mPrev" aria-label="Previous page">${ARR(0)}</button><button class="felt cream mArr mNext" aria-label="Next page">${ARR(1)}</button><div class="mHint">Swipe to turn the page · tap to look closer</div><div class="mGrid"></div></div>`;
+<div class="mStage"><div class="mZoom"><div class="mBook"></div></div><button class="felt cream mArr mPrev" aria-label="Previous page">${ARR(0)}</button><button class="felt cream mArr mNext" aria-label="Next page">${ARR(1)}</button><div class="mGrid"></div></div><div class="mHint">Swipe to turn the page · tap to look closer</div>`;
   document.body.appendChild(root);
   stage = root.querySelector('.mStage'); zoomEl = root.querySelector('.mZoom'); book = root.querySelector('.mBook'); cnt = root.querySelector('.mCnt'); grid = root.querySelector('.mGrid');
   prevB = root.querySelector('.mPrev'); nextB = root.querySelector('.mNext'); hint = root.querySelector('.mHint');
@@ -93,7 +93,8 @@ function build() {
 const tick = () => { try { window.__audio?.play?.('sfx_ui_tick', { bus: 'ui', gain: 1 }); } catch (_) {} };
 
 function sizePages(k) {
-  const r = stage.getBoundingClientRect(); const side = two() ? 64 : 12, vpad = two() ? 14 : 20, foot = innerHeight > innerWidth ? 100 : 0;
+  const r = stage.getBoundingClientRect(); const side = two() ? 64 : 12, vpad = two() ? 14 : 20;
+  const foot = parseFloat(getComputedStyle(stage).getPropertyValue('--foot')) || 0;
   return Math.max(120, Math.floor(Math.min(r.height - vpad * 2 - foot, (r.width - side * 2) / k)));
 }
 function go(p, dir) {
