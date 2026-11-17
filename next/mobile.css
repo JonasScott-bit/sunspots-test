@@ -93,7 +93,7 @@ html body #dnMenu .hd span,html body #dnMenu .it .n i{font-size:13px!important} 
 html body #cine .t{font-size:14px!important}
 
 /* ---- mission modules (Next Level): only lift the floor to 13px, layouts untouched */
-html body #srBtn{font-size:14px!important;min-height:52px!important}
+html body #srBtn{font-size:13px!important;min-height:40px!important;max-height:48px!important;width:auto!important;height:auto!important}
 html body #srList h4,html body #srCard .badges span,html body #srShop .need span,html body #srShop .say,html body #srShop .bot .n,html body #srCard h2,html body #srCard ul{font-size:13px!important}
 html body #swimUI .pill small,html body #swimUI .card small,html body #swimUI .hint{font-size:13px!important}
 html body #brMid,html body #brHint,html body #brCrowd,html body #brPanel h4,html body #brPanel p{font-size:13px!important}
@@ -125,7 +125,7 @@ html body #townObj:empty{display:none!important}
   html body #srList{left:auto!important;right:calc(env(safe-area-inset-right) + 12px)!important;top:calc(env(safe-area-inset-top) + 258px)!important;max-width:46vw}
   html body #soloRadio{left:calc(50% + 45px)!important;bottom:calc(env(safe-area-inset-bottom) + 178px)!important;max-width:130px!important;min-width:0!important}
 }
-/* portrait: the LATE NIGHT SNACK RUN pill sat on top of the walk-up button (GET IN / IN THE CAR / ENTER ...) */
-@media (orientation:portrait){html body #srBtn{bottom:calc(env(safe-area-inset-bottom) + 228px)!important}}
+/* portrait: keep the LATE NIGHT chip under the clock as a compact pill. Never set both top and bottom — that stretched it to ~498 px. */
+@media (orientation:portrait){html body #srBtn{top:calc(env(safe-area-inset-top) + 118px)!important;bottom:auto!important;max-height:44px!important}}
 /* portrait rooms: the room name sits between the pause button and EXIT instead of under the pause button */
 @media (orientation:portrait){html body #roomName{left:calc(env(safe-area-inset-left) + 114px)!important;right:calc(env(safe-area-inset-right) + 94px)!important;font-size:13px!important;letter-spacing:.16em!important;line-height:1.3!important;top:calc(env(safe-area-inset-top) + 14px)!important}}
