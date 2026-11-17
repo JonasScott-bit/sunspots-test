@@ -36,7 +36,8 @@ function create({ hud: H }) {
     D.root.add(g); D.place(g, s, side * (D.HALF + 0.9)); lights.push({ s, side, zap, g, gl, used: false }); }
   // home: a little house, the green porch light, Moth's mom
   const home = new THREE.Group(); { const m = new Merge(); m.box(7, 4, 6, '#6a7a5a', 0, 2, 0); m.cone(5.2, 2.6, '#3a2a2a', 0, 5.3, 0, 4, 0, Math.PI / 4); m.box(1.3, 2.2, 0.1, '#3a2a22', 0, 1.1, 3.02); m.box(3, 0.3, 1.6, '#8a6a4a', 0, 0.15, 3.8); home.add(m.mesh());
-    const g = glowSprite('#9aff9a', 3.4, 3.4, 0.95); g.position.set(1.0, 2.5, 3.2); home.add(g); const pl = new THREE.PointLight('#9aff9a', 14, 12, 1.6); pl.position.set(1.0, 2.5, 3.6); home.add(pl); }
+    const g = glowSprite('#9aff9a', 3.4, 3.4, 0.95); g.position.set(1.0, 2.5, 3.2); home.add(g); const pl = new THREE.PointLight('#9aff9a', 16, 12, 1.6); pl.position.set(1.0, 2.5, 3.6); home.add(pl);
+    const fill = new THREE.PointLight('#e8ffe0', 5.5, 4.5, 1.8); fill.position.set(-0.55, 1.55, 4.55); home.add(fill); }   // a little fill so his mom's close-up isn't a black silhouette
   const mom = CAST.moth(); mom.scale.setScalar(0.82); mom.position.set(-0.6, 0.3, 3.9); home.add(mom);   // his mom: the real Moth GLB, a little smaller (the pal was a white ball with one huge eye)
   D.root.add(home); D.place(home, D.LEN - 22, D.HALF + 7, -Math.PI / 2);
   const glows = []; for (let i = 0; i < 6; i++) { const g = new THREE.Group(); g.add(glowSprite('#bfe8ff', 1.6, 1.6, 0.6)); glows.push(D.add({ s: 160 + i * 230 + R() * 40, x: (R() - 0.5) * 6, y: 1.2, obj: g, r: 1.6, w: 1.0, air: true, onHit: () => { D.P.boostCharge = 1; sfx.tone(880, 0.2, 'sine', 0.2, 1.4); H.toast('MOONLIGHT · BOOST READY', 1.2); } })); }

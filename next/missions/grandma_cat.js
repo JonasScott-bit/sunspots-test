@@ -182,10 +182,11 @@ function create({ T, S, hud: H }) {
     else { p.getWorldPosition(head); head.y += ((p.userData.h || 1) * 1.55); }
     const body = car.userData.body || car;
     body.updateWorldMatrix(true, true);
-    // The wrappers face the body's +Z, but that axis points out the back of the cab — a +Z offset
-    // sat the lens behind Bear and Grandma (we saw the back of his head). In front of the face is -Z.
-    const e = (hd || p).matrixWorld.elements;
-    const fl = Math.hypot(e[8], e[10]) || 1, fwdX = -e[8] / fl, fwdZ = -e[10] / fl, sideX = -fwdZ, sideZ = fwdX;
+    // Aim from the cab's windshield: waddleCar +Z is the direction of travel (front seats at z=0.15, back at z=-0.95,
+    // headlight beam at z=5.4). Character +Z is unreliable here — felt Grandma looks along +Z (her face), while the
+    // crewWrap +Z points out the back of the cab, so a single sign sat the lens behind whoever was speaking.
+    const e = body.matrixWorld.elements;
+    const fl = Math.hypot(e[8], e[10]) || 1, fwdX = e[8] / fl, fwdZ = e[10] / fl, sideX = -fwdZ, sideZ = fwdX;
     const por = cam.aspect < 1, dist = por ? 1.45 : 1.65, sh = por ? 0.7 : 0.85;
     cam.position.set(head.x + fwdX * dist + sideX * sh, head.y + 0.18, head.z + fwdZ * dist + sideZ * sh);
     cam.lookAt(head.x, head.y - 0.08, head.z);
