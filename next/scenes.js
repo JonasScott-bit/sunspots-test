@@ -43,6 +43,7 @@
 //   audio are dropped, 'call' beats still fire), then the normal end/hand-back happens.
 import * as THREE from 'three';
 import { sunspotsApply } from './sunspots_material.js';
+import { createDreamStore } from './dreamstore.js';   // the store interior (store_win: { do: 'interior' })
 
 // ─── AUDIO CUES the scenes fire (placeholder names; nothing plays until a file is wired to the name) ───────────
 export const CUES = {
@@ -118,10 +119,12 @@ export const SCENES = {
       { do: 'move', who: 'wolf', path: [[0, -0.2]], speed: 1.2 },
       { do: 'hide', who: 'wolf' },
       { do: 'prop', id: 'door', act: 'close', wait: true },
+      { do: 'interior', wait: true },                                     // inside: PARADISE BLISS, the floating store (dreamstore.js), player-controlled
       { do: 'cam', pos: [6.6, 1.45, 10.8], look: [-1.2, 1.0, 5.2], fov: 46 },
       { wait: 0.6 },
       { do: 'say', who: 'squid', text: "He's been in there a while.", vo: 'vo_squid_01' },
       { do: 'say', who: 'farm', text: 'Eleven seconds.', vo: 'vo_farmhand_01' },
+      { do: 'say', who: 'squid', text: "The chips are floating. I'm allowing it.", vo: 'vo_squid_06' },   // he saw it through the window
       { wait: 0.4 },
       { do: 'cam', pos: [1.7, 1.3, 4.9], look: [0, 1.15, 0.6], fov: 40 },
       { do: 'prop', id: 'door', act: 'open', wait: true }, { do: 'audio', cue: 'sfx_store_door_bell' },
@@ -421,6 +424,7 @@ export function createDirector(ctx) {
       case 'mill': if (a) { const m = millTask(a, b, run); run.bg.push(m); a.moveTask = m; } break;
       case 'prop': { const p = D.props[b.id]; task = p?.act?.(b.act, b) || null; break; }
       case 'audio': if ('radio' in b) L.radioOverride = b.radio; if (!instant) cue(b.cue, run); break;
+      case 'interior': if (!instant && DS) task = DS.task(run); break;
       case 'call': if (typeof b.fn === 'function') b.fn(S); else if (b.fn === 'win') L.finish(true); else if (b.fn === 'lose') L.finish(false); break;
       default: console.warn('scene: unknown beat', b);
     }
@@ -618,6 +622,7 @@ export function createDirector(ctx) {
   // ── camera + bubbles (after the player camera is computed)
   const _bp = V();
   function camera(cam, dt) {
+    if (DS?.active && DS.camera(cam, dt)) return;   // inside the store: its own follow camera + warm grade
     const sc = D.run ? D.cam : D.hold?.cam;
     if (sc) {
       sc.t += dt;
@@ -649,6 +654,7 @@ export function createDirector(ctx) {
 
   // ── reset (retry)
   function reset() {
+    DS?.reset();
     for (const r of [D.run, ...D.bgRuns]) if (r) { r.blocker?.cancel?.(); for (const t of [...r.side, ...r.bg]) t.cancel?.(); }
     for (const t of D.bgKeep) t.cancel?.();
     D.run = null; D.bgRuns = []; D.bgKeep = []; D.cam = null; D.hold = null; D.out = null; D.played.clear();
@@ -665,6 +671,7 @@ export function createDirector(ctx) {
 
   // ── init: build props, load the scene cast (heron clerk, crow + ram, out-of-car squid + farmhand)
   async function init() {
+    try { DS = createDreamStore({ scene, camera: ctx.camera, feltMat: ctx.feltMat, getWolf, puppet, actors: () => D.actors, onSay: ctx.onSay, voDur: ctx.voDur, ui, playCue: (n) => ctx.playCue?.(n) }); } catch (e) { console.warn('dream store', e); }
     buildStoreProps(); buildRoadside();
     D.actors.wolf = wolfActor(); D.actors.moth = mothActor(); D.actors.car = carActor();
     const spec = [['clerk', './models/scene/heron_armsdown.glb', 2.05], ['crow', './models/scene/crow_armsdown.glb', 1.6], ['ram', './models/scene/ram.glb', 1.75],
@@ -674,6 +681,7 @@ export function createDirector(ctx) {
     D.ready = true; L.scenesOwnArrival = true;
     reset();
   }
+  let DS = null;
   const director = { init, update, camera, reset, play, skip, SCENES, CUES, D, get active() { return D.run?.name || null; }, anchors: ANCHORS, toWorld };
   return director;
 }
