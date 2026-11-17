@@ -535,7 +535,7 @@ export function createTown(ctx) {
         { id: 'bear', label: 'BEAR', o: bear, talk: () => [['', 'Bear steps on the scale.'], ['', 'TWO BEARS.'], ['BEAR', 'It\'s the sweater.']] },
         { id: 'parcels', label: 'PARCELS', o: parcels, talk: () => {
           if (S.sock >= 3 && !S.hubcap) { S.hubcap = true; save(); return [['CORDED BOX', 'Parcel for Wolf. FRAGILE.'], ['', 'It\'s a hubcap.'], ['', 'It\'s felt.'], ['', 'Got: one hubcap.']]; }
-          return [['', 'FRAGILE.'], ['', 'Whatever was in it left a long time ago.']]; } },
+          return [['', 'FRAGILE.'], ['', 'It\'s just felt. All of it.']]; } },
         { id: 'stamp', label: 'STAMPS', o: stamp, talk: () => [['', 'STAMPS. Lick at your own risk.'], ['', 'The machine licks you first.']] },
         { id: 'sign', label: 'SIGN', o: s1, talk: () => [['', 'PLEASE TAKE A NUMBER.'], ['', 'The numbers are at the DMV.']] },
       ];
@@ -639,7 +639,7 @@ export function createTown(ctx) {
         { id: 'phone', label: 'CALL-IN LINE', o: phone, talk: () => { A.ring = 1.4; return [['', 'The call-in line rings.'], ['PHONE', 'KSUN request line.'], ['WOLF', 'Can I request a song?'], ['PHONE', 'Requests are closed.'], ['PHONE', 'The Moth called ahead.']]; } },
         { id: 'otv', label: 'WEATHERMAN', o: otv, talk: () => S.air > 0 && S.air < 7 ? [['OLD TV', 'These rabbit ears are mine.'], ['OLD TV', 'I need them for the weather.'], ['WOLF', 'The weather is sun.'], ['OLD TV', 'I need them to be sure.']] : [['OLD TV', 'Today: Sun.'], ['OLD TV', 'Watching.'], ['WOLF', 'And tomorrow?'], ['OLD TV', 'Sun. Still watching.']] },
         { id: 'wx', label: 'WEATHER WALL', o: wx, talk: () => [['', 'The weather wall is a picture of the sun.'], ['', 'The sun is looking at it.'], ['', 'It approves.']] },
-        { id: 'cam', label: 'CAMERA', o: cam, talk: () => [['', 'The teleprompter says: NOTHING HAPPENED.'], ['', 'It has said that for years.'], ['', 'It has always been accurate.']] },
+        { id: 'cam', label: 'CAMERA', o: cam, talk: () => [['', 'The teleprompter says: NOTHING HAPPENED.'], ['', 'It has said that since 1979.'], ['', 'It has always been accurate.']] },
       ];
     },
     async yard(G, A) {
@@ -666,8 +666,8 @@ export function createTown(ctx) {
         if (A.squeak > 0) { A.squeak -= dt; barrow.rotation.z = A.squeak > 0 ? Math.sin(t * 34) * 0.035 : 0; } };
       A.who = [
         { id: 'junk', label: 'JUNK PILE', o: junk, talk: () => {
-          if (S.air === 1) { step('air', 2); return [['', 'You dig.'], ['', 'A hubcap. A bedspring. One rabbit-ear antenna.'], ['CROW', 'Put it on the stool first.'], ['WOLF', 'Why?'], ['CROW', 'Everything goes on the stool first.']]; }
-          S.dig++; save(); return [['', 'You dig.'], ['', ['A bedspring.', 'Another hubcap.', 'Half a tumbleweed. It\'s taking its time.', 'A sock. Not that one.'][S.dig % 4]]]; } },
+          if (S.air === 1) { step('air', 2); return [['', 'You dig.'], ['', 'A hubcap. A felt spring. One rabbit-ear antenna.'], ['CROW', 'Put it on the stool first.'], ['WOLF', 'Why?'], ['CROW', 'Everything goes on the stool first.']]; }
+          S.dig++; save(); return [['', 'You dig.'], ['', ['A felt spring.', 'A hubcap. Soft.', 'Half a tumbleweed. It\'s taking its time.', 'A sock. Not that one.'][S.dig % 4]]]; } },
         { id: 'stool', label: 'FENCE-STOOL', o: stool, talk: () => {
           if (S.air === 2) { step('air', 3); stoolEars.visible = true; A.show = 9; return [['', 'You put the rabbit ears on the Fence-Stool.'], ['CROW', 'Oh.'], ['RAM', 'It\'s on a stool.'], ['CROW', 'That\'s the point.'], ['CROW', 'It\'s art now. Art can\'t be taken. Only bought.'], ['CROW', 'I\'ve consigned it to Second Sun Thrift.'], ['', 'The Wheelbarrow hauls it off. It complains with its wheel.']]; }
           return [['', 'The Fence-Stool. Anything on it is art.'], ['', 'Right now it\'s an empty stool.'], ['CROW', 'Also art.']]; } },
@@ -1105,7 +1105,7 @@ export function createTown(ctx) {
       A.who = [
         { id: 'house', label: 'HOUSE-HEAD', o: house, talk: () => {
           if (S.bulb === 1) { step('bulb', 2); return [['HOUSE-HEAD', 'A bulb? No.'], ['HOUSE-HEAD', 'The sign says we leave the light on.'], ['HOUSE-HEAD', 'Take the light, and the sign is a liar. I\'m the building. I\'d know.'], ['LAMP-BULB', 'I\'d go. But someone has to be the light that\'s left on.'], ['LAMP-BULB', 'Find me a replacement. Something that\'s on and stays on.'], ['WOLF', 'Like what?'], ['LAMP-BULB', 'The pool has a light in it. Nobody swims at night.']]; }
-          if (S.bulb === 3) { step('bulb', 4); A.setAir(); return [['', 'You put the pool light in the window lamp.'], ['HOUSE-HEAD', 'It\'s a light.'], ['HOUSE-HEAD', 'It\'s on.'], ['HOUSE-HEAD', 'I\'ll allow it.'], ['LAMP-BULB', 'My first night off. Ever.'], ['LAMP-BULB', 'Is the Drive-In still showing the same thing?'], ['WOLF', 'It\'s not showing anything.'], ['LAMP-BULB', 'Then I\'m the feature.'], ['', 'Lamp-Bulb comes with you. Take it to the projector.']]; }
+          if (S.bulb === 3) { step('bulb', 4); A.setAir(); return [['', 'You put the pool light in the window lamp.'], ['HOUSE-HEAD', 'It\'s a light.'], ['HOUSE-HEAD', 'It\'s on.'], ['HOUSE-HEAD', 'I\'ll allow it.'], ['LAMP-BULB', 'My first night off since 1979.'], ['LAMP-BULB', 'Is the Drive-In still showing the same thing?'], ['WOLF', 'It\'s not showing anything.'], ['LAMP-BULB', 'Then I\'m the feature.'], ['', 'Lamp-Bulb comes with you. Take it to the projector.']]; }
           if (S.bulb === 2) return [['HOUSE-HEAD', 'Pool\'s out back.'], ['HOUSE-HEAD', 'The lifeguard is always on duty. Nobody is ever in the pool.']];
           if (S.bulb >= 4) return [['HOUSE-HEAD', 'The light is on. The sign is honest.'], ['HOUSE-HEAD', 'Mostly. We have no vacancy.'], ['WOLF', 'Every room is empty.'], ['HOUSE-HEAD', 'They\'re resting.']];
           return [['HOUSE-HEAD', 'Welcome to the Leave-The-Light-On.'], ['WOLF', 'Do you have a room?'], ['HOUSE-HEAD', 'I am the rooms.'], ['HOUSE-HEAD', 'Wipe your feet. That\'s my face.']]; } },
@@ -1113,7 +1113,7 @@ export function createTown(ctx) {
           : [['LAMP-BULB', 'Night clerk.'], ['WOLF', 'You\'re sitting in a lamp.'], ['LAMP-BULB', 'I\'m being left on.'], ['LAMP-BULB', 'It\'s a whole job.']] },
         { id: 'keys', label: 'RENT A ROOM', o: kb, talk: () => { S.rooms = (S.rooms || 0) + 1; save(); return [['HOUSE-HEAD', 'Room 11.'], ['WOLF', 'Every key says 11.'], ['HOUSE-HEAD', 'Every room is 11. Check-out is at 11.'], ['WOLF', 'What time is it?'], ['HOUSE-HEAD', '11.'], ['', `You check in and check out. Stays: ${S.rooms}.`]]; } },
         { id: 'bell', label: 'BELL', o: bell, talk: () => { A.ding = 0.5; audio.ui?.('confirm'); return [['', 'Ding.'], ['HOUSE-HEAD', 'I heard.'], ['HOUSE-HEAD', 'I\'m the building. I hear everything.'], ['HOUSE-HEAD', 'Ring it again and I\'ll hear that too.']]; } },
-        { id: 'ice', label: 'ICE MACHINE', o: ice, talk: () => [['', 'The ice machine rumbles.'], ['', 'It makes one cube.'], ['', 'It has been making it since spring.'], ['', 'It\'s almost done.']] },
+        { id: 'ice', label: 'ICE MACHINE', o: ice, talk: () => [['', 'The ice machine rumbles.'], ['', 'It makes one cube.'], ['', 'It has been making it since 1979.'], ['', 'It\'s almost done.']] },
         { id: 'sign', label: 'NO VACANCY', o: vac, talk: () => [['', 'NO VACANCY. Every room is empty.'], ['HOUSE-HEAD', 'The sign is aspirational.'], ['', 'The NO flickers. It isn\'t sure either.']] },
         { id: 'chair', label: 'LOBBY CHAIR', o: chair, talk: () => [['', 'Lobby seating. It watches you wait.'], ['', 'You aren\'t waiting.'], ['', 'It waits anyway.']] },
         { id: 'suggest', label: 'SUGGESTION BOX', o: sbox, talk: () => { sp.t = 3; audio.ui?.('confirm'); return [['SUGGESTION BOX', sugQ()]]; } },
@@ -1167,11 +1167,11 @@ export function createTown(ctx) {
           if (S.bulb >= 3) return [['', 'Tweet.'], ['BANANA SQUID', 'Pool\'s dark. Still on duty.'], ['BANANA SQUID', 'Dark is when they need me most.']];
           return [['', 'Tweet.'], ['BANANA SQUID', 'No running.'], ['WOLF', 'I\'m standing still.'], ['BANANA SQUID', 'That\'s how it starts.']]; } },
         { id: 'swim', label: 'SWIM', o: water, talk: () => { tweet(); if (S.bulb === 2) { S.swam = true; save(); }
-          return [['', 'You get in. The water is warmer than it should be.'], ['', 'Three inches deep. All the way down.'], ['', 'Tweet.'], ['BANANA SQUID', 'No running!'], ['WOLF', 'I\'m swimming.'], ['BANANA SQUID', 'Swim slower.'], ['', 'You are now a swimmer.']]; } },
+          return [['', 'You get in. The water is felt.'], ['', 'Three inches deep. All the way down.'], ['', 'Tweet.'], ['BANANA SQUID', 'No running!'], ['WOLF', 'I\'m swimming.'], ['BANANA SQUID', 'Swim slower.'], ['', 'You are now a swimmer.']]; } },
         { id: 'heron', label: 'HERON', o: heron, talk: () => [['HERON', 'Off duty.'], ['WOLF', 'What do you do on duty?'], ['HERON', 'Stand in water.'], ['HERON', 'This is different. It\'s a pool.']] },
         { id: 'glove', label: 'POOL FLOAT', o: glove, talk: () => [['', 'An inflatable rubber glove.'], ['', 'It waves at you.'], ['', 'It is not waving. It is drowning, very slowly, in three inches.'], ['BANANA SQUID', 'It does that.']] },
         { id: 'board', label: 'DIVING BOARD', o: board, talk: () => { tweet(); return [['', 'You dive.'], ['', 'Three inches.'], ['BANANA SQUID', 'Ten.'], ['WOLF', 'Out of ten?'], ['BANANA SQUID', 'Inches. You made it deeper.']]; } },
-        { id: 'towel', label: 'TOWEL', o: loungers, talk: () => [['', 'One towel. Shared by the whole motel.'], ['', 'It\'s dry. Nobody\'s been wet in years.']] },
+        { id: 'towel', label: 'TOWEL', o: loungers, talk: () => [['', 'One towel. Shared by the whole motel.'], ['', 'It\'s dry. Nobody\'s been wet since 1979.']] },
         { id: 'rules', label: 'POOL RULES', o: rules, talk: () => [['', '1. No running. 2. No walking.'], ['', '3. Lifeguard always on duty.'], ['WOLF', 'How do I get to the pool?'], ['BANANA SQUID', 'You don\'t. That\'s the rules working.']] },
       ];
     },
@@ -1192,7 +1192,7 @@ export function createTown(ctx) {
       const pt = box(0.52, 0.1, 0.47, '#c9384a', 0.03); pt.position.y = 0.62; pop.add(pt);
       const kern = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.035, 0), feltMat('#fff0b8'), 40); for (let i = 0; i < 40; i++) { mx4.makeTranslation(-0.18 + (i % 8) * 0.05, 0.15 + Math.floor(i / 8) * 0.035, -0.15 + ((i * 7) % 6) * 0.055); kern.setMatrixAt(i, mx4); } pop.add(kern);
       at(pop, -2.5, 1.07, -0.35); G.add(pop);
-      const menu = sign('SNACKS\npopcorn (by the shovel)\nsoda (flat, emotionally)', 1.2, 0.6, '#fff3dc', '#c9384a', 0.5); at(menu, -3.88, 2.1, 0.2, Math.PI / 2); G.add(menu);
+      const menu = sign('SNACKS\npopcorn (by the shovel)\nsoda (flat, felt)', 1.2, 0.6, '#fff3dc', '#c9384a', 0.5); at(menu, -3.88, 2.1, 0.2, Math.PI / 2); G.add(menu);
       at(farm, -3.3, 0, 0.75, Math.PI / 2 - 0.35); G.add(farm);
       // the Moth's taxi: parked facing the screen, meter running
       const taxi = ph('Moth\'s taxi (felt)', new THREE.Group()); const tb = box(1.1, 0.5, 2.0, '#ffd04a', 0.12); tb.position.y = 0.22; taxi.add(tb);
@@ -1223,13 +1223,13 @@ export function createTown(ctx) {
           if (S.bulb === 0) { step('bulb', 1); return [['FARMHAND', 'Projector bulb blew.'], ['FARMHAND', 'Feature can\'t start.'], ['WOLF', 'How long ago?'], ['FARMHAND', 'Since the bulb.'], ['FARMHAND', 'One car\'s waiting. The Moth\'s. Meter running.'], ['FARMHAND', 'Motel says it leaves the light on. Ask them for it.']]; }
           if (S.bulb >= 5) return [['FARMHAND', 'Popcorn?'], ['', 'He scoops it with the shovel.'], ['FARMHAND', 'Only way I know how to serve.']];
           return [['FARMHAND', 'Popcorn?'], ['WOLF', 'Is that a shovel?'], ['FARMHAND', 'It\'s a large.'], ['FARMHAND', 'Bulb first. Then the feature. Then the large.']]; } },
-        { id: 'moth', label: 'MOTH', o: moth, talk: () => S.bulb >= 5 ? [['MOTH', 'Beautiful.'], ['MOTH', 'The sun, up close. Premiere\'s Sunday.'], ['WOLF', 'You going?'], ['MOTH', 'If the porch lights let me.'], ['MOTH', 'Meter\'s still running.']]
+        { id: 'moth', label: 'MOTH', o: moth, talk: () => S.bulb >= 5 ? [['MOTH', 'Beautiful.'], ['MOTH', 'The sun, up close.'], ['MOTH', 'Meter\'s still running.'], ['WOLF', 'Who\'s paying?'], ['MOTH', 'The sun. It\'s watching. It\'s good for it.']]
           : [['MOTH', 'Meter\'s running.'], ['WOLF', 'You\'re not driving.'], ['MOTH', 'I\'m waiting. Waiting is driving, slower.'], ['MOTH', '$11.11.'], ['MOTH', 'It was $11.11 in 1979 too.']] },
         { id: 'proj', label: 'PROJECTOR', o: booth, talk: () => {
-          if (S.bulb === 4) { step('bulb', 5); A.setAir(); return [['', 'Lamp-Bulb climbs into the projector.'], ['LAMP-BULB', 'I\'ve been left on my whole life.'], ['LAMP-BULB', 'Tonight I\'m turned up.'], ['', 'The screen lights up. COMING SOON: THE SUN.'], ['', 'Just the sun. Up close. Then a card: PREMIERE · SUNDAY · DAWN.'], ['', 'Out in the lot, Moth honks once.'], ['FARMHAND', 'Standing ovation.'], ['WOLF', 'From one car.'], ['FARMHAND', 'All of them.']]; }
+          if (S.bulb === 4) { step('bulb', 5); A.setAir(); return [['', 'Lamp-Bulb climbs into the projector.'], ['LAMP-BULB', 'I\'ve been left on my whole life.'], ['LAMP-BULB', 'Tonight I\'m turned up.'], ['', 'The feature starts: THE SUN.'], ['', 'Just the sun. Up close.'], ['', 'The sun watches back.'], ['MOTH', '(honks, once)'], ['FARMHAND', 'Standing ovation.'], ['WOLF', 'From one car.'], ['FARMHAND', 'All of them.']]; }
           if (S.bulb >= 5) return [['LAMP-BULB', 'Shh. I\'m working.'], ['', 'The sun is still on screen. It hasn\'t blinked.']];
-          return [['', 'The projector bulb is black all the way through.'], ['', 'It is very dead.'], ['FARMHAND', 'Need a light that\'s used to staying on.']]; } },
-        { id: 'screen', label: 'SCREEN', o: scr, talk: () => S.bulb >= 5 ? [['', 'COMING SOON: THE SUN.'], ['', 'Premiere: Sunday, dawn. One showing.'], ['', 'Runtime: until it sets. It doesn\'t set.']] : [['', 'INTERMISSION (since the bulb).'], ['', 'The intermission is the longest-running show in town.']] },
+          return [['', 'The projector bulb is a black felt pebble.'], ['', 'It is very dead.'], ['FARMHAND', 'Need a light that\'s used to staying on.']]; } },
+        { id: 'screen', label: 'SCREEN', o: scr, talk: () => S.bulb >= 5 ? [['', 'NOW SHOWING: THE SUN.'], ['', 'Runtime: until it sets.'], ['', 'It doesn\'t set.']] : [['', 'INTERMISSION (since the bulb).'], ['', 'The intermission is the longest-running show in town.']] },
         { id: 'popcorn', label: 'POPCORN', o: pop, talk: () => [['', 'You order a small.'], ['FARMHAND', 'One shovel.'], ['WOLF', 'And a large?'], ['FARMHAND', 'One shovel. Fuller.']] },
         { id: 'speaker', label: 'SPEAKER', o: spk, talk: () => [['', 'You hang the speaker on the window.'], ['', 'It plays the sound of someone eating popcorn.'], ['', 'Close to your ear.'], ['', 'Very close.']] },
         { id: 'taxi', label: 'TAXI', o: taxi, talk: () => [['', 'The meter says $11.11.'], ['', 'It has said $11.11 for a long time.'], ['MOTH', 'Don\'t touch the meter. It\'s concentrating.']] },
@@ -1253,7 +1253,7 @@ export function createTown(ctx) {
       const rack = new THREE.Group(); const rb = box(1.6, 0.14, 0.12, '#5a3020', 0.02); rb.position.y = 0.9; rack.add(rb); const rt = rb.clone(); rt.position.y = 2.3; rack.add(rt);
       for (let i = 0; i < 8; i++) { const c = cyl(0.012, 0.02, 1.45, ['#d9b47a', '#c9a06a', '#e0c08a'][i % 3], 6); c.position.set(-0.7 + i * 0.2, 0.9, 0.02); c.rotation.z = (i % 2 ? 1 : -1) * 0.02; rack.add(c); } at(rack, -2.6, 0, -A.D / 2 + 0.12); G.add(rack);
       const chalk = new THREE.Group(); chalk.add(box(1.3, 0.9, 0.05, '#2a2a28', 0.02)); const cfr = box(1.42, 0.06, 0.08, '#6b3a22', 0.02); cfr.position.y = -0.03; chalk.add(cfr);
-      const ct = cvTex(256, 180, (g, w, h) => { g.fillStyle = '#2a2a28'; g.fillRect(0, 0, w, h); g.fillStyle = 'rgba(243,239,226,.85)'; g.font = '700 26px "Comic Sans MS",cursive'; g.textAlign = 'center'; g.fillText('WINNER STAYS', w / 2, 40); g.font = '22px "Comic Sans MS",cursive'; g.fillText('9-BALL · HOUSE RULES', w / 2, 78); g.fillText('HOUSE BEST: ' + (S.poolBest || '—'), w / 2, 118); g.fillText('NO MASSÉ (PLEASE)', w / 2, 156); }, 1, 1);
+      const ct = cvTex(256, 180, (g, w, h) => { g.fillStyle = '#2a2a28'; g.fillRect(0, 0, w, h); g.fillStyle = 'rgba(243,239,226,.85)'; g.font = '700 26px "Comic Sans MS",cursive'; g.textAlign = 'center'; g.fillText('WINNER STAYS', w / 2, 40); g.font = '22px "Comic Sans MS",cursive'; g.fillText('9-BALL · FELT RULES', w / 2, 78); g.fillText('HOUSE BEST: ' + (S.poolBest || '—'), w / 2, 118); g.fillText('NO MASSÉ (PLEASE)', w / 2, 156); }, 1, 1);
       const cboard = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.82), texMat(ct)); cboard.position.set(0, 0.45, 0.03); chalk.add(cboard); at(chalk, 1.2, 1.35, -A.D / 2 + 0.06); G.add(chalk); 
       const juke = new THREE.Group(); juke.add(box(0.9, 1.3, 0.6, '#c9382e', 0.12)); const arch = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.6, 16, 1, false, 0, Math.PI), feltMat('#f2c230', { emissive: new THREE.Color('#f2a030'), emissiveIntensity: 0.35 })); arch.rotation.set(Math.PI / 2, 0, Math.PI / 2); arch.position.set(0, 1.3, 0); juke.add(arch);
       const jg = sign('SELECT', 0.6, 0.3, '#fff3dc', '#c9382e', 0.5); jg.position.set(0, 0.85, 0.31); juke.add(jg); at(juke, 4.4, 0, 0.9, -1.2); G.add(juke);
@@ -1328,7 +1328,7 @@ export function createTown(ctx) {
           return Math.random() < 0.5 ? [['FRIDGE', 'I\'m running.'], ['WOLF', 'Then go catch yourself.'], ['FRIDGE', 'I\'ve heard it.']] : [['FRIDGE', 'My brother\'s out on the lawn.'], ['WOLF', 'Why?'], ['FRIDGE', 'He walks. I don\'t ask.']]; } },
         { id: 'stove', label: 'STOVE', o: stove, talk: () => { if (A.cook === 1) { A.cook = 2; A.sizzle = 2.2; return [['', 'You crack the eggs into the pan.'], ['STOVE', 'Sssss.'], ['STOVE', 'That\'s me. Not the eggs.'], ['', 'Breakfast is cooking. (TO DO 2/3)']]; }
           return A.cook === 0 ? [['STOVE', 'I\'m hot.'], ['WOLF', 'You\'re off.'], ['STOVE', 'I\'m hot in general.']] : [['STOVE', 'Done. Like a dinner. But breakfast.']]; } },
-        { id: 'plate', label: 'PLATE', o: plate, talk: () => { if (A.cook === 2) { A.cook = 3; eggs.visible = true; return [['', 'Two eggs, sunny side up. One strip of bacon. Load-bearing.'], ['PLAID BOX', 'Plated. Very professional.'], ['', 'Breakfast: done. (TO DO 3/3)']]; }
+        { id: 'plate', label: 'PLATE', o: plate, talk: () => { if (A.cook === 2) { A.cook = 3; eggs.visible = true; return [['', 'Two eggs, sunny side up. One strip of felt bacon.'], ['PLAID BOX', 'Plated. Very professional.'], ['', 'Breakfast: done. (TO DO 3/3)']]; }
           return A.cook >= 3 ? [['', 'The eggs look at you.'], ['', 'Sunny side up. Always.']] : [['', 'An empty plate.'], ['', 'Check the TO DO list on the fridge.']]; } },
         { id: 'phone', label: 'PHONE', o: phone, talk: () => A.cook >= 3 ? [['PHONE', 'Ring ring.'], ['WOLF', 'Hello?'], ['PHONE', 'It\'s me. The phone. Your eggs are getting cold.']] : [['PHONE', 'Ring.'], ['WOLF', 'You\'re ringing yourself.'], ['PHONE', 'Somebody has to.']] },
         { id: 'plaid', label: 'PLAID BOX', o: plaid, talk: () => [['PLAID BOX', 'I hold the cereal.'], ['WOLF', 'There\'s no cereal.'], ['PLAID BOX', 'I hold the idea of cereal.']] },
@@ -1347,12 +1347,12 @@ export function createTown(ctx) {
       A.tick = (dt, t) => { if (A.plunge > 0) { A.plunge -= dt; toilet.rotation.z = Math.sin(t * 28) * 0.03; toilet.position.y = Math.abs(Math.sin(t * 14)) * 0.02; if (A.plunge <= 0) { toilet.rotation.z = 0; toilet.position.y = 0; } } duck.position.y = 0.72 + Math.sin(t * 1.4) * 0.01; };
       A.who = [
         { id: 'toilet', label: 'TOILET', o: toilet, talk: () => { if (A.clog === 0) { A.clog = 1; return [['TOILET', 'I\'m not clogged.'], ['TOILET', 'I\'m thinking.'], ['WOLF', 'About what?'], ['TOILET', 'A sock. Possibly argyle.'], ['', 'Chore: fix the clog. Ask the Plunger.']]; }
-          if (A.clog === 2) { A.clog = 3; A.plunge = 2.0; return [['', 'Plunger-Glasses gets to work. Glasses first.'], ['TOILET', 'Oh. OH.'], ['', 'Something goes back the way it came.'], ['TOILET', 'Much clearer.'], ['', 'Chore done: the clog.']]; }
+          if (A.clog === 2) { A.clog = 3; A.plunge = 2.0; return [['', 'Plunger-Glasses gets to work. Glasses first.'], ['TOILET', 'Oh. OH.'], ['', 'Something felt goes back the way it came.'], ['TOILET', 'Much clearer.'], ['', 'Chore done: the clog.']]; }
           return A.clog >= 3 ? [['TOILET', 'Thank you for your service.'], ['TOILET', 'Please flush on your way out. Of my life.']] : [['TOILET', 'Still thinking.']]; } },
         { id: 'plunger', label: 'PLUNGER-GLASSES', o: plunger, talk: () => { if (A.clog === 1) { A.clog = 2; return [['PLUNGER-GLASSES', 'I need to see the problem.'], ['', 'It adjusts its glasses.'], ['PLUNGER-GLASSES', 'I see the problem. Take me to the toilet.']]; }
           return A.clog >= 3 ? [['PLUNGER-GLASSES', 'I\'m a professional.'], ['PLUNGER-GLASSES', 'Professionals don\'t talk about the work.']] : [['PLUNGER-GLASSES', 'I\'m short-sighted.'], ['PLUNGER-GLASSES', 'And long-handled.']]; } },
         { id: 'sink', label: 'SINK', o: sink, talk: () => [['SINK', 'Drip.'], ['WOLF', 'You should get that looked at.'], ['SINK', 'Drip. (It\'s how I talk.)']] },
-        { id: 'duck', label: 'RUBBER DUCK', o: duck, talk: () => [['', 'The rubber duck is watching the door.'], ['', 'It does not float. It has made peace with that.']] },
+        { id: 'duck', label: 'RUBBER DUCK', o: duck, talk: () => [['', 'The rubber duck is felt.'], ['', 'It does not float. It has made peace with that.']] },
       ];
     },
     async lynx(G, A) {   // LYNX'S BEDROOM: lamp-bulb, lantern, eye chair — chore: LIGHTS OUT
@@ -1375,7 +1375,7 @@ export function createTown(ctx) {
         { id: 'lamp', label: 'LAMP-BULB', o: lamp, talk: () => { if (!A.off.lamp) { A.off.lamp = true; return [['LAMP-BULB', 'I\'ve been left on my whole life.'], ['WOLF', 'Bedtime.'], ['LAMP-BULB', '...okay. Just a little dim.'], ...done()]; } return [['LAMP-BULB', '(dimly) I\'m resting my filament.']]; } },
         { id: 'lantern', label: 'LANTERN', o: lantern, talk: () => { if (!A.off.lantern) { A.off.lantern = true; return [['LANTERN', 'I\'m for camping.'], ['WOLF', 'You\'re on a dresser.'], ['LANTERN', 'I\'m camping on a dresser.'], ['', 'It turns itself down anyway.'], ...done()]; } return [['LANTERN', '(low) Ghost stories later.']]; } },
         { id: 'chair', label: 'EYE CHAIR', o: chair, talk: () => { if (!A.off.chair) { A.off.chair = true; chair.scale.y = 0.97; return [['EYE CHAIR', 'I don\'t sleep. I watch.'], ['WOLF', 'Watch with your eye closed.'], ['EYE CHAIR', 'That\'s called sleeping.'], ['EYE CHAIR', 'Fine.'], ...done()]; } return [['EYE CHAIR', '(watching, with the eye closed)']]; } },
-        { id: 'bed', label: 'BED', o: bed, talk: () => dark() === 3 ? [['', 'You lie down. The quilt sighs.'], ['', 'It\'s very quiet.'], ['', 'The eye chair keeps watching.']] : [['', 'You can\'t sleep with the lights on.'], ['', 'Everyone in this room is a light.']] },
+        { id: 'bed', label: 'BED', o: bed, talk: () => dark() === 3 ? [['', 'You lie down on the felt quilt.'], ['', 'It\'s very quiet.'], ['EYE CHAIR', '(watching)']] : [['', 'You can\'t sleep with the lights on.'], ['', 'Everyone in this room is a light.']] },
       ];
     },
     async gecko(G, A) {   // GECKO'S LAUNDRY ROOM: washer, argyle sock (the cousin) — chore: DO A LOAD
@@ -1435,7 +1435,7 @@ export function createTown(ctx) {
   };
   const TITLE = { sock: 'ODD SOCK OUT', num: 'TAKE A NUMBER', air: 'DEAD AIR', bulb: 'LEAVE THE LIGHT ON', adv: 'TABLE FOR FOUR' };
   const DONE = { sock: 6, num: 7, air: 7, bulb: 5, adv: 5 };
-  const DONE_MSG = { sock: '. Lost Socks board unlocked.', num: '. Plate 11W.', air: '. Ratings doubled (both the Bear).', bulb: '. Coming soon: the sun. Premiere Sunday, dawn.', adv: '. Party of four. The adventure is ongoing.' };
+  const DONE_MSG = { sock: '. Lost Socks board unlocked.', num: '. Plate 11W.', air: '. Ratings doubled (both the Bear).', bulb: '. Lamp-Bulb got a standing ovation from one car.', adv: '. Party of four. The adventure is ongoing.' };
   function step(m, n) { S[m] = n; save(); if (n === 1) toast(TITLE[m] + ' — new errand'); if (n === DONE[m]) setTimeout(() => toast(TITLE[m] + ' — done' + DONE_MSG[m]), 600); hud(); }
   const MLIST = ['adv', 'sock', 'num', 'air', 'bulb'];   // run 13: extendable (missions13.js pushes horse/call/route)
   const errands = () => MLIST.filter(m => S[m] > 0 && S[m] < DONE[m]);
@@ -1539,7 +1539,7 @@ export function createTown(ctx) {
   function talkOutside() {
     audio.ui?.('tick'); let L;
     if (S.adv === 4) L = diner().crow();
-    else if (S.sock === 4 && S.hubcap) { step('sock', 5); S.hubcap = false; S.sock2 = true; save(); L = [['CROW', 'It\'s in the collection.'], ['CROW', 'One sock. Mustard. Undeliverable.'], ['', 'You trade the hubcap.'], ['CROW', 'A fine hubcap. It has seen a lot of road.'], ['', 'Got: one sock.']]; }
+    else if (S.sock === 4 && S.hubcap) { step('sock', 5); S.hubcap = false; S.sock2 = true; save(); L = [['CROW', 'It\'s in the collection.'], ['CROW', 'One sock. Mustard. Undeliverable.'], ['', 'You trade the felt hubcap.'], ['CROW', 'A fine hubcap. Soft.'], ['', 'Got: one sock.']]; }
     else if (S.sock === 4) L = [['CROW', 'It\'s in the collection.'], ['CROW', 'Trades only. I collect hubcaps.'], ['WOLF', 'The car has boots.'], ['CROW', 'Then you have a problem.']];
     else L = [['CROW', 'Everything here is in the collection.'], ['CROW', 'Including you, if you stand there long enough.']];
     outLines = L.slice(); nextOut();
@@ -1552,11 +1552,10 @@ export function createTown(ctx) {
   const STATUE = [[['PLAQUE', 'SUNSPOTS. SAME OLD ONE HORSE TOWN.'], ['PLAQUE', 'This was the town\'s only horse. It still is.']],
     [['PLAQUE', 'Erected 1951. Melted 1951.'], ['PLAQUE', 'Same afternoon.']],
     [['PLAQUE', 'The horse did nothing of note.'], ['PLAQUE', 'We felt it deserved a statue anyway. Nobody else was available.']],
-    [['PLAQUE', 'Do not climb the horse.'], ['PLAQUE', 'The horse has asked.']],
-    [['PLAQUE', 'In 1958 a second horse came through town at one fifty-nine in the morning.'], ['PLAQUE', 'It did not stop. This one did.']],
+    [['PLAQUE', 'Do not climb the horse.'], ['PLAQUE', 'The horse is soft. The ground is not.']],
     [['WOLF', 'Hi, horse.'], ['', 'The horse says nothing. It has said nothing since 1951.']]];
-  const STATUE_W = [[['PLAQUE', 'ITS EYES ARE NORMAL.'], ['PLAQUE', 'STOP LOOKING AT ITS EYES.']], [['', 'The horse is looking at you. It has always been looking at you.'], ['WOLF', 'Don\'t.']],
-    [['PLAQUE', 'ONE HORSE.'], ['PLAQUE', 'THE OTHER ONE KEPT GOING. THE OTHER ONE IS STILL GOING.']]];
+  const STATUE_W = [[['PLAQUE', 'ITS EYES ARE NORMAL.'], ['PLAQUE', 'STOP LOOKING AT ITS EYES.']], [['', 'The horse is looking at you. It has always been looking at you.'], ['WOLF', 'Same old horse.']],
+    [['PLAQUE', 'SAME OLD ONE HORSE TOWN.'], ['PLAQUE', 'SAME OLD ONE HORSE. NEW EYES.']]];
   let statueN = 0;
   const STAT = TSC?.spots?.statue;
   if (STAT && HZ) T.addSpot({ id: 'statue', x: STAT.x, z: STAT.z, r: 3.2, label: () => T.statueLabel?.() || 'READ THE PLAQUE', act: () => T.statueAct?.() || (wildNow() ? STATUE_W[statueN++ % STATUE_W.length] : STATUE[statueN++ % STATUE.length]) });

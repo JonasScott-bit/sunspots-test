@@ -65,7 +65,7 @@ function create({ hud: H }) {
     else { G.wrong++; H.float(sp.x, sp.y, `JUST A ${h.name}`, '#bfc8f2'); H.pill('w', `WRONG ${G.wrong}`); if (!G.said['w' + G.wrong] && G.wrong <= 3) { G.said['w' + G.wrong] = 1; say(['NAN', R.pick(['Not there, dear.', 'Look for the rustle.', 'His eyes are orange. Like a tiny sunset.'])]); } }
   }
   function caught() { G.phase = 'done'; pk.visible = true; sfx.good(); H.hint('GOT HIM', 2);
-    H.say([['', 'A small, round weight in your paws. He is warm. He is chewing something.'], ['NAN', 'Pickles! You were never lost. You were never lost.'], ['BEAR', 'What is he chewing?'], ['NAN', "Don't ask him that."]], () => {
+    H.say([['', 'A small, round, felt weight in your paws. He is warm. He is chewing something.'], ['NAN', 'Pickles! You were never lost. You were never lost.'], ['BEAR', 'What is he chewing?'], ['NAN', "Don't ask him that."]], () => {
       const stars = 1 + (G.wrong <= 3 ? 1 : 0) + (G.shakes <= 1 ? 1 : 0); const suns = ['pk_done']; if (stars === 3) suns.push('pk_star'); if (G.glasses) suns.push('pk_glass');
       ctl.finish({ win: true, stars, title: 'PICKLES IS HOME', lines: [`${Math.round(G.t)} s · ${G.wrong} wrong search${G.wrong === 1 ? '' : 'es'} · ${G.shakes} tin shake${G.shakes === 1 ? '' : 's'}`, 'NAN: "Same time next week, I expect."'], suns }); }); }
   function shake() { if (G.phase !== 'seek' || G.shakes >= 3) return; G.shakes++; sfx.drum(1); sfx.drum(1); tin.rotation.z = 0.6; H.btn.tin.innerHTML = `SHAKE<br>TIN ${3 - G.shakes}`; if (G.shakes >= 3) H.btn.tin.disabled = true;

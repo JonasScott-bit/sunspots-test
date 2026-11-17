@@ -256,7 +256,7 @@ body.dsIn #chatBubble,body.scene #chatBubble,body.dsIn #fuzzo{display:none!impor
         // --- grab: walk into one (paw reach)
         for (const h of DS.heroes) { if (h.got || DS.got >= 5) continue; if (Math.hypot(h.x - S.p.x, h.z - S.p.z) < 0.62) { h.got = true; h.fly = 0.001; DS.got++; setPill(); ctx.playCue?.('sfx_chip_bag');
           if (DS.goal?.hero === h) DS.goal = null;
-          if (DS.got === 1 && !DS.saidFloat) { DS.saidFloat = true; sayNow('wolf', 'I\'ll take one of everything. Twice.', 'vo_wolf_19'); }
+          if (DS.got === 1 && !DS.saidFloat) { DS.saidFloat = true; sayNow('wolf', 'The chips are floating. Of course they are.', 'vo_wolf_18'); }
           else if (DS.got === 2) sayNow('clerk', 'The chips are free-range. They go where they like.', 'vo_clerk_04');
           else if (DS.got === 3) sayNow('clerk', 'The pretzels chose you. Congratulations.', 'vo_clerk_10');
           else if (DS.got === 5) sayNow('clerk', 'Will that be everything, or will you be lingering?', 'vo_clerk_08'); } }

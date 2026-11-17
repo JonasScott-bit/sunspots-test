@@ -1,12 +1,12 @@
 // heron14.js — run 14c: SAVE HERON. Heron is up on top of the Sky Wheel. The wheel is stuck. Nobody asks why.
 //   1 the operator is on break at CORNY DOG CO. · 2 fryer grease from FRY-O-RAMA · 3 grease the lever · 4 Heron wants a fish:
-//   win the big plush fish at BALLOON BLASTER (8 pops) · 5 ride the Sky Wheel to the top and hand it over.
+//   win the big felt fish at BALLOON BLASTER (8 pops) · 5 ride the Sky Wheel to the top and hand it over.
 //   (Heron was waiting to be asked. Heron eats the felt fish.)  Uses the shared errand system (town.js T.M) + carnrides.js hooks.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const _v = new THREE.Vector3(), _e = new THREE.Euler(), _c = new THREE.Color();
-const FISH = 'the big plush fish';
+const FISH = 'the big felt fish';
 
 export function installHeron({ CR, CARN, T, TS, scene, feltMat }) {
   const M = T.M; if (!M || !CR || !CARN) return null; const { S, OBJ, TITLE, DONE, DONE_MSG, TGT } = M; const C = CARN, R = C.rides.wheel, B = C.booths;
@@ -51,7 +51,7 @@ export function installHeron({ CR, CARN, T, TS, scene, feltMat }) {
   const at = (k, d = 0) => ({ x: B[k].front.x + d, z: B[k].front.z });
   TS.spots.c_corndog = { x: op.position.x - 0.2, z: op.position.z - 1.2 * Math.sign(cd.side) * -1 }; TS.spots.c_fry = at('fry');
   R.root.updateMatrixWorld(true); const LEVER = { x: R.x + 7.4, z: R.z + 6.0 }; TS.spots.c_lever = LEVER;
-  OBJ.heron = ['', 'Find the wheel operator (on break at Corny Dog Co.)', 'Get fryer grease (Fry-O-Rama)', 'Grease the Sky Wheel lever', 'Heron wants a fish. Win the big plush fish (Balloon Blaster, 8 pops)', 'Ride the Sky Wheel up to Heron', ''];
+  OBJ.heron = ['', 'Find the wheel operator (on break at Corny Dog Co.)', 'Get fryer grease (Fry-O-Rama)', 'Grease the Sky Wheel lever', 'Heron wants a fish. Win the big felt fish (Balloon Blaster, 8 pops)', 'Ride the Sky Wheel up to Heron', ''];
   TITLE.heron = 'SAVE HERON'; DONE.heron = 6; DONE_MSG.heron = '. Heron got down. The fish did not.';
   TGT.heron = [0, 'c_corndog', 'c_fry', 'c_lever', 'c_game_gallery', 'c_ride_wheel'];
   M.MLIST.push('heron'); S.heron = S.heron || 0;
@@ -77,7 +77,7 @@ export function installHeron({ CR, CARN, T, TS, scene, feltMat }) {
   CR.holdOn = () => CR.ride === 'wheel' && S.heron === 5;
   CR.hold = (k, dt) => { if (k !== 'wheel' || S.heron !== 5) return false; if (topHeld) return true; const a = wrap(podAng(2) - Math.PI / 2); if (a > -0.32 && a < 0.05) { topHeld = true; } return topHeld; };
   CR.onUnboard = (k) => { if (k === 'wheel') topHeld = false; };
-  CR.onGame = (k, ev, g) => { if (k === 'gallery' && ev === 'end' && g.prize === FISH && S.heron === 4) { step(5); g.extra = [['', 'A big plush fish. Heron wanted a fish. This is, technically, a fish.']]; } };
+  CR.onGame = (k, ev, g) => { if (k === 'gallery' && ev === 'end' && g.prize === FISH && S.heron === 4) { step(5); g.extra = [['', 'A big felt fish. Heron wanted a fish. This is, technically, a fish.']]; } };
 
   // ---- walk-up spots
   T.addSpot({ id: 'h_op', x: TS.spots.c_corndog.x, z: TS.spots.c_corndog.z, r: 2.6, on: () => S.heron === 1, label: 'TALK TO THE WHEEL OPERATOR',
@@ -86,13 +86,13 @@ export function installHeron({ CR, CARN, T, TS, scene, feltMat }) {
     act: () => { step(3); return [['FRY-O-RAMA', 'Fryer grease? For a lever?'], ['FRY-O-RAMA', '...Fine. This is Tuesday\'s. Tuesday was a good day.'], ['', 'You get a paper cup of fryer grease. It is warm. It smells like a fair.']]; } });
   T.addSpot({ id: 'h_lever', x: LEVER.x, z: LEVER.z, r: 2.8, on: () => S.heron === 3, label: 'GREASE THE LEVER',
     act: () => { R.held = false; R.cycle = 0; const fishAlready = hasFish(); step(fishAlready ? 5 : 4);
-      return [['', 'Grease. Lever. A long, happy squeak.'], ['', 'The Sky Wheel starts to turn. Heron rides it all the way round. And stays on.'], ['HERON (going past)', 'I\'d come down for a fish.'], fishAlready ? ['WOLF', 'Funny you should say that. I have a big plush fish.'] : ['WOLF', 'Where do I get a fish at a fair?'], fishAlready ? ['HERON (going past)', 'Then come up.'] : ['RING-A-DING (shouting over)', 'BALLOON BLASTER has the big plush fish! Eight pops!']]; } });
+      return [['', 'Grease. Lever. A long, happy squeak.'], ['', 'The Sky Wheel starts to turn. Heron rides it all the way round. And stays on.'], ['HERON (going past)', 'I\'d come down for a fish.'], fishAlready ? ['WOLF', 'Funny you should say that. I have a big felt fish.'] : ['WOLF', 'Where do I get a fish at a fair?'], fishAlready ? ['HERON (going past)', 'Then come up.'] : ['RING-A-DING (shouting over)', 'BALLOON BLASTER has the big felt fish! Eight pops!']]; } });
   T.addSpot({ id: 'h_give', x: R.board.x, z: R.board.z, r: 3.5, ride: true, on: () => S.heron === 5 && CR.ride === 'wheel' && topHeld && R.speed < 0.2, label: 'HAND OVER THE FISH',
     act: () => { const i = CR.prizes.indexOf(FISH); if (i >= 0) CR.prizes.splice(i, 1); CR.addTix(0); step(6); topHeld = false; down = 0.001; R.held = true; R.want = 0;
-      return [['HERON', 'Oh. A fish. For me?'], ['WOLF', 'You said you\'d come down for a fish.'], ['HERON', 'I would have come down if anyone asked.'], ['WOLF', '...You weren\'t stuck?'], ['HERON', 'I was waiting to be asked. Nobody asks Heron anything.'], ['WOLF', 'Do you want to come down?'], ['HERON', 'Yes. Thank you for asking.'], ['', 'Heron eats the big plush fish. All of it. Stuffing and all.']]; } });
+      return [['HERON', 'Oh. A fish. For me?'], ['WOLF', 'You said you\'d come down for a fish.'], ['HERON', 'I would have come down if anyone asked.'], ['WOLF', '...You weren\'t stuck?'], ['HERON', 'I was waiting to be asked. Nobody asks Heron anything.'], ['WOLF', 'Do you want to come down?'], ['HERON', 'Yes. Thank you for asking.'], ['', 'Heron eats the big felt fish. All of it. Felt and all.']]; } });
   // after the ending, Heron hangs about by the wheel and is asked things
   T.addSpot({ id: 'h_after', x: R.board.x + 2.6, z: R.board.z + 1.0, r: 2.2, on: () => S.heron >= 6 && down > 2, label: 'ASK HERON SOMETHING',
-    act: () => [['HERON', ['Yes, I\'m fine. Thank you for asking.', 'The fish was a little dry. It was a prize.', 'Ask me something else. Anything. I\'ll wait.', 'I\'ll ride again tomorrow. Someone may ask.'][(Math.random() * 4) | 0]]] });
+    act: () => [['HERON', ['Yes, I\'m fine. Thank you for asking.', 'The fish was a little dry. It was felt.', 'Ask me something else. Anything. I\'ll wait.', 'I\'ll ride again tomorrow. Someone may ask.'][(Math.random() * 4) | 0]]] });
 
   // ---- per frame
   const from = new THREE.Vector3(), to = new THREE.Vector3();

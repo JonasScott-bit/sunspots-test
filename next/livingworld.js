@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { textPlane } from './townkit.js';
 import { GRID } from './townscape.js';
 import { gesturer, palGesture, PAL_POOL } from './idles.js';   // run 15
+import { folk as feltFolk, FOLK, animFolk, folkTris } from './feltfolk.js';
 
 const TAU = Math.PI * 2, R = Math.random, pick = (a) => a[Math.floor(R() * a.length)];
 const wrapA = (a) => { while (a > Math.PI) a -= TAU; while (a < -Math.PI) a += TAU; return a; };
@@ -27,45 +28,10 @@ export function installLivingWorld({ T, TS, level, wolfState, scene, camera, fel
   const toast = (s) => T.M?.toast?.(s);
   const logEv = (s) => { LW.log.push(s); if (LW.log.length > 30) LW.log.shift(); };
 
-  // ------------------------------------------------------------------ felt pals (no rigs: a pivot per leg + bob)
-  function pal({ body = '#c9a37a', head, ears = 'round', ear = null, snout = null, hat = null, shirt = null, h = 1.0, tail = null, earIn = null, eyes = null, nose = null, vest = null, pants = null, hands = null, feet = null, bigFeet = false, puff = null }) {   // optional extras match missions/kit.js pal(): earIn, eyes, vest, pants, hands, feet
-    const g = new THREE.Group(), s = h; head ||= body;
-    const torso = mesh(new THREE.CapsuleGeometry(0.3 * s, 0.38 * s, 2, 7), shirt || body, [0, 0.78 * s, 0], g);
-    if (vest) { mesh(new THREE.CylinderGeometry(0.312 * s, 0.312 * s, 0.4 * s, 12), vest, [0, -0.005 * s, 0], torso); mesh(new THREE.SphereGeometry(0.312 * s, 12, 6, 0, TAU, 0.42, Math.PI / 2 - 0.42), vest, [0, 0.19 * s, 0], torso); if (shirt) for (const sx of [-1, 1]) { const k = mesh(new THREE.BoxGeometry(0.13 * s, 0.07 * s, 0.03 * s), shirt, [sx * 0.065 * s, 0.37 * s, 0.215 * s], torso); k.rotation.set(-0.75, 0, sx * 0.55); } }   // shirt collar points over the vest   // a vest over the shirt: the collar and sleeves stay shirt-coloured
-    if (pants) mesh(new THREE.SphereGeometry(0.305 * s, 10, 5, 0, TAU, Math.PI / 2, Math.PI / 2), pants, [0, -0.19 * s, 0], torso);
-    if (puff) mesh(new THREE.SphereGeometry(0.1 * s, 6, 5), puff, [0, -0.22 * s, -0.3 * s], torso);   // cottontail
-    const hd = new THREE.Group(); hd.position.set(0, 1.38 * s, 0); g.add(hd);
-    mesh(new THREE.SphereGeometry(0.27 * s, 8, 6), head, [0, 0, 0], hd);
-    for (const sx of [-1, 1]) {
-      if (ears === 'round') mesh(new THREE.SphereGeometry(0.1 * s, 5, 4), ear || head, [sx * 0.2 * s, 0.22 * s, -0.02], hd);
-      if (ears === 'long') { const e = mesh(new THREE.CapsuleGeometry(0.06 * s, 0.32 * s, 2, 5), ear || head, [sx * 0.12 * s, 0.38 * s, -0.04], hd); e.rotation.z = -sx * 0.25;
-        if (earIn) { const i = mesh(new THREE.CapsuleGeometry(0.036 * s, 0.26 * s, 2, 5), earIn, [sx * 0.12 * s, 0.38 * s, -0.04 + 0.034 * s], hd); i.rotation.z = -sx * 0.25; } }
-      if (ears === 'pointy') { const e = mesh(new THREE.ConeGeometry(0.09 * s, 0.22 * s, 4), ear || head, [sx * 0.16 * s, 0.28 * s, 0], hd); e.rotation.z = -sx * 0.3; }
-      if (ears === 'antenna') { const e = mesh(new THREE.CylinderGeometry(0.012 * s, 0.012 * s, 0.4 * s, 3), '#3a2a2a', [sx * 0.1 * s, 0.38 * s, 0], hd); e.rotation.z = -sx * 0.4; mesh(new THREE.SphereGeometry(0.05 * s, 4, 3), ear || '#3a2a2a', [sx * 0.19 * s, 0.56 * s, 0], hd); }
-      if (eyes) { mesh(new THREE.SphereGeometry(0.07 * s, 8, 6), eyes, [sx * 0.1 * s, 0.06 * s, 0.2 * s], hd); mesh(new THREE.SphereGeometry(0.032 * s, 5, 4), '#1d1416', [sx * 0.1 * s, 0.06 * s, 0.267 * s], hd); }
-      else mesh(new THREE.SphereGeometry(0.035 * s, 4, 3), '#1d1416', [sx * 0.1 * s, 0.05 * s, 0.24 * s], hd);
-    }
-    if (snout) mesh(new THREE.SphereGeometry(0.12 * s, 6, 4), snout, [0, -0.06 * s, 0.24 * s], hd).scale.set(1, 0.75, 1.1);
-    if (nose) mesh(new THREE.SphereGeometry(0.04 * s, 5, 4), nose, [0, -0.02 * s, snout ? 0.365 * s : 0.27 * s], hd).scale.set(1.3, 0.8, 1);
-    if (hat) { mesh(new THREE.CylinderGeometry(0.3 * s, 0.3 * s, 0.03 * s, 9), hat, [0, 0.22 * s, 0], hd); mesh(new THREE.CylinderGeometry(0.17 * s, 0.19 * s, 0.2 * s, 9), hat, [0, 0.32 * s, 0], hd); }
-    if (tail) { const t = mesh(new THREE.CapsuleGeometry(0.06 * s, 0.4 * s, 2, 5), tail, [0, 0.6 * s, -0.32 * s], g); t.rotation.x = -0.9; }
-    const legs = [], arms = [];
-    for (const sx of [-1, 1]) {
-      const lp = new THREE.Group(); lp.position.set(sx * 0.13 * s, 0.42 * s, 0); g.add(lp); mesh(new THREE.CylinderGeometry(pants ? 0.085 * s : 0.07 * s, pants ? 0.1 * s : 0.08 * s, 0.42 * s, 6), pants || body, [0, -0.21 * s, 0], lp); legs.push(lp);
-      if (feet) mesh(new THREE.SphereGeometry(0.1 * s, 7, 5), feet, [0, -0.41 * s, 0.06 * s], lp).scale.set(1, 0.55, bigFeet ? 2.1 : 1.4);
-      const ap = new THREE.Group(); ap.position.set(sx * 0.33 * s, 1.0 * s, 0); g.add(ap); mesh(new THREE.CapsuleGeometry(0.055 * s, 0.32 * s, 2, 5), hands && shirt ? shirt : body, [0, -0.2 * s, 0], ap); ap.rotation.z = sx * 0.15; arms.push(ap);
-      if (hands) mesh(new THREE.SphereGeometry(0.075 * s, 6, 5), hands, [0, -0.42 * s, 0], ap);   // sleeves in the shirt colour, the paws showing
-    }
-    g.userData = { torso, hd, legs, arms, h: s, ph: R() * 10 };
-    return g;
-  }
+  // ------------------------------------------------------------------ the town cast: feltfolk.js characters (felt + clay, ref-matched; 0 rigs, 2 LODs)
+  const pal = (k) => { const g = feltFolk(FOLK[k]); g.userData.shadow.visible = true; return g; };
   function animPal(g, dt, spd, t) {   // walk cycle + idle bob
-    const u = g.userData; u.ph += dt * (spd > 0.05 ? 4 + spd * 2.2 : 1.5); const sw = spd > 0.05 ? Math.min(0.7, 0.25 + spd * 0.18) : 0;
-    u.legs[0].rotation.x = Math.sin(u.ph) * sw; u.legs[1].rotation.x = -Math.sin(u.ph) * sw;
-    u.arms[0].rotation.x = -Math.sin(u.ph) * sw * 0.8; u.arms[1].rotation.x = Math.sin(u.ph) * sw * 0.8;
-    u.torso.position.y = 0.78 * u.h + (spd > 0.05 ? Math.abs(Math.sin(u.ph)) * 0.05 : Math.sin(u.ph) * 0.012);
-    u.hd.position.y = u.torso.position.y + 0.6 * u.h; u.hd.rotation.z = Math.sin(u.ph * 0.5) * 0.06;
-    u.hd.rotation.x = u.hd.rotation.y = 0; u.arms[0].rotation.z = -0.15; u.arms[1].rotation.z = 0.15;   // run 15: random idle gestures when standing
+    const u = g.userData; animFolk(g, dt, t, { spd });   // walk cycle + idle (feltfolk), then run 15's random idle gestures when standing
     u.G ||= gesturer(PAL_POOL, 'pal'); u.G.update(dt, spd > 0.05 ? 0 : 1); palGesture(u, u.G, t);
   }
   const talkArms = (g, t) => { const u = g.userData; u.arms[0].rotation.x = -0.8 + Math.sin(t * 7) * 0.5; u.arms[1].rotation.x = -0.4 + Math.cos(t * 5) * 0.4; };
@@ -80,7 +46,7 @@ export function installLivingWorld({ T, TS, level, wolfState, scene, camera, fel
     for (const sx of [-0.5, 0.5]) mesh(new THREE.SphereGeometry(0.12, 5, 4), '#fff3c8', [sx, 0.82, 1.62], body);
     const wheels = [];
     for (const [x, z] of [[-0.78, 1.0], [0.78, 1.0], [-0.78, -1.0], [0.78, -1.0]]) { const w = mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.26, 9), '#2a2426', [x, 0.34, z], g); w.rotation.z = Math.PI / 2; wheels.push(w); }
-    if (driver) { driver.scale.setScalar(0.62); driver.position.set(-0.3, 0.42, -0.15); body.add(driver); }
+    if (driver) { driver.scale.setScalar(0.62); driver.position.set(-0.3, 0.42, -0.15); if (driver.userData.shadow) driver.userData.shadow.visible = false; body.add(driver); }
     if (roof) { const s = textPlane(roof, 1.6, 0.42, { bg: '#f6efe0', fg: '#3a1f2a', font: 'bold', family: 'Futura, Avenir, sans-serif' }); s.position.set(0, 1.85, -0.25); body.add(s);
       const s2 = s.clone(); s2.rotation.y = Math.PI; body.add(s2); mesh(new THREE.BoxGeometry(0.1, 0.32, 0.1), '#3a1f2a', [0, 1.55, -0.25], body); tris += 4; }
     g.userData = { body, wheels }; return g;
@@ -101,28 +67,13 @@ export function installLivingWorld({ T, TS, level, wolfState, scene, camera, fel
   const LANES = { A: lane(LOOPS.A, false), Ar: lane(LOOPS.A, true), B: lane(LOOPS.B, false), Br: lane(LOOPS.B, true) };
 
   // the cast (made-up names, felt critters)
-  const CAST = {
-    moth: () => pal({ body: '#b8a890', head: '#d8ccb4', ears: 'antenna', shirt: '#6a7a5a' }),
-    goat: () => pal({ body: '#e8e0d0', ears: 'pointy', snout: '#d8ccb8', shirt: '#c64246' }),
-    pig: () => pal({ body: '#f0b4b0', ears: 'pointy', snout: '#e89a98', shirt: '#3a4a78' }),
-    duck: () => pal({ body: '#f2ece0', snout: '#f0a43a', ears: 'none', shirt: '#7fc8c0' }),
-    cat: () => pal({ body: '#e8a060', ears: 'pointy', shirt: '#a8d4b0', tail: '#e8a060' }),
-    rabbit: () => pal({ body: '#8c86a6', ears: 'long', ear: '#8c86a6', earIn: '#e0a090', snout: '#c9c2d4', nose: '#e0806e', eyes: '#f2c83a', shirt: '#f0dcb0', vest: '#3f8a3e', pants: '#d89a2a', hands: '#8c86a6', feet: '#8c86a6', bigFeet: true, puff: '#c9c2d4' }),   // the missions' Rabbit (bible ref): lavender-grey fur, pink inner ears, yellow eyes, green vest over a cream shirt, mustard trousers, grey paws
-    dog: () => pal({ body: '#a07850', ears: 'long', ear: '#6b4a32', snout: '#c8a888', shirt: '#e89ab0' }),
-    hen: () => pal({ body: '#f6f0e4', head: '#f6f0e4', ears: 'none', snout: '#f0b04a', shirt: '#e0705a', hat: null }),
-    possum: () => pal({ body: '#b8b4b0', head: '#e8e2dc', ears: 'round', ear: '#2a2426', snout: '#f0c8c8', shirt: '#f2ece0' }),
-    raccoon: () => pal({ body: '#8a8680', ears: 'round', snout: '#e8e2dc', shirt: '#d86a3a', tail: '#5a5652' }),
-    sheep: () => pal({ body: '#f2ece0', head: '#3a3436', ears: 'round', ear: '#3a3436', shirt: '#8ab0d8' }),
-    bear: () => pal({ body: '#7a5236', ears: 'round', snout: '#c8a07a', shirt: '#c64246', h: 1.15 }),
-    gecko: () => pal({ body: '#8ac46a', head: '#9ad47a', ears: 'none', snout: '#9ad47a', shirt: '#f2ece0', tail: '#8ac46a', h: 0.9 }),
-    fuzz: () => pal({ body: '#e6dcc8', head: '#efe6d4', ears: 'long', ear: '#c8b498', snout: '#f6efe2', shirt: '#2f3f6a', hat: '#2f3f6a' }),
-  };
+  const CAST = Object.fromEntries(['moth', 'goat', 'pig', 'duck', 'cat', 'lemon', 'rabbit', 'dog', 'dot', 'sal', 'reggie', 'larry', 'nan', 'bear', 'gecko', 'fuzz'].map((k) => [k, () => pal(k)]));
 
   const CARS = [
     { id: 'cab', lane: 'A', s: 20, v: 6.5, col: ['#f0d27a', '#2a2426'], who: 'moth', name: 'MOTH', roof: "MOTH'S RIDES" },
     { id: 'plum', lane: 'A', s: 150, v: 7, col: CAR_COLS[0], who: 'goat', name: 'GOAT IN A HURRY' },
     { id: 'mint', lane: 'Ar', s: 60, v: 6.5, col: CAR_COLS[1], who: 'duck', name: 'DUCK' },
-    { id: 'lemon', lane: 'Ar', s: 230, v: 7.5, col: ['#d86a3a', '#f2e6d0'], who: 'cat', name: 'THE LEMON KID' },
+    { id: 'lemon', lane: 'Ar', s: 230, v: 7.5, col: ['#d86a3a', '#f2e6d0'], who: 'lemon', name: 'THE LEMON KID' },
     { id: 'cream', lane: 'B', s: 40, v: 6, col: CAR_COLS[3], who: 'pig', name: 'PIG' },
     { id: 'navy', lane: 'Br', s: 120, v: 6.5, col: CAR_COLS[5], who: 'dog', name: 'DOG' },
   ];
@@ -136,12 +87,9 @@ export function installLivingWorld({ T, TS, level, wolfState, scene, camera, fel
 
   // ------------------------------------------------------------------ pedestrians on the sidewalks
   const zN = ZA0 - 5 - 1.75, zS = ZA0 + 5 + 1.75, xW = XB1 - 5 - 1.75, xE = XB1 + 5 + 1.75;
-  const PEDS = [
+  const PEDS = [   // Nov 16 quality pass: four real townsfolk on foot (fewer, better) instead of seven toy walkers
     { who: 'rabbit', name: 'RABBIT', path: [[-92, zS], [-52, zS]] },
-    { who: 'sheep', name: 'NAN', path: [[-30, zS], [28, zS]], owner: true },
-    { who: 'duck', name: 'DUCK', path: [[-95, zN], [-52, zN]] },
-    { who: 'pig', name: 'PIG', path: [[xW, -50], [xW, -12]] },
-    { who: 'cat', name: 'CAT', path: [[xE, 20], [xE, 55]] },
+    { who: 'nan', name: 'NAN', path: [[-30, zS], [28, zS]], owner: true },
     { who: 'dog', name: 'DOG', path: [[-28, zN], [30, zN]] },
     { who: 'goat', name: 'GOAT', path: [[xE, -50], [xE, -12]] },
   ];
@@ -154,7 +102,7 @@ export function installLivingWorld({ T, TS, level, wolfState, scene, camera, fel
   const side = (A, d) => ({ x: A.x + Math.cos(A.ry) * d, z: A.z - Math.sin(A.ry) * d });
   // diner argument: DOT (hen, waitress) vs SAL (possum, cook)
   const dA = side(DINER, -1.1), dB = side(DINER, 1.1);
-  const dot = actor('hen', dA.x, dA.z, DINER.ry + Math.PI / 2), sal = actor('possum', dB.x, dB.z, DINER.ry - Math.PI / 2);
+  const dot = actor('dot', dA.x, dA.z, DINER.ry + Math.PI / 2), sal = actor('sal', dB.x, dB.z, DINER.ry - Math.PI / 2);
   // hoops: Bear vs Gecko on the court apron, a felt hoop + ball
   const hoopAt = side(COURT, 3.2), bearAt = side(COURT, -1.5), geckoAt = side(COURT, 0.4);
   const hoop = new THREE.Group(); hoop.position.set(hoopAt.x, 0, hoopAt.z); hoop.rotation.y = COURT.ry - Math.PI / 2; G.add(hoop);
@@ -164,8 +112,8 @@ export function installLivingWorld({ T, TS, level, wolfState, scene, camera, fel
   const ball = mesh(new THREE.SphereGeometry(0.13, 7, 5), '#d86a3a', [bearAt.x, 1.3, bearAt.z], G);
   // pool hall: Larry Byrd (felt vulture stand-in, lighter than the room model) hustling REGGIE (raccoon)
   const lA = side(POOL, -0.9), lB = side(POOL, 0.9);
-  const larry = actor('possum', lA.x, lA.z, POOL.ry + Math.PI / 2); larry.traverse(o => { if (o.isMesh && o.material === mat('#b8b4b0')) o.material = mat('#2a2422'); if (o.isMesh && o.material === mat('#e8e2dc')) o.material = mat('#c4473a'); if (o.isMesh && o.material === mat('#f2ece0')) o.material = mat('#2f55a8'); });
-  const reggie = actor('raccoon', lB.x, lB.z, POOL.ry - Math.PI / 2);
+  const larry = actor('larry', lA.x, lA.z, POOL.ry + Math.PI / 2);
+  const reggie = actor('reggie', lB.x, lB.z, POOL.ry - Math.PI / 2);
   const coin = mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.012, 8), '#e8c45a', [lA.x, 1.2, lA.z], G);
   // Moth's cab stand on Main (south kerb, eastbound lane)
   const STAND = { x: -60, z: ZA0 + 1.9 }; { const pole = new THREE.Group(); pole.position.set(STAND.x, 0, ZA0 + 5.6); G.add(pole); mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.6, 5), '#6b5644', [0, 1.3, 0], pole);
@@ -177,8 +125,8 @@ export function installLivingWorld({ T, TS, level, wolfState, scene, camera, fel
       lines: [['BEAR', 'That hoop was there when I got here. So it is mine.'], ['GECKO', 'Bear thinks the hoop is Bear\'s. The hoop belongs to the sky.'], ['', 'Grudge match at the court. First to one point. It has been going for three days.'], ['BEAR', 'Gecko and I are friends now. We share the hoop. Gecko gets the bottom half.']] },
     romance: { title: 'DOT + LARRY', flyers: ['SECRET ADMIRER\nSEEKS DOT\n(THE DINER)', 'DOT: WHO\nKEEPS LEAVING\nCHALK ON MY TIP', 'LARRY BYRD\nIS A VULTURE\n- SAL', 'DOT + LARRY\nDINNER FOR TWO\n(THE DINER)'],
       lines: [['DOT', 'Somebody leaves me pool chalk for a tip. Every day. Blue.'], ['SAL', 'It\'s Larry Byrd. I know it\'s Larry Byrd. Larry is a vulture, Dot.'], ['LARRY BYRD', 'Dot. The waitress. I\'ve never lost a bet. I\'m scared to make this one.'], ['DOT', 'Larry asked me to dinner. At the diner. Where I work. Sal is cooking. Sal is furious.']] },
-    pet: { title: 'LOST: PICKLES', flyers: ['LOST:\nPICKLES\nROUND.\nJUDGEMENTAL.', 'STILL LOST\nPICKLES\nLIKES SEEDS + CABS', 'PICKLES WAS\nSEEN IN A CAB\nHAVE YOU SEEN', 'PICKLES IS\nHOME. THANK\nYOU, WOLF'],
-      lines: [['NAN', 'Have you seen Pickles? Round. Judgemental. Answers to nothing. That\'s the cat\'s name, not his.'], ['MOTH', 'Had a hamster in the back today. Paid in seeds. I gave change.'], ['NAN', 'Moth says Pickles rode to the horse. The statue. Pickles loves that horse.'], ['NAN', 'Pickles is home. Pickles is asleep in a teacup. Thank you, Wolf.']] },
+    pet: { title: 'LOST: PICKLES', flyers: ['LOST\nPICKLES\n(A FELT HAMSTER)', 'STILL LOST\nPICKLES\nLIKES SEEDS + CABS', 'PICKLES WAS\nSEEN IN A CAB\nHAVE YOU SEEN', 'PICKLES IS\nHOME. THANK\nYOU, WOLF'],
+      lines: [['NAN', 'Have you seen Pickles? Small. Round. Felt. Answers to nothing, like the cat.'], ['MOTH', 'Had a hamster in the back today. Paid in seeds. I gave change.'], ['NAN', 'Moth says Pickles rode to the horse. The statue. Pickles loves that horse.'], ['NAN', 'Pickles is home. Pickles is asleep in a teacup. Thank you, Wolf.']] },
   };
   const FLY_AT = [[-58.4, ZA0 + 8.4], [-33.2, ZA0 + 8.4], [-106, ZA0 - 8.4]];
   const flyers = {};
@@ -194,7 +142,7 @@ export function installLivingWorld({ T, TS, level, wolfState, scene, camera, fel
   for (const s of [-1, 1]) mesh(new THREE.SphereGeometry(0.05, 4, 3), '#e8b070', [s * 0.09, 0.27, 0.05], pickles); mesh(new THREE.SphereGeometry(0.02, 3, 2), '#1d1416', [0, 0.18, 0.18], pickles);
   const PK = { x: -71, z: 13.6 };   // under the bench on the Main St sidewalk
   pickles.position.set(PK.x, 0, PK.z); pickles.visible = false; G.add(pickles); let carry = false;
-  T.addSpot({ id: 'lw_pickles', x: PK.x, z: PK.z, r: 2.2, on: () => LW.arcs.pet === 2 && !carry, label: 'PICK UP PICKLES', act: () => { carry = true; pickles.visible = false; logEv('pickles picked'); return [['', 'A small, round hamster. He is looking at the horse.'], ['', 'You pick up Pickles. Pickles allows this.']]; } });
+  T.addSpot({ id: 'lw_pickles', x: PK.x, z: PK.z, r: 2.2, on: () => LW.arcs.pet === 2 && !carry, label: 'PICK UP PICKLES', act: () => { carry = true; pickles.visible = false; logEv('pickles picked'); return [['', 'A small, round, felt hamster. It is looking at the horse.'], ['', 'You pick up Pickles. Pickles allows this.']]; } });
   const nan = PEDS.find(p => p.owner);
   const nanSpot = T.addSpot({ id: 'lw_nan', x: 0, z: 0, r: 2.4, on: () => carry, label: 'GIVE PICKLES TO NAN', act: () => { carry = false; setArc('pet', 3); T.M?.toast?.('LOST: PICKLES — found.'); return [['NAN', 'PICKLES.'], ['NAN', 'Where were you? The horse? Of course the horse.'], ['', 'Pickles goes in the pocket. Pickles was always going in the pocket.']]; } });
 
@@ -217,7 +165,7 @@ export function installLivingWorld({ T, TS, level, wolfState, scene, camera, fel
     caught: [['OFFICER FUZZ', 'Alright, alright. License and fur.'], ['OFFICER FUZZ', 'This is a citation. It says "a lot". Have a good day.'], ['', 'The Fuzz-o-meter resets. Officer Fuzz waddles back to the doughnut.']],
     escape: [['OFFICER FUZZ', 'Lost the fuzzy one. Lunch.']],
     ped: { normal: [['', 'Evening. Morning. Whatever this is.'], ['', 'Have you seen the horse? The statue one?'], ['', 'Warm one tonight. Every night is a warm one.'], ['', 'The store closes at two. It always has.'], ['', 'I\'m walking. That\'s it. That\'s the errand.']], bump: [['', 'HEY.'], ['', 'Watch the tail!'], ['', 'Rude. Fuzzy, but rude.'], ['', 'I\'m telling Officer Fuzz.']] },
-    wild: [['', 'THE STREET IS MELTING. NOBODY PANIC. EVERYBODY DANCE.'], ['', 'WADDLE WADDLE WADDLE.'], ['', 'HONK IF YOU CAN STILL FIND YOUR HORN.'], ['', 'MY HAT IS A SOUP.']],
+    wild: [['', 'THE STREET IS MELTING. NOBODY PANIC. EVERYBODY DANCE.'], ['', 'WADDLE WADDLE WADDLE.'], ['', 'HONK IF YOU\'RE MELTING.'], ['', 'MY HAT IS A SOUP.']],
   };
 
   // ------------------------------------------------------------------ HUD: the Fuzz-o-meter
@@ -334,7 +282,7 @@ export function installLivingWorld({ T, TS, level, wolfState, scene, camera, fel
       if (R() < dt * 0.4) honk(cop.p);
       if (d < 3.2) { // caught
         if (cop.target === 'wolf') { LW.fuzz = 0; cop.mode = 'return'; logEv('caught'); T.outSay?.(LINES.caught); }
-        else { const c = CARBY[cop.target]; c.chased = false; c.stopT = 6; cop.mode = 'return'; runLines('chase', () => cop.p, [['OFFICER FUZZ', 'Pull over. Over. More over.'], ['THE LEMON KID', 'I was waddling within the waddle limit!'], ['OFFICER FUZZ', 'Warning. A stern one.']]); }
+        else { const c = CARBY[cop.target]; c.chased = false; c.stopT = 6; cop.mode = 'return'; runLines('chase', () => cop.p, [['OFFICER FUZZ', 'Pull over. Over. More over.'], ['THE LEMON KID', 'I was waddling within the waddle limit!'], ['OFFICER FUZZ', 'Warning. A felt one.']]); }
         renderHud();
       } else if (cop.lost > 8 || (cop.target !== 'wolf' && cop.t > 40)) { if (cop.target === 'wolf') { LW.fuzz = 1; say('OFFICER FUZZ', LINES.escape[0][1], () => cop.p); toast('You lost Officer Fuzz.'); logEv('escaped'); } else if (CARBY[cop.target]) CARBY[cop.target].chased = false; cop.mode = 'return'; renderHud(); }
     } else if (cop.mode === 'return') {
@@ -391,6 +339,6 @@ export function installLivingWorld({ T, TS, level, wolfState, scene, camera, fel
   };
 
   LW.tris = tris; LW.scT = scT; LW.cop = cop; LW.offense = offense; LW.dispatch = dispatch; LW.startEvent = startEvent; LW.setArc = setArc; LW.fender = fender; LW.carry = () => carry; LW.at = { DINER, POOL, COURT, STAND, PK, hoop: hoopAt };
-  LW.stats = () => ({ tris, cars: CARS.length + 1, peds: PEDS.length, actors: 7, rigs: 0, visible: G.children.filter(o => o.visible).length });
+  LW.stats = () => ({ tris, folkTris: [...CARS.map(c => c.root), cop.root, ...PEDS.map(p => p.root), dot, sal, bear, gecko, larry, reggie].reduce((n, r) => { r.traverse(o => { if (o.userData?.base) n += folkTris(o, o.userData.lodLvl || 0); }); return n; }, 0), cars: CARS.length + 1, peds: PEDS.length, actors: 6, rigs: 0, visible: G.children.filter(o => o.visible).length });
   return LW;
 }

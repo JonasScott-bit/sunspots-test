@@ -12,7 +12,8 @@
 // QA: ?snackrun auto-starts after the title. window.__snackrun = { start, go, quit, S, jump(m), arrive(), pick(id), checkout(), home(), shots }.
 import * as THREE from 'three';
 import { playCinematic, CINE } from '../cinematic.js';
-import { NIGHT as BASE_NIGHT } from '../level.js';   // the opening level is night too (?day = old look, QA only)   // shared clip player (TAP FOR SOUND, HOLD TO SKIP)
+import { NIGHT as BASE_NIGHT } from '../level.js';
+import { folk as feltFolk, FOLK, palSpec, animFolk, feltCow } from '../feltfolk.js';   // the opening level is night too (?day = old look, QA only)   // shared clip player (TAP FOR SOUND, HOLD TO SKIP)
 
 const SCALE = 11;                       // game seconds per real second (1:40 -> 2:00 = ~109 s of real driving)
 const T0 = 6000, CLOSE = 7200, STAR_HOME = 8100;   // 1:40:00, 2:00:00, 2:15:00 (seconds after midnight)
@@ -62,44 +63,9 @@ export function installSnackRun(C) {
   const glowTex = canvasTex(128, 128, (g) => { const gr = g.createRadialGradient(64, 64, 2, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.35, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); });
   const glowSprite = (c, sx, sy, o = 0.7) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: c, transparent: true, opacity: o, depthWrite: false, blending: THREE.AdditiveBlending, fog: false })); s.scale.set(sx, sy, 1); return s; };
 
-  // felt pals (primitive bodies + googly eyes), one per town character
-  function pal({ body = '#c9a37a', head, ears = 'round', ear, snout, hat, shirt, h = 1, beak, horns, tail, wings, tent }) {
-    const g = new THREE.Group(), s = h; head ||= body;
-    const torso = mesh(new THREE.CapsuleGeometry(0.3 * s, 0.38 * s, 2, 8), shirt || body, [0, 0.78 * s, 0], g);
-    const hd = new THREE.Group(); hd.position.set(0, 1.38 * s, 0); g.add(hd);
-    mesh(new THREE.SphereGeometry(0.28 * s, 10, 7), head, [0, 0, 0], hd);
-    for (const sx of [-1, 1]) {
-      if (ears === 'round') mesh(new THREE.SphereGeometry(0.1 * s, 6, 4), ear || head, [sx * 0.2 * s, 0.22 * s, -0.02], hd);
-      if (ears === 'pointy') mesh(new THREE.ConeGeometry(0.09 * s, 0.22 * s, 5), ear || head, [sx * 0.16 * s, 0.28 * s, 0], hd).rotation.z = -sx * 0.3;
-      if (ears === 'antenna') { mesh(new THREE.CylinderGeometry(0.012 * s, 0.012 * s, 0.42 * s, 3), '#3a2a2a', [sx * 0.1 * s, 0.4 * s, 0], hd).rotation.z = -sx * 0.4; mesh(new THREE.SphereGeometry(0.06 * s, 5, 4), ear || '#3a2a2a', [sx * 0.19 * s, 0.6 * s, 0], hd); }
-      // googly eyes: white + dark pupil
-      mesh(new THREE.SphereGeometry(0.075 * s, 8, 6), '#f6f2e8', [sx * 0.11 * s, 0.07 * s, 0.22 * s], hd);
-      mesh(new THREE.SphereGeometry(0.035 * s, 6, 4), '#1d1416', [sx * 0.11 * s, 0.07 * s, 0.29 * s], hd);
-      if (horns) { const hr = mesh(new THREE.TorusGeometry(0.13 * s, 0.05 * s, 5, 10, Math.PI * 1.4), horns, [sx * 0.24 * s, 0.1 * s, -0.02], hd); hr.rotation.set(0, sx * Math.PI / 2, 0.6); }
-      if (wings) { const wg = mesh(new THREE.SphereGeometry(0.42 * s, 8, 5), wings, [sx * 0.34 * s, 0.95 * s, -0.22 * s], g); wg.scale.set(0.22, 1, 0.75); wg.rotation.z = -sx * 0.5; }
-    }
-    if (snout) mesh(new THREE.SphereGeometry(0.13 * s, 8, 5), snout, [0, -0.07 * s, 0.24 * s], hd).scale.set(1, 0.75, 1.1);
-    if (beak) mesh(new THREE.ConeGeometry(0.06 * s, 0.5 * s, 6), beak, [0, -0.04 * s, 0.45 * s], hd).rotation.x = Math.PI / 2;
-    if (hat) { mesh(new THREE.CylinderGeometry(0.32 * s, 0.32 * s, 0.03 * s, 10), hat, [0, 0.22 * s, 0.04 * s], hd); mesh(new THREE.CylinderGeometry(0.2 * s, 0.22 * s, 0.18 * s, 10), hat, [0, 0.31 * s, 0], hd); }
-    if (tail) mesh(new THREE.CapsuleGeometry(0.07 * s, 0.5 * s, 2, 6), tail, [0, 0.4 * s, -0.4 * s], g).rotation.x = -1.1;
-    const legs = [], arms = [];
-    for (const sx of [-1, 1]) {
-      const lp = new THREE.Group(); lp.position.set(sx * 0.13 * s, 0.42 * s, 0); g.add(lp); mesh(new THREE.CylinderGeometry(0.07 * s, 0.08 * s, 0.42 * s, 6), tent || body, [0, -0.21 * s, 0], lp); legs.push(lp);
-      const ap = new THREE.Group(); ap.position.set(sx * 0.33 * s, 1.0 * s, 0); g.add(ap); mesh(new THREE.CapsuleGeometry(0.06 * s, 0.32 * s, 2, 6), tent || shirt || body, [0, -0.2 * s, 0], ap); ap.rotation.z = sx * 0.15; arms.push(ap);
-    }
-    if (tent) for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2 + 0.4; mesh(new THREE.CapsuleGeometry(0.045 * s, 0.3 * s, 2, 5), tent, [Math.sin(a) * 0.22 * s, 0.15 * s, Math.cos(a) * 0.22 * s], g).rotation.set(Math.cos(a) * 0.6, 0, -Math.sin(a) * 0.6); }
-    g.userData = { torso, hd, legs, arms, h: s, ph: R() * 10, wave: 0 };
-    g.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
-    return g;
-  }
-  function animPal(g, dt, t, { wave = 0, walk = 0 } = {}) {
-    const u = g.userData; u.ph += dt * (walk ? 7 : 1.6);
-    const sw = walk ? 0.6 : 0; u.legs[0].rotation.x = Math.sin(u.ph) * sw; u.legs[1].rotation.x = -Math.sin(u.ph) * sw;
-    u.torso.position.y = 0.78 * u.h + (walk ? Math.abs(Math.sin(u.ph)) * 0.05 : Math.sin(u.ph) * 0.015); u.hd.position.y = u.torso.position.y + 0.6 * u.h;
-    u.hd.rotation.z = Math.sin(u.ph * 0.5) * 0.07;
-    u.arms[0].rotation.x = walk ? -Math.sin(u.ph) * 0.5 : 0; u.arms[1].rotation.x = walk ? Math.sin(u.ph) * 0.5 : 0;
-    if (wave > 0) { u.arms[1].rotation.z = -2.5 + Math.sin(t * 9) * 0.45 * wave; u.arms[1].rotation.x = 0; } else u.arms[1].rotation.z = 0.15;
-  }
+  // the cast: feltfolk.js characters (felt + clay, ref-matched, 2 LODs, 0 rigs); one-off figures go through palSpec()
+  const pal = (o) => feltFolk(typeof o === 'string' ? FOLK[o] : palSpec(o));
+  const animPal = (g, dt, t, o = {}) => animFolk(g, dt, t, o);
   const at = (o, x, z, yaw = 0, parent = SR.root) => { o.position.set(x, 0, z); o.rotation.y = yaw; parent.add(o); return o; };
   const face = (o, x, z) => { o.rotation.y = Math.atan2(x - o.position.x, z - o.position.z); };
 
@@ -111,15 +77,13 @@ export function installSnackRun(C) {
 
   // the crew on the Wolf's yard couch (models/cast/diner_couch is already there)
   const crew = {
-    bear: pal({ body: '#8a5a3a', snout: '#c8a07a', ears: 'round', h: 1.12 }),
-    heron: pal({ body: '#9fb4c4', head: '#e8eef2', ears: null, beak: '#e0a03a', h: 1.05 }),
-    ram: pal({ body: '#efe6d6', snout: '#d8c8b0', ears: null, horns: '#b89a6a', h: 0.98 }),
+    bear: pal('bear'), heron: pal('heron'), ram: pal('ram'),
   };
   at(crew.bear, COUCH[0] - 1.9, COUCH[1] + 1.7, 0.25); at(crew.heron, COUCH[0], COUCH[1] + 2.1, 0); at(crew.ram, COUCH[0] + 1.9, COUCH[1] + 1.7, -0.25);
-  const squidPal = at(pal({ body: '#f2d64a', head: '#f6e27a', ears: null, tent: '#e8c23a', h: 0.95 }), 33.2, -0.6, Math.PI);   // Banana Squid, MAIN ST bus stop
-  const squidHome = at(pal({ body: '#f2d64a', head: '#f6e27a', ears: null, tent: '#e8c23a', h: 0.95 }), COUCH[0] + 3.6, COUCH[1] + 1.5, -0.5); squidHome.visible = false;
+  const squidPal = at(pal('squid'), 33.2, -0.6, Math.PI);   // Banana Squid, MAIN ST bus stop
+  const squidHome = at(pal('squid'), COUCH[0] + 3.6, COUCH[1] + 1.5, -0.5); squidHome.visible = false;
   // Officer Fuzz's speed check at the town edge (a clipboard and a stopwatch; nothing else)
-  const fz = onRoad(MAIN, D0 + 52, 6.2), fuzzPal = at(pal({ body: '#c9a37a', shirt: '#3a5a9a', hat: '#24324e', snout: '#e2c29a', h: 1.05 }), fz.x, fz.z, fz.yaw - Math.PI / 2);
+  const fz = onRoad(MAIN, D0 + 52, 6.2), fuzzPal = at(pal('fuzz'), fz.x, fz.z, fz.yaw - Math.PI / 2);
   { const cb = box(0.3, 0.4, 0.04, '#f2e6c8', [0, -0.25, 0.08], fuzzPal.userData.arms[0]); void cb; }
   const fzs = onRoad(MAIN, D0 + 8, 5.4), fuzzSign = new THREE.Group(); at(fuzzSign, fzs.x, fzs.z, fzs.yaw + Math.PI);
   { const b = board('SPEED CHECK\nAHEAD', 2.0, 1.3, { bg: '#ffe7a8', fg: '#24324e', sub: 'OFFICER FUZZ IS WATCHING · 15' }); b.position.set(0, 1.5, 0); fuzzSign.add(b);
@@ -127,14 +91,9 @@ export function installSnackRun(C) {
   const FUZZ_D = D0 + 52;
   // felt cows that wander across the long road (obstacles: bonk = lose speed)
   const cows = [];
-  { const hide = '#efe6d6', spot = '#2a2326';
+  { let seed = 0;   // Nov 16: sculpted felt-and-clay cows (feltfolk.js feltCow) instead of BoxGeometry blocks; they walk, stop and graze
     for (const [dd, n] of [[D0 + 230, 3], [D0 + 800, 2]]) { const r = onRoad(MAIN, dd);
-      for (let i = 0; i < n; i++) { const g = new THREE.Group(); box(0.9, 0.8, 1.7, hide, [0, 1.05, 0], g); box(0.92, 0.42, 0.5, spot, [0, 1.15, i % 2 ? 0.3 : -0.35], g);
-        box(0.5, 0.5, 0.6, hide, [0, 1.35, 1.05], g); box(0.42, 0.24, 0.12, '#e8a0a0', [0, 1.25, 1.38], g);
-        for (const sx of [-0.13, 0.13]) { mesh(new THREE.SphereGeometry(0.07, 8, 6), '#f6f2e8', [sx, 1.47, 1.36], g); mesh(new THREE.SphereGeometry(0.035, 6, 4), '#1d1416', [sx, 1.47, 1.42], g); }
-        for (const sx of [-0.25, 0.25]) mesh(new THREE.ConeGeometry(0.06, 0.18, 5), '#d8c8a8', [sx, 1.66, 0.95], g);
-        for (const [lx, lz] of [[-0.3, -0.6], [0.3, -0.6], [-0.3, 0.6], [0.3, 0.6]]) box(0.18, 0.7, 0.18, spot, [lx, 0.35, lz], g);
-        at(g, r.x, r.z, r.yaw + Math.PI / 2); cows.push({ g, cx: r.x, cz: r.z, yaw: r.yaw, ph: i * 1.7 + dd * 0.01, lane: (i - (n - 1) / 2) * 3.0, hitT: 0 }); } } }
+      for (let i = 0; i < n; i++) { const g = feltCow({ seed: seed++ }); at(g, r.x, r.z, r.yaw + Math.PI / 2); cows.push({ g, cx: r.x, cz: r.z, yaw: r.yaw, ph: i * 1.7 + dd * 0.01, lane: (i - (n - 1) / 2) * 3.0, hitT: 0, lx: null }); } } }
   // tumbleweeds rolling across near the store
   const tumbles = [];
   for (const dd of [MAIN.len - 170, MAIN.len - 95]) { const r = onRoad(MAIN, dd); const g = new THREE.Group(); mesh(new THREE.IcosahedronGeometry(0.7, 1), new THREE.MeshStandardMaterial({ color: '#a07440', roughness: 1, wireframe: true }), [0, 0.7, 0], g); at(g, r.x, r.z); tumbles.push({ g, r, ph: R() * 6, hitT: 0 }); }
@@ -147,7 +106,7 @@ export function installSnackRun(C) {
     works.push({ x: r.x, z: r.z, yaw: r.yaw, lamps }); }
   // Gecko's 2 AM yard sale on the SHORTCUT
   const gk = onRoad(SHORT, SHORT.len * 0.42, 6.5), gecko = new THREE.Group(); at(gecko, gk.x, gk.z, gk.yaw - Math.PI / 2);
-  const geckoPal = pal({ body: '#7ab85a', snout: '#9ad07a', ears: null, tail: '#6aa84a', h: 0.9 }); geckoPal.position.set(0.9, 0, -0.6); gecko.add(geckoPal);
+  const geckoPal = pal('gecko'); geckoPal.position.set(0.9, 0, -0.6); gecko.add(geckoPal);
   box(2.2, 0.08, 0.9, '#c49a6a', [-0.6, 0.78, 0.4], gecko); for (const [lx, lz] of [[-1.6, 0], [0.4, 0], [-1.6, 0.8], [0.4, 0.8]]) box(0.07, 0.78, 0.07, '#8a6a4a', [lx, 0.39, lz], gecko);
   box(0.4, 0.3, 0.3, '#e8a0b0', [-1.2, 0.97, 0.4], gecko); box(0.3, 0.5, 0.3, '#8ab0d8', [-0.5, 1.07, 0.4], gecko); mesh(new THREE.TorusGeometry(0.16, 0.05, 6, 10), '#f2d64a', [0.1, 1.0, 0.4], gecko);
   mesh(new THREE.SphereGeometry(0.12, 8, 6), glowM('#ffd27a'), [-0.1, 1.0, 0.7], gecko, false); { const s = glowSprite('#ffb44a', 3, 3, 0.8); s.position.set(-0.1, 1.1, 0.7); gecko.add(s); }
@@ -159,7 +118,7 @@ export function installSnackRun(C) {
     mesh(new THREE.SphereGeometry(0.62, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), '#f2ece0', [0, 1.05, -0.25], cabBody).scale.set(1.15, 0.9, 1.35);
     for (const [wx, wz] of [[-0.7, 0.9], [0.7, 0.9], [-0.7, -0.9], [0.7, -0.9]]) mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.22, 10), '#2a2326', [wx, 0.32, wz], cabBody).rotation.z = Math.PI / 2;
     const sg = board("MOTH'S\nRIDES", 0.9, 0.42, { bg: '#2a2326', fg: '#ffe7a8', glow: true }); sg.position.set(0, 1.82, -0.2); cabBody.add(sg); const sg2 = sg.clone(); sg2.rotation.y = Math.PI; sg2.position.z = -0.21; cabBody.add(sg2);
-    const mothPal = pal({ body: '#cfc6b8', head: '#e2dacb', ears: 'antenna', wings: '#b8ab98', h: 0.6 }); mothPal.position.set(0, 0.55, -0.25); cabBody.add(mothPal);
+    const mothPal = pal('moth'); mothPal.scale.setScalar(0.6); mothPal.userData.shadow.visible = false; mothPal.position.set(0, 0.55, -0.25); cabBody.add(mothPal);
     for (const sx of [-0.45, 0.45]) { mesh(new THREE.SphereGeometry(0.1, 8, 6), glowM('#fff2c0'), [sx, 0.78, 1.55], cabBody, false); mesh(new THREE.SphereGeometry(0.08, 6, 4), glowM('#ff4a3a'), [sx, 0.78, -1.55], cabBody, false); }
     const tl = glowSprite('#ff5a3a', 3.2, 1.6, 0.55); tl.position.set(0, 0.8, -1.9); cabBody.add(tl); }
   const MOTH_D0 = MAIN.cum[dIdx(MAIN, 60, -470)] + 30;   // waits just past where the shortcut rejoins... no: on the long road before the rejoin
@@ -311,7 +270,7 @@ export function installSnackRun(C) {
     card.innerHTML = `<div class="in"><h1>LATE NIGHT SNACK RUN</h1><h2>1:40 AM · LAST MINUTE SNACKS CLOSES AT 2:00</h2>
       <p>The crew is on the couch. Somebody said “snacks.” Nobody moved. Then everybody looked at the Wolf.</p>
       <ul>${S.list.map(([w, , t]) => `<li><b>${w}</b> · ${t}</li>`).join('')}</ul>
-      <p style="opacity:.8;font-size:11px">Drive to the store. Forty miles north. It's closer than that. Shortcut at the fork. Watch for cows. Officer Fuzz is timing people.</p>
+      <p style="opacity:.8;font-size:11px">Drive to the store (40 mi. north, apparently 1 km). Shortcut at the fork. Watch for cows. Officer Fuzz is timing people.</p>
       <div class="row"><button class="srBig go">GO ▸</button><button class="srBig no quit">NOT NOW</button></div></div>`;
     card.classList.add('on');
     card.querySelector('.go').onclick = () => go(); card.querySelector('.quit').onclick = () => quit();
@@ -371,7 +330,7 @@ export function installSnackRun(C) {
   function showEnd(won) {
     const st = won ? '★'.repeat(S.stars) + `<i>${'★'.repeat(3 - S.stars)}</i>` : '<i>★★★</i>';
     const lines = won ? [`At the store ${fmt(S.arriveAt)} · home ${fmt(S.homeAt)}`, `List: ${S.right}/${S.list.length} right${S.wrong ? `, ${S.wrong} extra` : ''}`] : ['The neon says CLOSED. The Wolf looks at it for a while.', 'The clerk waves through the glass. It is not a friendly wave. It is not an unfriendly wave.'];
-    const tips = won ? [S.listOK ? '★ whole list right' : '☆ THE BIG BAG', S.homeAt <= STAR_HOME ? '★ home by 2:15' : '☆ be home by 2:15 AM'] : ['Tip: the shortcut is shorter but bumpy. Draft Moth on the long road. Officer Fuzz stops anyone over 15.'];
+    const tips = won ? [S.listOK ? '★ whole list right' : '☆ get the whole list right (the BIG bag, not the mini)', S.homeAt <= STAR_HOME ? '★ home by 2:15' : '☆ be home by 2:15 AM'] : ['Tip: the shortcut is shorter but bumpy. Draft Moth on the long road. Officer Fuzz stops anyone over 15.'];
     card.innerHTML = `<div class="in"><h1>${won ? 'SNACKS ACQUIRED' : 'CLOSED.'}</h1><h2>LATE NIGHT SNACK RUN${won && S.best ? ` · BEST ${'★'.repeat(S.best)}` : ''}</h2>
       <div class="stars">${st}</div>${lines.map((l) => `<p>${l}</p>`).join('')}<p style="font-size:11px;opacity:.8">${tips.join('<br>')}</p>
       <div class="badges">${(won ? S.gotSuns || [] : []).map((n) => `<span>☀ ${n}</span>`).join('')}${[...S.badges].map((b) => `<span>${b}</span>`).join('')}</div>
@@ -458,7 +417,7 @@ export function installSnackRun(C) {
       animPal(squidPal, dt, t, { wave: d < 30 ? 1 : 0 }); face(squidPal, cp.x, cp.z);
       if (d < 16) askShow('squid', '🍌 BANANA SQUID waves you down.<br><small>“Going north? I need PICKLE CRISPS. I will pay you in squid facts.”</small>', 'GIVE A RIDE (+1 min)', 'KEEP DRIVING',
         () => { S.squid = true; squidPal.visible = false; c.v = 0; addTime(60, 'Squid climbs in the back.'); S.list.push(['SQUID', 'pickle', 'PICKLE CRISPS']); S.badges.add("SQUID'S RIDE"); renderList(); bubble('SQUID', 'Fact: I am not a banana.', () => cp, 2); },
-        () => { bubble('SQUID', 'Fine. The bus will come. It has never come. It will come.', () => squidPal.position); });
+        () => { bubble('SQUID', 'Fine. The bus will come. (It will not.)', () => squidPal.position); });
       else if (d > 24) askHide('squid'); }
     // --- Officer Fuzz's speed check (both legs; a stop costs 1.5 min)
     { const d = Math.hypot(cp.x - fuzzPal.position.x, cp.z - fuzzPal.position.z); animPal(fuzzPal, dt, t, { wave: S.fuzzStop > 0 ? 1 : 0 }); face(fuzzPal, cp.x, cp.z);
@@ -468,9 +427,11 @@ export function installSnackRun(C) {
       else if (d > 18 && S.fuzzNear) { S.fuzzNear = false; if (!S.fuzzSped) { if (S.fuzz !== 'stopped') { S.fuzz = 'ok'; S.badges.add('FUZZ APPROVED'); } bubble('OFFICER FUZZ', 'Under fifteen. Respect.', () => fuzzPal.position, 2.6); } }
     }
     // --- cows (wander across; bonk)
-    for (const cw of cows) { cw.ph += dt * 0.32; const lat = Math.sin(cw.ph) * 7 + cw.lane, fx = Math.cos(cw.yaw), fz = -Math.sin(cw.yaw);
-      const x = cw.cx + fx * lat, z = cw.cz + fz * lat; cw.g.position.set(x, Math.abs(Math.sin(cw.ph * 9)) * 0.05, z); cw.g.rotation.y = cw.yaw + (Math.cos(cw.ph) > 0 ? Math.PI / 2 : -Math.PI / 2);
-      if (Math.hypot(cp.x - x, cp.z - z) < 2.5 && Math.abs(c.v) > 2) bonk(['Moo.', 'The cow has right of way. The cow has always had right of way.', 'The cow looks at you like it knows your mother.'][Math.floor(R() * 3)]); }
+    for (const cw of cows) { if (cw.wait > 0) cw.wait -= dt; else { const c0 = Math.cos(cw.ph); cw.ph += dt * 0.32; if (Math.cos(cw.ph) * c0 < 0) cw.wait = 4 + R() * 5; }   // reach the kerb, stop, graze, wander back
+      const lat = Math.sin(cw.ph) * 7 + cw.lane, fx = Math.cos(cw.yaw), fz = -Math.sin(cw.yaw);
+      const x = cw.cx + fx * lat, z = cw.cz + fz * lat; cw.g.position.set(x, 0, z); cw.g.rotation.y = cw.yaw + (Math.cos(cw.ph) > 0 ? Math.PI / 2 : -Math.PI / 2);
+      cw.g.userData.anim(dt, t, cw.wait > 0 ? 0 : Math.abs(Math.cos(cw.ph)) * 7 * 0.32);   // walks mid-crossing, slows, grazes at each kerb
+      if (Math.hypot(cp.x - x, cp.z - z) < 2.5 && Math.abs(c.v) > 2) bonk(['A cow. It does not move. It is a cow.', 'Moo. (deadpan)', 'Felt cow. No harm. Some judgement.'][Math.floor(R() * 3)]); }
     for (const tw of tumbles) { tw.ph += dt * 0.5; const lat = Math.sin(tw.ph) * 9, fx = Math.cos(tw.r.yaw), fz = -Math.sin(tw.r.yaw); const x = tw.r.x + fx * lat, z = tw.r.z + fz * lat;
       tw.g.position.set(x, Math.abs(Math.sin(tw.ph * 6)) * 0.4, z); tw.g.rotation.z += dt * 3 * Math.sign(Math.cos(tw.ph));
       if (Math.hypot(cp.x - x, cp.z - z) < 2.1 && Math.abs(c.v) > 2 && c.bonkT <= 0) { c.v *= 0.6; c.bonkT = 0.6; A(() => audio.ev('tumble')); toast('Tumbleweed. Taking its time.', 1.6); } }
@@ -493,7 +454,7 @@ export function installSnackRun(C) {
       else S.boost = lerp(S.boost, 0, 1 - Math.exp(-dt * 3));
       if (S.boost > 0.02 && !L.frozen && L.solo) { c.pos.x += Math.sin(c.yaw) * S.boost * 6.5 * dt; c.pos.z += Math.cos(c.yaw) * S.boost * 6.5 * dt; }
       placeCab(); cabBody.position.y = Math.abs(Math.sin(t * (mothR.state === 'drive' ? 14 : 3))) * 0.04;
-      if (Math.hypot(cp.x - cab.position.x, cp.z - cab.position.z) < 2.8 && Math.abs(c.v) > 3) bonk("Bonk. MOTH: 'That was my rear bumper. Back off a little.'"); }
+      if (Math.hypot(cp.x - cab.position.x, cp.z - cab.position.z) < 2.8 && Math.abs(c.v) > 3) bonk("Bonk. MOTH: 'Felt bumpers. We're fine. Back off a little.'"); }
     // --- home
     if (S.phase === 'home' && Math.hypot(cp.x - HOME[0], cp.z - HOME[1]) < 9 && Math.abs(c.v) < 9) { c.v = 0; L.frozen = true; win(); }
   };

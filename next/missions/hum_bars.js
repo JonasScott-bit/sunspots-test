@@ -52,7 +52,7 @@ function create({ hud: H }) {
     notes.push(D.add({ s: G.hs - 1, x: G.hx, y: 1.6, obj: g, r: 1.4, w: 1.0, air: true, onHit: () => { G.notes++; sfx.tone(660 * Math.pow(1.06, G.notes), 0.18, 'triangle', 0.22); H.pill('notes', `♪ ${G.notes}/12`); if (G.notes === 12) { sfx.star(2); H.toast('☀ HUM ALONG', 2); } } })); }
   function grab() { if (G.phase !== 'run' || G.grabCd > 0) return; G.grabCd = 0.8; const dz = G.hs - D.P.s, dx = Math.abs(G.hx - D.P.x), lowEnough = G.dip > 0.6;
     if (dz < 5 && dz > -1 && dx < 1.8 && lowEnough) { G.grabs++; sfx.catch(); H.pill('grabs', `GRABS ${G.grabs}/3`); const s = toScreen(hum.getWorldPosition(new THREE.Vector3()), camera);
-      if (G.grabs >= 3) { H.float(s.x, s.y, 'GOT HIM!', '#ffe86a'); win(); return; } H.float(s.x, s.y, 'SLIPPERY!', '#bff2e0'); G.gap = 20; G.dipT = 3.5; G.dip = 0; say(G.grabs === 1 ? ['HUMMINGBIRD', 'Hm hm hmmm. Hm.'] : ['RAM', 'One more. He is tired. I can see his little wings.']); }
+      if (G.grabs >= 3) { H.float(s.x, s.y, 'GOT HIM!', '#ffe86a'); win(); return; } H.float(s.x, s.y, 'SLIPPERY!', '#bff2e0'); G.gap = 20; G.dipT = 3.5; G.dip = 0; say(G.grabs === 1 ? ['HUMMINGBIRD', 'Hm hm hmmm. (He does not know the words.)'] : ['RAM', 'One more. He is tired. I can see his little wings.']); }
     else { sfx.tone(300, 0.08, 'square', 0.06); if (!G.said.miss) { G.said.miss = 1; say(['RAM', 'Wait for him to come down. He always has to show off.']); } } }
   function jump() { if (G.phase === 'run' && D.P.onGround !== false && D.P.y <= 0.01) { D.P.vy = 9.5; sfx.tone(260, 0.2, 'triangle', 0.18, 1.6); } }
   inst.start = async (c) => {

@@ -10,6 +10,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { sunspotsApply } from '../sunspots_material.js';
+import { folk as feltFolk, FOLK, palSpec, animFolk } from '../feltfolk.js';
+import { clone as skClone } from 'three/addons/utils/SkeletonUtils.js';
 import { playCinematic } from '../cinematic.js';
 import { audio } from '../audio.js';
 
@@ -23,13 +25,13 @@ export const angLerp = (a, b, k) => a + Math.atan2(Math.sin(b - a), Math.cos(b -
 
 // ------------------------------------------------------------------ Nights: Sunspots open them (A Short Hike's feathers)
 export const NIGHTS = [
-  { n: 1, need: 0, name: 'NIGHT 1 · LAST MINUTE SNACKS', opens: 'Main St', line: 'KSUN: "Last Minute Snacks closes at two. Moth is on shift. Porch lights off, folks. Let the man work."' },
-  { n: 2, need: 2, name: "NIGHT 2 · TACO TUESDAY'S", opens: 'the Neon Strip', line: 'KSUN: "Moth missed half his shift last night. Somebody on Mesa left a porch light on. You know who you are."' },
-  { n: 3, need: 5, name: 'NIGHT 3 · THE SWIM LESSON', opens: 'the Mansion', line: 'KSUN: "Goat was seen at the plaza at one fifty-nine again. Nothing happened. Again. Goat seemed fine with it."' },
-  { n: 4, need: 8, name: "NIGHT 4 · GRANDMA'S CAT", opens: "Grandma's side of town", line: 'KSUN: "The Farmhand says if you see a second horse on the farm road, tell him. He won\'t do anything. He just wants to know."' },
-  { n: 5, need: 12, name: 'NIGHT 5 · ONE HORSE FAIR', opens: 'the Fair after dark', line: 'KSUN: "Band Night at the Bowl. Moth can\'t make it. Mesa\'s porch lights are on. Mesa. Please."' },
-  { n: 6, need: 17, name: 'NIGHT 6 · TWO HORSES', opens: 'the farm road', line: 'KSUN: "The town meeting has voted on the second horse. Cow. Seven to six. Nobody has told the horse."' },
-  { n: 7, need: 21, name: 'NIGHT 7 · THE PREMIERE', opens: 'the last fare', line: 'KSUN: "The Eye-Max premiere is Sunday at dawn. One showing. Admission: being awake. Moth drives his last fare tonight."' },
+  { n: 1, need: 0, name: 'NIGHT 1 · LAST MINUTE SNACKS', opens: 'Main St' },
+  { n: 2, need: 2, name: "NIGHT 2 · TACO TUESDAY'S", opens: 'the Neon Strip' },
+  { n: 3, need: 5, name: 'NIGHT 3 · THE SWIM LESSON', opens: 'the Mansion' },
+  { n: 4, need: 8, name: "NIGHT 4 · GRANDMA'S CAT", opens: "Grandma's side of town" },
+  { n: 5, need: 12, name: 'NIGHT 5 · ONE HORSE FAIR', opens: 'the Fair after dark' },
+  { n: 6, need: 17, name: 'NIGHT 6 · TWO HORSES', opens: 'the farm road' },
+  { n: 7, need: 21, name: 'NIGHT 7 · SAME OLD ONE HORSE TOWN', opens: 'the Eye-Max premiere' },
 ];
 window.__msnNights = NIGHTS;
 
@@ -80,94 +82,20 @@ export function sign(text, w, h, { bg = '#f2e6c8', fg = '#3a1f2a', font = '800 6
   return new THREE.Mesh(new THREE.PlaneGeometry(w, h), glow ? new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, transparent: !bg, side: THREE.DoubleSide }) : new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide }));
 }
 
-// ------------------------------------------------------------------ felt pals: primitive cast members with googly eyes (no rigs)
-// opts: body, head, ears('round'|'pointy'|'long'|'antenna'|'tall'), snout, beak, horns, hat, shirt, pants, tail, wings, tent(squid), h, glasses, hair, cape
-export function pal(o = {}) {   // merged per moving part: torso, head, 4 limbs (+ shadow) = 7 draw calls
-  const s = o.h || 1, g = new THREE.Group(), head = o.head || o.body || '#c9a37a', body = o.body || '#c9a37a', fat = o.fat || 1;
-  const tm = new Merge(), hm = new Merge();
-  tm.add(new THREE.CapsuleGeometry(0.3 * s * fat, 0.36 * s, 3, 10), o.shirt || body);
-  if (o.vest) { tm.add(new THREE.CylinderGeometry(0.325 * s * fat, 0.325 * s * fat, 0.46 * s, 14), o.vest, M4(0, 0.02 * s, 0)); if (o.pants) tm.add(new THREE.SphereGeometry(0.315 * s * fat, 14, 6, 0, TAU, Math.PI / 2, Math.PI / 2), o.pants, M4(0, -0.2 * s, 0)); }
-  if (o.skirt) tm.add(new THREE.ConeGeometry(0.42 * s, 0.6 * s, 12, 1, true), o.skirt, M4(0, -0.25 * s, 0));
-  if (o.tail) tm.add(new THREE.CapsuleGeometry(0.07 * s, 0.5 * s, 2, 6), o.tail, M4(0, -0.38 * s, -0.38 * s, -1.1));
-  if (o.cape) tm.add(new THREE.BoxGeometry(0.62 * s, 0.8 * s, 0.04 * s), o.cape, M4(0, -0.05 * s, -0.3 * s, 0.12));
-  if (o.tent) for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + 0.4; tm.add(new THREE.CapsuleGeometry(0.045 * s, 0.3 * s, 2, 5), o.tent, M4(Math.sin(a) * 0.22 * s, -0.65 * s, Math.cos(a) * 0.22 * s, Math.cos(a) * 0.6, 0, -Math.sin(a) * 0.6)); }
-  for (const sx of [-1, 1]) if (o.wings) tm.add(new THREE.SphereGeometry(0.42 * s, 8, 6), o.wings, M4(sx * 0.34 * s, 0.15 * s, -0.2 * s, 0, 0, -sx * 0.5, 0.22, 1, 0.75));
-  hm.add(new THREE.SphereGeometry(0.28 * s, 12, 9), head);
-  for (const sx of [-1, 1]) {
-    if (o.ears === 'round') hm.add(new THREE.SphereGeometry(0.1 * s, 8, 6), o.ear || head, M4(sx * 0.2 * s, 0.22 * s, -0.02));
-    if (o.ears === 'pointy') hm.add(new THREE.ConeGeometry(0.09 * s, 0.24 * s, 6), o.ear || head, M4(sx * 0.16 * s, 0.29 * s, 0, 0, 0, -sx * 0.3));
-    if (o.ears === 'long') hm.add(new THREE.CapsuleGeometry(0.06 * s, 0.42 * s, 2, 8), o.ear || head, M4(sx * 0.11 * s, 0.5 * s, -0.02, 0, 0, -sx * 0.18));
-    if (o.ears === 'tall') hm.add(new THREE.ConeGeometry(0.07 * s, 0.3 * s, 6), o.ear || head, M4(sx * 0.15 * s, 0.32 * s, -0.02, 0, 0, -sx * 0.5));
-    if (o.ears === 'antenna') { hm.add(new THREE.CylinderGeometry(0.012 * s, 0.012 * s, 0.42 * s, 4), '#3a2a2a', M4(sx * 0.1 * s, 0.4 * s, 0, 0, 0, -sx * 0.4)); hm.add(new THREE.SphereGeometry(0.06 * s, 6, 4), o.ear || '#3a2a2a', M4(sx * 0.19 * s, 0.6 * s, 0)); }
-    hm.add(new THREE.SphereGeometry(0.078 * s, 10, 8), o.eyes || '#f6f2e8', M4(sx * 0.11 * s, 0.07 * s, 0.22 * s));
-    if (o.earIn && o.ears === 'long') hm.add(new THREE.CapsuleGeometry(0.035 * s, 0.34 * s, 2, 6), o.earIn, M4(sx * 0.11 * s, 0.5 * s, 0.035 * s, 0, 0, -sx * 0.18));
-    hm.add(new THREE.SphereGeometry(0.036 * s, 6, 5), '#1d1416', M4(sx * 0.11 * s, 0.07 * s, 0.295 * s));
-    if (o.horns) hm.add(new THREE.TorusGeometry(0.13 * s, 0.05 * s, 5, 10, Math.PI * 1.4), o.horns, M4(sx * 0.24 * s, 0.1 * s, -0.02, 0, sx * Math.PI / 2, 0.6));
-    if (o.glasses) hm.add(new THREE.TorusGeometry(0.075 * s, 0.012 * s, 4, 12), o.glasses, M4(sx * 0.11 * s, 0.07 * s, 0.28 * s));
-  }
-  if (o.snout) hm.add(new THREE.SphereGeometry(0.13 * s, 8, 6), o.snout, M4(0, -0.07 * s, 0.24 * s, 0, 0, 0, 1, 0.75, 1.1));
-  if (o.nose) hm.add(new THREE.SphereGeometry(0.05 * s, 6, 5), o.nose, M4(0, -0.02 * s, 0.37 * s));
-  if (o.longsnout) hm.add(new THREE.CapsuleGeometry(0.07 * s, 0.42 * s, 2, 8), o.longsnout, M4(0, -0.08 * s, 0.42 * s, Math.PI / 2 + 0.25));
-  if (o.beak) { const L = o.beakLen || 0.5 * s; hm.add(new THREE.ConeGeometry(0.06 * s, L, 6), o.beak, M4(0, -0.04 * s, 0.22 * s + L / 2, Math.PI / 2)); }
-  if (o.hat) { hm.add(new THREE.CylinderGeometry(0.32 * s, 0.32 * s, 0.03 * s, 12), o.hat, M4(0, 0.22 * s, 0.04 * s)); hm.add(new THREE.CylinderGeometry(0.2 * s, 0.22 * s, 0.2 * s, 12), o.hat, M4(0, 0.32 * s, 0)); }
-  if (o.cap) { hm.add(new THREE.SphereGeometry(0.29 * s, 12, 6), o.cap, M4(0, 0.08 * s, 0, 0, 0, 0, 1, 0.6, 1)); hm.add(new THREE.BoxGeometry(0.3 * s, 0.03 * s, 0.22 * s), o.cap, M4(0, 0.12 * s, 0.3 * s)); }
-  if (o.hair) { hm.add(new THREE.SphereGeometry(0.3 * s, 12, 7), o.hair, M4(0, 0.12 * s, -0.04 * s, 0, 0, 0, 1.02, 0.75, 1.0)); if (o.bun) hm.add(new THREE.SphereGeometry(0.12 * s, 8, 6), o.hair, M4(0, 0.33 * s, -0.12 * s)); }
-  const torso = tm.mesh(); torso.position.set(0, 0.8 * s, 0); g.add(torso);
-  const hd = new THREE.Group(); hd.position.set(0, 1.4 * s, 0); hd.add(hm.mesh()); g.add(hd);
-  const legs = [], arms = [];
-  for (const sx of [-1, 1]) {
-    const lm = new Merge(); lm.add(new THREE.CylinderGeometry(0.075 * s, 0.085 * s, 0.44 * s, 7), o.tent || o.pants || body, M4(0, -0.22 * s, 0)); if (o.shoes) lm.add(new THREE.SphereGeometry(0.1 * s, 7, 5), o.shoes, M4(0, -0.42 * s, 0.05 * s, 0, 0, 0, 1, 0.6, o.bigFeet ? 2.0 : 1.4));
-    const lp = new THREE.Group(); lp.position.set(sx * 0.13 * s, 0.44 * s, 0); lp.add(lm.mesh()); g.add(lp); legs.push(lp);
-    const am = new Merge(); am.add(new THREE.CapsuleGeometry(0.065 * s, 0.32 * s, 2, 7), o.tent || o.sleeve || o.shirt || body, M4(0, -0.2 * s, 0)); if (o.hands) am.add(new THREE.SphereGeometry(0.075 * s, 7, 5), o.hands, M4(0, -0.42 * s, 0));
-    const ap = new THREE.Group(); ap.position.set(sx * 0.34 * s, 1.02 * s, 0); ap.add(am.mesh()); ap.rotation.z = sx * 0.15; g.add(ap); arms.push(ap);
-  }
-  const sh = blobShadow(0.42 * s, 0.4); g.add(sh);
-  g.userData = { torso, hd, legs, arms, h: s, ph: Math.random() * 10, shadow: sh };
-  return g;
-}
-// procedural motion: walk cycle, idle breathe, wave, cheer, panic
-export function animPal(g, dt, t, { walk = 0, wave = 0, cheer = 0, panic = 0, sit = 0 } = {}) {
-  const u = g.userData; if (!u?.legs) return; u.ph += dt * (walk ? 7 * Math.max(0.6, walk) : 1.6); const h = u.h;
-  const sw = walk ? 0.65 : 0; u.legs[0].rotation.x = sit ? -1.4 : Math.sin(u.ph) * sw; u.legs[1].rotation.x = sit ? -1.4 : -Math.sin(u.ph) * sw;
-  u.torso.position.y = (sit ? 0.62 : 0.8) * h + (walk ? Math.abs(Math.sin(u.ph)) * 0.05 * h : Math.sin(u.ph) * 0.014 * h); u.hd.position.y = u.torso.position.y + 0.6 * h;
-  u.hd.rotation.z = Math.sin(u.ph * 0.5) * 0.07 + (panic ? Math.sin(t * 22) * 0.12 : 0);
-  const a0 = u.arms[0], a1 = u.arms[1];
-  a0.rotation.x = walk ? -Math.sin(u.ph) * 0.55 : 0; a1.rotation.x = walk ? Math.sin(u.ph) * 0.55 : 0; a0.rotation.z = 0.15; a1.rotation.z = -0.15;
-  if (wave) { a1.rotation.z = -2.5 + Math.sin(t * 9) * 0.45; a1.rotation.x = 0; }
-  if (cheer || panic) { const k = Math.sin(t * (panic ? 18 : 10)); a0.rotation.z = 2.6 + k * 0.3; a1.rotation.z = -2.6 - k * 0.3; a0.rotation.x = a1.rotation.x = 0; u.torso.position.y += Math.abs(k) * 0.06 * h; u.hd.position.y = u.torso.position.y + 0.6 * h; }
-}
-// a few recurring cast pals (felt stand-ins that match the Meshy cast colours)
-export const CAST = {
-  wolf: () => pal({ body: '#8f8f96', head: '#9a9aa2', ears: 'pointy', snout: '#d9d2c6', nose: '#2a2226', shirt: '#e7a33a', pants: '#e0705a', tail: '#8a8a92' }),
-  bear: () => pal({ body: '#8a5a3a', ears: 'round', snout: '#c8a07a', nose: '#2a1a14', shirt: '#7a2a36', pants: '#2f8a86', h: 1.12, fat: 1.15 }),
-  grandma: () => pal({ body: '#9a6a48', ears: 'round', snout: '#d2b08a', nose: '#2a1a14', shirt: '#efe2c6', sleeve: '#8a2a3a', skirt: '#6a7a3a', glasses: '#3a2a22', hair: '#e8e4dc', bun: true, h: 0.98, fat: 1.1 }),
-  gecko: () => pal({ body: '#7ac25a', head: '#86cc62', ears: null, shirt: '#f2b632', pants: '#3a6aa8', tail: '#6ab24a', h: 0.9 }),
-  lynx: () => pal({ body: '#c99a62', ears: 'tall', ear: '#3a2a22', snout: '#efe2c8', nose: '#3a2226', shirt: '#2f8a86', pants: '#e2d2b0' }),
-  heron: () => pal({ body: '#9fb4c4', head: '#e8eef2', ears: null, beak: '#e0a03a', shirt: '#6a4a8a', pants: '#efe2c6', h: 1.1 }),
-  ram: () => pal({ body: '#efe6d6', snout: '#d8c8b0', ears: null, horns: '#b89a6a', shirt: '#c86a3a', pants: '#5a4a3a' }),
-  crow: () => pal({ body: '#2a2a30', ears: null, beak: '#e0b03a', beakLen: 0.32, shirt: '#3a7a3a', pants: '#e0b03a' }),
-  moth: () => pal({ body: '#b8a890', head: '#d8ccb4', ears: 'antenna', shirt: '#6a7a5a', wings: '#cfc2a2' }),
-  squid: () => pal({ body: '#f2d64a', head: '#f6e27a', ears: null, tent: '#e8c23a', h: 0.95 }),
-  anteater: () => pal({ body: '#8a7a6a', ears: 'round', longsnout: '#7a6a5a', shirt: '#c2e6cd', pants: '#3f8a86', tail: '#6a5a4a' }),
-  vulture: () => pal({ body: '#3a2a2a', head: '#d89a8a', ears: null, beak: '#e8d8b0', beakLen: 0.34, shirt: '#2f3236', pants: '#2f3236', wings: '#2a2020', h: 1.15 }),
-  larry: () => pal({ body: '#c9b08a', head: '#e8dcc0', ears: null, beak: '#e0a03a', beakLen: 0.2, shirt: '#2a5a3a', pants: '#e8e2d6', cap: '#c9302a' }),
-  fuzz: () => pal({ body: '#6a4a3a', ears: 'round', snout: '#b08a6a', nose: '#1a1214', shirt: '#2a3a6a', pants: '#2a3a6a', hat: '#1a2448', h: 1.05, fat: 1.1 }),
-  lemon: () => pal({ body: '#f6e04a', head: '#f8e868', ears: null, shirt: '#3aa86a', pants: '#2a2a40', cap: '#3aa86a', h: 0.85 }),
-  goat: () => pal({ body: '#e8e0cc', ears: 'pointy', snout: '#d8ccb4', horns: '#8a7a5a', shirt: '#4a5aa8', pants: '#3a3a40' }),
-  rabbit: () => pal({ body: '#8c86a6', ears: 'long', ear: '#8c86a6', earIn: '#e0a090', snout: '#c9c2d4', nose: '#e0806e', eyes: '#f2c83a', shirt: '#f0dcb0', vest: '#3f8a3e', pants: '#d89a2a', shoes: '#8c86a6', bigFeet: true, hands: '#8c86a6', tail: null, h: 0.95 }),   // bible ref: lavender-grey fur, green vest over a cream shirt, mustard trousers
-  reggie: () => pal({ body: '#7a7a82', ears: 'round', snout: '#e8e2d6', nose: '#1a1214', shirt: '#c98a3a', pants: '#3a3a4a', tail: '#5a5a62', glasses: '#1a1214' }),
-  peach: () => pal({ body: '#f6a88a', head: '#f8b496', ears: null, shirt: '#f6a88a', pants: '#8a5a3a', h: 0.85 }),
-  sal: () => pal({ body: '#c9c0c8', head: '#e8e2e6', ears: 'round', ear: '#2a2226', snout: '#f2e6ea', nose: '#e88a9a', tail: '#e8c8c8', shirt: '#f6f2e8', pants: '#3a3a4a', cap: '#f6f2e8', fat: 1.2 }),
-  dot: () => pal({ body: '#f2e6d2', head: '#f6ecdc', ears: null, beak: '#e0a03a', beakLen: 0.16, shirt: '#7ac2c2', skirt: '#7ac2c2', hair: '#c9302a' }),   // a hen (livingworld: DOT the waitress)
-  nan: () => pal({ body: '#d8c8b8', ears: 'round', snout: '#efe2d2', shirt: '#b8a0d8', skirt: '#6a5a8a', hair: '#f2f0ea', glasses: '#6a4a3a', h: 0.92 }),
-  wrench: () => pal({ body: '#9aa2aa', head: '#b8c0c8', ears: null, shirt: '#2a5a8a', pants: '#2a3a5a', cap: '#c9302a' }),
-  hummer: () => pal({ body: '#3aa88a', head: '#4ac29a', ears: null, beak: '#2a2226', beakLen: 0.5, shirt: '#c9306a', pants: '#3a3a4a', wings: '#2a8a7a', h: 0.7 }),
-  farmhand: () => pal({ body: '#c9925f', ears: 'round', snout: '#e2b28a', shirt: '#3a6a8a', pants: '#5a4a3a', hat: '#d8b46a' }),
-  someone: () => pal({ body: '#a8a0b8', ears: null, shirt: '#f2a6b8', pants: '#4ab8b0', h: 0.95 }),
-};
-// townsfolk (felt stand-ins, varied colours)
-export function folk(r = Math.random, h = 0.9 + Math.random() * 0.25) { const SK = ['#c9925f', '#e0b080', '#8a6a5a', '#b86a8a', '#d9a06a', '#9aa2aa', '#7ac25a', '#e8dcd0'], SH = ['#3a6a8a', '#f2c230', '#2fae8a', '#c9302a', '#8a7ab8', '#ff6fae', '#f6efe0', '#e0705a'];
-  const k = Math.floor(r() * 8); return pal({ body: SK[k], ears: r.pick ? r.pick(['round', 'pointy', null, 'tall']) : 'round', shirt: SH[Math.floor(r() * 8)], pants: SH[Math.floor(r() * 8)], snout: r() < 0.5 ? '#efe2c8' : null, h }); }
+// ------------------------------------------------------------------ felt cast: feltfolk.js builds every character (felt + clay, adult proportions)
+// pal(o) keeps the old option names for one-off figures; CAST.<name>() is the ref-matched cast member. Same rig contract as before:
+// userData { torso, hd, legs, arms, h, ph, shadow } (pivots), driven by animPal(). Two LODs each, shared geometry, 0 rigs.
+export function pal(o = {}) { return feltFolk(palSpec(o)); }
+// procedural motion: walk cycle, idle breathe, wave, cheer, panic, sit
+export function animPal(g, dt, t, o = {}) { animFolk(g, dt, t, o); }
+export const CAST = Object.fromEntries(['wolf', 'bear', 'grandma', 'gecko', 'lynx', 'heron', 'ram', 'crow', 'moth', 'squid', 'anteater', 'vulture', 'larry', 'fuzz', 'lemon', 'goat', 'rabbit', 'reggie', 'peach', 'sal', 'dot', 'nan', 'wrench', 'hummer', 'farmhand', 'someone']
+  .map((k) => [k, () => feltFolk(FOLK[k])]));
+// townsfolk: a handful of town faces in varied clothes (specs memoised so copies share geometry)
+const FOLKV = new Map();
+export function folk(r = Math.random, h = 0.9 + Math.random() * 0.25) { const KS = ['pig', 'duck', 'cat', 'dog', 'sheep', 'someone'], SH = ['#3a6a8a', '#f2c230', '#2fae8a', '#c9302a', '#8a7ab8', '#ff6fae', '#f6efe0', '#e0705a'], PA = ['#3a3a4a', '#5a4a3a', '#2f4a6a', '#e8dcc8'];
+  const k = KS[Math.floor(r() * KS.length) % KS.length], a = Math.floor(r() * SH.length) % SH.length, b = Math.floor(r() * PA.length) % PA.length, hh = Math.round(h * 10) / 10, key = k + a + b + hh;
+  if (!FOLKV.has(key)) FOLKV.set(key, { ...FOLK[k], top: SH[a], sleeve: SH[a], pants: PA[b], h: hh * (FOLK[k].h || 1) });
+  return feltFolk(FOLKV.get(key)); }
 
 // ------------------------------------------------------------------ the waddle car (felt capsule, bubble cabin, bumpers, headlights)
 export function waddleCar(col = '#e7b23a', trim = '#f6efe0', { roof = null, cop = false, tow = false, cab = false, lite = false, open = false } = {}) {
@@ -218,23 +146,49 @@ export function nightLights(scene, { sky = '#8a94ff', ground = '#3a2a3a', hemi =
   return { hemi: h, moon: m, warm: w };
 }
 
-// ------------------------------------------------------------------ lo GLB crew (rest pose, procedural breathe; no mixers = no rigs)
+// ------------------------------------------------------------------ lo GLB crew: real rigs (idle / walk clips), at most 3 live at once
+// Each copy gets its own skeleton (SkeletonUtils.clone) and a mixer. breathe() runs the mixer for up to RIG_MAX characters that
+// are on screen this frame (walk clip when it is moving, idle when it stands); any others hold an idle pose sampled at load,
+// never the bind T-pose. Characters with no GLB fall back to the feltfolk cast.
 const loader = new GLTFLoader(); loader.setMeshoptDecoder(MeshoptDecoder);
 const glbCache = {};
+export const RIG_MAX = 3;
+const LIVE = new Map();
+export const liveRigs = () => LIVE.size;
 export async function crewGLB(k, h = 1.8) {
   const f = { bear: 'town2/bear_lo.glb', heron: 'town2/heron_lo.glb', ram: 'town2/ram_lo.glb', wolf: 'town2/wolf_lo.glb', lynx: 'town2/lynx_lo.glb', crow: 'town2/crow_lo.glb', gecko: 'town2/gecko_lo.glb', anteater: 'town2/anteater_lo.glb', moth: 'town2/moth_lo.glb', cake: 'town2/cake_lo.glb', shake: 'town2/shake_lo.glb', peach: 'town2/fuzzy_peach_lo.glb' }[k];
   try { if (!f) throw new Error('no glb ' + k);
     const gl = await (glbCache[f] ||= new Promise((res, rej) => loader.load(new URL('../models/' + f, import.meta.url).href, res, undefined, rej)));
-    const root = gl.scene.clone(true); root.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = false; if (o.isSkinnedMesh) { o.skeleton = o.skeleton.clone(); o.bind(o.skeleton, o.bindMatrix); o.skeleton.pose(); o.frustumCulled = false; } } });
+    const root = skClone(gl.scene); root.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = false; if (o.isSkinnedMesh) { o.skeleton.pose(); o.frustumCulled = false; } } });
     root.updateMatrixWorld(true); const b = new THREE.Box3().setFromObject(root), s = h / Math.max(0.01, b.max.y - b.min.y); root.scale.multiplyScalar(s); root.updateMatrixWorld(true);
     const b2 = new THREE.Box3().setFromObject(root); root.position.x -= (b2.min.x + b2.max.x) / 2; root.position.z -= (b2.min.z + b2.max.z) / 2; root.position.y -= b2.min.y;
     try { sunspotsApply(root, k, h); } catch (_) { }
-    const w = new THREE.Group(); const inner = new THREE.Group(); inner.add(root); w.add(inner); w.add(blobShadow(0.45 * h / 1.8, 0.4)); w.userData = { glb: true, inner, h, ph: Math.random() * 6 }; return w;
+    const w = new THREE.Group(); const inner = new THREE.Group(); inner.add(root); w.add(inner); w.add(blobShadow(0.45 * h / 1.8, 0.4)); w.userData = { glb: true, inner, h, ph: Math.random() * 6 };
+    const clips = gl.animations || [], find = (re) => clips.find((c) => re.test(c.name));
+    const ic = find(/idle/i) || find(/seated/i), wc = find(/walk/i);
+    if (ic || wc) { const mixer = new THREE.AnimationMixer(root), R = { mixer, idle: ic ? mixer.clipAction(ic) : null, walk: wc ? mixer.clipAction(wc) : null, wW: 0, spd: 0 };
+      if (R.walk) { R.walk.play(); R.walk.setEffectiveWeight(R.idle ? 0 : 1); }
+      if (R.idle) { R.idle.play(); R.idle.setEffectiveWeight(1); }
+      mixer.update(((ic || wc).duration || 1) * Math.random()); w.userData.rig = R; }   // a natural idle pose from frame one
+    return w;
   } catch (e) { console.warn('kit: crew glb fallback', k, e?.message || e); const p = (CAST[k] || CAST.wolf)(); p.scale.setScalar(h / 1.75); return p; }
 }
-export function breathe(o, t, { bob = 0, lean = 0, hop = 0 } = {}) { const u = o.userData; if (!u) return; if (u.glb) { const i = u.inner; i.scale.y = 1 + Math.sin(t * 2 + u.ph) * 0.012; i.position.y = Math.abs(Math.sin(t * 9 + u.ph)) * hop + Math.sin(t * 2.2 + u.ph) * bob; i.rotation.z = Math.sin(t * 1.3 + u.ph) * 0.03 + lean; } else animPal(o, 0.016, t, {}); }
+const _rw = new THREE.Vector3();
+function rigTick(o, t) {
+  const u = o.userData, R = u.rig, now = performance.now(); for (const [k, v] of LIVE) if (now - v > 700 || !k.parent) LIVE.delete(k);
+  if (!LIVE.has(o) && LIVE.size >= RIG_MAX) return false;
+  let vis = o.visible; for (let p = o.parent; p && vis; p = p.parent) vis = p.visible !== false; if (!vis) { LIVE.delete(o); return false; }
+  LIVE.set(o, now); const dt = THREE.MathUtils.clamp(t - (u.rt ?? t), 0, 0.1); u.rt = t;
+  o.getWorldPosition(_rw); const v = u.rp && dt > 0 ? Math.hypot(_rw.x - u.rp.x, _rw.z - u.rp.z) / dt : 0; (u.rp ||= new THREE.Vector3()).copy(_rw);
+  R.spd += (Math.min(v, 6) - R.spd) * Math.min(1, dt * 6);
+  if (R.walk && R.idle) { R.wW += ((R.spd > 0.35 ? 1 : 0) - R.wW) * Math.min(1, dt * 5); R.walk.setEffectiveWeight(R.wW); R.idle.setEffectiveWeight(1 - R.wW); }
+  if (R.walk) R.walk.timeScale = THREE.MathUtils.clamp(R.spd / (1.25 * (u.h / 1.8)), 0.6, 1.8);   // feet keep pace with the ground
+  R.mixer.update(dt); return true;
+}
+export function breathe(o, t, { bob = 0, lean = 0, hop = 0 } = {}) { const u = o.userData; if (!u) return;
+  if (u.glb) { const i = u.inner, live = u.rig ? rigTick(o, t) : false; i.scale.y = live ? 1 : 1 + Math.sin(t * 2 + u.ph) * 0.012; i.position.y = Math.abs(Math.sin(t * 9 + u.ph)) * hop + Math.sin(t * 2.2 + u.ph) * bob; i.rotation.z = (live ? 0 : Math.sin(t * 1.3 + u.ph) * 0.03) + lean; }
+  else animPal(o, 0.016, t, {}); }
 
-// ------------------------------------------------------------------ synth sfx (WebAudio; respects the game's sound mode)
 export const sfx = (() => {
   let C = null; const ac = () => { if (audio?.mode === 'off') return null; C = audio?.ctx || C || (window.AudioContext ? new AudioContext() : null); if (C?.state === 'suspended') C.resume().catch(() => { }); return C; };
   const vol = () => (audio?.sfxVol ?? 1) * 0.45;
@@ -429,7 +383,7 @@ function fxClear() { for (const p of FX.parts) p.sp.parent?.remove(p.sp); FX.par
 export async function run(T, def, opts = {}) {
   if (RUN || T.busy || T.lane || T.active !== def.room) return false;
   const h = hud(), S = T.state, M = T.M, id = def.key || def.id;
-  if (locked(T, def)) { const N = nightOf(def); h.reset(); document.body.classList.add('msnlock'); showCard(h, { kicker: N.name, title: def.title, lines: [window.__shell?.lockLine?.(def.night || 1) || `Opens at ${N.need} Sunspots. You have ${sunTotal(T)}.`, 'Errands, games and secrets around town all leave one. The JOURNAL has rumours.'], buttons: [['OKAY', () => { h.card.classList.remove('on'); h.root.style.display = ''; document.body.classList.remove('msnlock'); }]] }); h.root.style.display = 'block'; return false; }
+  if (locked(T, def)) { const N = nightOf(def); h.reset(); document.body.classList.add('msnlock'); showCard(h, { kicker: N.name, title: def.title, lines: [window.__shell?.lockLine?.(def.night || 1) || `Opens at ${N.need} Sunspots. You have ${sunTotal(T)}.`, 'Errands, games and secrets around town all leave one. Check the JOURNAL.'], buttons: [['OKAY', () => { h.card.classList.remove('on'); h.root.style.display = ''; document.body.classList.remove('msnlock'); }]] }); h.root.style.display = 'block'; return false; }
   RUN = def; T.busy = true; def.state = 'intro';
   h.root.style.display = 'block'; await h.fade(true, 300);
   const A = T.rooms[T.active], saved = { scene: T.scene, camera: T.camera };
@@ -444,7 +398,7 @@ export async function run(T, def, opts = {}) {
   const ctl = { finish, quit, I, hud: h, auto: Q.has('mauto'), opts };
   FX.scene = inst.scene; FX.cam = inst.camera; fxClear(); h.root.classList.toggle('hintL', def.hintSide === true); h.root.classList.toggle('hintR', def.hintSide === 'right'); h.root.classList.toggle('tipMid', !!def.tipMid); h.root.classList.remove('panelOn');
   try { await inst.start(ctl); } catch (e) { console.warn('mission start failed', def.id, e); }
-  if (def.tip && !(S.tipSeen ||= {})[id]) setTimeout(() => { if (def.state !== 'play') return; S.tipSeen[id] = 1; M.save();   /* the how-to shows the first time only; after that the game does the teaching */ h.tipEl.innerHTML = ''; h.tipEl.append(def.tip); h.tipEl.classList.add('on'); h.root.classList.add('tipOn'); clearTimeout(h.tipT); h.tipT = setTimeout(() => { h.tipEl.classList.remove('on'); h.root.classList.remove('tipOn'); }, 6000); }, 400);
+  if (def.tip) setTimeout(() => { if (def.state !== 'play') return; h.tipEl.innerHTML = `<b>HOW TO PLAY</b>`; h.tipEl.append(def.tip); h.tipEl.classList.add('on'); h.root.classList.add('tipOn'); clearTimeout(h.tipT); h.tipT = setTimeout(() => { h.tipEl.classList.remove('on'); h.root.classList.remove('tipOn'); }, 6000); }, 400);
   T.lane = LANE; T.scene = inst.scene; T.camera = inst.camera; last = 0; def.state = 'play';
   def.test = { get tris() { return countTris(inst.scene); }, get phase() { return inst.phase; }, inst, ctl };
   await h.fade(false, 350); T.busy = false;

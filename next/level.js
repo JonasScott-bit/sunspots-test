@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { sunspotsApply } from './sunspots_material.js';
 import { audio } from './audio.js';
+import { feltCow } from './feltfolk.js';   // Nov 16: the felt cows on the desert road
 import { gesturer, castOffsets, CAST_POOL, PROP_POOL } from './idles.js';   // run 15
 
 // ------------------------------------------------------------------ layout (metres; -z = north, toward the sun)
@@ -306,15 +307,11 @@ export function createLevel(C) {
   L.cows = []; L.works = []; L.MAIN = MAIN; L.SHORT = SHORT;
   if (NIGHT) {
     // a small felt herd crosses the long road, slowly, back and forth (the "second horse" is a cow)
-    const hide = feltMat('#efe6d6'), spot = feltMat('#2a2326'), nose = feltMat('#e8a0a0'), bodyG = new THREE.BoxGeometry(0.9, 0.8, 1.7), headG = new THREE.BoxGeometry(0.5, 0.5, 0.6), legG = new THREE.BoxGeometry(0.18, 0.7, 0.18), spotG = new THREE.BoxGeometry(0.92, 0.42, 0.5), noseG = new THREE.BoxGeometry(0.42, 0.24, 0.12);
-    const eyeG = new THREE.SphereGeometry(0.06, 8, 6), eyeM = new THREE.MeshBasicMaterial({ color: '#d8ffb0' });   // eyeshine in the headlights
+    // Nov 16: sculpted felt-and-clay cows (feltfolk.js feltCow: lathe barrel, soft patches, pink muzzle, heavy lids, clay horns + hooves)
+    let seed = 0;
     for (const [frac, n] of [[0.36, 3], [0.71, 2]]) { const r = atDist(MAIN, MAIN.len * frac);
-      for (let i = 0; i < n; i++) { const g = new THREE.Group(); const b = new THREE.Mesh(bodyG, hide); b.position.y = 1.05; g.add(b); const sp = new THREE.Mesh(spotG, spot); sp.position.set(0, 1.15, i % 2 ? 0.3 : -0.35); g.add(sp);
-        const hd = new THREE.Mesh(headG, hide); hd.position.set(0, 1.35, 1.05); g.add(hd); const ns = new THREE.Mesh(noseG, nose); ns.position.set(0, 1.25, 1.38); g.add(ns);
-        for (const sx of [-0.13, 0.13]) { const e = new THREE.Mesh(eyeG, eyeM); e.position.set(sx, 1.47, 1.36); g.add(e); }
-        for (const [lx, lz] of [[-0.3, -0.6], [0.3, -0.6], [-0.3, 0.6], [0.3, 0.6]]) { const l = new THREE.Mesh(legG, spot); l.position.set(lx, 0.35, lz); g.add(l); }
-        g.traverse(o => { if (o.isMesh) o.castShadow = true; }); scene.add(g);
-        L.cows.push({ obj: g, cx: r.x, cz: r.z, yaw: r.yaw, ph: i * 0.9 + frac * 7, lane: (i - (n - 1) / 2) * 2.6, hitT: 0 }); } }
+      for (let i = 0; i < n; i++) { const g = feltCow({ seed: seed++ }); scene.add(g);
+        L.cows.push({ obj: g, cx: r.x, cz: r.z, yaw: r.yaw, ph: i * 0.9 + frac * 7, lane: (i - (n - 1) / 2) * 2.6, hitT: 0, wait: 0 }); } }
     // ROAD WORK on the shortcut: sawhorses + blinking amber lamps take the right half; squeeze past slowly or bonk
     const wood = feltMat('#f2e6c8'), stripe = feltMat('#e0702a'), lampM = new THREE.MeshBasicMaterial({ color: '#ffb02a' });
     for (const frac of [0.24, 0.84]) { const r = atDist(SHORT, SHORT.len * frac, SHORT.w * 0.22); const g = group(r.x, r.z, r.yaw); const lamps = [];
@@ -336,12 +333,13 @@ export function createLevel(C) {
     if (L.head) { const h = L.head; h.sl.intensity = c ? 60 : 0; h.beamM.opacity = c ? 0.07 : 0.035;
       if (c) { const s = Math.sin(c.yaw), co = Math.cos(c.yaw); h.sl.position.set(c.pos.x + s * 1.4, 1.3, c.pos.z + co * 1.4); h.sl.target.position.set(c.pos.x + s * 24, 0, c.pos.z + co * 24); h.sl.target.updateMatrixWorld(); } }
     for (const w of L.works) { const on = Math.sin(t * 6 + w.x) > 0; for (const l of w.lamps) l.material.color.set(on ? '#ffb02a' : '#5a3a12'); }
-    for (const k of L.cows) { k.ph += dt * 0.07; const off = Math.sin(k.ph) * 11, nx = Math.cos(k.yaw), nz = -Math.sin(k.yaw), dir = Math.cos(k.ph) >= 0 ? 1 : -1;
-      const fx = k.cx - Math.sin(k.yaw) * k.lane, fz = k.cz - Math.cos(k.yaw) * k.lane; k.obj.position.set(fx + nx * off, Math.abs(Math.sin(t * 2.4 + k.lane)) * 0.04, fz + nz * off);
+    for (const k of L.cows) { if (k.wait > 0) k.wait -= dt; else { const c0 = Math.cos(k.ph); k.ph += dt * 0.07; if (Math.cos(k.ph) * c0 < 0) k.wait = 5 + rnd() * 6; }   // cross, stop at the verge and graze, cross back
+      const off = Math.sin(k.ph) * 11, nx = Math.cos(k.yaw), nz = -Math.sin(k.yaw), dir = Math.cos(k.ph) >= 0 ? 1 : -1;
+      const fx = k.cx - Math.sin(k.yaw) * k.lane, fz = k.cz - Math.cos(k.yaw) * k.lane; k.obj.position.set(fx + nx * off, 0, fz + nz * off); k.obj.userData.anim?.(dt, t, k.wait > 0 ? 0 : Math.abs(Math.cos(k.ph)) * 11 * 0.07);
       k.obj.rotation.y = k.yaw + (dir > 0 ? Math.PI / 2 : -Math.PI / 2); k.hitT -= dt;
       const cc = L.mode === 'drive' ? L.car : L.mode === 'solo' ? L.free : null;
       if (cc && k.hitT <= 0 && Math.hypot(cc.pos.x - k.obj.position.x, cc.pos.z - k.obj.position.z) < 2.3) { k.hitT = 2.5; const fast = Math.abs(cc.v) > 6; cc.v *= fast ? -0.2 : 0.3; cc.hopV = fast ? 2.0 : 0.8;
-        audio.ev('bonk', { solo: cc === L.free }); toast(fast ? ['Moo.', 'The cow does not move. The cow was here first.', 'That cow has seen things.'][Math.floor(rnd() * 3)] : 'Cows crossing. You wait. They take their time.', 2.2); } }
+        audio.ev('bonk', { solo: cc === L.free }); toast(fast ? ['Moo. (felt)', 'The cow does not move. The cow was here first.', 'A cow. At 2 AM. Of course.'][Math.floor(rnd() * 3)] : 'Cows crossing. You wait. They take their time.', 2.2); } }
   }
 
   // -------------------------------------------------------------- townsfolk spots (invisible markers) + rigged cast
@@ -516,7 +514,7 @@ export function createLevel(C) {
   function trafficList() { const W = L.trafficSrc?.(); if (!W) return null; const a = L._tr || (L._tr = []); a.length = 0;
     for (const t of W.cars || []) if (t?.p && t.root?.visible) a.push({ x: t.p.x, z: t.p.z, yaw: t.p.yaw || 0 });
     const cp = W.cop; if (cp?.p && cp.root?.visible) a.push({ x: cp.p.x, z: cp.p.z, yaw: cp.p.yaw || 0 }); return a; }
-  const BONK_SOLO = ['Bonk.', 'Thud.', 'Bonk.'], BONK_RIDE = ['Bonk.', 'The driver blinks.', 'Moth says nothing. Loudly.'];
+  const BONK_SOLO = ['Bonk.', 'Felt bumper. No harm.', '(the boots apologise)'], BONK_RIDE = ['Bonk.', 'The driver blinks.', 'Moth says nothing. Loudly.'];
   function carResponse(c, dt, hx, hz, nHit, solo, pedal, px, pz) {
     const hl = Math.hypot(hx, hz);
     if (hl > 1e-4) {
