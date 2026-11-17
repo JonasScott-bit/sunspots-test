@@ -69,6 +69,7 @@ renderer.toneMapping = TONE ? THREE.NeutralToneMapping : THREE.NoToneMapping; if
 if (TONE) PAL.hemiSky[0] = new THREE.Color('#aebcdc');
 if (NEWTOWN && !TONE) { PAL.hemiSky[0] = new THREE.Color('#e6e0d4'); PAL.hemiSky[1] = new THREE.Color('#cdb8d8'); } // run 11: near-neutral sky fill so white paint reads white, not lilac
 
+const PAL_DAY = Object.fromEntries(Object.entries(PAL).map(([k, v]) => [k, v.map((c) => c.clone())]));   // the daylight palette (cobalt sky, coral ground, mustard sun), kept for the finale's sunrise
 // Next Level: Last Minute Snacks is a 2 AM run (Scott: never daytime). Night palette: indigo sky, moon-pale eye sun, cool moonlight key, dim fill. ?day = old look (QA only).
 if (NIGHT) { PAL.sky = [new THREE.Color('#121838'), new THREE.Color('#2a0f3e')]; PAL.fog = [new THREE.Color('#1b1f44'), new THREE.Color('#3a1240')];
   PAL.ground = [new THREE.Color('#b0583a'), new THREE.Color('#a01c4a')]; PAL.sun = [new THREE.Color('#f2ead0'), new THREE.Color('#ff6d2e')];
@@ -1086,6 +1087,9 @@ function wolfFootsteps() {
   for (const q of u.plants) if (((q - p0) % 1 + 1) % 1 > 0 && ((q - p0) % 1 + 1) % 1 <= d) { u.steps = (u.steps || 0) + 1; audio.step(Math.abs(sp)); }
 }
 window.__sunspots = { puppet, get director() { return director; }, DEBUG, toggleWild, toggleFP, FP, cockpit, input, keys, get wild() { return wild; }, scene, camera, level, wolfState, renderer };
+// finale.js hook: the real sun, lights, palettes and town, so THE END plays in the actual town under the actual sun
+window.__sunspots.fin = { sun, SUN_DIST, SUN_R, discMat, lidMat, halo, iris, EY, updateLid, PAL, PAL_DAY, NK, hemi, key, fill, groundMat, KEY_OFFSET, FOG: [scene.fog.near, scene.fog.far],
+  get TS() { return TS; }, get wolf() { return wolf; }, get LW() { return LW; }, get CARN() { return CARN; }, get PET() { return PET; }, get SR() { return SR; } };
 
 // ---------------------------------------------------------------- horses: riding GRAVY (Bear's horse). RIDE at the horse, DISMOUNT like GET OUT
 const _rq = new THREE.Quaternion(), _re = new THREE.Euler(), _rv = new THREE.Vector3();

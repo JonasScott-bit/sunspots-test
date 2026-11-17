@@ -1,14 +1,17 @@
-// THE END (Night 7 complete): the crew on Moth's couch on the mesa, the sun comes up over Same Old One Horse Town,
-// the credits roll to The Eye Sets Over the Coral, then the Sunspot tally and free roam to finish 100%.
-// Self-contained: its own scene, drawn with the game's renderer while the main loop sleeps (window.__paused).
+// THE END (Night 7 complete): the crew on Moth's couch in the real Horse Plaza on Main St, the game's own eye sun comes up
+// over the DMV, the credits roll to The Eye Sets Over the Coral, then the Sunspot tally and free roam to finish 100%.
+// Shot in the overworld itself: main.js's scene, town, lights, palettes and sun (window.__sunspots.fin), drawn with the
+// game's renderer while the main loop sleeps (window.__paused); everything it touches is handed back in end().
 // shell.js calls maybeFinale() from its progress loop; ?finale plays it on load (QA), ?finale=credits jumps to the roll.
 import * as THREE from 'three';
-let glowSprite, blobShadow;   // missions/kit.js, loaded on first play (keeps shell.js's import order as it was)
+let kitLoaded = false, blobShadow;   // missions/kit.js, loaded on first play (keeps shell.js's import order as it was)
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as skClone } from 'three/addons/utils/SkeletonUtils.js';
 import { sunspotsApply } from './sunspots_material.js';
 import { wolfIdle, gesturer, castOffsets, CAST_POOL } from './idles.js';
+import { quality } from './quality.js';
+const LOWQ = () => quality?.t?.id === 'low';
 // [file, height m, look] : the in-game models (town.js / kit.js crewGLB use the same files, heights and looks)
 const CREW = { wolf: ['wolf_armsdown_felt.glb', 1.75, 'wolf'], moth: ['town2/moth_lo.glb', 1.95, 'moth'], bear: ['town2/bear_lo.glb', 1.95, 'bear'], ram: ['town2/ram_lo.glb', 1.8, 'ram'],
   heron: ['town2/heron_lo.glb', 1.95, 'heron'], crow: ['town2/crow_lo.glb', 1.6, 'crow'], lynx: ['town2/lynx_lo.glb', 1.75, 'lynx'], gecko: ['town2/gecko_lo.glb', 1.45, 'gecko'],
@@ -187,7 +190,7 @@ function rig(k, g, sit) {
     c.knee = 1.52 - Math.acos(clamp((SEATY - ANKLE) / Math.max(0.05, L), 0, 1));
     c.restore = () => { for (const [bn, q] of c.snap) bn.quaternion.copy(q); };
     c.restore(); modelRot(u, seatPose(c)); g.updateMatrixWorld(true);
-    const hp = P('Hips'); g.position.y += SEATY - hp.y; g.position.z += SEAT_Z - hp.z; c.baseY = 0; if (u.shadow) u.shadow.visible = false;
+    const hp = P('Hips'); g.position.y += SEATY - hp.y; g.position.z += O.z + SEAT_Z - hp.z;   // the couch is centred on O c.baseY = 0; if (u.shadow) u.shadow.visible = false;
   }
   else c.gest = gesturer(CAST_POOL, 'fin_' + k, { first: 2 + Math.random() * 6, min: 5, max: 12 });
   return c;
@@ -207,6 +210,7 @@ function heads(k, t) {
 function animCrew(s, dt, t, tally) {
   for (const c of Object.values(s.crew)) { const u = c.g.userData, i = u.inner;
     const cheer = (t > 23.2 && t < D.scene + 3) || tally, b = Math.abs(Math.sin(t * 6.5 + u.ph * 3));
+    if (!c.live && (c.restore || c.mixer)) { i.position.y = cheer ? (c.restore ? b * 0.035 : b * 0.1) : 0; continue; }   // out of the rig budget: the baked pose, a hop when everyone cheers
     if (c.restore) {   // seated
       c.restore(); modelRot(u, seatPose(c)); c.gest.update(dt, 1);
       const br = Math.sin(t * 1.9 + u.ph) * 0.02, [y0, p, sy0] = c.cover ? [0, -0.06, 0] : heads(c.k, t), y = -y0, sy = -sy0;   // heads() is written as + = toward world -x; the rig's yaw is the other way
@@ -228,118 +232,80 @@ function animCrew(s, dt, t, tally) {
   }
 }
 
+// ------------------------------------------------------------------ where: the real town
+// Horse Plaza, at the foot of the One Horse statue (townscape + horse.js), facing north across Main St: the town's own eye sun
+// comes up over the Department of Motor Vehicles roof. Front shots have the statue and its SAME OLD ONE HORSE TOWN plaque
+// behind the cast. Everything here is the overworld's own scene, camera, lights, ground and sun (main.js exposes them as
+// window.__sunspots.fin); the finale only adds Moth's couch and the cast.
+const O = new THREE.Vector3(-67.25, 0, 17.0);
+const EXTRAS = ['lynx', 'gecko', 'anteater', 'crow'];   // non-speaking: left out on the LOW tier
+// Rig budget: at most 3 skinned characters animate at once. Everyone else shows a baked snapshot of their current pose
+// (a plain mesh: no bones, no mixer), re-baked whenever they drop out of the live set.
+const MAX_RIGS = 3;
+const _sv = new THREE.Vector3(), _sn = new THREE.Vector3(), _m4 = new THREE.Matrix4(), _m3 = new THREE.Matrix3(), _bm = new THREE.Matrix4();
+function bakeSkinned(sm, into) {
+  const g = sm.geometry, P = g.attributes.position, N = g.attributes.normal, SI = g.attributes.skinIndex, SW = g.attributes.skinWeight, sk = sm.skeleton;
+  sk.update(); const bm = sk.boneMatrices, n = P.count;
+  let out = into; if (!out) { out = new THREE.BufferGeometry(); for (const k in g.attributes) if (k !== 'skinIndex' && k !== 'skinWeight') out.setAttribute(k, (k === 'position' || k === 'normal') ? new THREE.BufferAttribute(new Float32Array(n * 3), 3) : g.attributes[k].clone()); /* float: the GLBs are quantized (normalized int16), which would clamp skinned positions to +-1 */ out.setIndex(g.index); for (const gr of g.groups) out.addGroup(gr.start, gr.count, gr.materialIndex); }
+  const op = out.attributes.position, on = out.attributes.normal;
+  for (let i = 0; i < n; i++) {
+    _m4.set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    for (let j = 0; j < 4; j++) { const w = SW.getComponent(i, j); if (!w) continue; _bm.fromArray(bm, SI.getComponent(i, j) * 16); for (let e = 0; e < 16; e++) _m4.elements[e] += _bm.elements[e] * w; }
+    _m4.premultiply(sm.bindMatrixInverse).multiply(sm.bindMatrix);
+    _sv.fromBufferAttribute(P, i).applyMatrix4(_m4); op.setXYZ(i, _sv.x, _sv.y, _sv.z);
+    if (N) { _m3.setFromMatrix4(_m4); _sn.fromBufferAttribute(N, i).applyMatrix3(_m3).normalize(); on.setXYZ(i, _sn.x, _sn.y, _sn.z); }
+  }
+  op.needsUpdate = true; if (on) on.needsUpdate = true; out.computeBoundingSphere(); out.computeBoundingBox(); return out;
+}
+function setLive(c, on) {
+  if (c.live === on) return; c.live = on; const u = c.g.userData;
+  if (!c.skins) { c.skins = []; u.root.traverse((o) => { if (o.isSkinnedMesh) c.skins.push(o); }); }
+  if (!c.skins.length) { c.live = true; return; }
+  for (const sm of c.skins) {
+    if (!on) { u.root.updateMatrixWorld(true);
+      if (!sm.userData.baked) { const m = new THREE.Mesh(bakeSkinned(sm), sm.material); m.name = sm.name + '_baked'; m.castShadow = sm.castShadow; m.userData.finK = sm.userData.finK; m.userData.noCull = true;  /* perf.js leaves it alone; render() lends it the rig's own LOD index */ sm.parent.add(m); sm.userData.baked = m; own.push(m.geometry); }
+      else bakeSkinned(sm, sm.userData.baked.userData.full || sm.userData.baked.geometry);
+      const m = sm.userData.baked; m.position.copy(sm.position); m.quaternion.copy(sm.quaternion); m.scale.copy(sm.scale); m.visible = true; sm.visible = false; }
+    else { sm.visible = true; if (sm.userData.baked) sm.userData.baked.visible = false; }
+  }
+}
+function liveWanted(s, t, cut) {   // the speaker first, then whoever is on the couch nearest the lens
+  const want = []; const push = (k) => { if (s.crew[k] && !want.includes(k) && want.length < MAX_RIGS) want.push(k); };
+  if (cut && cut[2] !== 'wide') push(cut[2]);
+  const li = LINES.findIndex((l) => t >= l[0] && t < l[0] + 3.3); if (li >= 0) push(LINES[li][1].toLowerCase());
+  const cp = cam.position; ['wolf', 'moth', 'bear'].sort((a, b) => (s.crew[a]?.g.position.distanceToSquared(cp) || 0) - (s.crew[b]?.g.position.distanceToSquared(cp) || 0)).forEach(push);
+  return want;
+}
+
 function build(MODELS) {
-  scene = new THREE.Scene(); own = [];
+  const S = window.__sunspots, F = S.fin; own = []; scene = S.scene; cam = S.camera;
   const M = (c, o = {}) => { const m = new THREE.MeshStandardMaterial({ color: c, roughness: 0.95, metalness: 0, ...o }); own.push(m); return m; };
-  const B = (m) => { own.push(m); return m; };
-  const mesh = (geo, mat, x = 0, y = 0, z = 0, p = scene) => { own.push(geo); const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); p.add(o); return o; };
-  // sky: night -> dawn gradient, sun glow on the horizon
-  const skyU = { k: { value: 0 }, sunDir: { value: new THREE.Vector3(0, -0.1, -1) } };
-  const sky = new THREE.Mesh(B(new THREE.SphereGeometry(520, 32, 16)), B(new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, fog: false, uniforms: skyU,
-    vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-    fragmentShader: `uniform float k; uniform vec3 sunDir; varying vec3 vD;
-      void main(){ float h = clamp(vD.y, -0.2, 1.0);
-        vec3 nTop = vec3(0.05,0.06,0.18), nMid = vec3(0.16,0.12,0.35), nLow = vec3(0.35,0.23,0.42);
-        vec3 dTop = vec3(0.36,0.56,0.82), dMid = vec3(0.98,0.70,0.55), dLow = vec3(1.0,0.83,0.50);
-        vec3 top = mix(nTop, dTop, smoothstep(0.25,1.0,k)), mid = mix(nMid, dMid, smoothstep(0.0,0.8,k)), low = mix(nLow, dLow, smoothstep(0.0,0.7,k));
-        vec3 c = h < 0.12 ? mix(low, mid, smoothstep(-0.05,0.12,h)) : mix(mid, top, smoothstep(0.12,0.6,h));
-        float s = max(dot(normalize(vD), normalize(sunDir)), 0.0); c += vec3(1.0,0.55,0.25) * pow(s, 8.0) * (0.25 + 0.5*k) + vec3(1.0,0.8,0.5) * pow(s, 60.0) * 0.5;
-        gl_FragColor = vec4(c, 1.0); }` })));
-  sky.renderOrder = -10; own.push(sky.geometry); scene.add(sky);
-  // stars
-  const sp = []; for (let i = 0; i < 420; i++) { const a = Math.random() * Math.PI * 2, e = 0.12 + Math.random() * 1.3; sp.push(Math.cos(a) * Math.cos(e) * 480, Math.sin(e) * 480, Math.sin(a) * Math.cos(e) * 480); }
-  const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3)); own.push(sg);
-  const starMat = B(new THREE.PointsMaterial({ color: '#fff3dc', size: 2.2, sizeAttenuation: false, transparent: true, depthWrite: false, fog: false }));
-  scene.add(new THREE.Points(sg, starMat));
-  scene.fog = new THREE.Fog('#3a2a52', 60, 330);
-  const hemi = new THREE.HemisphereLight('#6a6ab8', '#2a1a2a', 0.9); scene.add(hemi);
-  const sunL = new THREE.DirectionalLight('#ffb070', 0); sunL.position.set(0, 10, -100); scene.add(sunL);
-  const fill = new THREE.DirectionalLight('#8a9aff', 0.55); fill.position.set(-4, 6, 9);   // night: cool moon fill; dawn: the warm rim light behind the crew scene.add(fill);
-
-  // the mesa (couch on top), the town below, the far mesas
-  const mesaTop = M('#c98552'), mesaSide = M('#a8603a');
-  mesh(new THREE.CylinderGeometry(9, 11.5, 18, 10, 1), mesaSide, 0, -9.05, 0);
-  mesh(new THREE.CylinderGeometry(9.02, 9.02, 0.1, 10), mesaTop, 0, -0.05, 0);
-  for (const [x, z, s] of [[-6.2, 2.5, 1], [6.6, 1.2, 0.8], [5.4, 4.6, 0.6]]) { const r = mesh(new THREE.DodecahedronGeometry(0.7 * s, 0), M('#b06a40'), x, 0.3 * s, z); r.rotation.set(0.4, x, 0.2); }
-  const cactus = (x, z, h) => { const g = new THREE.Group(); g.position.set(x, 0, z); scene.add(g); const m = M('#5a8a4a');
-    mesh(new THREE.CapsuleGeometry(0.28, h, 3, 8), m, 0, h / 2 + 0.28, 0, g); const a = mesh(new THREE.CapsuleGeometry(0.18, h * 0.35, 3, 8), m, 0.45, h * 0.62, 0, g); a.rotation.z = -0.25;
-    const a2 = mesh(new THREE.CapsuleGeometry(0.16, h * 0.28, 3, 8), m, -0.42, h * 0.5, 0, g); a2.rotation.z = 0.3; };
-  cactus(-5.6, 0.2, 1.9); cactus(6.4, -2.4, 1.4);
-  const ground = mesh(new THREE.PlaneGeometry(1200, 1200), M('#9a5e42'), 0, -18, 0); ground.rotation.x = -Math.PI / 2;
-  // town: felt blocks along Main Street, windows that go dark as the sun comes up
-  const pals = ['#e0705a', '#f2c230', '#2fae8a', '#8a7ab8', '#f6efe0', '#ff8fae', '#4a8ac8', '#e8a24a', '#c9d86a', '#c96a8a'];
-  const town = new THREE.Group(); town.position.set(0, -18, -46); scene.add(town);
-  const win = []; let rnd = 7; const R = () => (rnd = (rnd * 16807) % 2147483647) / 2147483647;
-  const box = (x, z, w, h, d, c, roof) => { const b = mesh(new THREE.BoxGeometry(w, h, d), M(c), x, h / 2, z, town);
-    if (roof) { const r = mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.74, h * 0.38, 4), M(roof), x, h + h * 0.19, z, town); r.rotation.y = Math.PI / 4; r.scale.set(w / Math.max(w, d), 1, d / Math.max(w, d)); }
-    const rows = Math.max(1, Math.floor(h / 2.4)), cols = Math.max(1, Math.floor(w / 1.9));
-    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (R() < 0.62) win.push([x - w / 2 + (c + 0.5) * w / cols, 1.3 + r * 2.4, z + d / 2 + 0.02, R()]); return b; };
-  for (const side of [-1, 1]) for (let i = 0; i < 9; i++) { const x = -44 + i * 11 + (R() - 0.5) * 2, w = 6 + R() * 4, h = 3.5 + R() * 6, d = 6 + R() * 3;
-    box(x, side * 9 - (side > 0 ? 0 : 0), w, h, d, pals[Math.floor(R() * pals.length)], R() < 0.4 ? pals[Math.floor(R() * pals.length)] : null); }
-  for (let i = 0; i < 16; i++) { const x = -70 + R() * 140, z = -22 - R() * 40; box(x, z, 5 + R() * 6, 3 + R() * 9, 5 + R() * 5, pals[Math.floor(R() * pals.length)], R() < 0.5 ? '#8a3a2a' : null); }
-  for (let i = 0; i < 10; i++) { const x = (R() < 0.5 ? -1 : 1) * (52 + R() * 30), z = 4 + R() * 14; box(x, z, 4 + R() * 3, 2.5 + R() * 2, 4 + R() * 3, pals[Math.floor(R() * pals.length)], '#7a3a2a'); }
-  const road = mesh(new THREE.PlaneGeometry(130, 6), M('#4a3a40'), 0, 0.03, 0, town); road.rotation.x = -Math.PI / 2;
-  const winGeo = new THREE.PlaneGeometry(0.9, 1.1); own.push(winGeo);
-  const winMat = B(new THREE.MeshBasicMaterial({ color: '#ffd27a', fog: true }));
-  const wins = new THREE.InstancedMesh(winGeo, winMat, win.length); const m4 = new THREE.Matrix4();
-  win.forEach(([x, y, z], i) => { m4.makeTranslation(x, y, z); wins.setMatrixAt(i, m4); }); town.add(wins);
-  // the one horse: on its plinth in the square
-  const horse = new THREE.Group(); horse.position.set(0, 0, 3.5); horse.scale.setScalar(1.6); town.add(horse);
-  const hm = M('#8a5a3a'); mesh(new THREE.BoxGeometry(1.8, 1.0, 1.8), M('#d8ccb4'), 0, 0.5, 0, horse);
-  const hb = mesh(new THREE.CapsuleGeometry(0.42, 1.1, 3, 8), hm, 0, 2.1, 0, horse); hb.rotation.z = Math.PI / 2;
-  const hn = mesh(new THREE.CapsuleGeometry(0.22, 0.7, 3, 8), hm, 0.85, 2.7, 0, horse); hn.rotation.z = -0.6; mesh(new THREE.CapsuleGeometry(0.2, 0.45, 3, 8), hm, 1.18, 3.05, 0, horse).rotation.z = 1.2;
-  for (const [x, z] of [[-0.5, -0.25], [-0.5, 0.25], [0.5, -0.25], [0.5, 0.25]]) mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.9, 6), hm, x, 1.45, z, horse);
-  // water tower + the midway wheel
-  const wt = new THREE.Group(); wt.position.set(-30, 0, -16); town.add(wt); const wm = M('#b8c0c8');
-  for (const [x, z] of [[-1.6, -1.6], [1.6, -1.6], [-1.6, 1.6], [1.6, 1.6]]) mesh(new THREE.CylinderGeometry(0.18, 0.18, 12, 6), wm, x, 6, z, wt);
-  mesh(new THREE.CylinderGeometry(3.4, 3.4, 4.2, 14), M('#9ab8c8'), 0, 14, 0, wt); mesh(new THREE.ConeGeometry(3.6, 1.6, 14), M('#e0705a'), 0, 16.9, 0, wt);
-  const wheel = new THREE.Group(); wheel.position.set(34, 13, -20); town.add(wheel);
-  mesh(new THREE.TorusGeometry(10, 0.35, 6, 32), M('#f6efe0'), 0, 0, 0, wheel);
-  for (let i = 0; i < 8; i++) { const s = mesh(new THREE.CylinderGeometry(0.15, 0.15, 20, 5), M('#f6efe0'), 0, 0, 0, wheel); s.rotation.z = i * Math.PI / 8; }
-  const cars = []; for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2, c = mesh(new THREE.BoxGeometry(1.4, 1.2, 1.4), M(pals[i % pals.length]), Math.cos(a) * 10, Math.sin(a) * 10, 0, wheel); cars.push(c); }
-  for (const sx of [-1, 1]) { const l = mesh(new THREE.CylinderGeometry(0.3, 0.3, 15, 6), M('#d8ccb4'), sx * 3, -6.5, -0.6, wheel); l.rotation.z = sx * 0.22; }
-  // far mesas on the horizon (the sun comes up between them)
-  const farM = M('#6a3a52');
-  for (const [x, z, r, h] of [[-150, -250, 34, 26], [-80, -270, 22, 18], [110, -260, 40, 30], [190, -230, 26, 20], [-230, -200, 30, 22], [30, -300, 18, 12]]) mesh(new THREE.CylinderGeometry(r * 0.8, r, h, 9), farM, x, -18 + h / 2, z);
-
-  // the sun: a felt sun with one big eye (the studio's Eye Sets), it rises and opens its eye
-  const sun = new THREE.Group(); sun.position.set(-10, -60, -280); scene.add(sun);
-  const SB = (c) => B(new THREE.MeshBasicMaterial({ color: c, fog: false }));
-  mesh(new THREE.CircleGeometry(22, 48), SB('#ffc23a'), 0, 0, 0, sun);
-  const rays = new THREE.Group(); sun.add(rays);
-  for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2, r = mesh(new THREE.ConeGeometry(3.6, 9, 3), SB(i % 2 ? '#ffa53a' : '#ffd25a'), Math.cos(a) * 27, Math.sin(a) * 27, -0.5, rays); r.rotation.z = a - Math.PI / 2; }
-  const eye = new THREE.Group(); eye.position.set(0, 2, 0.2); sun.add(eye);
-  mesh(new THREE.CircleGeometry(9, 40), SB('#fff8ea'), 0, 0, 0, eye); const iris = mesh(new THREE.CircleGeometry(4.6, 32), SB('#3a7ab8'), 0, -0.6, 0.1, eye);
-  mesh(new THREE.CircleGeometry(2.4, 24), SB('#1d1416'), 0, 0, 0.1, iris); mesh(new THREE.CircleGeometry(0.9, 12), SB('#ffffff'), 1.3, 1.3, 0.2, iris);
-  const cheeks = []; for (const sx of [-1, 1]) cheeks.push(mesh(new THREE.CircleGeometry(3, 20), SB('#ff8a5a'), sx * 12, -8, 0.15, sun));
-  const smile = mesh(new THREE.TorusGeometry(5.5, 0.9, 6, 24, Math.PI), SB('#c9542a'), 0, -10, 0.2, sun); smile.rotation.z = Math.PI;
-  const halo = glowSprite('#ffb05a', 150, 150, 0.0); sun.add(halo); halo.position.z = -2;
-
-  // Moth's couch, the porch light he fixed
-  const couch = new THREE.Group(); couch.position.set(0, 0, 0); scene.add(couch);
+  const set = new THREE.Group(); set.name = 'finale_set'; scene.add(set);
+  const mesh = (geo, mat, x = 0, y = 0, z = 0, p = set) => { own.push(geo); const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); o.castShadow = !LOWQ(); o.receiveShadow = true; p.add(o); return o; };
+  // the overworld as it stands, minus the player's own Wolf (he is on the couch) and the frozen traffic / errand markers
+  const hid = []; const hide = (o) => { if (o && o.visible) { o.visible = false; hid.push(o); } };
+  hide(F.wolf); hide(scene.getObjectByName('snackrun'));   // the snack run's mission props and its night overlay are not part of the town
+  // the living town stays (its cab stand, flyer posts, signs); only its walking/driving cast steps out, since their sim is paused and the finale has its own cast
+  for (const o of scene.getObjectByName('livingworld')?.children || []) { let n = 0; o.traverse((m) => { if (m.isMesh) n += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3; }); if (n >= 110) hide(o); }
+  // Moth's couch, carried out into the middle of Sun St (felt, no brands)
+  const couch = new THREE.Group(); couch.position.copy(O); set.add(couch);
   const cm = M('#b8443a'), cc = M('#d06a52');
   mesh(new THREE.BoxGeometry(4.6, 0.32, 0.92), cm, 0, 0.16, 0.06, couch); mesh(new THREE.BoxGeometry(4.0, 0.14, 0.66), cc, 0, 0.39, -0.06, couch);   // seat: cushion top 0.46, front edge z -0.39
   mesh(new THREE.BoxGeometry(4.6, 1.0, 0.3), cm, 0, 0.6, 0.42, couch); for (const x of [-1.34, 0, 1.34]) { const bc = mesh(new THREE.BoxGeometry(1.28, 0.52, 0.16), cc, x, 0.72, 0.21, couch); bc.rotation.x = -0.12; }   // back + three back cushions
   for (const sx of [-1, 1]) mesh(new THREE.BoxGeometry(0.34, 0.68, 0.92), cm, sx * 2.17, 0.34, 0.06, couch);
-  const lamp = new THREE.Group(); lamp.position.set(0.95, 0, 1.3); scene.add(lamp);   // Moth's porch light, framed between the leads in the front shot
-  mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.2, 6), M('#3a2a2a'), 0, 1.1, 0, lamp); mesh(new THREE.CylinderGeometry(0.34, 0.24, 0.36, 10), M('#3a2a2a'), 0, 2.32, 0, lamp);
-  const bulbMat = B(new THREE.MeshBasicMaterial({ color: '#ffe6a0' })); mesh(new THREE.SphereGeometry(0.18, 10, 8), bulbMat, 0, 2.08, 0, lamp);
-  const lampGlow = glowSprite('#ffd27a', 3.2, 3.2, 0.75); lampGlow.position.y = 2.1; lamp.add(lampGlow);
-  const lampL = new THREE.PointLight('#ffcf7a', 6, 7, 1.6); lampL.position.set(0, 2.0, 0); lamp.add(lampL);
-  // (no cooler: the couch shot stays clean)
 
   // the crew: the game's own models (the same lo GLBs + Sunspots felt look the town and missions use; the Wolf is the
-  // player's own wolf_armsdown_felt.glb). Staged like an art-book frame: Wolf + Moth up front as the leads, a clear gap
-  // behind them, everyone else in a loose arc around Moth's couch. Everyone faces the town and the sun (-z).
-  const crew = {}; const put = (k, x, z, ry = 0, sit = false) => { const g = MODELS[k]; if (!g) return; g.position.set(x, 0, z); g.rotation.y = Math.PI + ry; scene.add(g); crew[k] = rig(k, g, sit); };
-  put('bear', -1.36, 0, 0.1, true); put('wolf', 0.0, 0, 0, true); put('moth', 1.36, 0, -0.08, true);   // on Moth's couch (hips at the front of the cushion, feet on the ground)
-  put('lynx', -0.6, 1.18, -0.1); put('ram', -2.3, 1.1, -0.3); put('heron', 2.55, 1.1, 0.22);   // leaning on the back of it
+  // player's own wolf_armsdown_felt.glb). Wolf + Moth + Bear on the couch, everyone else around it, all facing the sun (-z).
+  const crew = {}; const put = (k, x, z, ry = 0, sit = false) => { const g = MODELS[k]; if (!g) return; if (LOWQ() && EXTRAS.includes(k)) return; g.position.set(O.x + x, 0, O.z + z); g.rotation.y = Math.PI + ry; set.add(g); crew[k] = rig(k, g, sit); };
+  put('bear', -1.36, 0, 0.1, true); put('wolf', 0.0, 0, 0, true); put('moth', 1.36, 0, -0.08, true);   // on the couch (hips at the front of the cushion, feet on the ground)
+  put('lynx', 0.62, 1.2, 0.08); put('ram', -2.3, 1.1, -0.3); put('heron', 2.55, 1.1, 0.22);   // leaning on the back of it
   put('gecko', -1.45, 1.22, -0.15); put('anteater', -4.25, 0.55, -0.55);
   put('squid', 2.65, -1.05, 0.55); put('crow', 3.55, -0.15, 0.7);
-  if (Q.get('finale') === 'lineup') { const order = ['wolf', 'moth', 'bear', 'ram', 'heron', 'crow', 'lynx', 'gecko', 'anteater', 'squid']; order.forEach((k, i) => { const c = crew[k]; if (c) { c.g.position.set((i - 4.5) * 1.3, 0, 4); c.g.rotation.y = 0; c.sit = false; c.g.userData.inner.position.y = 0; } }); }
-
-  cam = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 1200);
-  return { skyU, starMat, hemi, sunL, fill, sun, eye, rays, halo, wins, win, wheel, cars, crew, lampGlow, lampL, bulbMat, scene };
+  if (Q.get('finale') === 'lineup') { const order = ['wolf', 'moth', 'bear', 'ram', 'heron', 'crow', 'lynx', 'gecko', 'anteater', 'squid']; order.forEach((k, i) => { const c = crew[k]; if (c) { c.g.position.set(O.x + (i - 4.5) * 1.3, 0, O.z + 4); c.g.rotation.y = 0; c.sit = false; c.g.userData.inner.position.y = 0; } }); }
+  for (const c of Object.values(crew)) setLive(c, true);
+  const cam0 = { fov: cam.fov, near: cam.near, pos: cam.position.clone(), q: cam.quaternion.clone() };
+  for (const k in crew) crew[k].g.traverse((o) => { o.userData.finK = k; });   // for the LOD pass in render()
+  return { F, set, hid, cam0, crew, scene };
 }
 
 // ------------------------------------------------------------------ the script
@@ -355,7 +321,7 @@ const D = { scene: 26, title: 6.5, roll: 52 };
 // Film coverage: on a spoken line, a hard cut to a medium close-up of the speaker (waist-up, face 3/4 to camera, a sliver of the
 // neighbour, the dawn sky + porch-lamp glow behind). [from, to, who, side]  side: +1 = camera on the speaker's world -x side.
 // 'wide' = the high establishing wide (portrait). Anything not listed falls back to the SHOT keys.
-const CUTS = { land: [[3.0, 7.0, 'moth', 0.42, 0, 1], [10.6, 14.0, 'wolf', -1]], port: [[3.0, 7.0, 'moth', 0.42], [7.0, 8.7, 'wide'], [8.7, 10.6, 'bear', -0.45], [10.6, 14.0, 'wolf', -1], [15.8, 17.8, 'heron', 1], [17.8, 21.2, 'ram', -1, 0.2, 0, 1.3], [21.2, 24.8, 'squid', 1], [24.8, 26.0, 'wide']] };   // [from, to, who, lens angle off his nose (sign = side), extra headroom, landscape: which side of frame he sits, zoom out (horns)]
+const CUTS = { land: [[3.0, 7.0, 'moth', 0.42, 0, 1], [10.6, 14.0, 'wolf', -1]], port: [[3.0, 7.0, 'moth', 0.42], [7.0, 8.7, 'wide'], [8.7, 10.6, 'bear', -0.45], [10.6, 14.0, 'wolf', -1], [15.8, 17.8, 'heron', -1], [17.8, 21.2, 'ram', 1, 0.2, 0, 1.3], [21.2, 24.8, 'squid', 1], [24.8, 26.0, 'wide']] };   // [from, to, who, lens angle off his nose (sign = side), extra headroom, landscape: which side of frame he sits, zoom out (horns)]
 const cutAt = (t, portrait) => (portrait ? CUTS.port : CUTS.land).find((c) => t >= c[0] && t < c[1]) || null;
 const _h = new THREE.Vector3();
 const _he = new THREE.Vector3();
@@ -366,7 +332,7 @@ function headPos(c, out) {   // the middle of the face: halfway from the Head bo
 }
 function coverCam(cut, t, out, look, portrait) {
   const s = st, who = cut[2];
-  if (who === 'wide') { out.set(0, 0.85, -9.8); look.set(0.05, 3.55, 0); cam.fov = 66; return; }   // portrait establishing: low and back, the couch along the bottom, the dawn sky filling the rest
+  if (who === 'wide') { out.set(O.x, 0.85, O.z - 9.8); look.set(O.x + 0.05, 3.55, O.z); cam.fov = 66; return; }   // portrait establishing: low and back, the couch along the bottom, the dawn sky filling the rest
   const c = s.crew[who]; if (!c) return false; headPos(c, _h); c.g.updateMatrixWorld(true);
   const h = c.g.userData.h || 1.7, push = (t - cut[0]) / Math.max(0.5, cut[1] - cut[0]);
   const fov = portrait ? 40 : 30, viewH = h * (portrait ? 0.82 : 0.6) * (cut[6] || 1) * (1 - 0.05 * push);   // waist-up; a slow push-in over the line
@@ -377,19 +343,19 @@ function coverCam(cut, t, out, look, portrait) {
   look.set(_h.x + lx, _h.y - viewH * ((portrait ? 0.17 : 0.13) - (cut[4] || 0)), _h.z + lz); cam.fov = fov; c.cover = { x: out.x, z: out.z }; c.side = -cut[3];
   return true;
 }
-const SHOT = [   // camera keys: [t, camPos, lookAt, lookAt in portrait (optional)]
-  [0, [1.4, 4.6, 7.6], [-4, -6, -60]],
-  [7, [0.5, 4.0, 6.2], [-4, -5, -60]],
-  [7.01, [-1.7, 1.2, -4.9], [0.15, 1.0, -0.3], [-0.3, 0.2, 0], [-0.2, 3.7, -7.9]],      // portrait: its own camera, closer and higher, all three seated with margin      // the crew from the front, low 3/4: Wolf + Moth lead, dawn on their faces, rim light behind
+const SHOT = [   // camera keys around the couch (O): [t, camPos, lookAt, lookAt in portrait (optional), camPos in portrait (optional)]
+  [0, [6.6, 3.4, 3.2], [-2.5, 1.5, -40], [-1.5, 2.5, -40], [6.4, 3.6, 4.6]],     // behind the crew, off the statue's east flank: Main St, the DMV, the sun still under the roofline
+  [7, [5.9, 2.7, 2.0], [-2.5, 1.8, -40], [-1.5, 2.8, -40], [6.0, 3.0, 3.4]],
+  [7.01, [-1.7, 1.2, -4.9], [0.15, 1.0, -0.3], [-0.3, 0.2, 0], [-0.2, 3.7, -7.9]],      // the crew from the front, low 3/4, the statue and its plaque behind them
   [14, [-1.0, 1.15, -4.4], [0.25, 1.0, -0.3], [-0.25, 0.2, 0], [0.0, 3.6, -7.6]],
-  [14.01, [-1.5, 1.6, 6.5], [-7, 4, -200]],     // from behind: the sun comes up over their shoulders (the porch lamp off to the right)
-  [20, [-2.1, 2.6, 8.5], [-9, 8, -200]],
+  [14.01, [6.5, 1.9, 2.4], [-10, 4, -40], [3, 8, -60], [6.3, 2.1, 2.5]],     // from behind, off the statue's east flank: the sun comes up over Main St, over their shoulders
+  [20, [6.9, 2.6, 2.6], [-11, 7, -40], [2, 11, -60], [6.6, 2.8, 2.7]],
   [20.01, [2.4, 1.3, -5.8], [0.1, 1.05, -0.3], [0.2, 0.8, 0], [1.6, 2.4, -7.2]],
   [26, [3.3, 1.8, -7.2], [0.1, 1.1, -0.3], [0.2, 0.85, 0], [2.3, 2.8, -8.2]],
-  [26.01, [7, 5, 10], [-24, 22, -60], [-6, 27, -60]],     // title: clear sky for the words, the sun low and to the right (centred, under them, in portrait)
-  [33, [4, 7, 14], [-26, 24, -70], [-8, 29, -70]],
-  [40, [3, 7.5, 14.5], [60, 14, -70]],     // the roll: the sun off to the left, clear sky behind the names
-  [200, [-4, 9, 16], [66, 14, -80]],
+  [26.01, [2.5, 2.6, -8.5], [-12, 16, -60], [-2, 20, -60], [1.5, 2.6, -9.5]],     // title: Main St's roofline along the bottom, clear sky for the words, the sun low and to the right
+  [33, [1.5, 3.4, -10.5], [-13, 18, -70], [-3, 22, -70], [0.8, 3.4, -11.5]],
+  [40, [2, 6, -6], [60, 10, -50], [60, 12, -50], [2, 6.5, -6]],     // the roll: along Main St to the east, the sun off to the left, sky behind the names
+  [200, [-4, 8, -9], [66, 11, -60], [66, 13, -60], [-4, 8.5, -9]],
 ];
 function camAt(t, out, look, portrait) {
   let i = 0; while (i < SHOT.length - 2 && SHOT[i + 1][0] <= t) i++;
@@ -399,12 +365,13 @@ function camAt(t, out, look, portrait) {
   const la = portrait && a[3] || a[2], lb = portrait && b[3] || b[2];
   look.set(lerp(la[0], lb[0], k), lerp(la[1], lb[1], k), lerp(la[2], lb[2], k));
   if (portrait && !own) { const back = out.clone().sub(look).normalize(); out.addScaledVector(back, 1.8 + 0.06 * out.distanceTo(look) * 0); out.y += 0.3; }
+  out.x += O.x; out.z += O.z; look.x += O.x; look.z += O.z;   // keys are written around the couch
 }
 
 export async function playFinale({ from = 0 } = {}) {
   if (playing) return; playing = true;
   const R = window.__sunspots?.renderer; if (!R) { playing = false; return; }
-  let MODELS; try { if (!glowSprite) ({ glowSprite, blobShadow } = await import('./missions/kit.js')); MODELS = await loadCrew(); } catch (e) { console.warn('finale: kit', e); playing = false; return; }
+  let MODELS; try { if (!kitLoaded) { ({ blobShadow } = await import('./missions/kit.js')); kitLoaded = true; } MODELS = await loadCrew(); } catch (e) { console.warn('finale: kit', e); playing = false; return; }
   try { window.__town?.M?.save?.(); } catch (_) {}
   if (st) return; const P0 = loadP(); P0.finaleSeen = 1; P0.finaleAt = Date.now(); saveP(P0);   // the SAME OLD SUNRISE Sunspot + never auto-plays twice
   window.__saveguard?.mirror?.();
@@ -452,33 +419,46 @@ function step(dt) {
   if (s.phase === 'roll') { const k = (t - D.scene - D.title) / D.roll, vh = innerHeight; el.roll.style.transform = `translate(-50%, ${lerp(vh, -s.rollH - 20, clamp(k, 0, 1))}px)`; if (k >= 1) toTally(); }
   render(dt, false);
 }
+const DAYFOG = [45, 330], _ss = new THREE.Vector3(), _ts = new THREE.Vector3(), _sd = new THREE.Vector3(), CG = new THREE.Color();
+let irisX = 0, irisY = 0;
 function render(dt, tally) {
-  const s = st, t = Math.min(s.t, 400), portrait = innerHeight > innerWidth;
-  // sunrise: k 0 -> 1 over the scene
-  const k = ease((t - 2) / 19);
-  s.skyU.k.value = k; s.starMat.opacity = 1 - ease(k * 1.6);
-  s.sun.position.y = lerp(-46, 34, ease((t - 1) / 26)); s.sun.position.x = lerp(-14, -6, ease(t / 30));
-  s.skyU.sunDir.value.copy(s.sun.position).normalize();
-  s.rays.rotation.z = t * 0.08; s.halo.material.opacity = 0.15 + 0.5 * k;
-  const open = ease((t - 12.5) / 1.6), blink = (t > 18 && ((t * 0.7) % 4.3) < 0.14) ? 0.1 : 1; s.eye.scale.set(1, Math.max(0.06, open * blink), 1);
-  s.eye.children[1].position.x = Math.sin(t * 0.4) * 0.9;
-  CA.set('#3a2a52'); CB.set('#f2b48a'); s.scene.fog.color.copy(CA).lerp(CB, k);
-  s.hemi.color.set('#6a6ab8').lerp(CB.set('#ffe2c0'), k); s.hemi.groundColor.set('#2a1a2a').lerp(CB.set('#8a5a4a'), k); s.hemi.intensity = lerp(0.85, 1.25, k);
-  s.sunL.intensity = 2.4 * k; s.sunL.position.set(s.sun.position.x * 0.3, Math.max(4, s.sun.position.y * 0.5), -100);
-  s.fill.color.set('#8a9aff').lerp(CB.set('#ff9a50'), k); s.fill.intensity = lerp(0.6, 1.9, k);
-  // porch light clicks off once the sun is up; windows go dark one by one
-  const lampOn = t < 19.2 ? 1 : 0; s.lampGlow.material.opacity = 0.75 * lampOn; s.lampL.intensity = 6 * lampOn; s.bulbMat.color.set(lampOn ? '#ffe6a0' : '#d8ccb4');
-  const m4 = new THREE.Matrix4(); s.win.forEach(([x, y, z, r], i) => { const on = r > k * 1.15; m4.makeScale(on ? 1 : 0.0001, on ? 1 : 0.0001, 1).setPosition(x, y, z); s.wins.setMatrixAt(i, m4); }); s.wins.instanceMatrix.needsUpdate = true;
-  s.wheel.rotation.z = t * 0.06; for (const c of s.cars) c.rotation.z = -s.wheel.rotation.z;
-  // the crew: everyone waves at the sun on Ram's line, everyone cheers at the title
+  const s = st, t = Math.min(s.t, 400), portrait = innerHeight > innerWidth, F = s.F;
+  // sunrise: the town's own night palette turns into its own daylight palette (cobalt sky, coral ground, mustard sun)
+  const k = ease((t - 2) / 19), P = F.PAL, Dp = F.PAL_DAY, NK = F.NK;
+  scene.background.lerpColors(P.sky[0], Dp.sky[0], k);
+  scene.fog.color.lerpColors(P.fog[0], Dp.fog[0], k); scene.fog.near = lerp(F.FOG[0], DAYFOG[0], k); scene.fog.far = lerp(F.FOG[1], DAYFOG[1], k);
+  F.groundMat.color.lerpColors(P.ground[0], Dp.ground[0], k);
+  F.hemi.color.lerpColors(P.hemiSky[0], Dp.hemiSky[0], k); F.hemi.groundColor.copy(F.groundMat.color).lerp(CG.set('#e6e2da'), 0.8); F.hemi.intensity = 1.55 * lerp(NK.hemi, 1, k);
+  F.key.color.lerpColors(P.key[0], Dp.key[0], k); F.key.intensity = 2.3 * lerp(NK.key, 1, k); F.fill.intensity = 3.2 * lerp(NK.fill, 1, k);
+  F.key.position.copy(O).add(F.KEY_OFFSET); F.key.target.position.copy(O); F.key.target.updateMatrixWorld();
+  F.discMat.color.lerpColors(P.sun[0], Dp.sun[0], k); F.lidMat.color.copy(F.discMat.color).multiplyScalar(0.9);
+  // the camera: a cut to the speaker, or the keyed shots
   for (const c of Object.values(s.crew)) c.cover = null;
   const cut = !tally && cutAt(t, portrait); cam.fov = portrait ? 66 : 48;
   if (!(cut && coverCam(cut, t, V, L, portrait) !== false)) { camAt(t, V, L, portrait); cam.fov = portrait ? 66 : 48; }
-  cam.position.copy(V); cam.lookAt(L); cam.updateProjectionMatrix();
+  if (Q.get('finale') === 'lineup') { V.set(O.x, 1.0, O.z + 15); L.set(O.x, 0.95, O.z + 4); cam.fov = 30; }   // QA: refcheck lineup
+  cam.aspect = innerWidth / innerHeight; cam.near = 0.1; cam.position.copy(V); cam.lookAt(L); cam.updateProjectionMatrix(); cam.updateMatrixWorld();
+  // the eye sun itself (main.js placeSun, with the elevation rising out of the north end of Sun St); its lid opens on the Heron's line
+  const land = cam.aspect > 1, e = lerp(-0.07, land ? 0.165 : 0.25, ease((t - 1) / 19));
+  _sd.set(0, e, -1).normalize(); F.sun.position.copy(cam.position).addScaledVector(_sd, F.SUN_DIST); F.sun.quaternion.copy(cam.quaternion); F.sun.scale.setScalar(land ? F.SUN_R * 1.08 : F.SUN_R);
+  const open = ease((t - 12.5) / 1.6), blink = (t > 18 && ((t * 0.7) % 4.3) < 0.14) ? 0.85 : 0; F.updateLid(Math.max(1 - open, blink));
+  _ss.copy(F.sun.position).project(cam); _ts.set(O.x, 1.2, O.z).project(cam);   // the pupil finds the couch (main.js tracks the Wolf the same way)
+  let dx = (_ts.x - _ss.x) * cam.aspect, dy = _ts.y - _ss.y; if (_ts.z > 1) { dx = -dx; dy = -Math.abs(dy); }
+  const l = Math.hypot(dx, dy) || 1, reach = clamp(l / 0.9, 0, 1); irisX = lerp(irisX, dx / l * reach * 0.25, 1 - Math.exp(-dt * 6)); irisY = lerp(irisY, dy / l * reach * 0.075, 1 - Math.exp(-dt * 6));
+  F.iris.position.set(irisX, F.EY + irisY, 0);
+  // the crew: everyone waves at the sun on Ram's line, everyone cheers at the title; at most MAX_RIGS animate, the rest hold a baked pose
+  const want = liveWanted(s, t, cut); for (const [kk, c] of Object.entries(s.crew)) setLive(c, want.includes(kk));
   animCrew(s, dt, t, tally);
-
-  if (Q.get('finale') === 'lineup') { cam.position.set(0, 1.0, 15); cam.lookAt(0, 0.95, 4); cam.fov = 30; cam.updateProjectionMatrix(); }   // QA: refcheck lineup
-  s.R.setRenderTarget(null); s.R.render(s.scene, cam);
+  // the town's own per-frame upkeep (LOD swaps, distance culling, quality tier), then the overworld render
+  try { F.TS?.update(cam); } catch (_) {} try { window.__perf?.update(); } catch (_) {}
+  // room budget (<60k tris): perf.js's own LODs (shared with the overworld, built in its worker) for everyone but the face in
+  // the current close-up; wides at 4-12 m read the same at L1 (~28%)
+  try { const focus = cut && cut[2] !== 'wide' ? cut[2] : null;
+    for (const it of window.__perf?.items || []) { const k = it.m.userData.finK; if (!k || !it.lod) continue; const near = k === focus, want = near ? it.g0 : it.lod; if (it.m.geometry !== want) it.m.geometry = want;
+      const b = it.m.userData.baked; if (!b) continue; const u = b.userData;   // the baked pose has the rig's vertex order, so the rig's L1 index fits it
+      if (!u.lod) { u.full = b.geometry; u.lod = new THREE.BufferGeometry(); for (const a in u.full.attributes) u.lod.setAttribute(a, u.full.attributes[a]); u.lod.setIndex(it.lod.index); u.lod.boundingSphere = u.full.boundingSphere; u.lod.boundingBox = u.full.boundingBox; }
+      const w = near ? u.full : u.lod; if (b.geometry !== w) b.geometry = w; } } catch (_) {}
+  s.R.setRenderTarget(null); s.R.render(scene, cam);
 }
 
 // ------------------------------------------------------------------ tally, end
@@ -506,7 +486,10 @@ function end(how, standalone = false) {
   window.__saveguard?.mirror?.();
   if (how === 'menu') { location.href = location.pathname + (location.search.includes('nosw') ? '?nosw' : ''); return; }
   cancelAnimationFrame(raf);
-  if (st) { removeEventListener('resize', st.resize); st.cleanupIn(); st.canvas.style.zIndex = st.oldZ; try { st.R.toneMappingExposure = st.toneExp; } catch (_) {} for (const o of own) try { o.dispose?.(); } catch (_) {} own = []; scene = null; st = null;
+  if (st) { removeEventListener('resize', st.resize); st.cleanupIn(); st.canvas.style.zIndex = st.oldZ; try { st.R.toneMappingExposure = st.toneExp; } catch (_) {}
+    try { const F = st.F, c0 = st.cam0; st.set.removeFromParent(); for (const o of st.hid) o.visible = true;   // hand the overworld back exactly as it was (main.js re-lerps its palette every frame)
+      cam.fov = c0.fov; cam.near = c0.near; cam.position.copy(c0.pos); cam.quaternion.copy(c0.q); cam.updateProjectionMatrix(); scene.fog.near = F.FOG[0]; scene.fog.far = F.FOG[1]; F.updateLid(0); } catch (e) { console.warn('finale: restore', e); }
+    for (const o of own) try { o.dispose?.(); } catch (_) {} own = []; scene = null; st = null;
     try { window.__audio?.finale?.(false); } catch (_) {} }
   root?.remove(); root = null; playing = false; window.__paused = false; document.body.classList.remove('finale');
   window.__finale = null;
