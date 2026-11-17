@@ -89,9 +89,11 @@ export function installOpening(L, { toast } = {}) {
     };
     // (re)place the Wolf facing the crew. Called at the top and again right before his line: NEW GAME's reset can land
     // after the cold open has started and put him back on wolfStart (we were shooting the back of his head)
+    let holdT = 0;
     const pose = () => { const w = wolf(), ws = S0.wolfState, y = yawTo(WOLF_AT, COUCH); puppet.on = true; puppet.speed = 0;
       w.setPos(WOLF_AT[0], WOLF_AT[1], 0); w.setYaw(y); ws.pos.set(WOLF_AT[0], 0, WOLF_AT[1]); ws.yaw = y; ws.speed = 0; };
     const finish = () => {
+      clearInterval(holdT);
       superOn(false); document.body.classList.remove('cine239');
       cab.pos.set(CAB[0], 0, CAB[1]); cab.yaw = Math.PI / 2; cab.v = 0;
       const ws = S0.wolfState, w = wolf(); const y = yawTo(WOLF_AT, CAB);
@@ -123,8 +125,9 @@ export function installOpening(L, { toast } = {}) {
         { do: 'call', fn: () => turnCrew(true) },
         { do: 'say', who: 'ram', text: "It's his fridge.", dur: 1.5 },
         // 3. the Wolf
-        { do: 'call', fn: pose },
-        { do: 'cam', pos: () => { const y = yawTo(WOLF_AT, COUCH); return new THREE_V(WOLF_AT[0] + Math.sin(y) * 2.8 - Math.cos(y) * 0.6, 2.45, WOLF_AT[1] + Math.cos(y) * 2.8 + Math.sin(y) * 0.6); }, look: () => { const h = wolf().headWorld(new THREE_V()); h.y -= 0.12; return h; }, fov: PORTRAIT ? 42 : 30 },   // in front of him and high: the walking mailbox at his front walk stands in front of him
+        { do: 'call', fn: () => { pose(); clearInterval(holdT); const t0 = performance.now(); holdT = setInterval(() => { pose(); if (performance.now() - t0 > 4500) clearInterval(holdT); }, 40); } },   // hold him on his mark through the line (something kept turning him to the street mid-shot)
+        // eye-level medium close-up from the side he's actually facing, read off the model at the cut, so it can't turn into the back of his head
+        { do: 'cam', pos: () => { const w = wolf(), y = w.obj.rotation.y, h = w.headWorld(new THREE_V()); return new THREE_V(h.x + Math.sin(y) * 2.5 - Math.cos(y) * 0.55, h.y + 0.05, h.z + Math.cos(y) * 2.5 + Math.sin(y) * 0.55); }, look: () => { const h = wolf().headWorld(new THREE_V()); h.y -= 0.18; return h; }, fov: PORTRAIT ? 46 : 32 },
         { do: 'say', who: 'wolf', text: 'Two minutes. I can do two minutes.', vo: 'vo_wolf_15' },
         // 4. headlights: Moth's cab walks up Mesa Rd on its boots and stops outside the house
         { do: 'cam', pos: [35.0, 0.75, 57.2], look: { who: 'car', y: 0.9 }, fov: 34 },
