@@ -465,7 +465,7 @@ export function createLevel(C) {
   L.reset = () => { L.frozen = false; L.sceneCar = false; L.car.sceneDriven = false; L.radioOverride = null; L.lateSaid = false; L.mode = 'walk'; L.inCar = false; L.solo = false; L.exitPending = false; L.left = START_LEFT; L.ended = false; L.started = false; document.body.classList.remove('driving', 'solo', 'ended', 'won', 'lost'); placeCar(); L.parkFree(...L.FREE_HOME); for (const g of L.guards) g.hit = false; L.forkSaid = false; audio.ev('reset'); C.onReset?.(); };
   function finish(won) {
     if (L.ended) return; L.ended = true; L.mode = won ? 'won' : 'lost'; audio.ev('finish', { won }); document.body.classList.add('ended', won ? 'won' : 'lost');
-    $('endTitle').textContent = won ? 'SNACKS ACQUIRED.' : 'CLOSED.';
+    $('endTitle').textContent = won ? 'SNACKS ACQUIRED.' : 'CLOSED.'; if ($('retry')) $('retry').textContent = won ? 'CONTINUE' : 'TRY AGAIN';   // a win goes on to free roam, not a retry
     $('endSub').textContent = won ? `Arrived ${fmt(L.left)}. The store was still open. Nobody said anything.` : `The store closed at 2:00 ${NIGHT ? 'AM' : 'PM'}. The Wolf looks at the sign for a while.`;
   }
   L.finish = finish;

@@ -585,10 +585,15 @@ export function createDirector(ctx) {
     if (!titleUp && !L.ended && !D.run) {
       for (const [name, sc] of Object.entries(SCENES)) {
         const tr = sc.trigger; if (!tr || (sc.once !== false && D.played.has(name))) continue;
-        const okWhen = tr.when === 'car' ? (L.inCar && L.mode === 'drive') : tr.when === 'foot' ? L.mode === 'walk' : true; if (!okWhen) continue;
-        const A = ANCHORS[sc.anchor](), p = tr.when === 'foot' ? wolfPos : L.car.pos; toLocal(A, p, S.local);
+        // Nov 16 fix: the Wolf's own waddle car (solo) parks right by his house, so a first-time player often drives
+        // HIMSELF to the store on the opening run. That used to dead-end: no arrival scene (it needed the rideshare),
+        // no win/lose, and GET OUT refused ("too far to walk"). Now a solo arrival on the opening run plays the same scene.
+        const soloIn = tr.when === 'car' && sc.anchor === 'store' && L.mode === 'solo' && L.solo && !L.frozen && !window.__snackrun?.S?.on && !(window.__town?.state || window.__town?.M?.S)?.snacks;
+        const okWhen = tr.when === 'car' ? ((L.inCar && L.mode === 'drive') || soloIn) : tr.when === 'foot' ? L.mode === 'walk' : true; if (!okWhen) continue;
+        const A = ANCHORS[sc.anchor](), p = tr.when === 'foot' ? wolfPos : soloIn ? L.free.pos : L.car.pos; toLocal(A, p, S.local);
         if (Math.hypot(S.local.x - tr.at[0], S.local.z - tr.at[1]) > tr.r) continue;
         if (tr.if && !tr.if(S)) continue;
+        if (soloIn) soloToRide();
         play(name); if (sc.blocking) break;
       }
     }
@@ -597,6 +602,17 @@ export function createDirector(ctx) {
     for (let i = D.bgKeep.length - 1; i >= 0; i--) if (D.bgKeep[i].update(dt)) D.bgKeep.splice(i, 1);
     for (const a of Object.values(D.actors)) { if (a.look && a.look.until < D.t) a.look = null; a.tick?.(dt, t); }
     D.props.wheel?.tick(dt);
+  }
+
+  // solo arrival -> the scene's car: the boot car takes the waddle car's exact spot, heading and speed (same felt boot
+  // car, so the cut reads as the same arrival), the waddle car goes back to its spot at the Wolf's house.
+  function soloToRide() {
+    const f = L.free, c = L.car;
+    c.pos.set(f.pos.x, 0, f.pos.z); c.yaw = f.yaw; c.v = f.v; c.root.position.copy(c.pos); c.root.rotation.y = c.yaw;
+    L.parkFree(...L.FREE_HOME);
+    L.solo = false; L.exitPending = false; L.mode = 'drive'; L.inCar = true;
+    document.body.classList.remove('solo'); document.body.classList.add('driving');
+    S.local.set(0, 0, 0); toLocal(ANCHORS.store(), c.pos, S.local);
   }
 
   // ── camera + bubbles (after the player camera is computed)
