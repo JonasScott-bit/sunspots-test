@@ -23,14 +23,17 @@ function unskin(o) { const sk = []; o.traverse(m => { if (m.isSkinnedMesh) sk.pu
   for (const m of sk) { const p = new Mesh(m.geometry, m.material); p.name = m.name; p.position.copy(m.position); p.quaternion.copy(m.quaternion); p.scale.copy(m.scale); m.parent.add(p); m.parent.remove(m); } }
 
 // the crew waits in the Wolf's front yard by the couch until the snacks are home (real cast GLBs, breathing; no rigs)
-const COUCH = [29.4, 51.6];
+const COUCH = [17.6, 51.2];   // level.js diner_couch (moved west of the driveway, Nov 16)
+const WOLF_SPOT = [25.2, 56.4];   // where he ends the cold open: his front walk, in reach of the cab
 const CREW = [['bear', 1.9, COUCH[0] - 1.9, COUCH[1] + 1.6], ['heron', 2.0, COUCH[0] + 0.1, COUCH[1] + 2.0], ['ram', 1.75, COUCH[0] + 1.9, COUCH[1] + 1.6]];
 export function installOpening(L, { toast } = {}) {
   const Q = new URLSearchParams(location.search), KEY = 'sunspots.opening';
   // ---- the DRAG TO WALK line: once per save, gone for good after the first walk
   { const h = document.getElementById('hint'); let done = false; try { done = !!localStorage.getItem('sunspots.hint'); } catch (_) {}
     if (h && done) h.style.display = 'none';
-    else if (h) { const iv = setInterval(() => { if (getComputedStyle(h).opacity === '0' || (window.__sunspots?.wolfState?.speed || 0) > 0.5) { clearInterval(iv); try { localStorage.setItem('sunspots.hint', '1'); } catch (_) {} setTimeout(() => { h.style.display = 'none'; }, 1200); } }, 500); } }
+    else if (h) { let hintT = 0; const iv = setInterval(() => { const lv = window.__sunspots?.level, play = lv && lv.mode === 'walk' && !document.body.classList.contains('scene') && !window.__titleUp; if (play) hintT += 0.5;
+      if (getComputedStyle(h).opacity === '0' || (window.__sunspots?.wolfState?.speed || 0) > 0.5 || hintT > 9) {   // first walk, or 9 s on screen
+        h.style.transition = 'opacity 1s'; h.style.opacity = '0'; clearInterval(iv); try { localStorage.setItem('sunspots.hint', '1'); } catch (_) {} setTimeout(() => { h.style.display = 'none'; }, 1200); } }, 500); } }
   // ---- Night 1 on foot: one thing to do (get in the cab). Hide the HUD a first-timer doesn't need yet: the journal / sunspot
   // counter, GO (quick travel), WILD, the first-person eye and the minimap + compass. They all come back once he's in the cab
   // (the minimap helps on the drive) and for good after the snacks are home.
@@ -43,17 +46,17 @@ export function installOpening(L, { toast } = {}) {
   // ---- the crew in the yard (Night 1 only)
   const crew = {}; let crewOn = false;
   const S0w = () => window.__sunspots;
-  (async () => { if (Q.has('oldtown')) return; for (const [k, h, x, z] of CREW) { try { const o = await crewGLB(k, h); unskin(o); o.position.set(x, 0, z); o.rotation.y = Math.atan2(25.4 - x, 54.4 - z); o.visible = false; o.userData.noAudit = false; crew[k] = o;
+  (async () => { if (Q.has('oldtown')) return; for (const [k, h, x, z] of CREW) { try { const o = await crewGLB(k, h); unskin(o); o.position.set(x, 0, z); o.rotation.y = Math.atan2(WOLF_SPOT[0] - x, WOLF_SPOT[1] - z); o.visible = false; o.userData.noAudit = false; crew[k] = o;
       const sc = (await new Promise(r => { const f = () => S0w()?.scene ? r(S0w().scene) : setTimeout(f, 200); f(); })); sc.add(o); L.colliders?.push({ x, z, r: 0.45, crew: k }); } catch (e) { console.warn('opening crew', k, e); } }
     let last = performance.now(); const tick2 = () => { const n = performance.now(), t = n / 1000; last = n;
       const on = !L.snacksDone?.() && !window.__snackrun?.S?.on && !window.__town?.active; if (on !== crewOn) { crewOn = on; for (const o of Object.values(crew)) o.visible = on; }
       if (on) for (const o of Object.values(crew)) breathe(o, t, {}); requestAnimationFrame(tick2); }; tick2(); })();
   L.openingCrew = crew;
   // the cold open: nobody looks at anybody, then ("It's his fridge.") all three look at the Wolf
-  const turnCrew = (atWolf) => { for (const [k, , x, z] of CREW) { const o = crew[k]; if (o) o.rotation.y = atWolf ? Math.atan2(25.4 - x, 54.4 - z) : Math.atan2(x - 25.4, 62 - z) * 0.4 + (k === 'heron' ? 0.5 : k === 'bear' ? -0.6 : 0.3); } };
+  const turnCrew = (atWolf) => { for (const [k, , x, z] of CREW) { const o = crew[k]; if (o) o.rotation.y = atWolf ? Math.atan2(WOLF_SPOT[0] - x, WOLF_SPOT[1] - z) : Math.atan2(x - WOLF_SPOT[0], 62 - z) * 0.4 + (k === 'heron' ? 0.5 : k === 'bear' ? -0.6 : 0.3); } };
   if (Q.has('noopening') || Q.has('shot') || Q.get('scene') || Q.has('unlock') || Q.has('finale') || Q.get('room') || Q.get('m') || Q.has('oldtown')) return;
   const seen = () => { try { return !!localStorage.getItem(KEY); } catch (_) { return false; } };
-  const CAB0 = [-6, 59.8], CAB = [27, 59.8], WOLF_AT = [25.2, 56.4], LEFT0 = L.left;
+  const CAB0 = [-6, 59.8], CAB = [27, 59.8], WOLF_AT = WOLF_SPOT, LEFT0 = L.left;
   let sup = null;
   function css() {
     if (document.getElementById('openingCss')) return;
@@ -110,7 +113,7 @@ export function installOpening(L, { toast } = {}) {
         { do: 'say', who: 'ksun dj', text: "If you're out of something, you're out of time.", dur: 2.0 },
         { do: 'call', fn: () => { place = 'MESA LANE'; } },
         // 2. Mesa Lane: the crew in the Wolf's front yard, by the couch. Slow push in from the street.
-        { do: 'cam', pos: [29.0, 1.6, 58.4], look: [29.3, 1.15, 52.6], fov: PORTRAIT ? 64 : 40, to: { pos: [29.1, 1.5, 57.0], look: [29.3, 1.2, 52.8] }, dur: 9.5, ease: 'out' },
+        { do: 'cam', pos: [COUCH[0] - 0.4, 1.6, COUCH[1] + 6.8], look: [COUCH[0] - 0.1, 1.15, COUCH[1] + 1.0], fov: PORTRAIT ? 64 : 40, to: { pos: [COUCH[0] - 0.3, 1.5, COUCH[1] + 5.4], look: [COUCH[0] - 0.1, 1.2, COUCH[1] + 1.2] }, dur: 9.5, ease: 'out' },
         { wait: 1.0 },
         { do: 'say', who: 'ram', text: "We're out.", dur: 1.4 },
         { do: 'say', who: 'bear', text: 'Of what.', dur: 1.2 },

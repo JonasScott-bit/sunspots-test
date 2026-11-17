@@ -103,7 +103,7 @@
   body.map #hud,body.map #title,body.map #wildBtn,body.map #hint,body.map #vig,body.map #grain{display:none}
   #getIn{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 64px);transform:translateX(-50%);z-index:7;display:none;border:0;border-radius:999px;padding:16px 30px;font:700 18px Futura,Avenir,sans-serif;letter-spacing:.2em;color:#24331f;background:#9fd6b8;box-shadow:0 5px 0 #4f8a6c,0 10px 24px rgba(0,0,0,.25);animation:tpulse 1.4s ease-in-out infinite}
   #drive{display:none}
-  body.driving #drive{display:block} body.driving #hint{display:none}
+  body.driving #drive{display:block} body.driving #hint{display:none} body.spotNear:not(.driving) #getIn{display:none!important}
   /* run 12: the Wolf's own waddle car — GET OUT, SCAN, the station pill */
   #bExit,#bScan,#soloRadio{display:none}
   body.solo #bExit,body.solo #bScan{display:block} body.solo #bVol{display:none!important}

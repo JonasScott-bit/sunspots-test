@@ -643,7 +643,7 @@ export function createLevel(C) {
       if (hud.getIn) { hud.getIn.style.display = near && !L.ended ? 'block' : 'none'; const tx = L.nearFree ? 'IN THE CAR' : 'GET IN'; if (hud.getIn.textContent !== tx) hud.getIn.textContent = tx; hud.getIn.classList.toggle('free', L.nearFree); }
       if (kEdge && !L.ended) { if (L.nearFree) L.enterFree(); else if (d < 5) L.enterCar(); }
       if (!done) { const ob = NEWTOWN ? "Moth's cab is out front. Get in." : 'Walk to the ride pickup, east end of the street.'; if (hud.obj && hud.obj.textContent !== ob) hud.obj.textContent = ob;
-        if (hud.dist) hud.dist.textContent = d < 5 ? '' : Math.round(d) + (NEWTOWN ? ' m to the cab' : ' m to pickup'); }
+        if (hud.dist) hud.dist.textContent = NEWTOWN || d < 5 ? '' : Math.round(d) + ' m to pickup'; }   // Nov 16: the cab is in sight from spawn; one line, no distance
     } else if (L.mode === 'drive' && nr) {
       const inT = NEWTOWN && TS() && TS().inTown(L.car.pos.x, L.car.pos.z, 0) && L.car.pos.x < 44;
       if (hud.obj) hud.obj.textContent = L.left <= 0 ? "It's 2:00. Go anyway." : inT ? 'Up East St, right on Main, out of town.' : 'Get to Last Minute Snacks.';

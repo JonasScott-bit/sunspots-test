@@ -1657,8 +1657,11 @@ export function createTown(ctx) {
     const atCab = n1 && level.car && level.car.root?.visible !== false && Math.hypot(p.x - level.car.pos.x, p.z - level.car.pos.z) < 7;   // Nov 16: at the waiting cab GET IN is the only button
     if (!riding && !atCab) for (const d of DOORS) { if (n1 && d.room === 'wolf') continue; const dd = Math.hypot(p.x - d.x, p.z - d.z); if (dd < best) { best = dd; near = d; } }
     if (crowSpot && !riding && !atCab) { const dd = Math.hypot(p.x - crowSpot.x, p.z - crowSpot.z); if (dd < 2.6 && dd < best + 0.3) near = crowSpot; }
-    for (const sp of OUT) { if (atCab || (sp.on && !sp.on()) || (riding && !sp.ride)) continue; const dd = Math.hypot(p.x - sp.x, p.z - sp.z); if (dd < (sp.r || 2.6) && dd < best + 0.3) { best = dd; near = sp; } }   // run 13: statue, chatter, mission spots
+    for (const sp of OUT) { if (atCab || (n1 && String(sp.id || '').startsWith('talk_')) || (sp.on && !sp.on()) || (riding && !sp.ride)) continue; /* Nov 16: no chatter prompts on Night 1 before the snacks */ const dd = Math.hypot(p.x - sp.x, p.z - sp.z); if (dd < (sp.r || 2.6) && dd < best + 0.3) { best = dd; near = sp; } }   // run 13: statue, chatter, mission spots
     if (near && near.act && typeof near.label === 'function') near._l = near.label();
+    { const c = level.car, f = level.free, cd = Math.min(c && c.root?.visible !== false ? Math.hypot(p.x - c.pos.x, p.z - c.pos.z) : 1e9, f?.model && f.root?.visible !== false ? Math.hypot(p.x - f.pos.x, p.z - f.pos.z) : 1e9);
+      if (near && cd < 5 && cd <= best) near = null;   // Nov 16: one action button, the nearest real thing: a car right here wins over a spot behind it
+      document.body.classList.toggle('spotNear', !!near); }   // ...and a door/spot you're at hides GET IN (index.html: body.spotNear #getIn)
     btn.style.display = near ? 'block' : 'none'; if (near) btn.textContent = near.room ? 'ENTER ' + ROOMS[near.room].name.replace('THE ', '') : (near._l || near.label);
     if (errands().length) { if (S.held == null) S.held = level.left; level.left = S.held; } else S.held = null;
     if (outLines.length || (!T.active && sub.classList.contains('on') && outT > 0)) { outT -= dt; if (outT <= 0) nextOut(); }
