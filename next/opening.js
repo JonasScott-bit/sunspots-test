@@ -124,7 +124,7 @@ export function installOpening(L, { toast } = {}) {
         { do: 'say', who: 'bear', text: "Two o'clock? I usually get there around three.", vo: 'vo_bear_10' },
         { do: 'call', fn: () => turnCrew(true) },
         // hold the Wolf on his mark through Ram's line AND his own, so he's already facing the crew at the cut
-        { do: 'call', fn: () => { pose(); clearInterval(holdT); const t0 = performance.now(); holdT = setInterval(() => { pose(); if (performance.now() - t0 > 8000) clearInterval(holdT); }, 40); } },
+        { do: 'call', fn: () => { pose(); clearInterval(holdT); holdT = setInterval(pose, 40); } },   // until finish() — an 8s cap expired mid-line once the hold started on Ram's line
         { do: 'say', who: 'ram', text: "It's his fridge.", dur: 1.5 },
         // 3. the Wolf: eye-level MCU in front of the facing-the-crew yaw (live obj.rotation.y at the cut was still mid-turn,
         // so phone runs often showed his back or a profile). Fixed mark, closer; portrait fov 24 becomes ~49 after portraitFov.
