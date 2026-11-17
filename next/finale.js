@@ -215,7 +215,9 @@ const KEEP = ['Hips', 'Spine02', 'Spine01', 'Spine', 'neck', 'Head', 'LeftShould
 const SEAT_POOL = { look: [1, 3.2], nod: [1, 1.8], shrug: [0.7, 1.8], sun: [1, 2.6], lean: [0.8, 2.6] };
 function seatPose(c) {   // [bone, rx, ry, rz] model space; c.th / c.kn [left, right] from seatSolve(), the feet kept flat on the floor
   const [tl, tr] = c.th, [kl, kr] = c.kn;
-  return [['Spine02', -0.05, 0, 0], ['Spine01', -0.08, 0, 0], ['Spine', -0.10, 0, 0],
+  // The Wolf was reading as slumped forward on the plaza couch; a shallower spine flex sits him a touch more upright.
+  const up = c.k === 'wolf' ? 0.55 : 1;
+  return [['Spine02', -0.05 * up, 0, 0], ['Spine01', -0.08 * up, 0, 0], ['Spine', -0.10 * up, 0, 0],
     ['LeftUpLeg', tl, 0, 0.05], ['RightUpLeg', tr, 0, -0.05], ['LeftLeg', kl, 0, 0], ['RightLeg', kr, 0, 0], ['LeftFoot', -(tl + kl), 0, 0], ['RightFoot', -(tr + kr), 0, 0],
   ];
 }
