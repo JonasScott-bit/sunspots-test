@@ -135,7 +135,8 @@ export function installTalk({ T, level, TS, wolfState }) {
     font:600 clamp(12px,3.4vw,15px)/1.25 Futura,Avenir,"Helvetica Neue",Arial,sans-serif;box-shadow:0 3px 0 #c9a27a,0 6px 14px rgba(60,30,10,.25);border:2px solid #3a2418;pointer-events:none;opacity:0;transition:opacity .2s;transform:translate(-50%,-100%)}
     #chatBubble.on{opacity:1}#chatBubble b{display:block;font-size:.7em;letter-spacing:.2em;color:#c8463f;margin-bottom:2px}
     #chatBubble:after{content:"";position:absolute;left:50%;bottom:-11px;margin-left:-8px;border:9px solid transparent;border-top-color:#3a2418;border-bottom:0}
-    body.wild #chatBubble,#chatBubble.wild{background:#ffd9e8;color:#5a1030;border-color:#5a1030}`;
+    body.wild #chatBubble,#chatBubble.wild{background:#ffd9e8;color:#5a1030;border-color:#5a1030}
+    body.driving #chatBubble,body.solo #chatBubble{max-width:min(52vw,220px)}`;
   document.head.appendChild(st); document.body.appendChild(el);
   const B = { t: 0, x: 0, y: 0, z: 0, q: [] };
   T.hushBubble = () => { el.classList.remove('on'); B.t = 0; B.q = []; };   // QA M1: rooms + missions (T.tick doesn't run indoors, so it stuck on and came back on exit)
@@ -182,15 +183,26 @@ export function installTalk({ T, level, TS, wolfState }) {
   const AVOID = ['hud', 'townObj', 'pfHud', 'srList', 'wildBtn', 'eyeBtn', 'jnBtn', 'qtBtn', 'mmap', 'shPauseBtn', 'sndBtn', 'srBtn', 'getIn', 'roomBtn'];
   function placeBubble(x0, y0) {   // x0,y0 = the speaker's head on screen; the bubble sits above it (translate -50%,-100%)
     const cs = getComputedStyle(safe), pad = 10, w = el.offsetWidth || 200, h = el.offsetHeight || 60;
+    const driving = document.body.classList.contains('driving') || document.body.classList.contains('solo');
     const L = parseFloat(cs.paddingLeft) + pad, R = innerWidth - parseFloat(cs.paddingRight) - pad, Tp = parseFloat(cs.paddingTop) + pad, Bt = innerHeight - parseFloat(cs.paddingBottom) - pad - 12;
     const fit = (x, y) => [Math.max(L + w / 2, Math.min(R - w / 2, x)), Math.max(Tp + h, Math.min(Bt, y))];
-    const rs = []; for (const id of AVOID) { const e = document.getElementById(id); if (!e) continue; const st = getComputedStyle(e); if (st.display === 'none' || st.visibility === 'hidden' || +st.opacity === 0) continue; const r = e.getBoundingClientRect(); if (r.width && r.height) rs.push(r); }
-    const hits = (x, y) => rs.some((r) => x + w / 2 > r.left - 6 && x - w / 2 < r.right + 6 && y > r.top - 6 && y - h < r.bottom + 6);
+    const rs = []; for (const id of AVOID) { const e = document.getElementById(id); if (!e) continue; const st = getComputedStyle(e); if (st.display === 'none' || st.visibility === 'hidden' || +st.opacity === 0) continue; const r = e.getBoundingClientRect(); if (r.width && r.height) rs.push({ id, left: r.left, right: r.right, top: r.top, bottom: r.bottom }); }
+    const hits = (x, y) => rs.some((r) => x + w / 2 > r.left - 8 && x - w / 2 < r.right + 8 && y > r.top - 8 && y - h < r.bottom + 8);
+    // Night 1 hides #mmap; getting in the cab shows it under a bubble that was placed while mmap was display:none.
+    // If every slide still overlaps, keep pushing clear of the minimap (and other HUD) instead of leaving it parked on top.
+    const mmap = rs.find((r) => r.id === 'mmap');
+    if (driving) {   // pin to the left mid-screen so a chase-cam swing cannot land it on the minimap
+      const [x, y] = fit(L + w / 2, innerHeight * 0.46);
+      el.style.left = Math.round(x) + 'px'; el.style.top = Math.round(y) + 'px'; return; }
     let [x, y] = fit(x0, y0);
-    if (hits(x, y)) {   // nearest free spot: just below, left of or right of whatever it overlaps
-      const c = []; for (const r of rs) c.push(fit(x, r.bottom + 8 + h), fit(r.left - 8 - w / 2, y), fit(r.right + 8 + w / 2, y), fit(r.right + 8 + w / 2, r.bottom + 8 + h), fit(r.left - 8 - w / 2, r.bottom + 8 + h));
-      let best = null, bd = 1e9; for (const [cx, cy] of c) { if (hits(cx, cy)) continue; const d = Math.hypot(cx - x, cy - y); if (d < bd) { bd = d; best = [cx, cy]; } }
-      if (best) [x, y] = best; }
+    if (hits(x, y)) {
+      const c = [];
+      for (const r of rs) c.push(fit(x, r.bottom + 10 + h), fit(r.left - 10 - w / 2, y), fit(r.right + 10 + w / 2, y), fit(r.right + 10 + w / 2, r.bottom + 10 + h), fit(r.left - 10 - w / 2, r.bottom + 10 + h));
+      if (mmap) c.push(fit(mmap.left - 12 - w / 2, mmap.bottom + 12 + h), fit(L + w / 2, mmap.bottom + 12 + h), fit(L + w / 2, innerHeight * 0.46));
+      let best = null, bd = 1e9; for (const [cx, cy] of c) { if (hits(cx, cy)) continue; const d = Math.hypot(cx - x0, cy - y0); if (d < bd) { bd = d; best = [cx, cy]; } }
+      if (best) [x, y] = best;
+      else if (mmap) [x, y] = fit(L + w / 2, mmap.bottom + 12 + h);
+    }
     el.style.left = Math.round(x) + 'px'; el.style.top = Math.round(y) + 'px';
   }
   let walkT = 6; const heard = {};
