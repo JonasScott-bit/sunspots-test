@@ -24,3 +24,8 @@ Examples:
 The pause menu shows `build <stamp> · <TIER> · <pixel ratio>x`. Ask Scott for that line with every phone report,
 so we know which build, tier and resolution he was looking at. The stamp is `BUILD` in `quality.js`.
 Bump it with every push that changes the look.
+
+## Town look flags
+- default: the felt & clay town (townkit.js `FELT_TOWN`): bold adobe walls, cream trims, clay roofs, felt streets, soft chamfered edges.
+- `?realtown`: the previous photo-sampled colours and clapboard / brick patterns, for A/B only.
+- `?oldtown`: the run-10 adobe square (main.js), unchanged.

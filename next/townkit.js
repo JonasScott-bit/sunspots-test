@@ -10,31 +10,120 @@ const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Eule
 const BOX = new THREE.BoxGeometry(1, 1, 1).toNonIndexed(); BOX.translate(0, 0.5, 0);
 const cylCache = new Map(), icoCache = new Map();
 function cylT(seg, open) { const k = seg + (open ? 'o' : ''); if (!cylCache.has(k)) { const g = new THREE.CylinderGeometry(1, 1, 1, seg, 1, !!open).toNonIndexed(); g.translate(0, 0.5, 0); cylCache.set(k, g); } return cylCache.get(k); }
-function icoT(d) { if (!icoCache.has(d)) icoCache.set(d, new THREE.IcosahedronGeometry(1, d).toNonIndexed()); return icoCache.get(d); }
+function icoT(d) { if (!icoCache.has(d)) { const g = new THREE.IcosahedronGeometry(1, d).toNonIndexed();
+  if (FELT_TOWN) { const p = g.attributes.position, n = g.attributes.normal; for (let i = 0; i < p.count; i++) { _v.fromBufferAttribute(p, i).normalize(); n.setXYZ(i, _v.x, _v.y, _v.z); } }   // felt town: soft round shrubs / crowns, not faceted low-poly
+  icoCache.set(d, g); } return icoCache.get(d); }
 
 // linear-light colour boost so the felt speckle map (avg ~0.8) doesn't darken the locked reference colours
 export const COLOR_GAIN = { v: 1.18 };
-export function col(hex) { _c.set(hex); return [Math.min(1, _c.r * COLOR_GAIN.v), Math.min(1, _c.g * COLOR_GAIN.v), Math.min(1, _c.b * COLOR_GAIN.v)]; }
+export function col(hex, role) { _c.set(hex); if (role) feltColor(_c, role); return [Math.min(1, _c.r * COLOR_GAIN.v), Math.min(1, _c.g * COLOR_GAIN.v), Math.min(1, _c.b * COLOR_GAIN.v)]; }
+
+// ---------------------------------------------------------------- felt & clay town (Nov 16 art direction: "two worlds colliding")
+// The photo-sampled suburban colours (white clapboard, grey asphalt, red brick) are re-dressed in the Sunspots felt-and-clay
+// language at build time: every colour snaps to the locked palette (warm adobe, coral, mustard, teal, cobalt, plum), big
+// wall slabs get one bold adobe colour per building, trims go cream, roofs go clay, streets become felt. Boxes big enough
+// to read get soft chamfered clay edges; shrubs / tree crowns are smooth. Layout, colliders and marks are untouched.
+// ?realtown = the old photo-sampled colours + patterns (A/B only). ?oldtown (main.js) is the run-10 square, unaffected.
+export const FELT_TOWN = typeof location === 'undefined' || !new URLSearchParams(location.search).has('realtown');
+const FT_EXACT = { // the street kit (townscape PAL.street) + a few photo greys, art-directed one by one
+  '#605a56': '#5e3448', '#6a6460': '#66394e', '#d8cdbf': '#ee9c60', '#c4b8aa': '#ee9c60', '#e8e0d4': '#f2cd8e', '#8a91ac': '#cf7a52', '#e6ebf0': '#f6e3bd',
+  '#e8c25a': '#f2b02e', '#f2eee4': '#f6e3bd', '#b9a48e': '#d69a6a', '#8a7f74': '#8a5562',
+};
+const FT_WALLS = ['#e8823e', '#d95f48', '#e8a83a', '#3fa29a', '#cf6a92', '#9a62b8', '#5a86d0', '#ec9a56', '#79a844', '#f0b84a'];   // bold adobe / clay wall colours (the refs: orange, coral, mustard, teal, raspberry, purple)
+const FT_ROOFS = ['#b4473a', '#6e3a5e', '#2f7d78', '#a8622c', '#3f4f9a', '#c2603e', '#7a3a4a'];
+const FT_HUES = [[0, '#d9443a'], [18, '#e8662e'], [36, '#e8a030'], [48, '#ecc23a'], [64, '#7a9e36'], [95, '#5f9a3a'], [135, '#3f8a4e'], [170, '#2f9a8f'], [200, '#3a8ac8'], [222, '#2f5fc4'], [265, '#6e48a8'], [295, '#9a4a9a'], [325, '#d0548c'], [345, '#e2647e'], [360, '#d9443a']];
+const SRGB = THREE.SRGBColorSpace;   // HSL decisions in display (sRGB) space, not linear
+const _h = {}, _h2 = {}, _fc = new THREE.Color();
+const FT = { seed: 0 };
+function ftPick(list, k) { return list[((k % list.length) + list.length) % list.length]; }
+function feltColor(c, role) {
+  if (!FELT_TOWN) return c;
+  const hx = '#' + c.getHexString(); if (hx === '#ffffff') return c; if (FT_EXACT[hx]) return c.set(FT_EXACT[hx]);   // pure white = a tint base (the car fleet takes per-car colours on top)
+  c.getHSL(_h, SRGB); const L = _h.l, S = _h.s * (1 - Math.abs(2 * L - 1)); // S = chroma (0..1): low for whites/greys/near-blacks
+  const big = role === 'big' || role === 'roof', sd = FT.seed;
+  if (role === 'roof') { _fc.set(ftPick(FT_ROOFS, sd * 3 + 1)); _fc.getHSL(_h2, SRGB); return c.setHSL(_h2.h, _h2.s, THREE.MathUtils.clamp(_h2.l + (L - 0.5) * 0.25, 0.22, 0.6), SRGB); }
+  if (S < 0.09 || (L < 0.2 && S < 0.2)) { // neutrals: whites, greys, blacks
+    if (L > 0.84) { if (big) { _fc.set(ftPick(FT_WALLS, sd)); _fc.getHSL(_h2, SRGB); return c.setHSL(_h2.h, _h2.s * 0.88, _h2.l * 0.94, SRGB); } return c.set('#f6e3bd'); }
+    if (L > 0.6) { if (big) { _fc.set(ftPick(FT_WALLS, sd)); _fc.getHSL(_h2, SRGB); return c.setHSL(_h2.h, _h2.s * 0.88, _h2.l * 0.86, SRGB); } return c.set('#e2b47e'); }
+    if (L > 0.3) return c.set(big ? ftPick(FT_ROOFS, sd * 3 + 1) : (L > 0.45 ? '#a87080' : '#7e4c62'));
+    return c.setHSL(0.86, 0.28, Math.max(0.1, L * 0.85 + 0.03), SRGB); // near-black: ink plum
+  }
+  const hd = _h.h * 360;
+  if (hd > 12 && hd < 48 && L < 0.5 && S < 0.4) { // browns (wood, trunks, dirt) -> warm clay brown
+    return c.setHSL(0.06, 0.48, THREE.MathUtils.clamp(L * 0.9 + 0.06, 0.16, 0.48), SRGB);
+  }
+  if (hd > 44 && hd < 80 && L < 0.62 && S < 0.36) return c.setHSL(0.26, 0.46, THREE.MathUtils.clamp(L * 0.35 + 0.2, 0.26, 0.4), SRGB); // olive lawns / hedges -> one felt grass green
+  if (big && L > 0.62 && S < 0.3) { _fc.set(ftPick(FT_WALLS, sd + 5)); _fc.getHSL(_h2, SRGB); return c.setHSL(_h2.h, _h2.s * 0.88, _h2.l * 0.94, SRGB); } // pale tinted wall paint
+  let best = FT_HUES[0], bd = 1e9; for (const e of FT_HUES) { const d = Math.abs(e[0] - hd); if (d < bd) { bd = d; best = e; } }
+  _fc.set(best[1]); _fc.getHSL(_h2, SRGB);
+  return c.setHSL(_h2.h, Math.max(_h2.s, 0.55), THREE.MathUtils.clamp(_h2.l * 0.55 + L * 0.45, 0.16, 0.82), SRGB);
+}
+// chamfered box (44 tris): flat faces + bevel strips whose normals blend the two faces -> soft rounded clay edge
+const chamCache = new Map();
+function chamBox(w, h, d, r) {
+  const key = [w, h, d, r].map(v => v.toFixed(3)).join(','); let g = chamCache.get(key); if (g) return g;
+  const P = [], N = []; const hx = w / 2, hy = h / 2, hz = d / 2, ix = hx - r, iy = hy - r, iz = hz - r;
+  const F = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
+  // point on face f at in-plane coords (a, b) in [-1,1] mapped to the inset rectangle; returns [x,y,z]
+  const H = [hx, hy, hz], I = [ix, iy, iz];
+  const pt = (ax, s, u, v, au, av) => { const q = [0, 0, 0]; q[ax] = s * H[ax]; q[au] = u * I[au]; q[av] = v * I[av]; return q; };
+  const tri = (a, na, b, nb, c, nc) => { P.push(...a, ...b, ...c); N.push(...na, ...nb, ...nc); };
+  const quad = (a, na, b, nb, c, nc, dd, nd) => { tri(a, na, b, nb, c, nc); tri(a, na, c, nc, dd, nd); };
+  const nrm = (ax, s) => { const n = [0, 0, 0]; n[ax] = s; return n; };
+  const orient = (a, b, c, out) => { // flip so the winding faces outward (along out)
+    const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    const cr = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]; return cr[0] * out[0] + cr[1] * out[1] + cr[2] * out[2] >= 0; };
+  const addQ = (q, n, out) => { if (orient(q[0], q[1], q[2], out)) quad(q[0], n[0], q[1], n[1], q[2], n[2], q[3], n[3]); else quad(q[0], n[0], q[3], n[3], q[2], n[2], q[1], n[1]); };
+  const addT = (t, n, out) => { if (orient(t[0], t[1], t[2], out)) tri(t[0], n[0], t[1], n[1], t[2], n[2]); else tri(t[0], n[0], t[2], n[2], t[1], n[1]); };
+  for (let ax = 0; ax < 3; ax++) for (const s of [1, -1]) { // 6 faces
+    const au = (ax + 1) % 3, av = (ax + 2) % 3, n = nrm(ax, s);
+    addQ([pt(ax, s, -1, -1, au, av), pt(ax, s, 1, -1, au, av), pt(ax, s, 1, 1, au, av), pt(ax, s, -1, 1, au, av)], [n, n, n, n], n);
+  }
+  for (let a = 0; a < 3; a++) for (let b = a + 1; b < 3; b++) for (const sa of [1, -1]) for (const sb of [1, -1]) { // 12 bevel strips
+    const c = 3 - a - b, na = nrm(a, sa), nb = nrm(b, sb), out = [0, 0, 0]; out[a] = sa; out[b] = sb;
+    const p = (onA, sc) => { const q = [0, 0, 0]; q[c] = sc * I[c]; if (onA) { q[a] = sa * H[a]; q[b] = sb * I[b]; } else { q[a] = sa * I[a]; q[b] = sb * H[b]; } return q; };
+    addQ([p(1, -1), p(1, 1), p(0, 1), p(0, -1)], [na, na, nb, nb], out);
+  }
+  for (const sx of [1, -1]) for (const sy of [1, -1]) for (const sz of [1, -1]) { // 8 corners
+    const S3 = [sx, sy, sz], t = [], n = [];
+    for (let ax = 0; ax < 3; ax++) { const q = [sx * I[0], sy * I[1], sz * I[2]]; q[ax] = S3[ax] * H[ax]; t.push(q); n.push(nrm(ax, S3[ax])); }
+    addT(t, n, S3);
+  }
+  g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3)); // centred: rotates about the box centre like BOX
+  if (chamCache.size < 4000) chamCache.set(key, g); return g;
+}
+export const KIT_STATS = { boxes: 0, cham: 0 };
 
 export class Kit {
-  constructor() { this.parts = []; this.lo = []; this.glow = []; this.solids = []; this.marks = {}; this.extras = []; this.stack = [new THREE.Matrix4()]; }
+  constructor() { this.seed = FT.seed = (FT.n = (FT.n || 0) + 1) * 7 + 3; this.parts = []; this.lo = []; this.glow = []; this.solids = []; this.marks = {}; this.extras = []; this.stack = [new THREE.Matrix4()]; }
   get M() { return this.stack[this.stack.length - 1]; }
   // nested sub-frame: (x, y, z, rotY) relative to the current frame
   frame(x, y, z, ry, fn) { const m = new THREE.Matrix4().makeRotationY(ry || 0).setPosition(x, y, z); this.stack.push(this.M.clone().multiply(m)); fn(this); this.stack.pop(); return this; }
-  _add(src, mat, color, o = {}) {
+  _add(src, mat, color, o = {}, loSrc = null) {
     let g = src.index ? src.toNonIndexed() : src.clone(); g.applyMatrix4(_m.multiplyMatrices(this.M, mat));
-    const n = g.attributes.position.count, c = col(color), ca = new Float32Array(n * 3);
+    let role = null; if (FELT_TOWN && !o.glow) { FT.seed = this.seed; if (o.role) role = o.role; else { if (!g.boundingBox) g.computeBoundingBox(); const b = g.boundingBox, sz = [b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z].sort((p, q) => q - p); role = sz[0] * sz[1] > 3.2 && sz[1] > 1.1 ? 'big' : 'small'; } }
+    const n = g.attributes.position.count, c = col(color, role), ca = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) { ca[i * 3] = c[0]; ca[i * 3 + 1] = c[1]; ca[i * 3 + 2] = c[2]; }
     g.setAttribute('color', new THREE.BufferAttribute(ca, 3));
     if (!g.attributes.normal) g.computeVertexNormals();
-    planarUV(g, o.pat ? PAT[o.pat] : 0, o.ps || PAT_S[o.pat] || 0.2, o.pdx || 0);
+    planarUV(g, o.pat && keepPat(o.pat) ? PAT[o.pat] : 0, o.ps || PAT_S[o.pat] || 0.2, o.pdx || 0);
     (o.glow ? this.glow : this.parts).push(g);
-    if (o.lod) this.lo.push(g);
+    if (o.lod) { if (loSrc) { const gl = loSrc.clone(); gl.applyMatrix4(_m.multiplyMatrices(this.M, mat)); gl.setAttribute('color', new THREE.BufferAttribute(ca.slice(0, gl.attributes.position.count * 3), 3)); planarUV(gl, o.pat && keepPat(o.pat) ? PAT[o.pat] : 0, o.ps || PAT_S[o.pat] || 0.2, o.pdx || 0); this.lo.push(gl); } else this.lo.push(g); }
     return g;
   }
   // box: centre x, bottom y0, centre z, size w,h,d; o.rx/ry/rz rotate about the box centre
   box(x, y0, z, w, h, d, color, o = {}) {
     _e.set(o.rx || 0, o.ry || 0, o.rz || 0); _q.setFromEuler(_e);
+    KIT_STATS.boxes++;
+    const mn = Math.min(w, h, d), mx = Math.max(w, h, d);
+    if (FELT_TOWN && !o.glow && mn >= 0.2 && mx >= 0.8) { // soft clay edge
+      KIT_STATS.cham++; const r = Math.min(0.14, mn * 0.22);
+      const T = new THREE.Matrix4().compose(_v.set(x, y0 + h / 2, z), _q, _s.set(1, 1, 1)), B = new THREE.Matrix4().compose(_v.set(x, y0 + h / 2, z), _q, _s.set(w, h, d)).multiply(new THREE.Matrix4().makeTranslation(0, -0.5, 0));
+      // the chamfer is built at real size, then only rotated / placed; the distance LOD keeps the 12-tri box
+      const g = this._add(chamBox(w, h, d, r), T, color, o, null);
+      if (o.lod) { this.lo.pop(); const gl = BOX.clone(); gl.applyMatrix4(_m.multiplyMatrices(this.M, B)); gl.setAttribute('color', new THREE.BufferAttribute(g.attributes.color.array.slice(0, 36 * 3), 3)); planarUV(gl, o.pat && keepPat(o.pat) ? PAT[o.pat] : 0, o.ps || PAT_S[o.pat] || 0.2, o.pdx || 0); this.lo.push(gl); }
+      return g;
+    }
     const T = new THREE.Matrix4().compose(_v.set(x, y0 + h / 2, z), _q, _s.set(w, h, d)).multiply(new THREE.Matrix4().makeTranslation(0, -0.5, 0));
     return this._add(BOX, T, color, o);
   }
@@ -75,13 +164,13 @@ export class Kit {
     const L = len + 2 * (o.overEnd ?? ov);
     for (const s of [-1, 1]) {
       const mx = s * (half + ov - Math.cos(ang) * sl / 2), my = y + rise - Math.sin(ang) * sl / 2;
-      const ro = { lod: true, pat: o.rp, ps: o.rps };
+      const ro = { lod: true, pat: o.rp, ps: o.rps, role: 'roof' };
       if (ridgeZ) this.box(cx + mx, my - th / 2, cz, sl, th, L, roofCol, { ...ro, rz: -s * ang });
       else this.box(cx, my - th / 2, cz + mx, L, th, sl, roofCol, { ...ro, rx: s * ang });
     }
     if (wallCol) { // gable-end wall triangles (the prism under the roof)
       const tri = [[-half, 0], [half, 0], [0, rise]];
-      const wo = { lod: true, pat: o.wp, ps: o.wps };
+      const wo = { lod: true, pat: o.wp, ps: o.wps, role: 'big' };
       if (ridgeZ) this.ext(tri, -len / 2, len, wallCol, { ...wo, at: [cx, y, cz] });
       else this.ext(tri, -len / 2, len, wallCol, { ...wo, at: [cx, y, cz], ry: Math.PI / 2 });
     }
@@ -177,6 +266,10 @@ function planarUV(g, pid = 0, ps = 0.2, pdx = 0) {
 // vec4 vertex attribute (id, size, u, v) and a fragment snippet shades the felt colour: board laps, shingle tabs, brick
 // + mortar, stucco swirl, battens, barrel tile, fish-scale, block, louvres, lattice. Pure brightness modulation of the
 // locked vertex colour (mortar/grout are the only extra tints), fading out with distance (fwidth) so it never shimmers.
+// felt town keeps only the chunky, toy-like reliefs (louvres, lattice, door panels, barrel tile); clapboard, brick,
+// shingle, stucco, shakes, block, metal and fieldstone are realistic surface noise and are dropped (flat felt)
+const FELT_PATS = new Set(['louver', 'lattice', 'panel', 'tile']);
+function keepPat(p) { return !FELT_TOWN || FELT_PATS.has(p); }
 export const PAT = { siding: 1, shingle: 2, brick: 3, stucco: 4, batten: 5, tile: 6, scale: 7, block: 8, louver: 9, lattice: 10, metal: 11, shake: 12, panel: 13, stone: 14 };
 const PAT_S = { siding: 0.2, shingle: 0.2, brick: 0.085, stucco: 0.5, batten: 0.4, tile: 0.3, scale: 0.16, block: 0.2, louver: 0.07, lattice: 0.18, metal: 0.08, shake: 0.22, panel: 0.6, stone: 0.3 };
 const PAT_FRAG = /* glsl */`
