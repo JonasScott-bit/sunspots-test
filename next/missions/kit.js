@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { sunspotsApply } from '../sunspots_material.js';
+import { sunspotsApply, bothMats } from '../sunspots_material.js';
 import { folk as feltFolk, FOLK, palSpec, animFolk } from '../feltfolk.js';
 import { clone as skClone } from 'three/addons/utils/SkeletonUtils.js';
 import { playCinematic } from '../cinematic.js';
@@ -180,13 +180,16 @@ const ROT = new WeakMap();
 function rotOnly(gl) { if (!ROT.has(gl)) ROT.set(gl, (gl.animations || []).map((c) => new THREE.AnimationClip(c.name, c.duration, c.tracks.filter((tr) => tr.name.endsWith('.quaternion'))))); return ROT.get(gl); }
 export const liveRigs = () => LIVE.size;
 export async function crewGLB(k, h = 1.8) {
-  const f = { bear: 'town2/bear_lo.glb', heron: 'town2/heron_lo.glb', ram: 'town2/ram_lo.glb', wolf: 'town2/wolf_lo.glb', lynx: 'town2/lynx_lo.glb', crow: 'town2/crow_lo.glb', gecko: 'town2/gecko_lo.glb', anteater: 'town2/anteater_lo.glb', moth: 'town2/moth_lo.glb', cake: 'town2/cake_lo.glb', shake: 'town2/shake_lo.glb', peach: 'town2/fuzzy_peach_lo.glb' }[k];
+  const f = { bear: 'town2/bear_lo.glb', heron: 'town2/heron_lo.glb', ram: 'town2/ram_lo.glb', wolf: 'wolf_armsdown_felt.glb', lynx: 'town2/lynx_lo.glb', crow: 'town2/crow_lo.glb', gecko: 'town2/gecko_lo.glb', anteater: 'cast2/anteater.glb', moth: 'town2/moth_lo.glb', cake: 'town2/cake_lo.glb', shake: 'town2/shake_lo.glb', peach: 'town2/fuzzy_peach_lo.glb' }[k];
   try { if (!f) throw new Error('no glb ' + k);
     const gl = await (glbCache[f] ||= new Promise((res, rej) => loader.load(new URL('../models/' + f, import.meta.url).href, res, undefined, rej)));
     const root = skClone(gl.scene); root.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = false; if (o.isSkinnedMesh) { o.skeleton.pose(); o.frustumCulled = false; } } });
     root.updateMatrixWorld(true); const b = new THREE.Box3().setFromObject(root), s = h / Math.max(0.01, b.max.y - b.min.y); root.scale.multiplyScalar(s); root.updateMatrixWorld(true);
     const b2 = new THREE.Box3().setFromObject(root); root.position.x -= (b2.min.x + b2.max.x) / 2; root.position.z -= (b2.min.z + b2.max.z) / 2; root.position.y -= b2.min.y;
     try { sunspotsApply(root, k, h); } catch (_) { }
+    // FrontSide: the Meshy shells carry near-coplanar inner faces; double-sided, they z-fight through the front at the mission
+    // cameras' depth range (near 0.1 / far 2500) and the crew read as glassy shards. Closed meshes: front faces are all we see.
+    root.traverse((o) => { if (o.isMesh) for (const m of bothMats(o)) { m.side = THREE.FrontSide; m.needsUpdate = true; } });
     const w = new THREE.Group(); const inner = new THREE.Group(); inner.add(root); w.add(inner); const sh = blobShadow(0.45 * h / 1.8, 0.4); w.add(sh); w.userData = { glb: true, inner, h, ph: Math.random() * 6, shadow: sh };
     const clips = rotOnly(gl), find = (re) => clips.find((c) => re.test(c.name));
     const ic = find(/idle/i) || find(/seated/i), wc = find(/walk/i);

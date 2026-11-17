@@ -56,6 +56,10 @@ export function lathe(pts, seg = 16, sx = 1, sz = 1, phiStart = 0, phiLen = TAU)
   return phiLen < TAU - 1e-3 ? (() => { for (const k of Object.keys(g.attributes)) if (k !== 'position') g.deleteAttribute(k); g.computeVertexNormals(); return g; })() : weld(g);
 }
 // tube swept through points with per-point radius (rounded caps). opts.sq = [sx, sz] cross-section squash, opts.lobes = [n, amt]
+// Nov 16 pass 3: the tube used to wind inward (negative volume), so with FrontSide only the FAR wall drew: a muzzle or beak whose
+// root sat in the skull mostly vanished into it (the 'ball with a little beak stuck on'). It now winds outward. The Goat's frozen
+// original head is drawn with the old winding (SWEEP_LEGACY) so he looks exactly as first built.
+let SWEEP_LEGACY = false;
 export function sweep(pts, radii, radial = 8, opts = {}) {
   const P = pts.map((p) => new THREE.Vector3(...p)); const R = radii.slice(); const n0 = P.length;
   const T0 = P[1].clone().sub(P[0]).normalize(), T1 = P[n0 - 1].clone().sub(P[n0 - 2]).normalize();
@@ -71,7 +75,7 @@ export function sweep(pts, radii, radial = 8, opts = {}) {
     for (let j = 0; j < radial; j++) { const a = j / radial * TAU; let r = R[i]; if (lobes) r *= 1 + Math.cos(a * lobes[0]) * lobes[1];
       const cx = Math.cos(a) * r * sq[0], cy = Math.sin(a) * r * sq[1]; pos.push(P[i].x + N.x * cx + B.x * cy, P[i].y + N.y * cx + B.y * cy, P[i].z + N.z * cx + B.z * cy); }
   }
-  for (let i = 0; i < n - 1; i++) for (let j = 0; j < radial; j++) { const a = i * radial + j, b = i * radial + (j + 1) % radial, c = a + radial, d = b + radial; idx.push(a, c, b, b, c, d); }
+  for (let i = 0; i < n - 1; i++) for (let j = 0; j < radial; j++) { const a = i * radial + j, b = i * radial + (j + 1) % radial, c = a + radial, d = b + radial; if (SWEEP_LEGACY) idx.push(a, c, b, b, c, d); else idx.push(a, b, c, b, d, c); }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
 }
 const lerp = (a, b, k) => a + (b - a) * k;
@@ -267,8 +271,192 @@ function addEye(H, o, Sg) {
   add(new THREE.SphereGeometry(r * 1.08, Sg(12, 6), 2, 0, TAU, PI - 0.6, 0.6), lidC, 1);
 }
 
+// Scott, Nov 16: the Goat keeps his ORIGINAL head (face + horns) exactly as first built in 8780a37 -- he is the one exception
+// to the likeness pass. This is that build, frozen; do not edit it for likeness work.
+function buildHeadGoat0(H, sp, R, Sg) {
+  SWEEP_LEGACY = true; try { buildHeadGoat0_(H, sp, R, Sg); } finally { SWEEP_LEGACY = false; }
+}
+function buildHeadGoat0_(H, sp, R, Sg) {
+  const kind = sp.kind || 'plain', face = sp.face || sp.fur || '#c9a37a', mz = sp.muzzle || face, nose = sp.nose || '#2a2024', ear = sp.ear || face, inner = sp.earIn || shade(face, 1.15);
+  let rx = R, ry = R * 1.02, rz = R * 0.96, eyeY = R * 0.18, eyeX = R * 0.36, eyeR = R * 0.2 * (sp.eyeK || 1), eyeOpen = sp.open ?? 0.06;
+  const bird = kind === 'bird' || kind === 'hen';
+  if (kind === 'shovel') {   // the Farmhand: a felt-handled shovel blade for a head, one heavy-lidded eye
+    H.add(blob(R * 0.95, R * 1.35, R * 0.22, Sg(16, 8), Sg(14, 6), (v, n) => { if (n.y > 0.2) v.x *= 1 - (n.y - 0.2) * 0.45; if (n.y < -0.3) v.x *= 1 + (n.y + 0.3) * 0.25; v.z -= Math.abs(n.x) * R * 0.08; }), face, 0, M4(0, R * 0.55, 0));
+    H.add(new THREE.CylinderGeometry(R * 0.18, R * 0.2, R * 0.7, Sg(10, 6)), '#b8946a', 0, M4(0, -R * 0.55, 0));
+    addEye(H, { x: 0, y: R * 0.85, z: R * 0.2, r: R * 0.3, lid: face, open: 0.04, iris: '#4a3a2a', droop: 0 }, Sg); return;
+  }
+  if (kind === 'bear') { rx *= 1.1; ry *= 0.98; }
+  if (kind === 'goat' || kind === 'ram' || kind === 'sheep') { ry *= 1.08; rx *= 0.92; eyeX = R * 0.42; eyeY = R * 0.24; }
+  if (kind === 'fruit') { rx = R * 1.0; ry = R * 1.08; rz = R * 0.98; eyeY = R * 0.15; eyeX = R * 0.32; }
+  if (bird) { eyeX = R * 0.5; eyeY = R * 0.18; eyeR = R * 0.19 * (sp.eyeK || 1); }
+  if (kind === 'lizard') { rx *= 1.12; ry *= 0.85; rz *= 1.05; eyeX = R * 0.6; eyeY = R * 0.42; eyeR = R * 0.26; }
+  if (kind === 'moth') { eyeX = R * 0.48; eyeR = R * 0.3; }
+  const skullCol = sp.headFn || ((sp.mask) ? (x, y, z) => { // raccoon mask band over the eyes
+    const d = Math.abs(y - eyeY * 1.0); return z > R * 0.1 && d < R * 0.22 && Math.abs(x) < R * 0.95 ? sp.mask : (y > R * 0.55 && sp.crown ? sp.crown : face); } : sp.crown ? (x, y) => (y > R * 0.5 ? sp.crown : face) : face);
+  const skull = blob(rx, ry, rz, Sg(22, 10), Sg(16, 8), (v, n) => {
+    if (kind === 'fruit' && sp.nubs) { const t = Math.abs(n.y); if (t > 0.85 && n.y < 0) v.y -= (t - 0.85) * R * 0.0; }
+    if (n.z < -0.2) v.z *= 0.95;                      // flatter back of the head
+    if (n.y < -0.3 && kind !== 'fruit') v.y *= 0.92;  // jaw tucks in
+    if (kind === 'bear' || kind === 'rodent') { const ch = Math.exp(-((n.y + 0.25) ** 2) / 0.08) * Math.max(0, Math.abs(n.x) - 0.3); v.x *= 1 + ch * 0.18; }   // cheeks
+  });
+  H.add(skull, skullCol, kind === 'fruit' && sp.clayHead ? 0 : 1);
+  // fruit nub / stem
+  if (kind === 'fruit' && sp.nubs) H.add(blob(R * 0.12, R * 0.12, R * 0.1, 8, 6), shade(face, 0.92), 1, M4(0, ry * 0.98, 0));
+  // ---- muzzle / snout / beak
+  const mzr = sp.mz || {};
+  if (['canine', 'cat', 'lynx', 'bear', 'rodent', 'raccoon', 'goat', 'ram', 'rabbit', 'pig', 'sheep', 'possum', 'cow', 'anteater', 'dog'].includes(kind)) {
+    let pts, rad, tip;
+    if (kind === 'canine' || kind === 'dog') { const L = mzr.len ?? 1.15; pts = [[0, -R * 0.2, R * 0.42], [0, -R * 0.3, R * (0.45 + L * 0.5)], [0, -R * 0.36, R * (0.45 + L)]]; rad = [R * 0.5, R * 0.34, R * 0.22]; }
+    else if (kind === 'bear') { pts = [[0, -R * 0.26, R * 0.5], [0, -R * 0.33, R * 1.12]]; rad = [R * 0.6, R * 0.5]; }
+    else if (kind === 'rodent' || kind === 'raccoon' || kind === 'possum') { const L = mzr.len ?? 0.85; pts = [[0, -R * 0.18, R * 0.5], [0, -R * 0.28, R * (0.55 + L * 0.55)], [0, -R * 0.33, R * (0.55 + L)]]; rad = [R * 0.48, R * 0.28, R * 0.12]; }
+    else if (kind === 'goat' || kind === 'ram' || kind === 'sheep' || kind === 'cow') { const L = mzr.len ?? (kind === 'goat' ? 1.1 : 0.8); pts = [[0, -R * 0.1, R * 0.4], [0, -R * 0.42, R * (0.45 + L * 0.6)], [0, -R * 0.66, R * (0.5 + L * 0.9)]]; rad = [R * 0.56, R * 0.45, R * 0.38]; }
+    else if (kind === 'anteater') { pts = [[0, -R * 0.15, R * 0.5], [0, -R * 0.3, R * 1.3], [0, -R * 0.5, R * 2.2], [0, -R * 0.7, R * 2.7]]; rad = [R * 0.4, R * 0.22, R * 0.14, R * 0.1]; }
+    else if (kind === 'pig') { pts = [[0, -R * 0.2, R * 0.75], [0, -R * 0.2, R * 1.1]]; rad = [R * 0.32, R * 0.3]; }
+    else { pts = [[0, -R * 0.28, R * 0.6], [0, -R * 0.3, R * 0.9]]; rad = [R * 0.32, R * 0.26]; }   // cat, lynx, rabbit: short muzzle
+    if (kind === 'cat' || kind === 'lynx' || kind === 'rabbit') {   // two whisker pads + chin
+      for (const sx of [-1, 1]) H.add(blob(R * 0.2, R * 0.17, R * 0.17, Sg(10, 5), Sg(8, 4)), mz, 1, M4(sx * R * 0.14, -R * 0.33, R * 0.86));
+      H.add(blob(R * 0.14, R * 0.1, R * 0.12, Sg(8, 4), Sg(6, 3)), mz, 1, M4(0, -R * 0.5, R * 0.78));
+      H.add(blob(R * 0.08, R * 0.06, R * 0.06, Sg(8, 4), Sg(6, 3)), nose, 0, M4(0, -R * 0.2, R * 1.0));
+      if (kind === 'rabbit') H.add(blob(R * 0.09, R * 0.1, R * 0.03, 6, 4), '#f6f2ea', 0, M4(0, -R * 0.52, R * 0.95));
+    } else {
+      H.add(sweep(pts, rad, Sg(14, 6), { sq: kind === 'bear' ? [1.12, 0.92] : kind === 'goat' ? [0.92, 1.05] : [1, 0.9], lobes: kind === 'bear' ? [4, 0.05] : null }), mz, 1);
+      const tp = pts[pts.length - 1], tr = rad[rad.length - 1];
+      if (kind === 'pig') { H.add(new THREE.CylinderGeometry(tr * 1.02, tr * 1.04, R * 0.08, Sg(14, 6)), shade(mz, 0.95), 1, M4(tp[0], tp[1], tp[2] + tr * 0.3, PI / 2)); for (const sx of [-1, 1]) H.add(blob(R * 0.05, R * 0.07, R * 0.03, 5, 4), shade(mz, 0.55), 0, M4(sx * R * 0.1, tp[1], tp[2] + tr * 0.36)); }
+      else if (kind === 'goat' || kind === 'ram' || kind === 'sheep' || kind === 'cow') { for (const sx of [-1, 1]) H.add(blob(R * 0.05, R * 0.035, R * 0.03, 5, 4), sp.nostril || shade(mz, 0.5), 0, M4(sx * R * 0.12, tp[1] + tr * 0.25, tp[2] + tr * 0.85, -0.3)); H.add(sweep([[-R * 0.12, tp[1] - tr * 0.45, tp[2] + tr * 0.6], [0, tp[1] - tr * 0.55, tp[2] + tr * 0.72], [R * 0.12, tp[1] - tr * 0.45, tp[2] + tr * 0.6]], [R * 0.018, R * 0.018, R * 0.018], 4), shade(mz, 0.55), 1); }
+      else { const nr0 = 0; const nr = kind === 'bear' ? [R * 0.16, R * 0.1, R * 0.1] : kind === 'anteater' ? [R * 0.11, R * 0.09, R * 0.06] : [R * 0.12, R * 0.09, R * 0.09];
+        H.add(blob(nr[0], nr[1], nr[2], Sg(10, 5), Sg(8, 4), (v) => { if (v.y < 0) v.x *= 1 + v.y * 2.2; }), nose, 0, M4(tp[0], tp[1] + tr * 0.35, tp[2] + tr * 0.72));
+        if (kind !== 'anteater') H.add(sweep([[-tr * 0.55, tp[1] - tr * 0.55, tp[2] - tr * 0.2], [0, tp[1] - tr * 0.62, tp[2] + tr * 0.35], [tr * 0.55, tp[1] - tr * 0.55, tp[2] - tr * 0.2]], [R * 0.016, R * 0.016, R * 0.016], 4), shade(mz, 0.5), 1); }
+      if (sp.teeth) H.add(blob(R * 0.1, R * 0.08, R * 0.03, 6, 4), '#f6f2ea', 0, M4(0, tp[1] - tr * 0.78, tp[2] + tr * 0.05));
+    }
+  }
+  if (bird) { const b = sp.beak || {}, L = (b.len ?? 0.9) * R, bw = (b.w ?? 0.3) * R, drop = b.drop ?? 0.1, by = -R * 0.12;
+    const pts = []; for (let i = 0; i <= 5; i++) { const t = i / 5; pts.push([0, by - t * L * drop - (b.hook ? Math.max(0, t - 0.75) * L * 0.9 : 0), R * 0.7 + t * L]); }
+    H.add(sweep(pts, pts.map((_, i) => bw * (1 - i / 5.6) + R * 0.01), Sg(12, 6), { sq: [1, 0.78] }), b.col || '#e0a03a', 0);
+    H.add(sweep([[-bw * 0.9, by - bw * 0.15, R * 0.74], [0, by - bw * 0.15 - L * drop * 0.4, R * 0.7 + L * 0.5], [0, by - L * drop * 0.9, R * 0.7 + L * 0.92]], [R * 0.012, R * 0.01, R * 0.008], 3, { caps: false }), shade(b.col || '#e0a03a', 0.55), 0);
+    if (kind === 'hen') { for (let i = 0; i < 4; i++) H.add(blob(R * 0.13, R * 0.2, R * 0.07, 8, 6), sp.comb || '#d8302a', 1, M4(0, ry * 0.92 + R * 0.1 - Math.abs(i - 1.5) * R * 0.04, R * (0.35 - i * 0.22), -0.3 + i * 0.22)); H.add(blob(R * 0.07, R * 0.12, R * 0.05, 8, 5), sp.comb || '#d8302a', 1, M4(0, by - R * 0.22, R * 0.82)); }
+    if (sp.crest) H.add(sweep([[0, ry * 0.7, -R * 0.2], [0, ry * 0.85, -R * 0.65], [0, ry * 0.75, -R * 1.25]], [R * 0.07, R * 0.05, R * 0.015], Sg(6, 4)), sp.crest, 1);
+  }
+  if (kind === 'fruit' || kind === 'plain' || kind === 'lizard' || kind === 'moth') {   // small nose bump + deadpan mouth
+    if (kind !== 'lizard' && kind !== 'moth') H.add(blob(R * 0.1, R * 0.09, R * 0.08, Sg(8, 4), Sg(6, 3)), sp.nose || shade(face, 0.92), 1, M4(0, -R * 0.05, rz * 0.98));
+    const my = kind === 'lizard' ? -R * 0.22 : -R * 0.36, mw = kind === 'lizard' ? 0.85 : 0.32;
+    const mp = []; for (let i = 0; i <= 4; i++) { const t = i / 4 - 0.5, x = t * R * mw * 2, z = Math.sqrt(Math.max(0, 1 - (x / rx) ** 2 - (my / ry) ** 2)) * rz; mp.push([x, my + (sp.smirk ? t * R * 0.08 : 0), z]); }
+    H.add(sweep(mp, mp.map(() => R * 0.016), 4), shade(face, 0.45), 1);
+  }
+  // ---- ears
+  const et = sp.ears ?? ({ bear: 'round', canine: 'pointy', dog: 'floppy', cat: 'pointy', lynx: 'tufted', rodent: 'mouse', raccoon: 'round', possum: 'round', goat: 'side', ram: 'side', sheep: 'side', cow: 'side', rabbit: 'long', pig: 'pointy', anteater: 'round', moth: 'antenna' }[kind] || null);
+  for (const sx of [-1, 1]) {
+    if (et === 'round') { H.add(blob(R * 0.2, R * 0.2, R * 0.08, Sg(10, 5), Sg(8, 4)), ear, 1, M4(sx * R * 0.7, R * 0.68, -R * 0.1, -0.1, sx * 0.25, -sx * 0.5)); H.add(blob(R * 0.12, R * 0.12, R * 0.04, Sg(8, 4), Sg(6, 3)), inner, 1, M4(sx * R * 0.72, R * 0.68, -R * 0.03, -0.1, sx * 0.25, -sx * 0.5)); }
+    else if (et === 'mouse') { H.add(blob(R * 0.46, R * 0.46, R * 0.07, Sg(14, 6), Sg(10, 5)), ear, 1, M4(sx * R * 0.95, R * 0.72, -R * 0.12, -0.1, sx * 0.3, -sx * 0.55)); H.add(blob(R * 0.33, R * 0.33, R * 0.04, Sg(12, 5), Sg(8, 4)), inner, 1, M4(sx * R * 0.97, R * 0.72, -R * 0.06, -0.1, sx * 0.3, -sx * 0.55)); }
+    else if (et === 'pointy' || et === 'tufted') { const tall = et === 'tufted' ? 0.78 : (sp.earK || 0.62);
+      const eg = new THREE.ConeGeometry(R * 0.26, R * tall, Sg(10, 5), 1); eg.translate(0, R * tall / 2, 0); const eg2 = weld(eg); const mm = M4(sx * R * 0.5, R * 0.62, -R * 0.12, -0.12, 0, -sx * 0.38, 1, 1, 0.42);
+      H.add(eg2, ear, 1, mm); const ig = new THREE.ConeGeometry(R * 0.15, R * tall * 0.72, Sg(8, 4), 1); ig.translate(0, R * tall * 0.36, 0); H.add(weld(ig), inner, 1, mm.clone().multiply(M4(0, R * 0.04, R * 0.12, 0, 0, 0, 1, 1, 0.6)));
+      if (et === 'tufted') H.add(sweep([[0, R * tall * 0.9, 0], [sx * R * 0.04, R * tall * 1.25, 0], [sx * R * 0.08, R * tall * 1.45, 0]], [R * 0.05, R * 0.035, R * 0.01], 5), sp.tuft || '#1e1618', 1, mm); }
+    else if (et === 'long') { const mm = M4(sx * R * 0.3, R * 0.8, -R * 0.1, -0.12, sx * 0.1, -sx * 0.2);
+      H.add(sweep([[0, 0, 0], [0, R * 0.7, 0.0], [sx * R * 0.05, R * 1.45, -R * 0.06], [sx * R * 0.08, R * 1.8, -R * 0.1]], [R * 0.13, R * 0.17, R * 0.14, R * 0.06], Sg(10, 5), { sq: [1, 0.45] }), ear, 1, mm);
+      H.add(sweep([[0, R * 0.1, R * 0.06], [0, R * 0.7, R * 0.07], [sx * R * 0.05, R * 1.4, R * 0.0]], [R * 0.07, R * 0.11, R * 0.07], Sg(8, 4), { sq: [1, 0.3] }), inner, 1, mm); }
+    else if (et === 'side') { const mm = M4(sx * R * 0.85, R * 0.3, -R * 0.1, 0, sx * 0.25, -sx * 1.25);
+      H.add(blob(R * 0.13, R * 0.34, R * 0.07, Sg(10, 5), Sg(8, 4), (v) => { v.y += R * 0.25; }), ear, 1, mm); H.add(blob(R * 0.07, R * 0.24, R * 0.03, Sg(8, 4), Sg(6, 3), (v) => { v.y += R * 0.27; v.z += R * 0.05; }), inner, 1, mm); }
+    else if (et === 'floppy') H.add(sweep([[sx * R * 0.6, R * 0.55, -R * 0.1], [sx * R * 0.95, R * 0.25, -R * 0.12], [sx * R * 1.02, -R * 0.35, -R * 0.05]], [R * 0.14, R * 0.2, R * 0.16], Sg(10, 5), { sq: [0.45, 1] }), ear, 1);
+    else if (et === 'antenna') { const pts = [[sx * R * 0.25, ry * 0.85, R * 0.2], [sx * R * 0.5, ry * 1.4, R * 0.35], [sx * R * 0.85, ry * 1.8, R * 0.2]]; H.add(sweep(pts, [R * 0.04, R * 0.03, R * 0.025], 5), sp.antenna || '#4a3a30', 1);
+      for (let i = 1; i <= 4; i++) { const t = i / 5, p = [lerp(pts[0][0], pts[2][0], t), lerp(pts[0][1], pts[2][1], t) + Math.sin(t * PI) * R * 0.15, lerp(pts[0][2], pts[2][2], t)]; H.add(blob(R * 0.14 * (1 - t * 0.4), R * 0.03, R * 0.05, 6, 4), sp.antenna || '#4a3a30', 1, M4(p[0] + sx * R * 0.05, p[1], p[2], 0, 0, sx * 0.6)); } }
+  }
+  // ---- horns
+  if (sp.horns) { const hc = sp.horns;
+    for (const sx of [-1, 1]) {
+      if (kind === 'ram') { const pts = []; for (let i = 0; i <= 12; i++) { const a = i / 12 * TAU * 0.95, rr = R * (0.5 - i * 0.026); pts.push([sx * (R * 0.55 + i * R * 0.035), R * 0.45 + Math.cos(a) * rr - R * 0.05, -R * 0.15 - Math.sin(a) * rr + R * 0.05]); }
+        H.add(sweep(pts, pts.map((_, i) => R * (0.2 - i * 0.012)), Sg(9, 5), { lobes: [6, 0.06] }), hc, 0); }
+      else { const pts = []; for (let i = 0; i <= 7; i++) { const t = i / 7; pts.push([sx * (R * 0.32 + t * R * 0.22), R * 0.7 + t * R * 0.75 - t * t * R * 0.35, -R * 0.05 - t * R * 1.0 - t * t * R * 0.2]); }
+        H.add(sweep(pts, pts.map((_, i) => R * (0.12 - i * 0.013)), Sg(8, 5), { lobes: [5, 0.05] }), hc, 0); } } }
+  if (sp.beard) H.add(sweep([[0, -R * 0.75, R * 0.65], [0, -R * 1.05, R * 0.72], [0, -R * 1.35, R * 0.62]], [R * 0.13, R * 0.09, R * 0.02], Sg(8, 4)), sp.beard, 1);
+  // ---- eyes
+  if (kind !== 'wrench') for (const sx of [-1, 1]) { const x = sx * eyeX, y = eyeY, z = Math.sqrt(Math.max(0, 1 - (x / rx) ** 2 - (y / ry) ** 2)) * rz - eyeR * 0.35;
+    addEye(H, { x, y, z, r: eyeR, yaw: Math.asin(THREE.MathUtils.clamp(x / rx, -1, 1)) * 0.85, pitch: -0.05, lid: sp.lid || (sp.mask ? sp.mask : face), open: eyeOpen, iris: sp.iris, dark: sp.darkEyes, droop: sp.droop, noLid: sp.noLid }, Sg); }
+  // ---- glasses
+  if (sp.glasses) { const g = sp.glasses, gr = eyeR * (g.dark ? 1.55 : 1.45);
+    for (const sx of [-1, 1]) { const x = sx * eyeX, z = Math.sqrt(Math.max(0, 1 - (x / rx) ** 2 - (eyeY / ry) ** 2)) * rz + eyeR * 0.55;
+      const mm = M4(x, eyeY, z, 0, Math.asin(THREE.MathUtils.clamp(x / rx, -1, 1)) * 0.7, 0);
+      H.add(new THREE.TorusGeometry(gr, R * 0.028, 4, Sg(16, 8)), g.col || '#2a1e1a', 0, mm);
+      if (g.dark) H.add(new THREE.CircleGeometry(gr, Sg(16, 8)), '#1a1418', 0, mm.clone().multiply(M4(0, 0, -R * 0.005)));
+      H.add(sweep([[x + sx * gr * 0.95, eyeY, z - R * 0.02], [sx * rx * 0.98, eyeY + R * 0.03, -R * 0.05]], [R * 0.02, R * 0.018], 4, { caps: false }), g.col || '#2a1e1a', 0); }
+    H.add(sweep([[-eyeX + gr * 0.9, eyeY + R * 0.02, rz * 0.92 + eyeR * 0.4], [0, eyeY + R * 0.05, rz * 1.0 + eyeR * 0.5], [eyeX - gr * 0.9, eyeY + R * 0.02, rz * 0.92 + eyeR * 0.4]], [R * 0.02, R * 0.02, R * 0.02], 4, { caps: false }), g.col || '#2a1e1a', 0); }
+  // ---- hair / hats
+  if (sp.hair) { const hc = sp.hair.col;
+    H.add(blob(rx * 1.06, ry * 0.7, rz * 1.04, Sg(18, 8), Sg(10, 5), (v, n) => { if (n.y < 0.15) v.y = Math.max(v.y, ry * 0.08 - (n.z < 0 ? R * 0.35 : 0)); v.x += Math.sin(n.z * 9 + n.x * 7) * R * 0.025; }), hc, 1, M4(0, R * 0.35, -R * 0.05));
+    if (sp.hair.bun) H.add(blob(R * 0.3, R * 0.26, R * 0.28, Sg(12, 6), Sg(9, 4), (v, n) => { v.x += Math.sin(n.y * 10) * R * 0.02; }), hc, 1, M4(0, ry * 1.05, -R * 0.45)); }
+  if (sp.hat) { const h = sp.hat, hc = h.col;
+    if (h.kind === 'police') { H.add(lathe([[0, ry * 0.62], [rx * 1.02, ry * 0.6], [rx * 1.08, ry * 0.85], [rx * 1.25, ry * 1.05], [rx * 1.2, ry * 1.12], [0, ry * 1.1]], Sg(18, 8)), hc, 1, M4(0, 0, -R * 0.05));
+      H.add(blob(rx * 0.75, R * 0.03, R * 0.38, Sg(12, 6), 4, (v, n) => { if (n.z < 0) v.z *= 0.1; }), '#141822', 0, M4(0, ry * 0.63, rz * 0.7, 0.25));
+      H.add(new THREE.TorusGeometry(rx * 1.04, R * 0.04, 4, Sg(18, 8)), h.band || shade(hc, 0.6), 1, M4(0, ry * 0.66, -R * 0.05, PI / 2));
+      H.add(star5(R * 0.12), h.badge || '#e8c04a', 0, M4(0, ry * 0.82, rz * 1.02 + R * 0.03, -0.15)); }
+    else if (h.kind === 'cap') { H.add(blob(rx * 1.04, ry * 0.62, rz * 1.04, Sg(16, 8), Sg(8, 4), (v, n) => { if (n.y < 0) v.y = 0; }), hc, 1, M4(0, ry * 0.42, 0));
+      H.add(blob(rx * 0.78, R * 0.035, R * 0.5, Sg(12, 6), 4, (v, n) => { if (n.z < 0) v.z *= 0.1; }), h.brim || hc, 1, M4(0, ry * 0.45, rz * 0.82, 0.12));
+      H.add(blob(R * 0.07, R * 0.04, R * 0.07, 6, 4), shade(hc, 0.85), 1, M4(0, ry * 1.04, 0)); }
+    else if (h.kind === 'chef') { H.add(lathe([[0, ry * 0.5], [rx * 1.03, ry * 0.5], [rx * 1.06, ry * 0.8], [rx * 0.95, ry * 1.05], [0, ry * 1.12]], Sg(16, 8), 1, 1), hc, 1);
+      H.add(new THREE.TorusGeometry(rx * 1.04, R * 0.04, 4, Sg(16, 8)), shade(hc, 0.92), 1, M4(0, ry * 0.52, 0, PI / 2)); }
+    else if (h.kind === 'top') { H.add(lathe([[0, ry * 0.7], [rx * 1.5, ry * 0.68], [rx * 1.52, ry * 0.74], [rx * 0.85, ry * 0.76], [rx * 0.82, ry * 1.9], [0, ry * 1.92]], Sg(18, 8)), hc, 1); H.add(new THREE.TorusGeometry(rx * 0.84, R * 0.06, 4, Sg(16, 8)), h.band || '#c9302a', 1, M4(0, ry * 0.86, 0, PI / 2)); }
+    else if (h.kind === 'brim') { H.add(lathe([[0, ry * 0.62], [rx * 1.6, ry * 0.6], [rx * 1.62, ry * 0.66], [rx * 0.95, ry * 0.7], [rx * 0.88, ry * 1.15], [0, ry * 1.2]], Sg(18, 8)), hc, 1); H.add(new THREE.TorusGeometry(rx * 0.92, R * 0.05, 4, Sg(16, 8)), h.band || shade(hc, 0.7), 1, M4(0, ry * 0.75, 0, PI / 2)); }
+  }
+}
+
+
+// ------------------------------------------------------------------ sculpted heads (Nov 16, pass 3)
+// A head is ONE surface: the skull, snout / muzzle, brow ridge, cheek mass and jaw are smooth-unioned signed-distance shapes, and the
+// mesh is a sphere shrink-wrapped onto that field (pole along the snout, rings packed toward the tip so a long snout keeps its shape).
+// Each vertex is coloured by the shape it came from (muzzle pale, mask dark ...), so nothing is a ball with parts stuck on.
+const sdEll = (x, y, z, c, r) => { const X = (x - c[0]) / r[0], Y = (y - c[1]) / r[1], Z = (z - c[2]) / r[2], k0 = Math.hypot(X, Y, Z), k1 = Math.hypot(X / r[0], Y / r[1], Z / r[2]); return k1 < 1e-9 ? -Math.min(...r) : k0 * (k0 - 1) / k1; };
+function sdRCone(x, y, z, a, b, r1, r2) {   // iq's round cone
+  const bx = b[0] - a[0], by = b[1] - a[1], bz = b[2] - a[2], l2 = bx * bx + by * by + bz * bz, rr = r1 - r2, a2 = l2 - rr * rr, il2 = 1 / l2;
+  const px = x - a[0], py = y - a[1], pz = z - a[2], Y = px * bx + py * by + pz * bz, Z = Y - l2;
+  const qx = px * l2 - bx * Y, qy = py * l2 - by * Y, qz = pz * l2 - bz * Y, x2 = qx * qx + qy * qy + qz * qz, y2 = Y * Y * l2, z2 = Z * Z * l2, k = Math.sign(rr) * rr * rr * x2;
+  if (Math.sign(Z) * a2 * z2 > k) return Math.sqrt(x2 + z2) * il2 - r2;
+  if (Math.sign(Y) * a2 * y2 < k) return Math.sqrt(x2 + y2) * il2 - r1;
+  return (Math.sqrt(x2 * a2 * il2) + Y * rr) * il2 - r1;
+}
+const smin = (a, b, k) => { if (k <= 0) return Math.min(a, b); const h = Math.max(k - Math.abs(a - b), 0) / k; return Math.min(a, b) - h * h * k * 0.25; };
+// parts: [{ e: [c, r] } | { c: [a, b, r1, r2] }, k: blend, tag]; part 0 is the skull
+function headField(parts) {
+  const d1 = (P, x, y, z) => P.e ? sdEll(x, y, z, P.e[0], P.e[1]) : sdRCone(x, y, z, P.c[0], P.c[1], P.c[2], P.c[3]);
+  const f = (x, y, z) => { let d = d1(parts[0], x, y, z); for (let i = 1; i < parts.length; i++) d = smin(d, d1(parts[i], x, y, z), parts[i].k ?? 0); return d; };
+  const tag = (x, y, z) => { let best = parts[0].tag || 'sk', bd = d1(parts[0], x, y, z); for (let i = 1; i < parts.length; i++) { const d = d1(parts[i], x, y, z) - (parts[i].bias || 0); if (d < bd) { bd = d; best = parts[i].tag || 'sk'; } } return best; };
+  return { f, tag };
+}
+function sculptHead(F, axis, R, ws, hs) {   // shrink-wrap a sphere (pole along axis) onto field F; outermost surface along each ray from the centre
+  const g = new THREE.SphereGeometry(1, ws, hs), p = g.attributes.position, v = new THREE.Vector3(), q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis);
+  const tMax = R * 4.2, st = R * 0.035;
+  for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); const th = Math.acos(THREE.MathUtils.clamp(v.y, -1, 1)), ph = Math.atan2(v.z, v.x), th2 = PI * Math.pow(th / PI, 1.45);
+    v.set(Math.sin(th2) * Math.cos(ph), Math.cos(th2), Math.sin(th2) * Math.sin(ph)).applyQuaternion(q);
+    let t = tMax; while (t > 0 && F.f(v.x * t, v.y * t, v.z * t) > 0) t -= st; let lo = Math.max(0, t), hi = Math.min(tMax, t + st);
+    for (let k = 0; k < 10; k++) { const m = (lo + hi) / 2; if (F.f(v.x * m, v.y * m, v.z * m) > 0) hi = m; else lo = m; }
+    p.setXYZ(i, v.x * lo, v.y * lo, v.z * lo); }
+  return weld(g);
+}
+// per-kind recipe (R units). Returns { F, tip, tr, axis } or null (kind keeps the classic build)
+function headRecipe(kind, sp, R, rx, ry, rz, eyeX, eyeY) {
+  const E = (c, r, k, tag, bias) => ({ e: [c.map((v) => v * R), r.map((v) => v * R)], k: k * R, tag, bias: (bias || 0) * R });
+  const C = (a, b, r1, r2, k, tag, bias) => ({ c: [a.map((v) => v * R), b.map((v) => v * R), r1 * R, r2 * R], k: k * R, tag, bias: (bias || 0) * R });
+  const L = sp.mz?.len ?? 1, ey = eyeY / R;
+  const skull = { e: [[0, 0, 0], [rx, ry, rz]], tag: 'sk' }, brow = E([0, ey + 0.2, 0.52], [0.7, 0.15, 0.32], 0.14, 'br'), jaw = E([0, -0.48, 0.22], [0.56, 0.3, 0.5], 0.2, 'sk');
+  const cheeks = (x, y, z, r, k = 0.16, tag = 'ck') => [E([-x, y, z], [r, r * 0.85, r * 0.9], k, tag), E([x, y, z], [r, r * 0.85, r * 0.9], k, tag)];
+  let parts = null, tip = null, tr = 0;
+  const snout = (a, b, r1, r2, k = 0.24, bias = 0.06) => { tip = b.map((v) => v * R); tr = r2 * R; return C(a, b, r1, r2, k, 'mz', bias); };
+  if (kind === 'rodent') parts = [skull, brow, jaw, ...cheeks(0.48, -0.26, 0.42, 0.34 * (sp.fat > 1.2 ? 1.15 : 1)), snout([0, -0.1, 0.5], [0, -0.3, 0.7 + 0.8 * L], 0.46, 0.13)];
+  else if (kind === 'raccoon' || kind === 'possum') parts = [skull, E([0, ey + 0.22, 0.5], [0.78, 0.15, 0.3], 0.12, 'br'), jaw, ...cheeks(0.56, -0.2, 0.3, 0.36, 0.16, 'ck'), snout([0, -0.16, 0.5], [0, -0.3, 0.72 + 0.62 * L], 0.42, 0.15)];
+  else if (kind === 'bear') parts = [skull, brow, jaw, ...cheeks(0.52, -0.25, 0.35, 0.36), snout([0, -0.22, 0.55], [0, -0.3, 1.18], 0.5, 0.34, 0.2, 0.04)];
+  else if (kind === 'canine' || kind === 'dog') { const dog = kind === 'dog', l = sp.mz?.len ?? (dog ? 0.55 : 1); parts = [skull, brow, jaw, ...cheeks(0.46, -0.22, 0.36, 0.3), snout([0, -0.06, 0.55], [0, -0.33, 0.8 + 1.3 * l], 0.5, dog ? 0.26 : 0.13)]; }
+  else if (kind === 'pig') parts = [skull, brow, E([0, -0.5, 0.2], [0.66, 0.34, 0.56], 0.22, 'sk'), ...cheeks(0.52, -0.3, 0.38, 0.4, 0.2, 'sk'), snout([0, -0.18, 0.6], [0, -0.2, 1.16], 0.4, 0.36, 0.16, 0.03)];
+  else if (kind === 'cat' || kind === 'lynx' || kind === 'rabbit') { const pk = kind === 'rabbit' ? 1.25 : 1; tip = [0, -0.22 * R, 1.0 * R]; tr = 0.12 * R;
+    parts = [skull, brow, jaw, ...cheeks(0.5, -0.22, 0.32, 0.34, 0.16, 'sk'), E([-0.15 * pk, -0.32, 0.78], [0.22 * pk, 0.19 * pk, 0.2], 0.12, 'mz', 0.03), E([0.15 * pk, -0.32, 0.78], [0.22 * pk, 0.19 * pk, 0.2], 0.12, 'mz', 0.03), E([0, -0.5, 0.7], [0.15, 0.11, 0.14], 0.1, 'mz', 0.02), E([0, -0.08, 0.86], [0.12, 0.2, 0.12], 0.14, 'sk')]; }
+  else if (kind === 'sheep' || kind === 'cow') { const cow = kind === 'cow'; parts = [skull, brow, jaw, snout([0, 0.0, 0.45], [0, -0.55, 1.15], 0.52, cow ? 0.4 : 0.3, 0.26, 0.02)]; }
+  else if (kind === 'bird' || kind === 'hen') { const b = sp.beak || {}, bw = (b.w ?? 0.3);
+    parts = [skull, E([0, ey + 0.16, 0.5], [0.62, 0.13, 0.3], 0.14, 'br'), E([0, -0.38, 0.25], [0.6, 0.36, 0.55], 0.22, kind === 'hen' ? 'sk' : 'th'), ...cheeks(0.42, -0.2, 0.42, 0.3, 0.2, 'sk'),
+      C([0, -0.06, 0.45], [0, -0.12, rz / R + 0.32], 0.5, Math.max(0.16, bw * 0.55), 0.22, 'sk')]; }
+  if (!parts) return null;
+  const ax = tip ? new THREE.Vector3(...tip).normalize() : new THREE.Vector3(0, -0.1, 1).normalize();
+  return { F: headField(parts), tip, tr, axis: ax };
+}
 const SNOUTED = new Set(['canine', 'dog', 'goat', 'ram', 'sheep', 'cow', 'rodent', 'raccoon', 'possum', 'anteater', 'bear']);
 function buildHead(H, sp, R, Sg) {
+  if (sp.kind === 'goat') return buildHeadGoat0(H, sp, R, Sg);
   const kind = sp.kind || 'plain', face = sp.face || sp.fur || '#c9a37a', mz = sp.muzzle || face, nose = sp.nose || '#2a2024', ear = sp.ear || face, inner = sp.earIn || shade(face, 1.15);
   let rx = R, ry = R * 1.02, rz = R * 0.96, eyeY = R * 0.18, eyeX = R * 0.36, eyeR = R * 0.22 * (sp.eyeK || 1), eyeOpen = sp.open ?? 0.06;
   const bird = kind === 'bird' || kind === 'hen';
@@ -287,7 +475,10 @@ function buildHead(H, sp, R, Sg) {
   if (kind === 'moth') { eyeX = R * 0.48; eyeR = R * 0.3; }
   const skullCol = sp.headFn || (sp.throat ? (x, y, z) => (y < -R * 0.22 && z > -R * 0.25 ? sp.throat : face) : null) || ((sp.mask && sp.maskPaint) ? (x, y, z) => { // raccoon mask band over the eyes
     const d = Math.abs(y - eyeY * 1.0); return z > R * 0.1 && d < R * 0.22 && Math.abs(x) < R * 0.95 ? sp.mask : (y > R * 0.55 && sp.crown ? sp.crown : face); } : sp.crown ? (x, y) => (y > R * 0.5 ? sp.crown : face) : face);
-  const skull = blob(rx, ry, rz, Sg(22, 10), Sg(16, 8), (v, n) => {
+  const rec = sp.classic ? null : headRecipe(kind, sp, R, rx, ry, rz, eyeX, eyeY);
+  const zAt = rec ? (x, y) => { let t = R * 4; while (t > -R && rec.F.f(x, y, t) > 0) t -= R * 0.02; let lo = t, hi = t + R * 0.02; for (let k = 0; k < 8; k++) { const m = (lo + hi) / 2; if (rec.F.f(x, y, m) > 0) hi = m; else lo = m; } return lo; }
+    : (x, y) => Math.sqrt(Math.max(0, 1 - (x / rx) ** 2 - (y / ry) ** 2)) * rz;
+  const skull = rec ? sculptHead(rec.F, rec.axis, R, Sg(34, 14), Sg(30, 12)) : blob(rx, ry, rz, Sg(22, 10), Sg(16, 8), (v, n) => {
     if (kind === 'fruit' && sp.nubs) { const t = Math.abs(n.y); if (t > 0.85 && n.y < 0) v.y -= (t - 0.85) * R * 0.0; }
     if (n.z < -0.2) v.z *= 0.95;                      // flatter back of the head
     if (n.y < -0.3 && kind !== 'fruit') v.y *= 0.92;  // jaw tucks in
@@ -295,12 +486,31 @@ function buildHead(H, sp, R, Sg) {
     if (bird && n.z > 0) { const w = n.z * n.z; v.z += R * 0.32 * w * (1 - Math.max(0, n.y) * 0.5); v.y -= R * 0.05 * w; v.x *= 1 - 0.12 * w; }   // Nov 16: a bird skull runs forward into the beak
     if (SNOUTED.has(kind) && n.z > 0.2) { const w = THREE.MathUtils.smoothstep(n.z, 0.2, 0.95) * THREE.MathUtils.smoothstep(0.55 - n.y, 0, 0.7); v.z += R * (kind === 'goat' || kind === 'ram' ? 0.3 : 0.22) * w; v.y -= R * 0.06 * w; }   // Nov 16: the brow runs on into the snout (no ball-plus-tube)
   });
-  H.add(skull, skullCol, kind === 'fruit' && sp.clayHead ? 0 : 1);
+  const baseCol = (x, y, z) => (typeof skullCol === 'function' ? skullCol(x, y, z) : skullCol);
+  const sculptCol = rec ? (x, y, z) => { const t = rec.F.tag(x, y, z);
+    if (sp.mask && !sp.maskPaint && z > 0 && t !== 'mz') { const dx = Math.abs(x) - eyeX * 0.92;   // raccoon: dark mask round both eyes + bridge, pale brows above
+      if (((y - eyeY + R * 0.04) / (R * 0.27)) ** 2 + (dx / (R * 0.42)) ** 2 < 1 || (Math.abs(x) < eyeX && Math.abs(y - eyeY) < R * 0.13)) return sp.mask;
+      if (((y - eyeY - R * 0.36) / (R * 0.11)) ** 2 + (dx / (R * 0.3)) ** 2 < 1) return sp.brow || '#efe8dc'; }
+    if (t === 'mz') return mz; if (t === 'ck') return sp.cheek || baseCol(x, y, z); if (t === 'th') return sp.throat || baseCol(x, y, z); if (t === 'br') return sp.browFur || baseCol(x, y, z); return baseCol(x, y, z); } : skullCol;
+  H.add(skull, sculptCol, kind === 'fruit' && sp.clayHead ? 0 : 1);
   // fruit nub / stem
   if (kind === 'fruit' && sp.nubs) H.add(blob(R * 0.12, R * 0.12, R * 0.1, 8, 6), shade(face, 0.92), 1, M4(0, ry * 0.98, 0));
   // ---- muzzle / snout / beak
   const mzr = sp.mz || {};
-  if (['canine', 'cat', 'lynx', 'bear', 'rodent', 'raccoon', 'goat', 'ram', 'rabbit', 'pig', 'sheep', 'possum', 'cow', 'anteater', 'dog'].includes(kind)) {
+  if (rec && rec.tip) {   // sculpted snout: only the nose, nostrils, mouth line and teeth are separate pieces
+    const tp = rec.tip, tr = rec.tr, padK = kind === 'cat' || kind === 'lynx' || kind === 'rabbit';
+    if (padK) { H.add(blob(R * 0.09, R * 0.07, R * 0.07, Sg(8, 4), Sg(6, 3), (v) => { if (v.y < 0) v.x *= 1 + v.y * 6; }), nose, 0, M4(0, -R * 0.17, zAt(0, -R * 0.17) + R * 0.02));
+      const my = -R * 0.43, mp = []; for (let i = 0; i <= 4; i++) { const t = i / 4 - 0.5, x = t * R * 0.36; mp.push([x, my + Math.abs(t) * R * 0.06, zAt(x, my) + R * 0.005]); } H.add(sweep(mp, mp.map(() => R * 0.015), 4), shade(mz, 0.5), 1);
+      if (kind === 'rabbit' || sp.teeth) for (const sx of [-1, 1]) H.add(blob(R * 0.075, R * 0.13, R * 0.035, 6, 4), '#f6f2ea', 0, M4(sx * R * 0.075, -R * 0.56, zAt(sx * R * 0.075, -R * 0.56) - R * 0.01)); }
+    else if (kind === 'pig') { H.add(new THREE.CylinderGeometry(tr * 0.98, tr * 1.02, R * 0.12, Sg(16, 8)), shade(mz, 0.96), 1, M4(tp[0], tp[1], tp[2] + tr * 0.55, PI / 2)); for (const sx of [-1, 1]) H.add(blob(R * 0.06, R * 0.09, R * 0.03, 6, 4), shade(mz, 0.5), 0, M4(sx * R * 0.12, tp[1], tp[2] + tr * 0.62));
+      H.add(sweep([[-R * 0.22, tp[1] - tr * 1.05, tp[2] - tr * 0.3], [0, tp[1] - tr * 1.15, tp[2] - tr * 0.05], [R * 0.22, tp[1] - tr * 1.05, tp[2] - tr * 0.3]], [R * 0.016, R * 0.016, R * 0.016], 4), shade(mz, 0.5), 1); }
+    else if (kind === 'sheep' || kind === 'cow') { for (const sx of [-1, 1]) H.add(blob(R * 0.06, R * 0.04, R * 0.03, 5, 4), sp.nostril || shade(mz, 0.5), 0, M4(sx * tr * 0.42, tp[1] + tr * 0.2, tp[2] + tr * 0.82, -0.3));
+      H.add(sweep([[-tr * 0.5, tp[1] - tr * 0.5, tp[2] + tr * 0.55], [0, tp[1] - tr * 0.62, tp[2] + tr * 0.72], [tr * 0.5, tp[1] - tr * 0.5, tp[2] + tr * 0.55]], [R * 0.018, R * 0.018, R * 0.018], 4), shade(mz, 0.55), 1); }
+    else { const nr = kind === 'bear' ? [R * 0.22, R * 0.15, R * 0.14] : kind === 'rodent' ? [R * 0.15, R * 0.12, R * 0.12] : kind === 'dog' ? [R * 0.17, R * 0.13, R * 0.13] : [R * 0.14, R * 0.11, R * 0.11];
+      H.add(blob(nr[0], nr[1], nr[2], Sg(10, 5), Sg(8, 4), (v) => { if (v.y < 0) v.x *= 1 + v.y * 2.2; }), nose, 0, M4(tp[0], tp[1] + tr * 0.4, tp[2] + tr * 0.78));
+      const mw = Math.max(tr * 1.1, R * 0.2); H.add(sweep([[-mw, tp[1] - tr * 0.75, tp[2] - tr * 0.9 - R * 0.06], [0, tp[1] - tr * 0.72, tp[2] + tr * 0.55], [mw, tp[1] - tr * 0.75, tp[2] - tr * 0.9 - R * 0.06]], [R * 0.016, R * 0.016, R * 0.016], 4), shade(mz, 0.5), 1);
+      if (sp.teeth) H.add(blob(R * 0.1, R * 0.08, R * 0.03, 6, 4), '#f6f2ea', 0, M4(0, tp[1] - tr * 0.95, tp[2] + tr * 0.1)); }
+  } else if (['canine', 'cat', 'lynx', 'bear', 'rodent', 'raccoon', 'goat', 'ram', 'rabbit', 'pig', 'sheep', 'possum', 'cow', 'anteater', 'dog'].includes(kind)) {
     let pts, rad, tip;
     if (kind === 'canine' || kind === 'dog') { const L = mzr.len ?? (kind === 'dog' ? 0.55 : 1.0), Z = (z) => R * (0.25 + (z - 0.25) * L);   // Nov 16 likeness: long wedge snout off the brow
       pts = [[0, -R * 0.04, Z(0.25)], [0, -R * 0.14, Z(0.85)], [0, -R * 0.25, Z(1.45)], [0, -R * 0.33, Z(1.95)], [0, -R * 0.37, Z(2.2)]]; rad = [R * 0.66, R * 0.48, R * 0.32, R * 0.21, R * 0.14]; }
@@ -326,10 +536,10 @@ function buildHead(H, sp, R, Sg) {
       if (sp.teeth) H.add(blob(R * 0.1, R * 0.08, R * 0.03, 6, 4), '#f6f2ea', 0, M4(0, tp[1] - tr * 0.78, tp[2] + tr * 0.05));
     }
   }
-  if (bird) { const b = sp.beak || {}, L = (b.len ?? 0.9) * R, bw = (b.w ?? 0.3) * R, drop = b.drop ?? 0.1, by = -R * 0.12, bz0 = (rz + R * 0.3) * 0.86;   // beak root sits at the front of the (forward-running) skull
+  if (bird) { const b = sp.beak || {}, L = (b.len ?? 0.9) * R, bw = (b.w ?? 0.3) * R, drop = b.drop ?? 0.1, by = -R * 0.12, bz0 = rec ? zAt(0, -R * 0.12) - R * 0.1 : (rz + R * 0.3) * 0.86;   // beak root sits at the front of the (forward-running) skull
     const pts = []; for (let i = 0; i <= 5; i++) { const t = i / 5; pts.push([0, by - t * L * drop - (b.hook ? Math.max(0, t - 0.75) * L * 0.9 : 0), bz0 + t * L]); }
     H.add(sweep(pts, pts.map((_, i) => bw * (1 - i / 5.6) + R * 0.01), Sg(12, 6), { sq: [1, b.flat ?? 0.78] }), b.col || '#e0a03a', 0);
-    { const ck = b.cere ?? 1; if (ck > 0) H.add(blob((R * 0.22 + bw * 0.35) * ck, (R * 0.2 + bw * 0.3) * ck, R * 0.26 * ck, Sg(12, 6), Sg(8, 4)), face, 1, M4(0, by + R * 0.02, bz0 - R * 0.06 - R * 0.1 * (1 - ck))); }   // feathered base of the beak
+    { const ck = rec ? 0 : b.cere ?? 1; if (ck > 0) H.add(blob((R * 0.22 + bw * 0.35) * ck, (R * 0.2 + bw * 0.3) * ck, R * 0.26 * ck, Sg(12, 6), Sg(8, 4)), face, 1, M4(0, by + R * 0.02, bz0 - R * 0.06 - R * 0.1 * (1 - ck))); }   // feathered base of the beak
     H.add(sweep([[-bw * 0.9, by - bw * 0.15, bz0 + R * 0.04], [0, by - bw * 0.15 - L * drop * 0.4, bz0 + L * 0.5], [0, by - L * drop * 0.9, bz0 + L * 0.92]], [R * 0.012, R * 0.01, R * 0.008], 3, { caps: false }), shade(b.col || '#e0a03a', 0.55), 0);
     if (kind === 'hen') { for (let i = 0; i < 4; i++) H.add(blob(R * 0.2, R * 0.3, R * 0.1, 8, 6), sp.comb || '#d8302a', 1, M4(0, ry * 0.92 + R * 0.16 - Math.abs(i - 1.5) * R * 0.06, R * (0.4 - i * 0.24), -0.3 + i * 0.22)); for (const sx of [-1, 1]) H.add(blob(R * 0.08, R * 0.16, R * 0.06, 8, 5), sp.comb || '#d8302a', 1, M4(sx * R * 0.06, by - R * 0.3, bz0 + R * 0.04)); }
     if (sp.crest) for (const k of [-1, 0, 1]) H.add(sweep([[k * R * 0.12, ry * 0.75, -R * 0.1], [k * R * 0.2, ry * 0.95 + R * 0.1, -R * 0.75], [k * R * 0.25, ry * 0.95 + (k ? 0 : R * 0.25), -R * 1.7]], [R * 0.09, R * 0.06, R * 0.012], Sg(6, 4), { sq: [0.5, 1] }), sp.crest, 1);
@@ -375,14 +585,14 @@ function buildHead(H, sp, R, Sg) {
         H.add(sweep(pts, pts.map((_, i) => R * (0.21 - i * 0.018)), Sg(8, 5), { lobes: [5, 0.07] }), hc, 0); } } }
   if (sp.beard) H.add(sweep([[0, -R * 0.8, R * 1.15], [0, -R * 1.15, R * 1.2], [0, -R * 1.55, R * 1.05]], [R * 0.16, R * 0.11, R * 0.02], Sg(8, 4)), sp.beard, 1);
   // ---- eyes
-  if (kind !== 'wrench') for (const sx of [-1, 1]) { const x = sx * eyeX, y = eyeY, z = Math.sqrt(Math.max(0, 1 - (x / rx) ** 2 - (y / ry) ** 2)) * rz - eyeR * 0.35;
+  if (kind !== 'wrench') for (const sx of [-1, 1]) { const x = sx * eyeX, y = eyeY, z = zAt(x, y) - eyeR * 0.35;
     addEye(H, { x, y, z, r: eyeR, yaw: Math.asin(THREE.MathUtils.clamp(x / rx, -1, 1)) * 0.85, pitch: -0.05, lid: sp.lid || (sp.mask ? sp.mask : face), open: eyeOpen, iris: sp.iris, dark: sp.darkEyes, droop: sp.droop, noLid: sp.noLid }, Sg); }
-  if (sp.mask) for (const sx of [-1, 1]) { const x = sx * eyeX * 0.98, z = Math.sqrt(Math.max(0, 1 - (x / rx) ** 2 - (eyeY / ry) ** 2)) * rz, yw = Math.asin(THREE.MathUtils.clamp(x / rx, -1, 1)) * 0.85;   // Nov 16: the raccoon mask is felt, not a painted band
+  if (sp.mask && !rec) for (const sx of [-1, 1]) { const x = sx * eyeX * 0.98, z = Math.sqrt(Math.max(0, 1 - (x / rx) ** 2 - (eyeY / ry) ** 2)) * rz, yw = Math.asin(THREE.MathUtils.clamp(x / rx, -1, 1)) * 0.85;   // Nov 16: the raccoon mask is felt, not a painted band
     H.add(blob(eyeR * 2.2, eyeR * 1.3, R * 0.16, Sg(14, 7), Sg(8, 4)), sp.mask, 1, M4(x + sx * eyeR * 0.25, eyeY - eyeR * 0.3, z - R * 0.1, 0, yw, -sx * 0.18));
     H.add(blob(eyeR * 1.3, eyeR * 0.42, R * 0.12, Sg(10, 5), Sg(6, 3)), sp.brow || '#efe8dc', 1, M4(x, eyeY + eyeR * 1.75, z - R * 0.12, -0.2, yw, sx * 0.25)); }
   // ---- glasses
   if (sp.glasses) { const g = sp.glasses, gr = eyeR * (g.dark ? 1.55 : 1.45);
-    for (const sx of [-1, 1]) { const x = sx * eyeX, z = Math.sqrt(Math.max(0, 1 - (x / rx) ** 2 - (eyeY / ry) ** 2)) * rz + eyeR * (g.dark ? 1.0 : 0.55);
+    for (const sx of [-1, 1]) { const x = sx * eyeX, z = zAt(x, eyeY) + eyeR * (g.dark ? 1.0 : 0.55);
       const mm = M4(x, eyeY, z, 0, Math.asin(THREE.MathUtils.clamp(x / rx, -1, 1)) * 0.7, 0);
       H.add(new THREE.TorusGeometry(gr, R * 0.028, 4, Sg(16, 8)), g.col || '#2a1e1a', 0, mm);
       if (g.dark) H.add(new THREE.CircleGeometry(gr, Sg(16, 8)), '#1a1418', 0, mm.clone().multiply(M4(0, 0, -R * 0.005)));
@@ -473,11 +683,11 @@ export const FOLK = {
   larry: { kind: 'bird', fur: '#9a9aa0', face: '#3a9a5a', throat: '#e6d6bc', beak: { col: '#2a2226', len: 2.9, w: 0.12, drop: 0.05 }, iris: '#2a1a14', top: '#e8705a', collar: 'lapel', lapelCol: '#c85040', pants: '#9a9aa0', legStyle: 'shorts', feet: 'bird', legCol: '#2a2226', hand: 'wing', hands: '#3a9a5a', h: 0.74, headR: 0.24, tail: { kind: 'feather', col: '#3a9a5a' } },
   fuzz: { kind: 'bear', fur: '#4a3024', muzzle: '#9a7458', nose: '#141010', top: '#1e2a52', collar: 'uniform', collarCol: '#24325e', badge: '#e8c04a', pocket: 1, belt: '#141418', buttons: '#e8c04a', pants: '#1e2a52', shoes: '#141418', hat: { kind: 'police', col: '#1a2448', badge: '#e8c04a' }, hands: '#3e281e', fat: 1.22, h: 1.05, headR: 0.25, open: 0.0 },
   lemon: { kind: 'fruit', face: '#f6dc3a', fur: '#f6dc3a', nubs: 1, headR: 0.32, neck: 0.0, top: '#3a9a4a', shortSleeve: 1, collar: 'crew', pants: '#22305a', legStyle: 'shorts', bareLegs: '#f2d43a', feet: 'sneaker', shoes: '#f2efe8', sole: '#d8d0c4', hat: { kind: 'cap', col: '#3a9a4a' }, hands: '#f2d43a', h: 0.85, smirk: 1, iris: '#4a2e22' },
-  goat: { kind: 'goat', fur: '#e8e0cc', face: '#ece4d2', muzzle: '#ece4d2', nose: '#8a7a6a', earIn: '#d8b8a8', horns: '#8a6a4a', beard: '#e2d8c2', iris: '#c8a040', top: '#3e4ea6', collar: 'shirt', buttons: '#e8e2d6', pants: '#3a3a40', feet: 'hoof', hoof: '#5a4a3e', hands: '#e2d8c4', open: 0.12 },
+  goat: { kind: 'goat', fur: '#e8e0cc', face: '#ece4d2', muzzle: '#e2d8c4', nose: '#8a7a6a', earIn: '#d8b8a8', horns: '#8a6a4a', beard: '#e2d8c2', iris: '#c8a040', top: '#3e4ea6', collar: 'shirt', buttons: '#e8e2d6', pants: '#3a3a40', feet: 'hoof', hoof: '#5a4a3e', hands: '#e2d8c4', open: 0.12 },
   rabbit: { kind: 'rabbit', fur: '#8c86a6', muzzle: '#e8e4ee', eyeK: 1.4, earIn: '#e0a090', nose: '#e0806e', iris: '#f2c83a', teeth: 1, top: '#f0dcb0', collar: 'shirt', vest: '#3f8a3e', pants: '#d89a2a', legStyle: 'flare', feet: 'paw', bigFeet: 1, feetCol: '#8c86a6', hands: '#8c86a6', tail: { kind: 'puff', col: '#c9c2d4' }, h: 0.95, sleeve: '#f0dcb0' },
-  reggie: { kind: 'raccoon', fur: '#7a7a82', face: '#8a8a92', mask: '#2a2628', muzzle: '#e8e2d6', earIn: '#e8e2d6', nose: '#141012', glasses: { col: '#141012' }, top: '#c98a3a', shortSleeve: 1, collar: 'crew', pants: '#3a3a44', shoes: '#2a2a30', hands: '#3a3a40', tail: { kind: 'ringed', col: '#8a8a92', col2: '#2a2628' } },
-  sal: { kind: 'rodent', fur: '#a89aa8', face: '#b4a6b4', muzzle: '#c4b6c2', nose: '#e88a9a', earIn: '#e8b0b8', top: '#f4f0e8', collar: 'shirt', shortSleeve: 1, pants: '#3a3a44', shoes: '#2a2a30', hat: { kind: 'chef', col: '#f6f4ee' }, hands: '#b4a6b4', tail: { kind: 'thin', col: '#e8b8b8' }, fat: 1.32, belly: 0.2, open: 0.1 },
-  dot: { kind: 'hen', fur: '#f2e6d2', face: '#f6ecdc', beak: { col: '#e8a83a', len: 0.85, w: 0.44, drop: 0.25, flat: 0.9 }, comb: '#d8302a', top: '#6ab8b8', dress: '#6ab8b8', skirt: '#6ab8b8', apron: '#f6f2ea', collar: 'crew', feet: 'bird', legCol: '#e8a83a', legStyle: 'none', hand: 'wing', hands: '#f2e6d2', fat: 1.1 },
+  reggie: { kind: 'raccoon', fur: '#84848c', face: '#8e8e96', mask: '#26222a', muzzle: '#ece6da', cheek: '#ece6da', brow: '#ece6da', earIn: '#ece6da', nose: '#141012', top: '#c98a3a', shortSleeve: 1, collar: 'crew', pants: '#3a3a44', shoes: '#2a2a30', hands: '#3a3a40', tail: { kind: 'ringed', col: '#8a8a92', col2: '#2a2628' } },
+  sal: { kind: 'rodent', fur: '#9a96aa', face: '#a4a0b4', muzzle: '#b4b0c2', nose: '#e88a9a', earIn: '#e8b0b8', top: '#f4f0e8', collar: 'shirt', shortSleeve: 1, pants: '#3a3a44', shoes: '#2a2a30', hat: { kind: 'chef', col: '#f6f4ee' }, hands: '#b4a6b4', tail: { kind: 'thin', col: '#e8b8b8' }, fat: 1.32, belly: 0.2, open: 0.1 },
+  dot: { kind: 'hen', fur: '#f6f2e8', face: '#faf7f0', beak: { col: '#f4c42a', len: 0.95, w: 0.4, drop: 0.3, flat: 0.8 }, comb: '#d8302a', top: '#6ab8b8', dress: '#6ab8b8', skirt: '#6ab8b8', apron: '#f6f2ea', collar: 'crew', feet: 'bird', legCol: '#e8a83a', legStyle: 'none', hand: 'wing', hands: '#f2e6d2', fat: 1.1 },
   nan: { kind: 'rodent', fur: '#c8b8b0', face: '#d0c0b8', muzzle: '#dccfc6', nose: '#d88a8a', earIn: '#e8b8b8', hair: { col: '#f2f0ea' }, glasses: { col: '#6a4a3a' }, top: '#efe6dc', collar: 'shirt', sleeve: '#b8a0d8', coat: { col: '#b8a0d8', len: -0.06, gap: 0.55, buttons: '#efe6dc' }, skirt: '#6a4a8a', dress: '#efe6dc', shoes: '#5a3a2a', hands: '#d0c0b8', h: 0.92, open: 0.14, tail: { kind: 'thin', col: '#e0b8b8' } },
   wrench: { kind: 'wrench', fur: '#c8a27a', sleeve: '#e86a2a', hands: '#f2b632', gloves: 1 },
   hummer: { kind: 'bird', fur: '#3aa88a', face: '#4ac29a', beak: { col: '#2a2226', len: 2.9, w: 0.12, drop: 0.04 }, top: '#c9306a', collar: 'crew', pants: '#3a3a4a', legStyle: 'shorts', feet: 'bird', legCol: '#2a2226', hand: 'wing', hands: '#3aa88a', h: 0.72, headR: 0.24, tail: { kind: 'feather', col: '#2a8a7a' } },
