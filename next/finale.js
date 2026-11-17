@@ -299,8 +299,8 @@ function build(MODELS) {
   const crew = {}; const put = (k, x, z, ry = 0, sit = false) => { const g = MODELS[k]; if (!g) return; if (LOWQ() && EXTRAS.includes(k)) return; g.position.set(O.x + x, 0, O.z + z); g.rotation.y = Math.PI + ry; set.add(g); crew[k] = rig(k, g, sit); };
   put('bear', -1.36, 0, 0.1, true); put('wolf', 0.0, 0, 0, true); put('moth', 1.36, 0, -0.08, true);   // on the couch (hips at the front of the cushion, feet on the ground)
   put('lynx', 0.62, 1.2, 0.08); put('ram', -2.3, 1.1, -0.3); put('heron', 2.25, 1.15, 0.22);   // leaning on the back of it
-  put('gecko', -1.9, 1.2, -0.15); put('anteater', -3.1, 0.8, -0.45);
-  put('squid', 2.65, -1.05, 0.55); put('crow', 3.2, -0.1, 0.6);
+  put('gecko', -1.9, 1.2, -0.15); put('anteater', -2.7, 1.3, -0.45);
+  put('squid', 3.7, 0.35, 0.55); put('crow', 2.85, 1.25, 0.6);
   if (Q.get('finale') === 'lineup') { const order = ['wolf', 'moth', 'bear', 'ram', 'heron', 'crow', 'lynx', 'gecko', 'anteater', 'squid']; order.forEach((k, i) => { const c = crew[k]; if (c) { c.g.position.set(O.x + (i - 4.5) * 1.3, 0, O.z + 4); c.g.rotation.y = 0; c.sit = false; c.g.userData.inner.position.y = 0; } }); }
   for (const c of Object.values(crew)) setLive(c, true);
   const cam0 = { fov: cam.fov, near: cam.near, pos: cam.position.clone(), q: cam.quaternion.clone() };
@@ -321,7 +321,7 @@ const D = { scene: 26, title: 6.5, roll: 52 };
 // Film coverage: on a spoken line, a hard cut to a medium close-up of the speaker (waist-up, face 3/4 to camera, a sliver of the
 // neighbour, the dawn sky + porch-lamp glow behind). [from, to, who, side]  side: +1 = camera on the speaker's world -x side.
 // 'wide' = the high establishing wide (portrait). Anything not listed falls back to the SHOT keys.
-const CUTS = { land: [[3.0, 7.0, 'moth', 1.0, 0, -1], [10.6, 14.0, 'wolf', 1, 0, 1]], port: [[3.0, 7.0, 'moth', 1.0], [7.0, 8.7, 'wide'], [8.7, 10.6, 'bear', 0.6], [10.6, 14.0, 'wolf', 1], [21.2, 24.8, 'squid', 1], [24.8, 26.0, 'wide']] };   // [from, to, who, lens angle off his nose (sign = side), extra headroom, landscape: which side of frame he sits, zoom out (horns)]
+const CUTS = { land: [[3.0, 7.0, 'moth', 1.0, 0, -1], [10.6, 14.0, 'wolf', 1, 0, 1]], port: [[3.0, 7.0, 'moth', 1.0], [7.0, 8.7, 'wide'], [8.7, 10.6, 'bear', 0.6], [10.6, 14.0, 'wolf', 1], [21.2, 24.8, 'squid', -0.55], [24.8, 26.0, 'wide']] };   // [from, to, who, lens angle off his nose (sign = side), extra headroom, landscape: which side of frame he sits, zoom out (horns)]
 const cutAt = (t, portrait) => (portrait ? CUTS.port : CUTS.land).find((c) => t >= c[0] && t < c[1]) || null;
 const _h = new THREE.Vector3();
 const _he = new THREE.Vector3();
@@ -332,7 +332,7 @@ function headPos(c, out) {   // the middle of the face: halfway from the Head bo
 }
 function coverCam(cut, t, out, look, portrait) {
   const s = st, who = cut[2];
-  if (who === 'wide') { out.set(O.x, 0.85, O.z - 9.8); look.set(O.x + 0.05, 3.55, O.z); cam.fov = 66; return; }   // portrait establishing: low and back, the couch along the bottom, the dawn sky filling the rest
+  if (who === 'wide') { out.set(O.x + 0.3, 0.9, O.z - 8.8); look.set(O.x + 0.3, 2.3, O.z); cam.fov = 74; return; }   // portrait establishing: low and back, the couch along the bottom, the dawn sky filling the rest
   const c = s.crew[who]; if (!c) return false; headPos(c, _h); c.g.updateMatrixWorld(true);
   const h = c.g.userData.h || 1.7, push = (t - cut[0]) / Math.max(0.5, cut[1] - cut[0]);
   const fov = portrait ? 40 : 30, viewH = h * (portrait ? 0.82 : 0.6) * (cut[6] || 1) * (1 - 0.05 * push);   // waist-up; a slow push-in over the line
@@ -344,20 +344,32 @@ function coverCam(cut, t, out, look, portrait) {
   return true;
 }
 const SHOT = [   // camera keys around the couch (O): [t, camPos, lookAt, lookAt in portrait (optional), camPos in portrait (optional)]
-  [0, [4.0, 3.4, 3.2], [-5.1, 1.5, -40], [1.0, 2.5, -40], [3.8, 3.6, 4.6]],     // behind the crew, off the statue's east flank: Main St, the DMV, the sun still under the roofline
-  [7, [3.3, 2.7, 2.0], [-5.1, 1.8, -40], [1.0, 2.8, -40], [3.4, 3.0, 3.4]],
+  [0, [0.1, 1.6, -7.6], [0.1, 1.45, 0.5], [-0.15, 3.3, 0.5], [-0.15, 1.7, -7.9], 80, 36],     // pre-dawn establishing: the crew on the couch, low and square-on, the horse and its plaque behind them
+  [7, [0.1, 1.5, -6.9], [0.1, 1.4, 0.5], [-0.15, 3.2, 0.5], [-0.15, 1.6, -7.2], 80, 36],
   [7.01, [-1.7, 1.2, -4.9], [0.15, 1.0, -0.3], [-0.3, 0.2, 0], [-0.2, 3.7, -7.9]],      // the crew from the front, low 3/4, the statue and its plaque behind them
   [14, [-1.0, 1.15, -4.4], [0.25, 1.0, -0.3], [-0.25, 0.2, 0], [0.0, 3.6, -7.6]],
-  [14.01, [-0.4, 2.2, 4.4], [-0.4, -0.8, -30], [0.15, -2.4, -30], [0.0, 2.7, 4.4], 80, 52],     // THE sunrise: low behind the couch (between it and the plinth), past their backs and heads to the eye sun over the DMV
-  [20, [-0.4, 2.15, 4.1], [-0.4, -0.6, -30], [0.15, -2.2, -30], [0.0, 2.6, 4.1], 80, 52],
+  [14.01, [0.3, 1.7, 4.4], [0.3, 4.7, -30], [0.4, 0.4, -30], [0.4, 3.4, 4.4], 88, 42],     // THE sunrise: behind the couch (rolled forward, RISE), the crew's backs and heads along the bottom against the eye sun over the DMV; a slow push and rise
+  [20, [0.3, 1.9, 3.9], [0.3, 3.1, -30], [0.4, -2.4, -30], [0.4, 3.9, 4.1], 88, 42],
   [20.01, [2.4, 1.3, -5.8], [0.1, 1.05, -0.3], [0.2, 0.8, 0], [1.6, 2.4, -7.2]],
-  [26, [3.3, 1.8, -7.2], [0.1, 1.1, -0.3], [0.2, 0.85, 0], [2.3, 2.8, -8.2]],
+  [26, [2.3, 1.8, -7.0], [-0.5, 1.1, -0.3], [0.2, 0.85, 0], [2.3, 2.8, -8.2]],
   [26.01, [1.4, 2.6, -6.3], [-14.6, 16, -60], [-4.6, 20, -60], [2.2, 2.6, -7.3]],     // title: Main St's roofline along the bottom, clear sky for the words, the sun low and to the right
   [33, [0.4, 3.4, -8.3], [-15.6, 18, -70], [-5.6, 22, -70], [1.5, 3.4, -9.3]],
   [40, [2, 6, -6], [60, 10, -50], [60, 12, -50], [2, 6.5, -6]],     // the roll: along Main St to the east, the sun off to the left, sky behind the names
   [200, [-4, 8, -9], [66, 11, -60], [66, 13, -60], [-4, 8.5, -9]],
 ];
 let shotFov = 0;
+// Staging. 'tight' (every portrait shot, and the sunrise in both): Ram and Heron stand behind the couch's ends,
+// Squid stands off the right arm, the four non-speaking extras step out of frame, so the crew is one compact group a narrow frame can
+// hold without slicing anyone. The sunrise also rolls the couch 1.5 m up the kerb so the lens can get back far enough (the plinth
+// is right behind them) - a cheat on the cut, the way film does it. Everything goes back on the cut out of it.
+const RISE = { from: 14.01, to: 20.01, dz: -1.5, pos: { ram: [-1.95, 0.8, 0.05], heron: [1.95, 0.8, -0.05], squid: [2.0, -0.55, 0.35] },
+  rise: { ram: [-0.68, 0.78, 0.05], heron: [0.68, 0.78, -0.05], squid: [1.85, 0.7, -0.1] } };   // sunrise: from behind, Ram and Heron between the seated heads
+function stage(s, tight, rise) {
+  const key = (tight ? 1 : 0) + (rise ? 2 : 0); if (s.stageKey === key) return; s.stageKey = key; s.rise = rise; const dz = rise ? RISE.dz : 0;
+  for (const o of s.set.children) { const u = o.userData; if (!u.home) { u.home = o.position.clone(); u.homeRy = o.rotation.y; } o.position.copy(u.home); o.rotation.y = u.homeRy; o.position.z += dz; }
+  for (const [k, c] of Object.entries(s.crew)) { const p = tight && (rise ? RISE.rise : RISE.pos)[k]; if (p) { c.g.position.x = O.x + p[0]; c.g.position.z = O.z + dz + p[1]; c.g.rotation.y = Math.PI + p[2]; }
+    if (EXTRAS.includes(k)) c.g.visible = !tight; }
+}
 function camAt(t, out, look, portrait) {
   let i = 0; while (i < SHOT.length - 2 && SHOT[i + 1][0] <= t) i++;
   const a = SHOT[i], b = SHOT[i + 1], k = ease((t - a[0]) / Math.max(0.001, b[0] - a[0]));
@@ -434,6 +446,7 @@ function render(dt, tally) {
   F.key.color.lerpColors(P.key[0], Dp.key[0], k); F.key.intensity = 2.3 * lerp(NK.key, 1, k); F.fill.intensity = 3.2 * lerp(NK.fill, 1, k);
   F.key.position.copy(O).add(F.KEY_OFFSET); F.key.target.position.copy(O); F.key.target.updateMatrixWorld();
   F.discMat.color.lerpColors(P.sun[0], Dp.sun[0], k); F.lidMat.color.copy(F.discMat.color).multiplyScalar(0.9);
+  { const qa = Q.get('finale') === 'lineup', rise = !tally && !qa && t >= RISE.from && t < RISE.to; stage(s, !qa && (rise || innerHeight > innerWidth), rise); }
   // the camera: a cut to the speaker, or the keyed shots
   for (const c of Object.values(s.crew)) c.cover = null;
   const cut = !tally && cutAt(t, portrait); cam.fov = portrait ? 66 : 48;
@@ -444,7 +457,7 @@ function render(dt, tally) {
   const land = cam.aspect > 1, e = lerp(-0.07, land ? 0.165 : 0.25, ease((t - 1) / 19));
   _sd.set(0, e, -1).normalize(); F.sun.position.copy(cam.position).addScaledVector(_sd, F.SUN_DIST); F.sun.quaternion.copy(cam.quaternion); F.sun.scale.setScalar(land ? F.SUN_R * 1.08 : F.SUN_R);
   const open = ease((t - 12.5) / 1.6), blink = (t > 18 && ((t * 0.7) % 4.3) < 0.14) ? 0.85 : 0; F.updateLid(Math.max(1 - open, blink));
-  _ss.copy(F.sun.position).project(cam); _ts.set(O.x, 1.2, O.z).project(cam);   // the pupil finds the couch (main.js tracks the Wolf the same way)
+  _ss.copy(F.sun.position).project(cam); _ts.set(O.x, 1.2, O.z + (s.rise ? RISE.dz : 0)).project(cam);   // the pupil finds the couch (main.js tracks the Wolf the same way)
   let dx = (_ts.x - _ss.x) * cam.aspect, dy = _ts.y - _ss.y; if (_ts.z > 1) { dx = -dx; dy = -Math.abs(dy); }
   const l = Math.hypot(dx, dy) || 1, reach = clamp(l / 0.9, 0, 1); irisX = lerp(irisX, dx / l * reach * 0.25, 1 - Math.exp(-dt * 6)); irisY = lerp(irisY, dy / l * reach * 0.075, 1 - Math.exp(-dt * 6));
   F.iris.position.set(irisX, F.EY + irisY, 0);
