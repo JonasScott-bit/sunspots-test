@@ -4,8 +4,9 @@
 //  * Settings (title + pause): sound mode + volumes, QUALITY (auto by device / high / medium / low, live), TEXT SIZE,
 //    INVERT LOOK. Stored by quality.js ('sunspots.settings').
 //  * Pause (II button, Esc/P, or the app going to the background): RESUME, NIGHTS, SETTINGS, CREDITS, MANUAL, MAIN MENU.
-//  * MANUAL (title + pause): the instruction booklet, manualview.js + manual/pages/*.webp, fetched only when opened.
-//    Freezes the town loop (main.js checks window.__paused) and the audio clock.
+//  * MANUAL (title + pause + a book button on the play HUD): the instruction booklet, manualview.js +
+//    manual/pages/*.webp, fetched only when opened. The HUD book pauses the town and the audio clock
+//    (main.js checks window.__paused) and resumes both when you close it. Title and pause MANUAL stay.
 //  * Seven Nights: Sunspots open each Night (window.__msnNights from missions/kit.js, same table here as a fallback).
 //    A felt card announces each new Night; the GO sheet fast-travels only to districts that Night has opened (walking
 //    is never blocked: a nudge, not a leash).
@@ -95,12 +96,16 @@ css.textContent = `
 .shSlider input{-webkit-appearance:none;appearance:none;width:100%;height:14px;border-radius:8px;background:linear-gradient(90deg,#e9a62c var(--v,100%),rgba(32,48,122,.18) var(--v,100%));outline:none;margin:12px 0}
 .shSlider input::-webkit-slider-thumb{-webkit-appearance:none;width:34px;height:34px;border-radius:50%;background:#2c53c4;box-shadow:0 3px 0 #162a73,inset 0 0 0 3px rgba(255,246,225,.5)}
 .shSlider input::-moz-range-thumb{width:34px;height:34px;border:0;border-radius:50%;background:#2c53c4}
-#shPauseBtn{position:fixed;z-index:13;top:calc(env(safe-area-inset-top) + 8px);left:calc(env(safe-area-inset-left) + 64px);width:44px;height:44px;border:0;padding:0;border-radius:50%;background:rgba(43,30,60,.45);color:#fff3dc;display:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;cursor:pointer}
+#shPauseBtn,#shManBtn{position:fixed;z-index:13;top:calc(env(safe-area-inset-top) + 8px);width:44px;height:44px;border:0;padding:0;border-radius:50%;background:rgba(43,30,60,.45);color:#fff3dc;display:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;cursor:pointer}
+#shPauseBtn{left:calc(env(safe-area-inset-left) + 64px)}
 #shPauseBtn:before,#shPauseBtn:after{content:"";position:absolute;top:13px;width:5px;height:18px;border-radius:3px;background:#fff3dc}
 #shPauseBtn:before{left:15px} #shPauseBtn:after{right:15px}
-body.shell-play #shPauseBtn{display:block}
-body.scene #shPauseBtn,body.map #shPauseBtn,body.intro #shPauseBtn,body.ended #shPauseBtn,body.shell-paused #shPauseBtn{display:none!important}
-html body #title{left:calc(env(safe-area-inset-left) + 120px)!important}
+#shManBtn{left:calc(env(safe-area-inset-left) + 116px)}
+#shManBtn svg{width:22px;height:22px;display:block;margin:auto;position:relative}
+body.shell-play #shPauseBtn,body.shell-play #shManBtn{display:block}
+body.scene #shPauseBtn,body.map #shPauseBtn,body.intro #shPauseBtn,body.ended #shPauseBtn,body.shell-paused #shPauseBtn,
+body.scene #shManBtn,body.map #shManBtn,body.intro #shManBtn,body.ended #shManBtn,body.shell-paused #shManBtn{display:none!important}
+html body #title{left:calc(env(safe-area-inset-left) + 172px)!important}
 @media (orientation:portrait){html body #title{display:none!important}}
 #shOv{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;background:rgba(27,19,36,.62);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);touch-action:manipulation;
   font-family:Futura,"Avenir Next",Avenir,system-ui,sans-serif}
@@ -216,7 +221,14 @@ function wireSettings(root) {
 }
 
 // ------------------------------------------------------------------ the manual (manualview.js, loaded on the first tap only)
-function openManual(onClose) { import('./manualview.js').then((m) => m.openManual({ onClose })).catch((e) => console.warn('manual', e)); }
+function openManual(onClose) { import('./manualview.js').then((m) => m.openManual({ onClose })).catch((e) => { console.warn('manual', e); onClose?.(); }); }
+const BOOK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M5.1 4.6c1.9-.5 4.1-.2 6.1 1.1L12 6.3l.8-.6c2-1.3 4.2-1.6 6.1-1.1.7.2 1.2.8 1.2 1.5v11.2c0 .9-.8 1.4-1.6 1.1-1.6-.5-3.4-.3-5.1.7l-.6.4c-.5.3-1.1.3-1.6 0l-.6-.4c-1.7-1-3.5-1.2-5.1-.7-.8.3-1.6-.2-1.6-1.1V6.1c0-.7.5-1.3 1.2-1.5z"/><path fill="#2b1e3c" opacity=".38" d="M11.25 6.15h1.5v11.3h-1.5z"/></svg>';
+function openManualFromPlay() {
+  if (!playing() || paused() || window.__manualOpen) return;
+  sfx();
+  pause('manual');   // freeze the town + audio, no pause card
+  openManual(() => resume());
+}
 
 // ------------------------------------------------------------------ title menu: CONTINUE / NEW GAME / SETTINGS / CREDITS
 const T = document.getElementById('titleScr');
@@ -307,7 +319,10 @@ function demoCard() {
 const pb = document.createElement('button'); pb.id = 'shPauseBtn'; pb.setAttribute('aria-label', 'Pause'); document.body.appendChild(pb);
 pb.addEventListener('pointerdown', (e) => e.stopPropagation());
 pb.addEventListener('click', (e) => { e.stopPropagation(); sfx(); pause(); });
-addEventListener('keydown', (e) => { if (!playing()) return; if ((e.key === 'Escape' || e.key === 'p' || e.key === 'P') && !document.querySelector('#qtSheet.on,#jnSheet.on')) { e.preventDefault(); if (ov.classList.contains('on')) { if (view === 'pause' || view === 'night' || view === 'demo') resume(); else if (paused()) pauseView(); else hide(); } else pause(); } });
+const mb = document.createElement('button'); mb.id = 'shManBtn'; mb.setAttribute('aria-label', 'Instruction manual'); mb.innerHTML = BOOK_SVG; document.body.appendChild(mb);
+mb.addEventListener('pointerdown', (e) => e.stopPropagation());
+mb.addEventListener('click', (e) => { e.stopPropagation(); openManualFromPlay(); });
+addEventListener('keydown', (e) => { if (!playing()) return; if (window.__manualOpen) return; if ((e.key === 'Escape' || e.key === 'p' || e.key === 'P') && !document.querySelector('#qtSheet.on,#jnSheet.on,#manOv.on')) { e.preventDefault(); if (ov.classList.contains('on')) { if (view === 'pause' || view === 'night' || view === 'demo') resume(); else if (paused()) pauseView(); else hide(); } else pause(); } });
 document.addEventListener('visibilitychange', () => { if (document.hidden && playing() && !paused() && !Q.has('nobgpause') && !document.body.classList.contains('finale')) pause(); });
 const playing = () => !!window.__ready && !window.__titleUp && !document.body.classList.contains('intro');
 
