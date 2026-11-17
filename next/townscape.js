@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { Kit, textPlane, patternize } from './townkit.js';
 import { buildCommercial } from './townshops.js';
 import { buildStreet } from './townstreet.js';
+import { EXTRA, EXTRA_NAMES } from './collide_extra.js';
 
 // ---------------------------------------------------------------- locked palettes (sampled from exterior_refs/*.jpg)
 export const PAL = {
@@ -54,8 +55,16 @@ export function createTownscape(C) {
     scene.add(g); g.updateMatrixWorld(true);
     const W = g.matrixWorld;
     for (const [x0, z0, x1, z1, h, M] of k.solids) {
-      const a = new THREE.Vector3(x0, 0, z0).applyMatrix4(M).applyMatrix4(W), b = new THREE.Vector3(x1, 0, z1).applyMatrix4(M).applyMatrix4(W);
-      TS.boxes.push({ x0: Math.min(a.x, b.x), z0: Math.min(a.z, b.z), x1: Math.max(a.x, b.x), z1: Math.max(a.z, b.z), h, name });
+      // Nov 16 collision pass: a solid on a rotated building (billboards, the welcome signs...) used to become its world
+      // AABB, a much bigger invisible wall. It now keeps its real orientation (b.ob: centre, axis, half sizes); x0..z1 stay
+      // as the broad-phase bounds.
+      const P = (lx, lz) => new THREE.Vector3(lx, 0, lz).applyMatrix4(M).applyMatrix4(W);
+      const c0 = P((x0 + x1) / 2, (z0 + z1) / 2), ax = P(x1, (z0 + z1) / 2).sub(c0), az = P((x0 + x1) / 2, z1).sub(c0);
+      const hx = Math.hypot(ax.x, ax.z), hz = Math.hypot(az.x, az.z), cs = hx > 1e-6 ? ax.x / hx : 1, sn = hx > 1e-6 ? ax.z / hx : 0;
+      const ex = hx * Math.abs(cs) + hz * Math.abs(sn), ez = hx * Math.abs(sn) + hz * Math.abs(cs);
+      const box = { x0: c0.x - ex, z0: c0.z - ez, x1: c0.x + ex, z1: c0.z + ez, h, name };
+      if (Math.abs(cs * sn) > 1e-3) box.ob = { cx: c0.x, cz: c0.z, c: cs, s: sn, hx, hz };
+      TS.boxes.push(box);
     }
     for (const [mk, v] of Object.entries(k.marks)) { const p = new THREE.Vector3(v.x, 0, v.z).applyMatrix4(W); TS.marks[mk] = { ...v, x: p.x, z: p.z, ry: (v.ry || 0) + ry }; }
     const bs = new THREE.Box3().setFromObject(g); const c = bs.getCenter(new THREE.Vector3()), r = bs.getSize(new THREE.Vector3()).length() / 2;
@@ -107,13 +116,42 @@ export function createTownscape(C) {
       if (b.extras.length) { const v = d < 110, nv = d < 60; if (b.extrasOn !== v || b.extrasNear !== nv) { b.extrasOn = v; b.extrasNear = nv; for (const e of b.extras) e.visible = (e.userData.near ? nv : v) || !!e.userData.far; } }
     }
   };
-  // walking collisions against building footprints (axis-aligned)
+  // ---------------------------------------------------------------- collision (Nov 16 pass)
+  // One shared test for walkers and both cars: circle (qx,qz,r) vs a footprint box, axis-aligned or oriented (b.ob).
+  // Returns the push-out {ux,uz,p} (unit normal + depth) or null. b.pass = visually passable (an overhead sign): never solid.
+  // b.car = car-only (low stuff a walker steps over/onto: stoops, kerb planters); TS.extra = the measured extra solids
+  // (collide_extra.js: fences, rails, stoops, posts, bins... that the building footprints missed).
+  TS.extra = []; let extraOn = false;
+  // built on first use, so every door mark / spot placed after the townscape (horse plaza, notice board...) is known:
+  // within 1.4 m of a door or spot the extra solid is car-only, so the Wolf can always walk up to it
+  function addExtra() { extraOn = true; if (new URLSearchParams(location.search).has('noextra')) return;
+    const keep = [...Object.values(TS.doors), ...Object.values(TS.spots || {})].filter(d => d && Number.isFinite(d.x));
+    const dist = (r, x, z) => Math.hypot(x - Math.min(Math.max(x, r[0]), r[2]), z - Math.min(Math.max(z, r[1]), r[3]));
+    for (const r of EXTRA) { const name = 'ts_' + EXTRA_NAMES[r[5]]; if (!TS.buildings.some(b => 'ts_' + b.name === name)) continue;
+      const nearDoor = keep.some(d => dist(r, d.x, d.z) < 1.4);
+      TS.extra.push({ x0: r[0], z0: r[1], x1: r[2], z1: r[3], h: 1.2, name: 'x_' + EXTRA_NAMES[r[5]], car: !r[4] || nearDoor }); }
+    // main.js street props measured the same way: the open-fronted bus shelter (back + one side wall) and the bench beside it
+    for (const r of [[31.0, -1.25, 34.0, -0.7], [31.0, -1.25, 31.55, 0.55], [27.85, -0.1, 29.4, 0.7]]) TS.extra.push({ x0: r[0], z0: r[1], x1: r[2], z1: r[3], h: 2.4, name: 'x_busstop' }); }
+  const _hit = { ux: 0, uz: 0, p: 0 };
+  TS.boxHit = (b, qx, qz, r) => {
+    if (qx < b.x0 - r || qx > b.x1 + r || qz < b.z0 - r || qz > b.z1 + r) return null;
+    let lx = qx, lz = qz, ax0 = b.x0, az0 = b.z0, ax1 = b.x1, az1 = b.z1; const o = b.ob;
+    if (o) { const dx = qx - o.cx, dz = qz - o.cz; lx = dx * o.c + dz * o.s; lz = -dx * o.s + dz * o.c; ax0 = -o.hx; ax1 = o.hx; az0 = -o.hz; az1 = o.hz; }
+    const cx = Math.min(ax1, Math.max(ax0, lx)), cz = Math.min(az1, Math.max(az0, lz)), dx = lx - cx, dz = lz - cz, d = Math.hypot(dx, dz);
+    let ux, uz, p;
+    if (d > 1e-4) { if (d >= r) return null; ux = dx / d; uz = dz / d; p = r - d; }
+    else { const dl = lx - ax0, dr = ax1 - lx, dn = lz - az0, ds = az1 - lz, m = Math.min(dl, dr, dn, ds);
+      if (m === dl) { ux = -1; uz = 0; } else if (m === dr) { ux = 1; uz = 0; } else if (m === dn) { ux = 0; uz = -1; } else { ux = 0; uz = 1; } p = m + r; }
+    if (o) { const wx = ux * o.c - uz * o.s, wz = ux * o.s + uz * o.c; ux = wx; uz = wz; }
+    _hit.ux = ux; _hit.uz = uz; _hit.p = p; return _hit;
+  };
+  // every solid a mover can hit: car = true includes the car-only low solids
+  TS.eachSolid = (fn, car = false) => { if (!extraOn) addExtra(); for (const b of TS.boxes) if (!b.pass) fn(b); for (const b of TS.extra) if (car || !b.car) fn(b); };
+  // walking: push a walker (radius r) out of every footprint; slides round corners (closest point), never snags
   TS.collide = (p, r = 0.45) => {
-    for (const b of TS.boxes) {
-      if (p.x < b.x0 - r || p.x > b.x1 + r || p.z < b.z0 - r || p.z > b.z1 + r) continue;
-      const dl = p.x - (b.x0 - r), dr = (b.x1 + r) - p.x, dn = p.z - (b.z0 - r), ds = (b.z1 + r) - p.z, m = Math.min(dl, dr, dn, ds);
-      if (m === dl) p.x = b.x0 - r; else if (m === dr) p.x = b.x1 + r; else if (m === dn) p.z = b.z0 - r; else p.z = b.z1 + r;
-    }
+    for (let it = 0; it < 3; it++) { let moved = false;
+      TS.eachSolid((b) => { const h = TS.boxHit(b, p.x, p.z, r); if (h) { p.x += h.ux * h.p; p.z += h.uz * h.p; moved = true; } });
+      if (!moved) break; }
   };
   // third-person camera: pull in when a building sits between the Wolf and the lens
   const _d = new THREE.Vector3();
@@ -140,7 +178,7 @@ export function createTownscape(C) {
   for (const [r, [x, z, ry]] of Object.entries(plan)) TS.doors[r] = { x, z, ry, built: false };
   TS.spots = { fence: { x: -86.5, z: 18.5, ry: Math.PI }, drivein: { x: 17, z: -112, ry: Math.PI, hide: true } };
   TS.props = [ // [town model, x, z, ry, collider r, puddle r]
-    ['bus_shelter', 32.5, -0.2, 0, 1.7, 2.3], ['payphone', 9.4, 14.6, Math.PI, 0.5, 0.9],
+    ['bus_shelter', 32.5, -0.2, 0, 0, 2.3], ['payphone', 9.4, 14.6, Math.PI, 0.5, 0.9],
     ...[-170, -146, -122, -98, -74, -50, -26, -2, 22].flatMap(x => [['lamp', x + 4, 1.6, 0, 0.35, 0.8], ['lamp', x - 8, 12.4, Math.PI, 0.35, 0.8]]),
   ];
   TS.bench = [28.6, 0.2, 0];

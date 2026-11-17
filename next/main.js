@@ -323,7 +323,7 @@ const ground = new THREE.Mesh(new THREE.CircleGeometry(1600, 64), groundMat);
 ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 
 // ---------------------------------------------------------------- set pieces (procedural felt GLBs from tools/build_town.mjs)
-const colliders = []; // {x,z,r}
+const colliders = []; window.__colliders = colliders; // {x,z,r}  (QA: collider audit)
 // layout: [model, x, z, rotY, collider r, puddle r]
 const TOWN = [
   ['adobe_a', -14, -11, 0.25, 2.8, 3.4], ['adobe_b', -5.5, -19, 0.05, 2.5, 3.0], ['adobe_c', 13, -14, -0.3, 3.0, 3.7],
@@ -612,7 +612,7 @@ async function loadAll() {
   }
 
   // dressing: Meshy characters/props standing about the square
-  { const [bx, bz, bry] = NEWTOWN ? TS.bench : [-4.6, -4.2, 0.15]; prop(bench, { h: 1.15, x: bx, z: bz, ry: bry, collide: 1.0, puddle: 1.3 }); }
+  { const [bx, bz, bry] = NEWTOWN ? TS.bench : [-4.6, -4.2, 0.15]; prop(bench, { h: 1.15, x: bx, z: bz, ry: bry, collide: NEWTOWN ? 0 : 1.0, puddle: 1.3 }); }
   void hydrant; // the static hydrant is replaced by the rigged mainst_hydrant_spin townsperson (level.js)
   level.setBootCar(car.scene, normalize);
   level.setBootCar(car2, normalize, level.free);
@@ -1030,6 +1030,7 @@ loadAll().then(() => {
   if (CR) try { HERON = installHeron({ CR, CARN, T: town, TS, scene, feltMat }); window.__heron = HERON; } catch (e) { console.warn('heron failed', e); }
   if (TS) QT = createQuickTravel({ TS, level, wolfState, LAYOUT, onJump: (y) => { clearInput(); camYawTarget = camYaw = y + Math.PI; snapCam = true; } }); window.__qt = QT;
   if (TS && town && !Q.has('nolife')) try { LW = installLivingWorld({ T: town, TS, level, wolfState, scene, camera, feltMat, audio, CR, QT }); window.__lw = LW; } catch (e) { console.warn('livingworld failed', e); }
+  level.trafficSrc = () => LW;   // Nov 16 collision pass: the cars bump into town traffic instead of driving through it
   if (TS && QT) { MM = createMinimap({ TS, level, wolfState, QT, town, audio }); window.__minimap = MM; }
   if (TS && town && QT) try { JN = installJournal({ T: town, QT, level, audio }); } catch (e) { console.warn('journal failed', e); }   // Next Level run 1
   installCinematicQA();

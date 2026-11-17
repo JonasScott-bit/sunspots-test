@@ -44,7 +44,7 @@ export function dressTown(TS) {
     for (const s of [1, -1]) { sign(k, big, s > 0 ? 0 : 0, 6.0, s > 0 ? -0.03 : -0.27, 9.6, 1.9, { fg, family: i === 1 ? SCRIPT : SERIF, fit: 0.86, ry: s > 0 ? 0 : Math.PI });
       sign(k, small, 0, 4.6, s > 0 ? -0.03 : -0.27, 9.4, 0.8, { fg, fit: 0.7, ry: s > 0 ? 0 : Math.PI }); }
     for (const x of [-3.5, 0, 3.5]) { k.beam([x, 3.75, 0.3], [x, 3.75 + 0.6, 1.0], 0.05, '#3a3a3a'); k.box(x, 4.35, 1.05, 0.4, 0.25, 0.3, '#3a3a3a'); }   // gooseneck lamps
-    k.solid(-3.6, -0.6, 3.6, 0.2, 8.4);
+    for (const px of [-3.2, 3.2]) k.solid(px - 0.3, -1.55, px + 0.3, 0.05, 8.4);   // Nov 16: only the two posts (+ their back braces) are solid; the car fits under the board between them
   }, { lodNear: 160, melt: true, drips: false }));
   BOARDS.forEach(([x, z, ry, t, fg], i) => TS.place('aframe_' + i, x, z, ry, (k) => {
     for (const s of [1, -1]) { k.box(0, 0, s * 0.2, 0.72, 1.05, 0.05, '#2e2622', { rx: -s * 0.19 }); k.put(textPlane(t, 0.6, 0.8, { bg: '#f2ece0', fg, fit: 0.62, family: 'Futura, Avenir, "Helvetica Neue", Arial, sans-serif' }), 0, 0.56, s * 0.125, s > 0 ? 0 : Math.PI, -0.19); }

@@ -320,7 +320,7 @@ export function createCarnival({ scene, feltMat, TS, colliders, LOW }) {
       F.push([V(Math.cos(a) * r, 0.95, Math.sin(a) * r), V(Math.cos(b) * r, 0.95, Math.sin(b) * r), 0.07]); F.push([V(Math.cos(a) * r, 0.5, Math.sin(a) * r), V(Math.cos(b) * r, 0.5, Math.sin(b) * r), 0.05]); F.push([V(Math.cos(a) * r, 0, Math.sin(a) * r), V(Math.cos(a) * r, 1.0, Math.sin(a) * r), 0.08]); }
     struts(g, F, feltMat('#f4f1ea'), false);
     R.update = (dt, t, k) => { R.phase += dt * R.speed * 0.9 * k; spin.rotation.y = R.phase; for (const [s, o] of R.sweeps.entries()) { o.hubB.rotation.y = -R.phase * 2.6 + s; for (const cr of o.cars) cr.car.rotation.y = R.phase * 0.5; } };
-    circ(x, z, RD + 0.4); addBox(x - MR - 0.6, z - MR - 1.0, x + MR + 0.6, z - MR + 2.6, 4.4, 'rhumba_mural');
+    circ(x, z, RD + 0.4); { const A0 = Math.PI * 1.12 - 0.27, A1 = Math.PI * 1.88 + 0.27, n = Math.ceil((A1 - A0) * MR / 0.9); for (let i = 0; i <= n; i++) { const a = A0 + (A1 - A0) * i / n; circ(x + Math.cos(a) * MR, z + Math.sin(a) * MR, 0.4); } }   // Nov 16: the mural is a thin arc, not a 24 m slab
     R.board = { x, z: z + RD + 2.4 }; R.cam = 'orbit';
   }
 
