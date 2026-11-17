@@ -345,7 +345,7 @@ export function createLevel(C) {
   async function loadCast(load, normalize) {
     const M = './models/cast/';
     const spec = [
-      ['house_fridge_walking', NEWTOWN ? { h: 2.0, x: 18.6, z: 50.6, ry: 0.35, still: true, cr: 0.6 } : { h: 2.0, x: -7.4, z: 25.2, ry: Math.PI + 0.35, still: true, cr: 0.6 }],     // by the Wolf's door
+      ['house_fridge_walking', NEWTOWN ? { h: 2.0, x: 18.85, z: 50.6, ry: 0.35, still: true, cr: 0.6 } : { h: 2.0, x: -7.4, z: 25.2, ry: Math.PI + 0.35, still: true, cr: 0.6 }],     // by the Wolf's door (Nov 16: 25 cm east, his glove was in the yard couch's arm)
       ['diner_couch', NEWTOWN ? { h: 0.95, x: 17.6, z: 51.2, ry: 0.12, prop: true, cr: 1.1 } : { h: 0.95, x: -14.6, z: 24.4, ry: Math.PI * 0.92, prop: true, cr: 1.1 }],           // couch in the front yard
       ...(NEWTOWN ? [['../town2/mailbox', { h: 1.25, x: 26.4, z: 55.2, ry: Math.PI, still: true, cr: 0.4 }], ['../town2/window_box', { h: 0.55, x: 16.2, z: 48.2, ry: 0, still: true, cr: 0.4 }]] : []),   // run 11 (M4): object characters outside — the Wolf's mailbox at the curb, a window-box by the front window
       ['diner_stove', NEWTOWN ? { h: 1.05, x: 31.4, z: 50.0, ry: -0.25, prop: true, cr: 0.6 } : { h: 1.05, x: -16.7, z: 26.0, ry: Math.PI * 0.85, prop: true, cr: 0.6 }],           // stove beside it
