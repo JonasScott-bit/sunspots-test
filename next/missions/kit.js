@@ -178,7 +178,10 @@ const LIVE = new Map();
 // The Meshy clips carry bone position/scale tracks in the source file's units: played on a resized copy they blow the mesh up into
 // giant sheets. Rotation tracks alone give the right idle/walk at any size.
 const ROT = new WeakMap();
-function rotOnly(gl) { if (!ROT.has(gl)) ROT.set(gl, (gl.animations || []).map((c) => new THREE.AnimationClip(c.name, c.duration, c.tracks.filter((tr) => tr.name.endsWith('.quaternion'))))); return ROT.get(gl); }
+// The root bone (hips) keeps its bind orientation: the Meshy idles swing the whole body 60-90 degrees off its facing, so a crew member
+// placed to face the player stood side-on (and looked wrong in every close-up). Spine, head and limbs still animate.
+function rotOnly(gl) { if (!ROT.has(gl)) { let hip = null; gl.scene.traverse((o) => { if (!hip && o.isBone && !o.parent?.isBone) hip = o.name; });
+  ROT.set(gl, (gl.animations || []).map((c) => new THREE.AnimationClip(c.name, c.duration, c.tracks.filter((tr) => tr.name.endsWith('.quaternion') && tr.name !== hip + '.quaternion')))); } return ROT.get(gl); }
 export const liveRigs = () => LIVE.size;
 export async function crewGLB(k, h = 1.8) {
   const f = { bear: 'town2/bear_lo.glb', heron: 'town2/heron_lo.glb', ram: 'town2/ram_lo.glb', wolf: 'wolf_armsdown_felt_mid.glb', lynx: 'town2/lynx_lo.glb', crow: 'town2/crow_lo.glb', gecko: 'town2/gecko_lo.glb', anteater: 'cast2/anteater.glb', moth: 'town2/moth_lo.glb', cake: 'town2/cake_lo.glb', shake: 'town2/shake_lo.glb', peach: 'town2/fuzzy_peach_lo.glb' }[k];
