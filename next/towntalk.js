@@ -138,6 +138,7 @@ export function installTalk({ T, level, TS, wolfState }) {
     body.wild #chatBubble,#chatBubble.wild{background:#ffd9e8;color:#5a1030;border-color:#5a1030}`;
   document.head.appendChild(st); document.body.appendChild(el);
   const B = { t: 0, x: 0, y: 0, z: 0, q: [] };
+  T.hushBubble = () => { el.classList.remove('on'); B.t = 0; B.q = []; };   // QA M1: rooms + missions (T.tick doesn't run indoors, so it stuck on and came back on exit)
   const v = { x: 0, y: 0, z: 0 };
   function bubble(who, text, at, h = 2.2, dur) {   // at: {x,z} or fn -> {x,z}
     B.who = who; B.text = text; B.at = at; B.h = h; B.t = dur || 2.2 + text.length * 0.05; el.children[0].textContent = who; el.children[1].textContent = text;
@@ -203,12 +204,12 @@ export function installTalk({ T, level, TS, wolfState }) {
         else el.style.visibility = 'hidden'; }
       if (B.t <= 0) { if (B.q.length) { const l = B.q.shift(); bubble(l[0], l[1], B.at, B.h); } else el.classList.remove('on'); } }
     if (T.active) { el.classList.remove('on'); B.t = 0; return; }
-    if (level.mode !== 'walk' || B.t > 0) return;
+    if (level.mode !== 'walk' || B.t > 0 || level.frozen || document.body.classList.contains('scene')) return;   // Nov 16: no chatter over cutscenes
     if ((walkT -= dt) > 0) return; walkT = 2;
     const p = wolfState.pos;
     if ((T.overT = (T.overT ?? 30) - 2) <= 0) for (const [, re] of OVER_WHO) { const c = castBy(re); if (!c) continue; const cp = c.holder.position, dd = Math.hypot(p.x - cp.x, p.z - cp.z);
       if (dd < 9 && dd > 2.5) { const L = OVERHEARD[(T.overN = (T.overN || 0) + 1) % OVERHEARD.length]; say(W() ? L.map(([w, t]) => [w, t.toUpperCase()]) : L, () => c.holder.position, 2.3); T.overT = 90; walkT = 12; return; } }
-    for (const [k, L] of Object.entries(FROM_INSIDE)) { const d = TS.doors?.[k]; if (!d) continue; const dd = Math.hypot(p.x - d.x, p.z - d.z);
+    for (const [k, L] of Object.entries(FROM_INSIDE)) { const d = TS.doors?.[k]; if (!d || (k === 'wolf' && level.snacksDone && !level.snacksDone())) continue; const dd = Math.hypot(p.x - d.x, p.z - d.z);
       if (dd < 7 && dd > 2.6 && (heard[k] || 0) < performance.now() - 60000) { heard[k] = performance.now(); const l = R(L); bubble(l[0], W() ? l[1].toUpperCase() : l[1], { x: d.x, z: d.z }, 2.8); walkT = 20; break; } }
   });
   return { bubble, say };

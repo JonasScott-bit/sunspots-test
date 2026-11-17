@@ -25,6 +25,7 @@ export function createQuickTravel({ TS, level, wolfState, LAYOUT, onJump }) {
   ];
   const where = (k) => {
     if (k === 'fence') return { x: -86.5, z: 18.5, yaw: 0 };   // run 12: the Crow's collection by the road
+    if (k === 'ride') { const c = level.car; return c && c.root.visible !== false ? { x: c.pos.x, z: c.pos.z - 3.4, yaw: 0 } : null; }   // Nov 16: beside Moth's cab
     if (k === 'bus') { const s = TS.busStops?.[0]; return s ? { x: s.x - 2.2, z: s.z + 1.6, yaw: Math.PI / 2 } : null; }
     if (!TS.doors[k] && TS.spots?.[k]?.map) { const s = TS.spots[k], ry = s.ry || 0; return { x: s.x + Math.sin(ry) * 0.6, z: s.z + Math.cos(ry) * 0.6, yaw: ry + Math.PI }; }   // run 13: map spots (statue, carnival)
     const d = TS.doors[k]; if (!d) return null; const ry = d.ry || 0, out = 2.2;

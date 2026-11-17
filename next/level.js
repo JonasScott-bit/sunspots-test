@@ -23,7 +23,8 @@ export const LAYOUT = {
 export const NEWTOWN = !new URLSearchParams(location.search).has('oldtown');
 if (NEWTOWN) Object.assign(LAYOUT, {
   townCenter: [-90, 2], walkRadius: 220,
-  wolfHouse: [22, 47, 0], wolfStart: [23.2, 53.2, 1.6],      // on his front walk, Mesa Lane, facing down the street (ship pass: first view is the street, not the house wall); Main St + the pickup are a short walk north-east
+  wolfHouse: [22, 47, 0], wolfStart: [23.2, 53.2, 0.52],   // Nov 16 opening: facing Moth's cab at the curb (was 1.6, down the street)
+  pickup: [27, 59.8], carStart: [27, 59.8, Math.PI / 2],     // Nov 16 opening: the rideshare waits outside the Wolf's house (was the bus stop, Main St)
   spots: { bus_stop: [30, 0.6], fountain_s: [19, 0.8], diner_door: [-23, 0.6], payphone: [9.6, 13.6], lamp: [0, 13.8], adobe_w: [-14, 0.8],
     adobe_e: [27, 13.5], road_w: [-30, 13.6], parked_car: [12, 1.0], wolf_gate: [-5, 0.6] },
 });
@@ -116,8 +117,8 @@ export function createLevel(C) {
   // -------------------------------------------------------------- pickup spot (felt ring + sign) in town
   { const [x, z] = LAYOUT.pickup;
     const ring = new THREE.Mesh(new THREE.RingGeometry(1.5, 2.0, 40), new THREE.MeshBasicMaterial({ color: '#ffe08a', transparent: true, opacity: 0.85, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -8 }));
-    ring.rotation.x = -Math.PI / 2; ring.position.set(x - 2.5, 0.04, z + 4.4); scene.add(ring); L.pickupRing = ring;
-    signPost(x - 4.6, z + 5.6, 0, 'RIDE\nPICKUP', 1.6, 1.0);
+    ring.rotation.x = -Math.PI / 2; ring.position.set(NEWTOWN ? x : x - 2.5, 0.04, NEWTOWN ? z - 3.2 : z + 4.4); scene.add(ring); L.pickupRing = ring;
+    if (!NEWTOWN) signPost(x - 4.6, z + 5.6, 0, 'RIDE\nPICKUP', 1.6, 1.0);
   }
 
   // -------------------------------------------------------------- the rideshare car: OUR BOOT CAR (mustard felt hatchback on four coral rubber boots)
@@ -215,7 +216,11 @@ export function createLevel(C) {
     const fw = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.035, 8, 20), feltMat('#3a2a26')); fw.position.set(0, 1.2, 0.58); fw.rotation.x = -1.0; drv.add(fw);
     L.free = { root, body: fb, wheels: [], driver: drv, wheel: fw, pos: new THREE.Vector3(), yaw: 0, v: 0, hop: 0, hopV: 0, steer: 0, bonkT: 0, step: 0, stepAmp: 0, U: makeBootU(), free: true };
     root.visible = false; }   // shown once the GLB copy is in (setBootCar)
-  L.soloSeat = new THREE.Vector3(0.48, 0.5, -0.05); L.FREE_HOME = [30, 59.6, -Math.PI / 2];
+  L.soloSeat = new THREE.Vector3(0.48, 0.5, -0.05); L.FREE_HOME = NEWTOWN ? [26, 51.4, 0] : [30, 59.6, -Math.PI / 2];   // Nov 16: his driveway, nose to the street
+  // Nov 16 opening: the Wolf's own car is not there until the snacks are delivered (first-timers took it and skipped the ride).
+  // After that Moth's cab goes home and the car waits in the driveway.
+  L.snacksDone = () => !!((window.__town?.state || window.__town?.M?.S)?.snacks);
+  L.freeUnlocked = () => L.snacksDone() || L.mode === 'solo' || !!window.__snackrun?.S?.on || new URLSearchParams(location.search).has('unlock');
   L.parkFree = (x, z, yaw) => { const c = L.free; c.pos.set(x, 0, z); c.yaw = yaw; c.v = 0; c.hop = 0; c.hopV = 0; c.steer = 0; c.root.position.copy(c.pos); c.root.rotation.y = yaw; };
   L.parkFree(...L.FREE_HOME);
 
@@ -329,8 +334,8 @@ export function createLevel(C) {
     const beams = [L.car, L.free].filter(Boolean).map(c => { const m = new THREE.Mesh(beamG, beamM); m.position.set(0, 0.9, 1.4); m.rotation.x = 0.06; m.renderOrder = 5; c.root.add(m); return m; });
     L.head = { sl, beamM, beams }; }
   function updateNight(dt, t) {
-    if (!NIGHT) return; const c = L.mode === 'drive' ? L.car : L.mode === 'solo' ? L.free : null;
-    if (L.head) { const h = L.head; h.sl.intensity = c ? 60 : 0; h.beamM.opacity = c ? 0.07 : 0.035;
+    if (!NIGHT) return; const c = L.mode === 'drive' ? L.car : L.mode === 'solo' ? L.free : (L.mode === 'walk' || L.sceneCar) && L.car.root.visible ? L.car : null;   // Nov 16: the waiting cab has its lights on
+    if (L.head) { const h = L.head; h.sl.intensity = c ? (c === L.car && !L.inCar ? 34 : 60) : 0; h.beamM.opacity = c ? 0.07 : 0.035;
       if (c) { const s = Math.sin(c.yaw), co = Math.cos(c.yaw); h.sl.position.set(c.pos.x + s * 1.4, 1.3, c.pos.z + co * 1.4); h.sl.target.position.set(c.pos.x + s * 24, 0, c.pos.z + co * 24); h.sl.target.updateMatrixWorld(); } }
     for (const w of L.works) { const on = Math.sin(t * 6 + w.x) > 0; for (const l of w.lamps) l.material.color.set(on ? '#ffb02a' : '#5a3a12'); }
     for (const k of L.cows) { if (k.wait > 0) k.wait -= dt; else { const c0 = Math.cos(k.ph); k.ph += dt * 0.07; if (Math.cos(k.ph) * c0 < 0) k.wait = 5 + rnd() * 6; }   // cross, stop at the verge and graze, cross back
@@ -441,7 +446,7 @@ export function createLevel(C) {
   $('retry')?.addEventListener('click', () => L.reset());
 
   // -------------------------------------------------------------- state machine
-  L.enterCar = () => { if (L.mode !== 'walk' || L.ended) return; L.mode = 'drive'; L.inCar = true; document.body.classList.add('driving'); hud.getIn.style.display = 'none'; toast('The driver nods once. You steer.', 3.5); audio.ev('enterCar'); C.onEnterCar?.(); };
+  L.enterCar = () => { if (L.mode !== 'walk' || L.ended) return; L.mode = 'drive'; L.inCar = true; document.body.classList.add('driving'); hud.getIn.style.display = 'none'; toast(NEWTOWN && L.car.pos.z > 30 ? 'MOTH: Up East St. Right on Main. Then north until it closes.' : 'The driver nods once. You steer.', 4); audio.ev('enterCar'); C.onEnterCar?.(); };
   L.enterFree = () => { if (L.mode !== 'walk' || L.ended || L.frozen || !L.free.model) return; L.mode = 'solo'; L.solo = true; L.exitPending = false; L.free.v = 0;
     document.body.classList.add('driving', 'solo'); hud.getIn.style.display = 'none'; toast('Your own waddle car. Just you and the radio.', 2.6); audio.ev('enterSolo'); C.onEnterCar?.(); };
   // GET OUT: brakes first if moving, then the Wolf steps out beside the driver door; the car stays parked where it stopped
@@ -613,7 +618,7 @@ export function createLevel(C) {
     updateCast(dt, t, wolfPos);
     if (L.toastT > 0) { L.toastT -= dt; if (L.toastT <= 0 && hud.toast) hud.toast.style.opacity = 0; }
     // clock
-    if (!titleUp && !L.ended && !L.frozen) { L.started = true; L.left -= dt;
+    if (!titleUp && !L.ended && !L.frozen) { L.started = true; if (L.mode !== 'walk' || !NEWTOWN || L.snacksDone()) L.left -= dt;   // Nov 16: Night 1's clock starts when the cab pulls away
       if (!L.scenesOwnArrival) { if (L.left <= 0) { L.left = 0; finish(false); } }
       // with scenes: at 2:00 on foot it's over; in the car you can still drive there (90 s grace) and watch it close
       else if (L.left <= 0) { if (!L.lateSaid) { L.lateSaid = true; toast(L.inCar ? "2:00. Go anyway." : 'It is 2:00.', 2.6); } if (!L.inCar || L.left <= -90) finish(false); } }
@@ -636,20 +641,25 @@ export function createLevel(C) {
       L.radioVol = want; }   // audio.js reads it every frame
     const kE = !!(keys.KeyE || keys.Enter), kEdge = kE && !L.kE; L.kE = kE;   // run 12: edge-triggered so E can't flip in/out
     if (L.mode === 'walk') {
-      const d = Math.hypot(wolfPos.x - L.car.pos.x, wolfPos.z - L.car.pos.z), df = L.free.model ? Math.hypot(wolfPos.x - L.free.pos.x, wolfPos.z - L.free.pos.z) : 1e9;
-      L.nearFree = df < 4.5 && df < d && !L.frozen; const near = L.nearFree || d < 5;
+      const done = L.snacksDone(), unlocked = L.freeUnlocked();
+      if (L.free.model) L.free.root.visible = unlocked;            // not parked anywhere until the snacks are delivered
+      L.car.root.visible = !done || L.sceneCar;                    // after: Moth's cab has gone home
+      if (unlocked && L.free.model && !L.freeSaid && done && !L.frozen) { L.freeSaid = true; if (!L.freeSeen) { L.freeSeen = true; try { if (!localStorage.getItem('sunspots.freeCar')) { localStorage.setItem('sunspots.freeCar', '1'); toast('Your own car is in the driveway now. Keys are in it. They always are.', 3.6); } } catch (_) {} } }
+      const d = done ? 1e9 : Math.hypot(wolfPos.x - L.car.pos.x, wolfPos.z - L.car.pos.z), df = L.free.model && unlocked ? Math.hypot(wolfPos.x - L.free.pos.x, wolfPos.z - L.free.pos.z) : 1e9;
+      L.nearFree = df < 4.5 && df < d && !L.frozen; const near = (L.nearFree || d < 5) && !L.frozen;
       if (hud.getIn) { hud.getIn.style.display = near && !L.ended ? 'block' : 'none'; const tx = L.nearFree ? 'IN THE CAR' : 'GET IN'; if (hud.getIn.textContent !== tx) hud.getIn.textContent = tx; hud.getIn.classList.toggle('free', L.nearFree); }
       if (kEdge && !L.ended) { if (L.nearFree) L.enterFree(); else if (d < 5) L.enterCar(); }
-      if (hud.obj) hud.obj.textContent = 'Walk to the ride pickup, east end of the street.';
-      if (hud.dist) hud.dist.textContent = Math.round(d) + ' m to pickup';
+      if (!done) { const ob = NEWTOWN ? "Moth's cab is out front. Get in." : 'Walk to the ride pickup, east end of the street.'; if (hud.obj && hud.obj.textContent !== ob) hud.obj.textContent = ob;
+        if (hud.dist) hud.dist.textContent = d < 5 ? '' : Math.round(d) + (NEWTOWN ? ' m to the cab' : ' m to pickup'); }
     } else if (L.mode === 'drive' && nr) {
-      if (hud.obj) hud.obj.textContent = L.left <= 0 ? "It's 2:00. Go anyway." : 'Get to Last Minute Snacks.';
+      const inT = NEWTOWN && TS() && TS().inTown(L.car.pos.x, L.car.pos.z, 0) && L.car.pos.x < 44;
+      if (hud.obj) hud.obj.textContent = L.left <= 0 ? "It's 2:00. Go anyway." : inT ? 'Up East St, right on Main, out of town.' : 'Get to Last Minute Snacks.';
       const [ax, az] = LAYOUT.storeArrive; const onMainIdx = nr.road === MAIN ? nr.i : nr.road === SHORT ? nearestIdx(MAIN.s, [nr.road.s[nr.i].x, nr.road.s[nr.i].z]) : 0;
       const remain = Math.max(Math.hypot(L.car.pos.x - ax, L.car.pos.z - az), MAIN.len - MAIN.cum[onMainIdx]);
       if (hud.dist) hud.dist.textContent = `STORE ${Math.round(remain)} m`;
     } else if (L.mode === 'solo') {
       if (hud.obj) hud.obj.textContent = 'Your waddle car. Drive anywhere. GET OUT to park.';
-      if (hud.dist) hud.dist.textContent = Math.round(Math.hypot(L.free.pos.x - L.car.pos.x, L.free.pos.z - L.car.pos.z)) + ' m to pickup';
+      if (hud.dist) hud.dist.textContent = L.snacksDone() ? '' : Math.round(Math.hypot(L.free.pos.x - L.car.pos.x, L.free.pos.z - L.car.pos.z)) + ' m to pickup';
     }
   };
   // seat transform for the wolf (world)
@@ -664,6 +674,8 @@ export function createLevel(C) {
     const look = new THREE.Vector3(c.pos.x + f.x * 8, 2.5, c.pos.z + f.z * 8); if (c === L.free && TS()) TS().camClamp(look, camera.position);
     camera.lookAt(look); return look;
   };
+  // Nov 16: the cold open + the cab waiting at spawn (opening.js; plays through scenes.js once it is ready)
+  import('./opening.js').then(m => m.installOpening(L, { toast })).catch(e => console.warn('opening', e));
   return L;
 }
     if (c.bump > 0) { c.bump = Math.max(0, c.bump - dt * 3.5); want.y += Math.sin(performance.now() * 0.045) * 0.16 * c.bump; want.x += Math.cos(performance.now() * 0.051) * 0.1 * c.bump; }   // Nov 16: light felt bump on a real hit

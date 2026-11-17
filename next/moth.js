@@ -123,8 +123,10 @@ export function createMoth(gltf, L, CK, H) {
   let fadeT = 0;
   M.update = (dt, t, wolfPos, wild) => {
     const fp = L.mode === 'drive' && !CK.chase && !CK.sceneView;
-    // greeting: Wolf approaches the parked car on foot -> moth climbs out and walks over
-    if (L.mode === 'walk' && M.state === 'seat' && !M.greeted && wolfPos && !window.__titleUp) {
+    // greeting: Wolf approaches the parked car on foot -> moth climbs out and walks over.
+    // Nov 16: off by default. He slid out through the closed door (legs through the body) and walked back in through it;
+    // now he stays in his seat and leans out of the window at the Wolf (lean() below). M.walkOut = true restores it.
+    if (M.walkOut && L.mode === 'walk' && M.state === 'seat' && !M.greeted && wolfPos && !window.__titleUp) {
       c.root.updateMatrixWorld(true); _mp.copy(c.root.position);
       if (Math.hypot(wolfPos.x - _mp.x, wolfPos.z - _mp.z) < 9.5) {
         M.greeted = true; M.state = 'out'; M.seated = false; fadeT = 0;
@@ -157,6 +159,7 @@ export function createMoth(gltf, L, CK, H) {
     if (M.state === 'greet' && B.Head) { const n = M.nod; const a = n < 1.2 ? Math.sin(n / 1.2 * Math.PI) * 0.35 : Math.max(0, Math.sin((n - 1.2) * 1.3)) * 0.04; B.Head.rotateX(a); }
     // seated: hands on the wheel; FP: head gone (we look out of it)
     if (M.state === 'seat') {
+      lean(dt, wolfPos);
       // FP look-down: he sits up and puffs his chest so the air-freshener necklace swings into view
       const kd = fp ? THREE.MathUtils.clamp((-CK.look.pitch - 0.3) / 0.8, 0, 1) : 0;
       if (kd > 0 && B.Spine02) B.Spine02.rotateX(-0.9 * kd);
@@ -168,6 +171,24 @@ export function createMoth(gltf, L, CK, H) {
     void t;
   };
   M.reset = () => { M.greeted = false; seat(); };
+  // Nov 16: parked + the Wolf on foot nearby -> he leans his shoulders toward his window and turns his head to the Wolf
+  // (world-space bone nudges on top of the seated clip; the hands IK back onto the wheel right after).
+  const _lq = new THREE.Quaternion(), _lp = new THREE.Quaternion(), _la = new THREE.Vector3(), _lw = new THREE.Vector3(), _lc = new THREE.Vector3();
+  M.leanK = 0; M.headK = 0;
+  function nudge(bone, axis, ang) { if (!bone || Math.abs(ang) < 1e-4) return; bone.parent.updateMatrixWorld(true); bone.parent.getWorldQuaternion(_lp);
+    _lq.setFromAxisAngle(axis, ang); const pi = _lp.clone().invert(); bone.quaternion.premultiply(pi.multiply(_lq).multiply(_lp)); bone.updateMatrixWorld(true); }
+  function lean(dt, wolfPos) {
+    const on = L.mode === 'walk' && !L.inCar && wolfPos && !window.__titleUp && c.root.visible !== false;
+    let want = 0, yawW = 0;
+    if (on) { c.root.updateMatrixWorld(true); _lc.copy(wolfPos); c.body.worldToLocal(_lc); const d = Math.hypot(_lc.x, _lc.z);
+      if (d < 16) { const side = Math.sign(driver.position.x) || 1; want = (Math.sign(_lc.x) === side ? 1 : 0.35) * THREE.MathUtils.clamp((16 - d) / 6, 0, 1);
+        yawW = THREE.MathUtils.clamp(Math.atan2(_lc.x, _lc.z), -1.3, 1.3); } }
+    M.leanK += (want - M.leanK) * (1 - Math.exp(-dt * 2.5)); M.headK += ((on && want > 0 ? 1 : 0) - M.headK) * (1 - Math.exp(-dt * 3));
+    if (M.leanK < 0.01 && M.headK < 0.01) return;
+    const side = Math.sign(driver.position.x) || 1; c.body.getWorldDirection(_la);   // car forward (world)
+    nudge(B.Spine01 || B.Spine, _la, -side * 0.2 * M.leanK); nudge(B.Spine02, _la, -side * 0.14 * M.leanK);
+    _lw.set(0, 1, 0); nudge(B.Head, _lw, yawW * 0.75 * M.headK); nudge(B.neck, _lw, yawW * 0.25 * M.headK);
+  }
   M.skipGreet = () => { M.greeted = true; };
   return M;
 }

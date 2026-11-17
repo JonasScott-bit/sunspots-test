@@ -103,7 +103,7 @@ export function installJournal({ T, QT, level, audio }) {
     let h = '';
     if (tab === 'todo') {
       const a = active();
-      if (!S.snacks) h += `<div class="it"><h4>LAST MINUTE SNACKS</h4><p>The store closes at 2:00. Get the ride at the bus stop, east end of Main St.</p><small>The clock waits while you run errands.</small>${goBtn('bus')}</div>`;
+      if (!S.snacks) h += `<div class="it"><h4>LAST MINUTE SNACKS</h4><p>The store closes at 2:00. Moth's cab is waiting outside the Wolf's house on Mesa Rd.</p><small>The clock waits while you run errands.</small>${goBtn('ride')}</div>`;
       for (const m of a) h += `<div class="it"><h4>${esc(M.TITLE[m])}</h4><p>${esc(M.OBJ[m][S[m]] || '')}</p><small>Step ${S[m]} of ${M.DONE[m] - 1}</small>${goBtn(tgtOf(m))}</div>`;
       if (!a.length && S.snacks) h += '<div class="em">Nothing on the list. Check RUMOURS, or just walk around.</div>';
       else if (!a.length) h += '<div class="em">No errands yet. Check RUMOURS for where they start.</div>';

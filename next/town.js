@@ -1488,7 +1488,7 @@ export function createTown(ctx) {
     if (T.busy || T.active) return; T.busy = true; audio.ui?.('confirm');
     curtain.querySelector('b').textContent = ROOMS[key].name; curtain.classList.add('shut');
     const [A] = await Promise.all([build(key), wait(560)]);
-    ctx.onEnter?.(); T.active = key; T.scene = A.scene; document.body.classList.add('room'); $('roomName').textContent = ROOMS[key].name;
+    ctx.onEnter?.(); T.active = key; T.scene = A.scene; T.hushBubble?.(); document.body.classList.add('room'); $('roomName').textContent = ROOMS[key].name;
     A.setAir?.(); A.wolf.position.copy(A.wolfHome); A.wolf.rotation.y = -0.6; T.focus = null; T.goal = null; chipsFor(A); hud(); resize();
     renderer.compile(A.scene, T.camera); await wait(120); curtain.classList.remove('shut'); T.busy = false;
     window.__town.lastEnter = { room: key, tris: A.tris, animating: 1 + A.anim.length + (A.extraRigs || 0), rigEvals: 1 + A.anim.length + (A.extraRigs ? 2 : 0) };
@@ -1652,7 +1652,8 @@ export function createTown(ctx) {
     if (level?.mode === 'solo') { btn.style.display = 'none'; near = null; if (errands().length) { if (S.held == null) S.held = level.left; level.left = S.held; } else S.held = null; common(dt); return; }   // run 12: errands hold the clock in his own car too
     if (!level || level.mode !== 'walk' || level.frozen || document.body.classList.contains('scene')) { btn.style.display = 'none'; near = null; return; }
     const p = wolfState.pos; near = null; let best = 2.4; const riding = !!T.riding?.();   // run 14: on Bear's horse, only ride-aware spots
-    if (!riding) for (const d of DOORS) { const dd = Math.hypot(p.x - d.x, p.z - d.z); if (dd < best) { best = dd; near = d; } }
+    const n1 = level.snacksDone && !level.snacksDone();   // Nov 16: Night 1 = one thing to do (the cab); his own kitchen opens after the snacks
+    if (!riding) for (const d of DOORS) { if (n1 && d.room === 'wolf') continue; const dd = Math.hypot(p.x - d.x, p.z - d.z); if (dd < best) { best = dd; near = d; } }
     if (crowSpot && !riding) { const dd = Math.hypot(p.x - crowSpot.x, p.z - crowSpot.z); if (dd < 2.6 && dd < best + 0.3) near = crowSpot; }
     for (const sp of OUT) { if ((sp.on && !sp.on()) || (riding && !sp.ride)) continue; const dd = Math.hypot(p.x - sp.x, p.z - sp.z); if (dd < (sp.r || 2.6) && dd < best + 0.3) { best = dd; near = sp; } }   // run 13: statue, chatter, mission spots
     if (near && near.act && typeof near.label === 'function') near._l = near.label();

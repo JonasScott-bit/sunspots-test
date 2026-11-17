@@ -165,7 +165,7 @@ export function createDreamStore(ctx) {
 #dsOv .pad i{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(255,240,220,.7)}
 #dsFade{position:fixed;inset:0;z-index:12;background:#140a18;opacity:0;pointer-events:none;transition:opacity .45s}
 body.dsIn #sceneSub{bottom:calc(env(safe-area-inset-bottom,0px) + 64px)}
-body.dsIn #chatBubble,body.scene #chatBubble,body.dsIn #fuzzo{display:none!important}`;
+body.dsIn #chatBubble,body.scene #chatBubble,body.room #chatBubble,body.msn #chatBubble,body.dsIn #fuzzo{display:none!important}`;
     document.head.appendChild(st);
     ov = document.createElement('div'); ov.id = 'dsOv'; ov.innerHTML = '<div class="haze"></div><div class="vig"></div><div class="pill"></div><div class="tip">DRAG TO WALK · TAP A GLOWING SNACK</div><div class="pad"><i></i></div>';
     document.body.appendChild(ov); const f = document.createElement('div'); f.id = 'dsFade'; document.body.appendChild(f); DS.fadeEl = f;

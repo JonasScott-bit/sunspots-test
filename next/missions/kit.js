@@ -391,7 +391,7 @@ export async function run(T, def, opts = {}) {
   const inst = def.inst ||= def.create({ T, S, M, hud: h, def });
   const I = def.I ||= input(); I.reset();
   h.reset(def.title); h.quitEl.onclick = (e) => { e.stopPropagation(); quit(); };
-  document.body.classList.add('msn'); h.root.style.display = '';
+  document.body.classList.add('msn'); window.__town?.hushBubble?.(); h.root.style.display = '';
   if ((S[id] || 0) === 0) { S[id] = 1; M.save(); }
   let last = 0;
   const LANE = { scene: inst.scene, camera: inst.camera, update: (dt, t) => { const a = innerWidth / innerHeight; if (Math.abs(a - last) > 1e-3) { last = a; inst.camera.aspect = a; inst.resize?.(a); inst.camera.updateProjectionMatrix(); } h.tickSub(dt); const dd = Math.min(dt, 0.05); fxTick(dd, inst.camera); try { inst.update(dd, t, I); } catch (e) { console.warn(def.id, e); } fxPost(dd, inst.camera); }, end: () => detach() };

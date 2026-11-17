@@ -105,7 +105,7 @@ export function createMinimap({ TS, level, wolfState, QT, town, audio }) {
     return { x: wolfState.pos.x, z: wolfState.pos.z, yaw: wolfState.yaw };
   };
   const freeOn = () => !!level.free?.root?.visible && !level.solo;
-  const rideOn = () => level.mode === 'walk' && !level.ended && !!level.car;
+  const rideOn = () => level.mode === 'walk' && !level.ended && !!level.car && level.car.root.visible !== false && !level.snacksDone?.();   // Nov 16: the cab only until the snacks are delivered
 
   // ---------------------------------------------------------------- the corner patch
   const wrap = document.createElement('div'); wrap.id = 'mmap'; wrap.innerHTML = '<canvas></canvas><span class="n">N</span>'; document.body.appendChild(wrap);
@@ -163,7 +163,7 @@ export function createMinimap({ TS, level, wolfState, QT, town, audio }) {
     // priority labels first: targets, cars, then rooms, then homes
     for (const t of T) { const x = sx(t.x), y = sy(t.z); g.strokeStyle = '#d83f47'; g.lineWidth = 3; g.beginPath(); g.arc(x, y, s * 1.7 * (1 + 0.2 * Math.sin(pulse * 5)), 0, 7); g.stroke(); label(x, y + 6, '! ' + t.title, 1, '#d83f47'); hits.push({ x, y, k: t.k === 'store' ? null : t.k }); }
     if (freeOn()) { const x = sx(level.free.pos.x), y = sy(level.free.pos.z); glyph(g, x, y, s * 1.2, 'car'); label(x, y, 'YOUR CAR', 1, '#c45a48'); hits.push({ x, y, car: 1 }); }
-    if (rideOn()) { const x = sx(level.car.pos.x), y = sy(level.car.pos.z); glyph(g, x, y, s * 1.1, 'ride'); label(x, y, 'THE RIDE', 1, '#b87420'); hits.push({ x, y, k: 'bus' }); }
+    if (rideOn()) { const x = sx(level.car.pos.x), y = sy(level.car.pos.z); glyph(g, x, y, s * 1.1, 'ride'); label(x, y, 'THE RIDE', 1, '#b87420'); hits.push({ x, y, ride: 1 }); }
     for (const pl of [...places].sort((a, b) => (b.room - a.room) || (b.game - a.game))) { const x = sx(pl.x), y = sy(pl.z); if (x < -20 || y < -20 || x > w + 20 || y > h + 20) continue;
       glyph(g, x, y, s * (pl.room || pl.spot ? 1 : 0.8), pl.game ? 'game' : pl.home ? 'home' : 'room', pl.spot ? '#c9a24a' : pl.room ? null : '#a08c7a'); label(x, y, pl.name, 0); hits.push({ x, y, k: pl.k }); }
     const bus = TS.busStops?.[0]; if (bus) { const x = sx(bus.x), y = sy(bus.z); glyph(g, x, y, s, 'bus'); hits.push({ x, y, k: 'bus' }); }
@@ -181,12 +181,13 @@ export function createMinimap({ TS, level, wolfState, QT, town, audio }) {
     if (!best) return;
     if (level.mode !== 'walk' || level.frozen || town?.active) { say(level.solo ? 'Park first: GET OUT, then tap a place.' : 'Not now. Finish the ride first.'); return; }
     if (best.car) { const c = level.free, lx = Math.cos(c.yaw), lz = -Math.sin(c.yaw), x2 = c.pos.x + lx * 2.6, z2 = c.pos.z + lz * 2.6; close(); QT.jump({ x: x2, z: z2, yaw: Math.atan2(-lx, -lz) }); return; }
+    if (best.ride) { const c = level.car; close(); QT.jump({ x: c.pos.x - Math.sin(c.yaw) * 0.5, z: c.pos.z - 3.4, yaw: 0 }); return; }   // Nov 16: beside the cab, wherever it waits
     if (best.k && QT.where(best.k)) { close(); QT.go(best.k); }
   }
   fm.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; e.stopPropagation(); const a = b.dataset.a;
     if (a === 'x') close();
     else if (a === 'zi' || a === 'zo') { V.k = Math.max(0.35, Math.min(9, V.k * (a === 'zi' ? 1.4 : 1 / 1.4))); }
-    else if (a === 'car') { if (level.solo) say("You're in it."); else if (level.mode !== 'walk' || level.frozen) say('Not now.'); else if (level.summonFree(wolfState.pos.x, wolfState.pos.z)) { say('Your car is parked on the nearest street.'); audio?.ui?.('confirm'); } } });
+    else if (a === 'car') { if (level.solo) say("You're in it."); else if (level.freeUnlocked && !level.freeUnlocked()) say('Snacks first. Moth is waiting out front.'); else if (level.mode !== 'walk' || level.frozen) say('Not now.'); else if (level.summonFree(wolfState.pos.x, wolfState.pos.z)) { say('Your car is parked on the nearest street.'); audio?.ui?.('confirm'); } } });
   const ptrs = new Map(); let downAt = null, pinch0 = null;
   fc.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); try { fc.setPointerCapture(e.pointerId); } catch (_) {} ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (ptrs.size === 1) downAt = { x: e.clientX, y: e.clientY, moved: 0 }; else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = { d: Math.hypot(a.x - b.x, a.y - b.y), k: V.k }; downAt = null; } });

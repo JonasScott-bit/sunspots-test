@@ -177,7 +177,8 @@ export function installSnackRun(C) {
   const css = document.createElement('style'); css.id = 'srCss';
   css.textContent = `
   #srBtn{position:fixed;z-index:8;left:calc(env(safe-area-inset-left) + 12px);bottom:calc(env(safe-area-inset-bottom) + 132px);min-height:48px;padding:0 16px;border:0;border-radius:24px;background:#2b1e46e6;color:#ffe1a8;font:800 12px Futura,Avenir,system-ui,sans-serif;letter-spacing:.14em;box-shadow:inset 0 0 0 2px #ff9ad288,0 3px 0 #120a1e;display:none;-webkit-tap-highlight-color:transparent}
-  #srBtn b{color:#ff9ad2} body.room #srBtn,body.scene #srBtn,body.driving #srBtn,body.ended #srBtn,body.snackrun #srBtn{display:none!important}
+  #srBtn b{color:#ff9ad2} @media (orientation:portrait){#srBtn{bottom:auto;top:calc(env(safe-area-inset-top) + 118px);min-height:40px;font-size:12px}}   /* Nov 16: never over the Wolf in portrait */
+  body.room #srBtn,body.scene #srBtn,body.driving #srBtn,body.ended #srBtn,body.snackrun #srBtn{display:none!important}
   body.snackrun #townObj,body.snackrun #title{display:none!important}
   #srHud{position:fixed;z-index:6;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top) + 8px);display:none;flex-direction:column;align-items:center;pointer-events:none;color:#ffe9d0;font-family:Futura,Avenir,system-ui,sans-serif;text-shadow:0 2px 0 #0008}
   body.snackrun #srHud{display:flex}
@@ -366,7 +367,7 @@ export function installSnackRun(C) {
   SR.update = (dt, t, wild = 0) => {
     applyNight(dt, wild);
     // the start button: outside, on foot, nothing else going on
-    const showBtn = !S.on && okToStart() && !Q.has('nosnackrun'); if (showBtn !== (btn.style.display === 'block')) btn.style.display = showBtn ? 'block' : 'none';
+    const showBtn = !S.on && okToStart() && !Q.has('nosnackrun') && !!townS()?.snacks; /* Nov 16: a replay, after the opening run (it needs his own car) */ if (showBtn !== (btn.style.display === 'block')) btn.style.display = showBtn ? 'block' : 'none';
     if (!S.on && BASE_NIGHT) neonTick(L.ended && L.mode === 'lost' ? 0 : L.left, t);   // the opening run: same sign, its own 1:57:30 clock
     if (!S.on && townS()?.snacks && !L.ended && (L.mode === 'walk' || L.mode === 'solo')) {   // snacks delivered (either run): no stale pickup line, no 2:00 CLOSED
       if (S.pinLeft == null) S.pinLeft = Math.max(L.left, 31); L.left = S.pinLeft;
