@@ -237,7 +237,7 @@ function animCrew(s, dt, t, tally) {
 // comes up over the Department of Motor Vehicles roof. Front shots have the statue and its SAME OLD ONE HORSE TOWN plaque
 // behind the cast. Everything here is the overworld's own scene, camera, lights, ground and sun (main.js exposes them as
 // window.__sunspots.fin); the finale only adds Moth's couch and the cast.
-const O = new THREE.Vector3(-67.25, 0, 17.0);
+const O = new THREE.Vector3(-64.65, 0, 14.8);   // the couch on the plaza's front edge, room behind it for the sunrise shot
 const EXTRAS = ['lynx', 'gecko', 'anteater', 'crow'];   // non-speaking: left out on the LOW tier
 // Rig budget: at most 3 skinned characters animate at once. Everyone else shows a baked snapshot of their current pose
 // (a plain mesh: no bones, no mixer), re-baked whenever they drop out of the live set.
@@ -298,9 +298,9 @@ function build(MODELS) {
   // player's own wolf_armsdown_felt.glb). Wolf + Moth + Bear on the couch, everyone else around it, all facing the sun (-z).
   const crew = {}; const put = (k, x, z, ry = 0, sit = false) => { const g = MODELS[k]; if (!g) return; if (LOWQ() && EXTRAS.includes(k)) return; g.position.set(O.x + x, 0, O.z + z); g.rotation.y = Math.PI + ry; set.add(g); crew[k] = rig(k, g, sit); };
   put('bear', -1.36, 0, 0.1, true); put('wolf', 0.0, 0, 0, true); put('moth', 1.36, 0, -0.08, true);   // on the couch (hips at the front of the cushion, feet on the ground)
-  put('lynx', 0.62, 1.2, 0.08); put('ram', -2.3, 1.1, -0.3); put('heron', 2.55, 1.1, 0.22);   // leaning on the back of it
-  put('gecko', -1.45, 1.22, -0.15); put('anteater', -4.25, 0.55, -0.55);
-  put('squid', 2.65, -1.05, 0.55); put('crow', 3.55, -0.15, 0.7);
+  put('lynx', 0.62, 1.2, 0.08); put('ram', -2.3, 1.1, -0.3); put('heron', 2.25, 1.15, 0.22);   // leaning on the back of it
+  put('gecko', -1.9, 1.2, -0.15); put('anteater', -3.1, 0.8, -0.45);
+  put('squid', 2.65, -1.05, 0.55); put('crow', 3.2, -0.1, 0.6);
   if (Q.get('finale') === 'lineup') { const order = ['wolf', 'moth', 'bear', 'ram', 'heron', 'crow', 'lynx', 'gecko', 'anteater', 'squid']; order.forEach((k, i) => { const c = crew[k]; if (c) { c.g.position.set(O.x + (i - 4.5) * 1.3, 0, O.z + 4); c.g.rotation.y = 0; c.sit = false; c.g.userData.inner.position.y = 0; } }); }
   for (const c of Object.values(crew)) setLive(c, true);
   const cam0 = { fov: cam.fov, near: cam.near, pos: cam.position.clone(), q: cam.quaternion.clone() };
@@ -321,7 +321,7 @@ const D = { scene: 26, title: 6.5, roll: 52 };
 // Film coverage: on a spoken line, a hard cut to a medium close-up of the speaker (waist-up, face 3/4 to camera, a sliver of the
 // neighbour, the dawn sky + porch-lamp glow behind). [from, to, who, side]  side: +1 = camera on the speaker's world -x side.
 // 'wide' = the high establishing wide (portrait). Anything not listed falls back to the SHOT keys.
-const CUTS = { land: [[3.0, 7.0, 'moth', 0.42, 0, 1], [10.6, 14.0, 'wolf', -1]], port: [[3.0, 7.0, 'moth', 0.42], [7.0, 8.7, 'wide'], [8.7, 10.6, 'bear', -0.45], [10.6, 14.0, 'wolf', -1], [15.8, 17.8, 'heron', -1], [17.8, 21.2, 'ram', 1, 0.2, 0, 1.3], [21.2, 24.8, 'squid', 1], [24.8, 26.0, 'wide']] };   // [from, to, who, lens angle off his nose (sign = side), extra headroom, landscape: which side of frame he sits, zoom out (horns)]
+const CUTS = { land: [[3.0, 7.0, 'moth', 1.0, 0, -1], [10.6, 14.0, 'wolf', 1, 0, 1]], port: [[3.0, 7.0, 'moth', 1.0], [7.0, 8.7, 'wide'], [8.7, 10.6, 'bear', 0.6], [10.6, 14.0, 'wolf', 1], [21.2, 24.8, 'squid', 1], [24.8, 26.0, 'wide']] };   // [from, to, who, lens angle off his nose (sign = side), extra headroom, landscape: which side of frame he sits, zoom out (horns)]
 const cutAt = (t, portrait) => (portrait ? CUTS.port : CUTS.land).find((c) => t >= c[0] && t < c[1]) || null;
 const _h = new THREE.Vector3();
 const _he = new THREE.Vector3();
@@ -344,19 +344,20 @@ function coverCam(cut, t, out, look, portrait) {
   return true;
 }
 const SHOT = [   // camera keys around the couch (O): [t, camPos, lookAt, lookAt in portrait (optional), camPos in portrait (optional)]
-  [0, [6.6, 3.4, 3.2], [-2.5, 1.5, -40], [-1.5, 2.5, -40], [6.4, 3.6, 4.6]],     // behind the crew, off the statue's east flank: Main St, the DMV, the sun still under the roofline
-  [7, [5.9, 2.7, 2.0], [-2.5, 1.8, -40], [-1.5, 2.8, -40], [6.0, 3.0, 3.4]],
+  [0, [4.0, 3.4, 3.2], [-5.1, 1.5, -40], [1.0, 2.5, -40], [3.8, 3.6, 4.6]],     // behind the crew, off the statue's east flank: Main St, the DMV, the sun still under the roofline
+  [7, [3.3, 2.7, 2.0], [-5.1, 1.8, -40], [1.0, 2.8, -40], [3.4, 3.0, 3.4]],
   [7.01, [-1.7, 1.2, -4.9], [0.15, 1.0, -0.3], [-0.3, 0.2, 0], [-0.2, 3.7, -7.9]],      // the crew from the front, low 3/4, the statue and its plaque behind them
   [14, [-1.0, 1.15, -4.4], [0.25, 1.0, -0.3], [-0.25, 0.2, 0], [0.0, 3.6, -7.6]],
-  [14.01, [6.5, 1.9, 2.4], [-10, 4, -40], [3, 8, -60], [6.3, 2.1, 2.5]],     // from behind, off the statue's east flank: the sun comes up over Main St, over their shoulders
-  [20, [6.9, 2.6, 2.6], [-11, 7, -40], [2, 11, -60], [6.6, 2.8, 2.7]],
+  [14.01, [-0.4, 2.2, 4.4], [-0.4, -0.8, -30], [0.15, -2.4, -30], [0.0, 2.7, 4.4], 80, 52],     // THE sunrise: low behind the couch (between it and the plinth), past their backs and heads to the eye sun over the DMV
+  [20, [-0.4, 2.15, 4.1], [-0.4, -0.6, -30], [0.15, -2.2, -30], [0.0, 2.6, 4.1], 80, 52],
   [20.01, [2.4, 1.3, -5.8], [0.1, 1.05, -0.3], [0.2, 0.8, 0], [1.6, 2.4, -7.2]],
   [26, [3.3, 1.8, -7.2], [0.1, 1.1, -0.3], [0.2, 0.85, 0], [2.3, 2.8, -8.2]],
-  [26.01, [2.5, 2.6, -8.5], [-12, 16, -60], [-2, 20, -60], [1.5, 2.6, -9.5]],     // title: Main St's roofline along the bottom, clear sky for the words, the sun low and to the right
-  [33, [1.5, 3.4, -10.5], [-13, 18, -70], [-3, 22, -70], [0.8, 3.4, -11.5]],
+  [26.01, [1.4, 2.6, -6.3], [-14.6, 16, -60], [-4.6, 20, -60], [2.2, 2.6, -7.3]],     // title: Main St's roofline along the bottom, clear sky for the words, the sun low and to the right
+  [33, [0.4, 3.4, -8.3], [-15.6, 18, -70], [-5.6, 22, -70], [1.5, 3.4, -9.3]],
   [40, [2, 6, -6], [60, 10, -50], [60, 12, -50], [2, 6.5, -6]],     // the roll: along Main St to the east, the sun off to the left, sky behind the names
   [200, [-4, 8, -9], [66, 11, -60], [66, 13, -60], [-4, 8.5, -9]],
 ];
+let shotFov = 0;
 function camAt(t, out, look, portrait) {
   let i = 0; while (i < SHOT.length - 2 && SHOT[i + 1][0] <= t) i++;
   const a = SHOT[i], b = SHOT[i + 1], k = ease((t - a[0]) / Math.max(0.001, b[0] - a[0]));
@@ -364,6 +365,7 @@ function camAt(t, out, look, portrait) {
   out.set(lerp(pa[0], pb[0], k), lerp(pa[1], pb[1], k), lerp(pa[2], pb[2], k));
   const la = portrait && a[3] || a[2], lb = portrait && b[3] || b[2];
   look.set(lerp(la[0], lb[0], k), lerp(la[1], lb[1], k), lerp(la[2], lb[2], k));
+  shotFov = (portrait ? a[5] && b[5] && a[5] : a[6] && b[6] && a[6]) || 0;   // a shot can ask for a wider portrait lens
   if (portrait && !own) { const back = out.clone().sub(look).normalize(); out.addScaledVector(back, 1.8 + 0.06 * out.distanceTo(look) * 0); out.y += 0.3; }
   out.x += O.x; out.z += O.z; look.x += O.x; look.z += O.z;   // keys are written around the couch
 }
@@ -435,7 +437,7 @@ function render(dt, tally) {
   // the camera: a cut to the speaker, or the keyed shots
   for (const c of Object.values(s.crew)) c.cover = null;
   const cut = !tally && cutAt(t, portrait); cam.fov = portrait ? 66 : 48;
-  if (!(cut && coverCam(cut, t, V, L, portrait) !== false)) { camAt(t, V, L, portrait); cam.fov = portrait ? 66 : 48; }
+  if (!(cut && coverCam(cut, t, V, L, portrait) !== false)) { camAt(t, V, L, portrait); cam.fov = shotFov || (portrait ? 66 : 48); }
   if (Q.get('finale') === 'lineup') { V.set(O.x, 1.0, O.z + 15); L.set(O.x, 0.95, O.z + 4); cam.fov = 30; }   // QA: refcheck lineup
   cam.aspect = innerWidth / innerHeight; cam.near = 0.1; cam.position.copy(V); cam.lookAt(L); cam.updateProjectionMatrix(); cam.updateMatrixWorld();
   // the eye sun itself (main.js placeSun, with the elevation rising out of the north end of Sun St); its lid opens on the Heron's line
