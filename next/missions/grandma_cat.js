@@ -172,6 +172,7 @@ function create({ T, S, hud: H }) {
 
   // Opening lines used to play over the chase cam: a view of the empty street and the house walls, not Grandma.
   // Cut to the speaker's face (3/4, outside the open cab) for the talk, then the chase cam takes over on the countdown.
+  const _fsP = new THREE.Vector3(), _fsD = new THREE.Vector3(), _fsLook = new THREE.Vector3(), _fsRC = new THREE.Raycaster();
   function frameSpeaker(cam) {
     const who = (H.subEl?.querySelector('i')?.textContent || 'GRANDMA').trim().toLowerCase();
     const p = crew[who] || crew.grandma;
@@ -182,14 +183,33 @@ function create({ T, S, hud: H }) {
     else { p.getWorldPosition(head); head.y += ((p.userData.h || 1) * 1.55); }
     const body = car.userData.body || car;
     body.updateWorldMatrix(true, true);
-    // Aim from the cab's windshield: waddleCar +Z is the direction of travel (front seats at z=0.15, back at z=-0.95,
-    // headlight beam at z=5.4). Character +Z is unreliable here — felt Grandma looks along +Z (her face), while the
-    // crewWrap +Z points out the back of the cab, so a single sign sat the lens behind whoever was speaking.
+    // 3/4 from outside the open cab: 0.5 m along the windshield axis (car +Z) and 1.2 m to the side.
+    // A deep push along +Z from Grandma in the back seat sat the lens in the front row (Bear/Wolf filled the frame).
     const e = body.matrixWorld.elements;
     const fl = Math.hypot(e[8], e[10]) || 1, fwdX = e[8] / fl, fwdZ = e[10] / fl, sideX = -fwdZ, sideZ = fwdX;
-    const por = cam.aspect < 1, dist = por ? 1.45 : 1.65, sh = por ? 0.7 : 0.85;
-    cam.position.set(head.x + fwdX * dist + sideX * sh, head.y + 0.18, head.z + fwdZ * dist + sideZ * sh);
-    cam.lookAt(head.x, head.y - 0.08, head.z);
+    const por = cam.aspect < 1, dist = 0.5, sh = por ? 1.2 : 1.35;
+    _fsLook.set(head.x, head.y - 0.08, head.z);
+    const blockers = [];
+    for (const o of Object.values(crew)) { if (o === p) continue; o.traverse((m) => { if (m.isMesh && m.visible) blockers.push(m); }); }
+    const trySide = (sign, extra) => {
+      _fsP.set(head.x + fwdX * dist + sideX * (sh + extra) * sign, head.y + 0.18, head.z + fwdZ * dist + sideZ * (sh + extra) * sign);
+      _fsD.subVectors(_fsLook, _fsP);
+      const L = _fsD.length() || 1; _fsD.multiplyScalar(1 / L);
+      _fsRC.set(_fsP, _fsD); _fsRC.near = 0.02; _fsRC.far = Math.max(0.05, L - 0.08);
+      const hit = blockers.length ? _fsRC.intersectObjects(blockers, false).find((h) => h.distance > 0.02) : null;
+      // also reject a placement that would put a body inside the near plane
+      const nearHit = hit && hit.distance < (cam.near || 0.08) + 0.05;
+      return { sign, extra, blocked: !!hit, nearHit: !!nearHit, dist: hit ? hit.distance : Infinity, x: _fsP.x, y: _fsP.y, z: _fsP.z };
+    };
+    let pick = null;
+    for (const extra of [0, 0.35, 0.7]) {
+      const a = trySide(1, extra), b = trySide(-1, extra);
+      const clear = [a, b].filter((s) => !s.blocked && !s.nearHit);
+      pick = clear[0] || (!a.nearHit && a.dist >= b.dist ? a : b);
+      if (clear[0]) break;
+    }
+    cam.position.set(pick.x, pick.y, pick.z);
+    cam.lookAt(_fsLook.x, _fsLook.y, _fsLook.z);
     cam.fov = por ? 40 : 32; cam.near = 0.08; cam.updateProjectionMatrix();
   }
   // ================================================================== per-frame

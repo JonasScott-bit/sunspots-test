@@ -182,15 +182,27 @@ function rotOnly(gl) { if (!ROT.has(gl)) { let hip = null; gl.scene.traverse((o)
   // hips keep their bind orientation: the Meshy idles swing the whole body 60-90 degrees off its facing.
   ROT.set(gl, (gl.animations || []).map((c) => new THREE.AnimationClip(c.name, c.duration, c.tracks.filter((tr) => tr.name.endsWith('.quaternion') && tr.name !== hip + '.quaternion')))); } return ROT.get(gl); }
 export const liveRigs = () => LIVE.size;
-// Average vertex normals that share a position (hashed, rounded) so unwelded Meshy lo-GLBs shade soft
-// and felt-like. UV seams and skin weights are left alone — mergeVertices would not weld those verts.
-// Faces that meet at more than `deg` degrees keep a crease.
+// The town2 lo-GLBs are indexed and already carry reasonably smooth stored normals (Bear: median 8.8°
+// from the face, Wolf 8.3°). Those normals live on an InterleavedBufferAttribute: THREE.computeVertexNormals()
+// writes mostly zeros into that buffer (Bear 14593/15325, Wolf 18101/19899) and must not be called.
+// Unique positions are ~1/3 of the vertex count because of UV-seam splits (Bear 5848 of 15325, Wolf 5438
+// of 19899, same at 1e-5 and 1e-4 of the bbox). Average the *stored* normals across those coincidences
+// (leave UVs and skin weights alone), copy them onto a standalone BufferAttribute, and drop the
+// nearly-flat baked normalMap so it cannot re-sharpen the cage.
+function solidNormals(src) {
+  const arr = new Float32Array(src.count * 3);
+  for (let i = 0; i < src.count; i++) { arr[i * 3] = src.getX(i); arr[i * 3 + 1] = src.getY(i); arr[i * 3 + 2] = src.getZ(i); }
+  return new THREE.BufferAttribute(arr, 3);
+}
 function smoothNormalsByPos(g, deg = 55) {
-  const pos = g.attributes.position, nrm = g.attributes.normal;
-  if (!pos || !nrm) return;
-  const minDot = Math.cos(deg * Math.PI / 180), buckets = new Map();
+  const pos = g.attributes.position, src = g.attributes.normal;
+  if (!pos || !src) return;
+  const box = new THREE.Box3().setFromBufferAttribute(pos);
+  const maxDim = Math.max(box.max.x - box.min.x, box.max.y - box.min.y, box.max.z - box.min.z) || 1;
+  const tol = 1e-4 * maxDim, minDot = Math.cos(deg * Math.PI / 180), buckets = new Map();
+  const nrm = solidNormals(src);
   for (let i = 0; i < pos.count; i++) {
-    const k = (Math.round(pos.getX(i) * 1e4)) + ',' + (Math.round(pos.getY(i) * 1e4)) + ',' + (Math.round(pos.getZ(i) * 1e4));
+    const k = Math.round(pos.getX(i) / tol) + ',' + Math.round(pos.getY(i) / tol) + ',' + Math.round(pos.getZ(i) / tol);
     let a = buckets.get(k); if (!a) buckets.set(k, a = []); a.push(i);
   }
   const out = new Float32Array(nrm.count * 3);
@@ -208,23 +220,23 @@ function smoothNormalsByPos(g, deg = 55) {
   }
   for (let i = 0; i < nrm.count; i++) nrm.setXYZ(i, out[i * 3], out[i * 3 + 1], out[i * 3 + 2]);
   nrm.needsUpdate = true;
+  g.setAttribute('normal', nrm);
 }
 
 export async function crewGLB(k, h = 1.8) {
   const f = { bear: 'town2/bear_lo.glb', heron: 'town2/heron_lo.glb', ram: 'town2/ram_lo.glb', wolf: 'town2/wolf_lo.glb', lynx: 'town2/lynx_lo.glb', crow: 'town2/crow_lo.glb', gecko: 'town2/gecko_lo.glb', anteater: 'cast2/anteater.glb', moth: 'town2/moth_lo.glb', cake: 'town2/cake_lo.glb', shake: 'town2/shake_lo.glb', peach: 'town2/fuzzy_peach_lo.glb' }[k];
   try { if (!f) throw new Error('no glb ' + k);
     const gl = await (glbCache[f] ||= new Promise((res, rej) => loader.load(new URL('../models/' + f, import.meta.url).href, res, undefined, rej)));
-    // Soft felt normals on the cached source (clones share the geometry). Meshy lo-GLBs arrive unwelded with
-    // unique-per-face UVs, so mergeVertices is a no-op and computeVertexNormals alone stays faceted (Bear read
-    // as a crumpled paper bag, Wolf as shards). Average normals by rounded position instead, leaving UVs and
-    // skin weights untouched; a 55° crease keeps genuine hard edges. A little leftover normalMap is tamed so
-    // it can't re-sharpen the facets.
     if (!gl.userData.feltSmooth) {
       gl.scene.traverse((o) => { if (o.isSkinnedMesh) o.skeleton.pose(); if (!o.isMesh || !o.geometry) return;
-        try { const g = o.geometry; g.computeVertexNormals(); smoothNormalsByPos(g, 55);
-          if (g.attributes.uv && g.attributes.normal) try { g.computeTangents(); } catch (_) {}
-        } catch (_) { try { o.geometry.computeVertexNormals(); } catch (__) {} }
-        for (const m of bothMats(o)) { if (!m) continue; m.flatShading = false; if (m.normalScale) m.normalScale.set(0.16, 0.16); m.needsUpdate = true; }
+        try { smoothNormalsByPos(o.geometry, 55); } catch (_) {}
+        for (const m of bothMats(o)) {
+          if (!m) continue;
+          m.flatShading = false;
+          if ('normalMap' in m) m.normalMap = null;
+          if (m.normalScale) m.normalScale.set(0, 0);
+          m.needsUpdate = true;
+        }
       });
       gl.userData.feltSmooth = true;
     }
