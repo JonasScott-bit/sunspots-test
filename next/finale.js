@@ -67,7 +67,8 @@ css.textContent = `
 #fin .fade{position:absolute;inset:0;background:#000;opacity:1;transition:opacity 1.2s ease;pointer-events:none}
 #fin .cap{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom) + 9vh);transform:translateX(-50%);width:min(86vw,720px);text-align:center;opacity:0;transition:opacity .45s ease;pointer-events:none}
 #fin .cap.on{opacity:1}
-#fin .cap b{display:block;font:800 13px/1.2 system-ui,sans-serif;letter-spacing:.18em;color:#ffcf6a;margin-bottom:6px;text-shadow:0 2px 0 #2a1424}
+#fin .cap::before{content:'';position:absolute;inset:-18px -7% -16px;z-index:-1;border-radius:50%;background:radial-gradient(closest-side,rgba(18,10,22,.62),rgba(18,10,22,.38) 55%,rgba(18,10,22,0));filter:blur(2px)}   /* a soft feathered shade so the line reads on any background (yellow felt, sky, sun) */
+#fin .cap b{display:block;font:800 13px/1.2 system-ui,sans-serif;letter-spacing:.18em;color:#ffcf6a;margin-bottom:6px;text-shadow:0 1px 0 #2a1424,0 0 6px #1a0e1a,0 0 12px #1a0e1acc}
 #fin .cap span{font:600 clamp(17px,4.6vw,24px)/1.32 system-ui,sans-serif;text-shadow:0 2px 0 #2a1424,0 0 14px #2a1424cc}
 #fin .kick{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top) + 9vh);text-align:center;font:800 clamp(12px,3.4vw,15px)/1.2 system-ui,sans-serif;letter-spacing:.32em;color:#ffe1a8;opacity:0;transition:opacity 1s;text-shadow:0 2px 0 #2a1424;pointer-events:none}
 #fin .kick.on{opacity:.92}
@@ -321,7 +322,7 @@ const D = { scene: 26, title: 6.5, roll: 52 };
 // Film coverage: on a spoken line, a hard cut to a medium close-up of the speaker (waist-up, face 3/4 to camera, a sliver of the
 // neighbour, the dawn sky + porch-lamp glow behind). [from, to, who, side]  side: +1 = camera on the speaker's world -x side.
 // 'wide' = the high establishing wide (portrait). Anything not listed falls back to the SHOT keys.
-const CUTS = { land: [[3.0, 7.0, 'moth', 1.0, 0, -1], [10.6, 14.0, 'wolf', 1, 0, 1]], port: [[3.0, 7.0, 'moth', 1.0], [7.0, 8.7, 'wide'], [8.7, 10.6, 'bear', 0.6], [10.6, 14.0, 'wolf', 1], [21.2, 24.8, 'squid', -0.55], [24.8, 26.0, 'wide']] };   // [from, to, who, lens angle off his nose (sign = side), extra headroom, landscape: which side of frame he sits, zoom out (horns)]
+const CUTS = { land: [[3.0, 7.0, 'moth', 1.0, 0, -1], [10.6, 14.0, 'wolf', 1, 0, 1]], port: [[3.0, 7.4, 'moth', 1.0], [7.4, 10.6, 'bear', 0.6], [10.6, 14.0, 'wolf', 1], [21.2, 24.8, 'squid', -0.55]] };   // [from, to, who, lens angle off his nose (sign = side), extra headroom, landscape: which side of frame he sits, zoom out (horns)]
 const cutAt = (t, portrait) => (portrait ? CUTS.port : CUTS.land).find((c) => t >= c[0] && t < c[1]) || null;
 const _h = new THREE.Vector3();
 const _he = new THREE.Vector3();
@@ -348,10 +349,10 @@ const SHOT = [   // camera keys around the couch (O): [t, camPos, lookAt, lookAt
   [7, [0.1, 1.5, -6.9], [0.1, 1.4, 0.5], [-0.15, 3.2, 0.5], [-0.15, 1.6, -7.2], 80, 36],
   [7.01, [-1.7, 1.2, -4.9], [0.15, 1.0, -0.3], [-0.3, 0.2, 0], [-0.2, 3.7, -7.9]],      // the crew from the front, low 3/4, the statue and its plaque behind them
   [14, [-1.0, 1.15, -4.4], [0.25, 1.0, -0.3], [-0.25, 0.2, 0], [0.0, 3.6, -7.6]],
-  [14.01, [0.3, 1.7, 4.4], [0.3, 4.7, -30], [0.4, 0.4, -30], [0.4, 3.4, 4.4], 88, 42],     // THE sunrise: behind the couch (rolled forward, RISE), the crew's backs and heads along the bottom against the eye sun over the DMV; a slow push and rise
-  [20, [0.3, 1.9, 3.9], [0.3, 3.1, -30], [0.4, -2.4, -30], [0.4, 3.9, 4.1], 88, 42],
-  [20.01, [2.4, 1.3, -5.8], [0.1, 1.05, -0.3], [0.2, 0.8, 0], [1.6, 2.4, -7.2]],
-  [26, [2.3, 1.8, -7.0], [-0.5, 1.1, -0.3], [0.2, 0.85, 0], [2.3, 2.8, -8.2]],
+  [14.01, [-0.1, 1.8, 4.4], [-0.1, 1.8, -30], [-0.12, 0.83, -30], [-0.12, 3.2, 3.9], 88, 50],     // THE sunrise: behind the couch (rolled forward, RISE), the crew's backs and heads along the bottom against the eye sun over the DMV; a slow push and rise
+  [20, [-0.1, 1.85, 4.1], [-0.1, 1.3, -30], [-0.12, 0.9, -30], [-0.12, 3.25, 3.65], 88, 50],
+  [20.01, [2.4, 1.3, -5.8], [0.1, 1.05, -0.3], [-0.2, 1.1, 0.7], [-5.6, 3.0, -3.0], 74],     // portrait: a higher three-quarter from the west, the sunlit east end of Main St behind
+  [26, [2.3, 1.8, -7.0], [-0.5, 1.1, -0.3], [-0.2, 1.1, 0.7], [-6.2, 3.4, -3.5], 74],
   [26.01, [1.4, 2.6, -6.3], [-14.6, 16, -60], [-4.6, 20, -60], [2.2, 2.6, -7.3]],     // title: Main St's roofline along the bottom, clear sky for the words, the sun low and to the right
   [33, [0.4, 3.4, -8.3], [-15.6, 18, -70], [-5.6, 22, -70], [1.5, 3.4, -9.3]],
   [40, [2, 6, -6], [60, 10, -50], [60, 12, -50], [2, 6.5, -6]],     // the roll: along Main St to the east, the sun off to the left, sky behind the names
@@ -360,14 +361,13 @@ const SHOT = [   // camera keys around the couch (O): [t, camPos, lookAt, lookAt
 let shotFov = 0;
 // Staging. 'tight' (every portrait shot, and the sunrise in both): Ram and Heron stand behind the couch's ends,
 // Squid stands off the right arm, the four non-speaking extras step out of frame, so the crew is one compact group a narrow frame can
-// hold without slicing anyone. The sunrise also rolls the couch 1.5 m up the kerb so the lens can get back far enough (the plinth
-// is right behind them) - a cheat on the cut, the way film does it. Everything goes back on the cut out of it.
-const RISE = { from: 14.01, to: 20.01, dz: -1.5, pos: { ram: [-1.95, 0.8, 0.05], heron: [1.95, 0.8, -0.05], squid: [2.0, -0.55, 0.35] },
-  rise: { ram: [-0.68, 0.78, 0.05], heron: [0.68, 0.78, -0.05], squid: [1.85, 0.7, -0.1] } };   // sunrise: from behind, Ram and Heron between the seated heads
+// hold without slicing anyone. The sunrise also rolls the couch 0.65 m back toward the plinth so the lens can sit close over their heads - a cheat on the cut, the way film does it. Everything goes back on the cut out of it.
+const RISE = { from: 14.01, to: 20.01, dz: 0.65, pos: { ram: [-1.95, 0.8, 0.05], heron: [1.95, 0.8, -0.05], squid: [2.0, -0.55, 0.35] },
+  rise: { bear: [-0.86, null, 0.05], moth: [0.9, null, -0.05], ram: [-0.46, -1.0, 0.05], heron: [0.46, -1.0, -0.05], squid: [1.25, -0.8, -0.1] } };   // sunrise: from behind and above, Bear and Moth shuffled in next to the Wolf, Ram and Heron just past the couch between their heads
 function stage(s, tight, rise) {
   const key = (tight ? 1 : 0) + (rise ? 2 : 0); if (s.stageKey === key) return; s.stageKey = key; s.rise = rise; const dz = rise ? RISE.dz : 0;
   for (const o of s.set.children) { const u = o.userData; if (!u.home) { u.home = o.position.clone(); u.homeRy = o.rotation.y; } o.position.copy(u.home); o.rotation.y = u.homeRy; o.position.z += dz; }
-  for (const [k, c] of Object.entries(s.crew)) { const p = tight && (rise ? RISE.rise : RISE.pos)[k]; if (p) { c.g.position.x = O.x + p[0]; c.g.position.z = O.z + dz + p[1]; c.g.rotation.y = Math.PI + p[2]; }
+  for (const [k, c] of Object.entries(s.crew)) { const p = tight && (rise ? RISE.rise : RISE.pos)[k]; if (p) { c.g.position.x = O.x + p[0]; if (p[1] !== null) c.g.position.z = O.z + dz + p[1]; c.g.rotation.y = Math.PI + p[2]; }
     if (EXTRAS.includes(k)) c.g.visible = !tight; }
 }
 function camAt(t, out, look, portrait) {
