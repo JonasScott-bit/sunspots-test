@@ -44,7 +44,7 @@ export const GRID = {
 export function createTownscape(C) {
   const { scene, feltMat, makeMeltable, LOW } = C;
   const mats = { felt: patternize(feltMat('#ffffff', { vertexColors: true })), glow: new THREE.MeshBasicMaterial({ vertexColors: true, toneMapped: false }) };
-  const TS = { buildings: [], boxes: [], doors: {}, marks: {}, GRID, PAL, stats: { tris: 0 }, mats };
+  const TS = { buildings: [], boxes: [], pads: [], doors: {}, marks: {}, GRID, PAL, stats: { tris: 0 }, mats };
   const S = PAL.street;
 
   // ---------------------------------------------------------------- placing a building
@@ -65,6 +65,15 @@ export function createTownscape(C) {
       const box = { x0: c0.x - ex, z0: c0.z - ez, x1: c0.x + ex, z1: c0.z + ez, h, name };
       if (Math.abs(cs * sn) > 1e-3) box.ob = { cx: c0.x, cz: c0.z, c: cs, s: sn, hx, hz };
       TS.boxes.push(box);
+    }
+    for (const [x0, z0, x1, z1, y, M] of k.pads) {
+      const P = (lx, lz) => new THREE.Vector3(lx, 0, lz).applyMatrix4(M).applyMatrix4(W);
+      const c0 = P((x0 + x1) / 2, (z0 + z1) / 2), ax = P(x1, (z0 + z1) / 2).sub(c0), az = P((x0 + x1) / 2, z1).sub(c0);
+      const hx = Math.hypot(ax.x, ax.z), hz = Math.hypot(az.x, az.z), cs = hx > 1e-6 ? ax.x / hx : 1, sn = hx > 1e-6 ? ax.z / hx : 0;
+      const ex = hx * Math.abs(cs) + hz * Math.abs(sn), ez = hx * Math.abs(sn) + hz * Math.abs(cs);
+      const pad = { x0: c0.x - ex, z0: c0.z - ez, x1: c0.x + ex, z1: c0.z + ez, y, h: y, name: name + '_pad' };
+      if (Math.abs(cs * sn) > 1e-3) pad.ob = { cx: c0.x, cz: c0.z, c: cs, s: sn, hx, hz };
+      TS.pads.push(pad);
     }
     for (const [mk, v] of Object.entries(k.marks)) { const p = new THREE.Vector3(v.x, 0, v.z).applyMatrix4(W); TS.marks[mk] = { ...v, x: p.x, z: p.z, ry: (v.ry || 0) + ry }; }
     const bs = new THREE.Box3().setFromObject(g); const c = bs.getCenter(new THREE.Vector3()), r = bs.getSize(new THREE.Vector3()).length() / 2;
@@ -153,21 +162,37 @@ export function createTownscape(C) {
       TS.eachSolid((b) => { const h = TS.boxHit(b, p.x, p.z, r); if (h) { p.x += h.ux * h.p; p.z += h.uz * h.p; moved = true; } });
       if (!moved) break; }
   };
-  // third-person camera: pull in when a building sits between the Wolf and the lens
+  // third-person camera: pull in when a building, a tall extra (bus shelter), or a post sits between the Wolf and the lens
   const _d = new THREE.Vector3();
+  function slabHit(b, o, d, pad = 0.2) {
+    let t0 = 0, t1 = 1;
+    const lo = [b.x0 - pad, 0, b.z0 - pad], hi = [b.x1 + pad, (b.h || 2) + 0.3, b.z1 + pad];
+    for (let a = 0; a < 3; a++) { if (Math.abs(d[a]) < 1e-6) { if (o[a] < lo[a] || o[a] > hi[a]) return null; continue; }
+      let u = (lo[a] - o[a]) / d[a], v = (hi[a] - o[a]) / d[a]; if (u > v) [u, v] = [v, u]; t0 = Math.max(t0, u); t1 = Math.min(t1, v); if (t0 > t1) return null; }
+    return t0;
+  }
   TS.camClamp = (target, cam) => {
+    if (!extraOn) addExtra();
     _d.subVectors(cam, target); let best = 1;
-    for (const b of TS.boxes) {
-      let t0 = 0, t1 = 1;
-      const lo = [b.x0 - 0.2, 0, b.z0 - 0.2], hi = [b.x1 + 0.2, b.h + 0.3, b.z1 + 0.2], o = [target.x, target.y, target.z], d = [_d.x, _d.y, _d.z];
-      let hit = true;
-      for (let a = 0; a < 3; a++) { if (Math.abs(d[a]) < 1e-6) { if (o[a] < lo[a] || o[a] > hi[a]) { hit = false; break; } continue; }
-        let u = (lo[a] - o[a]) / d[a], v = (hi[a] - o[a]) / d[a]; if (u > v) [u, v] = [v, u]; t0 = Math.max(t0, u); t1 = Math.min(t1, v); if (t0 > t1) { hit = false; break; } }
-      if (hit && t0 > 0.02 && t0 < best) best = t0;
+    const o = [target.x, target.y, target.z], d = [_d.x, _d.y, _d.z];
+    for (const b of TS.boxes) { const t0 = slabHit(b, o, d); if (t0 != null && t0 > 0.02 && t0 < best) best = t0; }
+    for (const b of TS.extra) { if (b.car || (b.h || 0) < 1.5) continue; const t0 = slabHit(b, o, d); if (t0 != null && t0 > 0.02 && t0 < best) best = t0; }
+    for (const p of TS.posts || []) {
+      const fx = o[0] - p.x, fz = o[2] - p.z, r = p.r, a = d[0] * d[0] + d[2] * d[2];
+      if (a < 1e-8) continue;
+      const b = 2 * (fx * d[0] + fz * d[2]), c = fx * fx + fz * fz - r * r, disc = b * b - 4 * a * c;
+      if (disc < 0) continue;
+      const t0 = (-b - Math.sqrt(disc)) / (2 * a);
+      if (t0 > 0.02 && t0 < best) {
+        const y = o[1] + d[1] * t0;
+        if (y > -0.2 && y < (p.h || 3.6)) best = t0;
+      }
     }
     if (best < 1) cam.copy(target).addScaledVector(_d, Math.max(0.12, best - 0.05));
     return best;
   };
+  // height of the highest walkable tread / stoop under (x, z). 0 = the street.
+  TS.groundY = (x, z, r = 0.22) => { let y = 0; for (const b of TS.pads) { if (TS.boxHit(b, x, z, r)) y = Math.max(y, b.y); } return y; };
   TS.inTown = (x, z, pad = 0) => { const [x0, z0, x1, z1] = GRID.walkRect; return x > x0 - pad && x < x1 + pad && z > z0 - pad && z < z1 + pad; };
   TS.clampWalk = (p) => { const [x0, z0, x1, z1] = GRID.walkRect; let out = false; if (p.x < x0) { p.x = x0; out = true; } if (p.x > x1) { p.x = x1; out = true; } if (p.z < z0) { p.z = z0; out = true; } if (p.z > z1) { p.z = z1; out = true; } return out; };
 
@@ -181,6 +206,7 @@ export function createTownscape(C) {
     ['bus_shelter', 32.5, -0.2, 0, 0, 2.3], ['payphone', 9.4, 14.6, Math.PI, 0.5, 0.9],
     ...[-170, -146, -122, -98, -74, -50, -26, -2, 22].flatMap(x => [['lamp', x + 4, 1.6, 0, 0.35, 0.8], ['lamp', x - 8, 12.4, Math.PI, 0.35, 0.8]]),
   ];
+  TS.posts = TS.props.filter((p) => p[4] > 0).map(([, x, z, , r]) => ({ x, z, r: r + 0.14, h: 3.6 }));
   TS.bench = [28.6, 0.2, 0];
   TS.busStops = [{ name: 'MAIN ST', x: 31, z: 1.2 }];
 
@@ -213,7 +239,7 @@ function buildHouses(TS, place) {
     const arch = [[-6.9, 0], [-4.1, 0], [-4.1, 1.6]]; for (let i = 0; i <= 10; i++) { const a = i / 10 * Math.PI; arch.push([-5.5 + Math.cos(a) * 1.4, 1.6 + Math.sin(a) * 0.75]); }
     k.ext(arch, 0.0, 0.08, P.gate, { pat: 'batten', ps: 0.21 }); for (let x = -6.6; x < -4.2; x += 0.42) k.box(x, 0, 0.09, 0.05, 2.0, 0.02, '#5e3a24');
     // entry: raised stoop, steps, black rails, screen door, awning
-    k.aab(-0.4, 0, 0, 2.2, 1.0, 1.5, '#e8dfd0'); k.steps(0.9, 3.0, 1.3, 1.0, 5, P.steps, { tread: 0.3 });
+    k.aab(-0.4, 0, 0, 2.2, 1.0, 1.5, '#e8dfd0', { pad: true }); k.steps(0.9, 3.0, 1.3, 1.0, 5, P.steps, { tread: 0.3 });
     k.rail([[0.15, 1.5, 1.0], [0.15, 3.0, 0.15]], 0.9, P.rail, { bal: 0.12 }); k.rail([[1.65, 1.5, 1.0], [1.65, 3.0, 0.15]], 0.9, P.rail, { bal: 0.12 });
     k.door(0.9, 1.0, 0, 0.95, 2.05, P.screen, { frame: P.wall, panels: '#bfae92', knob: '#3a2a1a' }); k.mark('door_wolf', 0.9, 3.6);
     k.box(0.9, 3.25, 0.45, 1.7, 0.1, 0.9, P.awning, { rx: 0.35 }); for (const s of [-1, 1]) k.beam([0.9 + s * 0.8, 3.2, 0.05], [0.9 + s * 0.8, 2.9, 0.75], 0.05, P.rail);
@@ -295,7 +321,7 @@ function buildHouses(TS, place) {
     k.gable(0, -5, 8, 10, H, 2.8, P.mainRoof, P.gable, { over: 0.35, ridge: 'z', trim: P.green, trimW: 0.26, rp: 'shingle', wp: 'shake', wps: 0.2 });
     k.window(0, H + 0.6, 0.05, 0.75, 0.75, { frame: P.green, glass: '#3e3a3a', ft: 0.12, mull: [1, 1] });
     // porch: pink floor at 0.7, green posts + rails, shed roof of pinkish shingle
-    k.aab(-4, 0, 0, 4, 0.7, 2.4, P.porch); k.aab(-4.05, 0, 2.3, 4.05, 0.7, 2.45, P.green);
+    k.aab(-4, 0, 0, 4, 0.7, 2.4, P.porch, { pad: true }); k.aab(-4.05, 0, 2.3, 4.05, 0.7, 2.45, P.green);
     for (const x of [-3.85, -1.3, 1.3, 3.85]) k.box(x, 0.7, 2.25, 0.2, 2.15, 0.2, P.post);
     k.box(0, 2.82, 1.25, 8.6, 0.16, 2.8, P.roof, { rx: 0.18, pat: 'shingle', ps: 0.18 });
     // M5 detail: green lattice skirt under the porch, green corner boards, gable-window trim head
@@ -324,7 +350,7 @@ function buildHouses(TS, place) {
     k.aab(-0.6, 2.75, 0, 5.4, 2.9, 0.12, P.trim); k.box(2.4, 4.45, 0.25, 1.9, 0.08, 0.5, P.roof, { rx: 0.3 }); k.box(-1.0, 2.2, 1.48, 0.1, 0.18, 0.08, '#2a2a2a');
     k.window(2.4, 3.1, 0, 1.4, 1.2, { frame: P.trim, glass: '#3a3e46', mull: [1, 0] });
     k.window(-4.1, 1.1, 1.4, 0.9, 1.3, { frame: P.trim, glass: '#3a3e46', mull: [0, 1] });
-    k.aab(-3.0, 0, 1.4, -1.2, 0.9, 2.4, P.steps); k.steps(-2.1, 4.0, 1.4, 0.9, 4, P.steps, { tread: 0.4 });
+    k.aab(-3.0, 0, 1.4, -1.2, 0.9, 2.4, P.steps, { pad: true }); k.steps(-2.1, 4.0, 1.4, 0.9, 4, P.steps, { tread: 0.4 });
     k.rail([[-1.3, 4.0, 0.0], [-1.3, 2.4, 0.9], [-1.3, 1.45, 0.9]], 0.9, P.rail); k.rail([[-2.9, 4.0, 0], [-2.9, 2.4, 0.9]], 0.9, P.rail);
     k.door(-2.1, 0.9, 1.4, 0.9, 2.05, P.door, { frame: P.trim }); k.mark('door_heron', -2.1, 4.6);
     k.aab(-0.6, 0, 0, 5.4, 0.04, MN.yard + 3.5, P.drive); for (const x of [1.3, 3.5]) k.aab(x - 0.45, 0, 0, x + 0.45, 0.05, MN.yard + 3.5, P.steps);
@@ -338,7 +364,7 @@ function buildHouses(TS, place) {
     lot(k, 20, MN.yard, '#8f8a5a', { back: 8 });
     k.aab(-3.5, 0.5, -8, 3.5, H + 0.5, 0, P.wall, { lod: true, pat: 'siding', ps: 0.2 }); k.aab(-3.5, 0, -8, 3.5, 0.5, 0, '#c8b4a8'); k.solid(-3.5, -8, 3.5, 2.2, 4.5);
     k.gable(0, -4, 7, 8, H + 0.5, 2.2, P.roof, P.wall, { over: 0.4, ridge: 'z', trim: P.fascia, trimW: 0.34, rp: 'shingle', wp: 'siding', wps: 0.2 });
-    k.aab(-3.5, 0, 0, 3.5, 0.5, 2.0, '#c9b7a8');
+    k.aab(-3.5, 0, 0, 3.5, 0.5, 2.0, '#c9b7a8', { pad: true });
     for (const x of [-3.3, 3.3]) k.box(x, 0.5, 1.85, 0.16, 2.4, 0.16, P.fascia);
     k.box(0, 2.95, 1.0, 7.4, 0.14, 2.2, P.roof, { rx: 0.12, pat: 'shingle', ps: 0.18 });
     // M5 detail: pink skirt boards, white corner boards, gable louvre, porch lamp
@@ -362,7 +388,7 @@ function buildHouses(TS, place) {
     k.gable(0, -5.5, 9, 11, H + 0.6, 2.6, P.roof, P.wall, { over: 0.35, ridge: 'z', trim: P.trim, trimW: 0.26, rp: 'shingle', wp: 'stucco' });
     k.aab(-4.6, H + 0.38, -0.1, 4.6, H + 0.6, 0.06, P.trim);
     for (let i = 0; i < 6; i++) k.box(0, H + 1.05 + i * 0.13, 0.04, 1.3 - i * 0.14, 0.06, 0.04, P.vent); k.box(0, H + 0.95, 0.02, 1.45, 0.92, 0.02, P.trim);
-    k.aab(-4.5, 0.55, -2.0, 4.5, 0.62, 0, '#c8b8a0');                                  // porch floor
+    k.aab(-4.5, 0.55, -2.0, 4.5, 0.62, 0, '#c8b8a0', { pad: true });                                  // porch floor
     for (const x of [-4.2, 4.2]) k.box(x, 0.6, -0.15, 0.3, H, 0.3, P.trim);
     k.rail([[-4.0, -0.15, 0.62], [-0.9, -0.15, 0.62]], 0.9, P.iron, { bal: 0.11 }); k.rail([[0.9, -0.15, 0.62], [4.0, -0.15, 0.62]], 0.9, P.iron, { bal: 0.11 });
     for (let i = 0; i < 6; i++) k.box(-2.45 + (i % 3 - 1) * 0.9, 0.62 + 0.45 + Math.floor(i / 3) * 0.08, -0.14, 0.28, 0.28, 0.02, P.iron, { rz: 0.785 }); // scroll motif
@@ -387,7 +413,7 @@ function buildHouses(TS, place) {
     k.window(3.0, 3.5, 1.6, 0.35, 0.5, { frame: P.trim, glass: '#3c4444', ft: 0.06 });
     const ar = [[2.4, 0], [3.6, 0], [3.6, 1.6]]; for (let i = 0; i <= 10; i++) { const a = i / 10 * Math.PI; ar.push([3.0 + Math.cos(a) * 0.6, 1.6 + Math.sin(a) * 0.62]); }
     k.ext(ar.map(([x, y]) => [x, y + 0.6]), 1.6, 0.03, '#2a3a38');
-    k.steps(3.0, 2.9, 1.6, 0.6, 3, P.steps, { tread: 0.43 }); k.aab(2.2, 0, 1.6, 3.8, 0.6, 2.9 - 1.29, P.steps);
+    k.steps(3.0, 2.9, 1.6, 0.6, 3, P.steps, { tread: 0.43 }); k.aab(2.2, 0, 1.6, 3.8, 0.6, 2.9 - 1.29, P.steps, { pad: true });
     k.mark('door_anteater', 3.0, 3.4);
     k.window(-1.0, 0.9, 0, 2.6, 1.9, { frame: P.wframe, glass: '#3c4444', mull: [4, 3], mt: 0.04, ft: 0.14, sill: P.trim });
     k.window(-0.8, 4.0, 0, 0.6, 0.8, { frame: P.trim, glass: '#3c4444' });
@@ -424,7 +450,7 @@ function buildResidential(TS, place) {
       cornice(x0, x1, H - 0.6, A.victTrim, 0.6, '#3a1a1c'); k.aab(xc - 1.4, H, FZ - 3, xc + 1.4, H + 1.3, FZ - 1.5, A.victTrim);
       for (let f = 1; f < 4; f++) { k.window(xc, f * fh + 0.6, FZ, 1.3, 2.0, { frame: A.victTrim, ft: 0.16, glass: '#3c3a40', mull: [0, 1] }); k.box(xc, f * fh + 2.62, FZ + 0.1, 1.9, 0.26, 0.2, A.victTrim); }
       k.door(xc - 0.8, 1.2, FZ, 1.3, 2.3, '#5a3020', { frame: A.victTrim, panels: '#6a3a28' }); k.window(xc + 1.25, 1.6, FZ, 0.8, 1.5, { frame: A.victTrim, glass: '#3c3a40' });
-      k.aab(xc - 1.6, 0, FZ, xc, 1.2, FZ + 0.6, '#9a4a40'); k.steps(xc - 0.8, 0, 1.5, 1.2, 6, '#9a4a40', { tread: 0.33 });
+      k.aab(xc - 1.6, 0, FZ, xc, 1.2, FZ + 0.6, '#9a4a40', { pad: true }); k.steps(xc - 0.8, 0, 1.5, 1.2, 6, '#9a4a40', { tread: 0.33 });
       for (const s of [-1, 1]) k.rail([[xc - 0.8 + s * 0.8, FZ + 0.6, 1.2], [xc - 0.8 + s * 0.8, -0.1, 0.1]], 0.9, '#f0ece4', { bal: 0.14 }); k.mark('door_apt_vict', xc - 0.8, 0.6); }]);
     // 3. cream stone modern: block joints, black frames, black balcony w/ planters, black front fence, penthouse box
     S.push([5.0, (x0, x1, xc) => { const H = 4 * fh + 0.6; body(x0, x1, H, A.cream, 'block', 0.5);
@@ -453,7 +479,7 @@ function buildResidential(TS, place) {
       cornice(x0, x1, H - 0.6, '#3f6a4a', 0.5, '#3f6a4a');
       for (let f = 0; f < 3; f++) for (const u of [-1.3, 1.3]) { if (f === 0 && u < 0) continue; k.window(xc + u, f * fh + 0.8, FZ, 1.1, 1.6, { frame: '#f2ece0', glass: '#3a3e3c', mull: [0, 1], sill: '#f2ece0' }); k.box(xc + u, f * fh + 2.45, FZ + 0.08, 1.4, 0.18, 0.16, '#f2ece0'); }
       k.door(xc - 1.3, 0.45, FZ, 1.0, 2.2, '#3f6a4a', { frame: '#f2ece0', panels: '#4c7a56' }); k.window(xc - 1.3, 2.8, FZ, 1.0, 0.35, { frame: '#f2ece0', glass: '#4a4a3a' });
-      k.steps(xc - 1.3, FZ + 0.9, 1.4, 0.45, 3, '#bcb4a6', { tread: 0.3 }); k.box(xc + 1.3, 0, FZ + 0.4, 1.4, 0.35, 0.6, '#b0703e'); for (let i = 0; i < 4; i++) k.blob(xc + 0.8 + i * 0.33, 0.45, FZ + 0.4, 0.2, 0.2, 0.2, i % 2 ? '#d04a5a' : '#f0d040'); }]);
+      k.steps(xc - 1.3, FZ + 0.9, 1.4, 0.45, 3, '#bcb4a6', { tread: 0.3 }); k.box(xc + 1.3, 0, FZ + 0.4, 1.4, 0.35, 0.6, '#b0703e', { pad: true }); for (let i = 0; i < 4; i++) k.blob(xc + 0.8 + i * 0.33, 0.45, FZ + 0.4, 0.2, 0.2, 0.2, i % 2 ? '#d04a5a' : '#f0d040'); }]);
     // 6. pink stucco with a white two-storey bay window and a terracotta parapet
     S.push([5.4, (x0, x1, xc) => { const H = 3 * fh + 0.6; body(x0, x1, H, '#e7b3a6', 'stucco'); k.aab(x0, H - 0.4, FZ, x1, H, FZ + 0.18, '#b8603e'); for (let u = x0; u < x1; u += 0.3) k.cyl(u + 0.15, H - 0.05, FZ + 0.12, 0.13, 0.24, '#c06a44', { seg: 6, rz: Math.PI / 2 });
       k.aab(xc - 0.3, fh * 0.9, FZ, xc + 2.4, 3 * fh - 0.1, FZ + 0.9, '#e7b3a6', { pat: 'stucco' }); for (let f = 1; f < 3; f++) { k.window(xc + 1.05, f * fh + 0.5, FZ + 0.9, 1.6, 1.7, { frame: '#f6f2ea', ft: 0.12, glass: '#3a3c40', mull: [1, 0] }); k.aab(xc - 0.3, f * fh + 0.25, FZ, xc + 2.4, f * fh + 0.35, FZ + 1.0, '#f6f2ea'); }
@@ -465,7 +491,7 @@ function buildResidential(TS, place) {
       cornice(x0, x1, H - 0.7, '#e8e0d0', 0.6, '#e8e0d0');
       for (let f = 1; f < 4; f++) for (const u of [-1.2, 1.2]) { k.window(xc + u, f * fh + 0.7, FZ, 1.0, 1.7, { frame: '#e8e2d6', glass: '#323436', mull: [0, 1], sill: '#e8e0d0' }); k.box(xc + u, f * fh + 2.5, FZ + 0.09, 1.3, 0.22, 0.18, '#e8e0d0'); }
       k.door(xc + 1.0, 1.0, FZ, 1.1, 2.3, '#2a2422', { frame: '#e8e0d0', lite: '#4a4a48' }); k.window(xc - 1.2, 1.3, FZ, 1.0, 1.5, { frame: '#e8e2d6', glass: '#323436', grille: '#1a1a1a' });
-      k.aab(xc + 0.2, 0, FZ, xc + 1.8, 1.0, FZ + 0.6, '#b8b0a4'); k.steps(xc + 1.0, -0.2, 1.4, 1.0, 5, '#b8b0a4', { tread: 0.36 });
+      k.aab(xc + 0.2, 0, FZ, xc + 1.8, 1.0, FZ + 0.6, '#b8b0a4', { pad: true }); k.steps(xc + 1.0, -0.2, 1.4, 1.0, 5, '#b8b0a4', { tread: 0.36 });
       for (const s of [-1, 1]) k.rail([[xc + 1.0 + s * 0.72, FZ + 0.6, 1.0], [xc + 1.0 + s * 0.72, -0.3, 0.1]], 0.9, '#1e1a1a', { bal: 0.12 }); }]);
     for (const [w, fn] of S) { fn(x, x + w, x + w / 2); x += w; }
     k.aab(-19.75, 0, FZ, 19.75, 0.04, 0, '#cfc4b4');                                        // front areaway paving

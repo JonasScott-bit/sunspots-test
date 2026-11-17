@@ -301,12 +301,15 @@ export function installLivingWorld({ T, TS, level, wolfState, scene, camera, fel
     const wsp = wolfState.speed || 0;
     for (const p of PEDS) {
       const g = p.root; let spd = 0;
+      const gy = (x, z) => TS.groundY?.(x, z, 0.25) ?? 0;
       if (p.tumble > 0) { p.tumble -= dt; g.rotation.x = Math.sin(Math.min(1, (1.4 - p.tumble) * 3) * Math.PI / 2) * -1.3 * (p.tumble > 0.3 ? 1 : p.tumble / 0.3); }
-      else if (p.chase) { const e = p.chase; const dx = e.p.x - g.position.x, dz = e.p.z - g.position.z; g.rotation.y = Math.atan2(dx, dz); spd = 3; g.position.x += Math.sin(g.rotation.y) * spd * dt; g.position.z += Math.cos(g.rotation.y) * spd * dt; }
-      else if (W && R() < 0.5) { spd = 2.4; g.rotation.y += dt * 4; g.position.y = Math.abs(Math.sin(t * 6 + p.k * 9)) * 0.5; }
-      else if (p.wait > 0) { p.wait -= dt; g.position.y = 0; }
-      else { const [a, b] = p.path, L = Math.hypot(b[0] - a[0], b[1] - a[1]); p.k += p.dir * p.v * dt / L; if (p.k > 1 || p.k < 0) { p.k = Math.max(0, Math.min(1, p.k)); p.dir *= -1; p.wait = 1 + R() * 4; }
-        const tx = a[0] + (b[0] - a[0]) * p.k, tz = a[1] + (b[1] - a[1]) * p.k; spd = p.v; g.position.set(THREE.MathUtils.lerp(g.position.x, tx, Math.min(1, dt * 3)), 0, THREE.MathUtils.lerp(g.position.z, tz, Math.min(1, dt * 3)));
+      else if (p.chase) { const e = p.chase; const dx = e.p.x - g.position.x, dz = e.p.z - g.position.z; g.rotation.y = Math.atan2(dx, dz); spd = 3; g.position.x += Math.sin(g.rotation.y) * spd * dt; g.position.z += Math.cos(g.rotation.y) * spd * dt; g.position.y = gy(g.position.x, g.position.z); }
+      else if (W && R() < 0.5) { spd = 2.4; g.rotation.y += dt * 4; g.position.y = gy(g.position.x, g.position.z) + Math.abs(Math.sin(t * 6 + p.k * 9)) * 0.5; }
+      else if (p.wait > 0) { p.wait -= dt; g.position.y = gy(g.position.x, g.position.z); }
+      else { const [a, b] = p.path, L = Math.hypot(b[0] - a[0], b[1] - a[1]); p.k += p.dir * p.v * dt / L; if (p.k > 1 || p.k < 0) { p.k = Math.max(0, Math.min(1, p.k)); p.dir *= -1; p.wait = 1 + R() * 4; spd = 0; }
+        else spd = p.v;
+        const tx = a[0] + (b[0] - a[0]) * p.k, tz = a[1] + (b[1] - a[1]) * p.k;
+        g.position.set(tx, gy(tx, tz), tz);   // snap to the path (no lerp lag) so feet stay with the stride
         g.rotation.y = Math.atan2((b[0] - a[0]) * p.dir, (b[1] - a[1]) * p.dir); if (p.tumble <= 0) g.rotation.x = 0; }
       const d = near(g.position);
       if (!busy() && !level.inCar && d < 1.1 && wsp > 5 && p.tumble <= 0) { p.tumble = 1.4; say(p.name, pick(LINES.ped.bump)[1], () => g.position, 2.2); offense(1, 'bumped ' + p.name); }

@@ -95,7 +95,7 @@ function chamBox(w, h, d, r) {
 export const KIT_STATS = { boxes: 0, cham: 0 };
 
 export class Kit {
-  constructor() { this.seed = FT.seed = (FT.n = (FT.n || 0) + 1) * 7 + 3; this.parts = []; this.lo = []; this.glow = []; this.solids = []; this.marks = {}; this.extras = []; this.stack = [new THREE.Matrix4()]; }
+  constructor() { this.seed = FT.seed = (FT.n = (FT.n || 0) + 1) * 7 + 3; this.parts = []; this.lo = []; this.glow = []; this.solids = []; this.pads = []; this.marks = {}; this.extras = []; this.stack = [new THREE.Matrix4()]; }
   get M() { return this.stack[this.stack.length - 1]; }
   // nested sub-frame: (x, y, z, rotY) relative to the current frame
   frame(x, y, z, ry, fn) { const m = new THREE.Matrix4().makeRotationY(ry || 0).setPosition(x, y, z); this.stack.push(this.M.clone().multiply(m)); fn(this); this.stack.pop(); return this; }
@@ -114,6 +114,7 @@ export class Kit {
   // box: centre x, bottom y0, centre z, size w,h,d; o.rx/ry/rz rotate about the box centre
   box(x, y0, z, w, h, d, color, o = {}) {
     _e.set(o.rx || 0, o.ry || 0, o.rz || 0); _q.setFromEuler(_e);
+    if (o.pad) this.pad(x - w / 2, z - d / 2, x + w / 2, z + d / 2, y0 + h);
     KIT_STATS.boxes++;
     const mn = Math.min(w, h, d), mx = Math.max(w, h, d);
     if (FELT_TOWN && !o.glow && mn >= 0.2 && mx >= 0.8) { // soft clay edge
@@ -209,7 +210,15 @@ export class Kit {
     return this;
   }
   // stack of steps rising toward -z (into the house) from front edge zf, top at height top
-  steps(x, zf, w, top, n, color, o = {}) { const tread = o.tread ?? 0.3; for (let i = 0; i < n; i++) this.box(x, o.y0 || 0, zf - tread * (n + i) / 2, w, top * (i + 1) / n, tread * (n - i), color); return this; }
+  steps(x, zf, w, top, n, color, o = {}) {
+    const tread = o.tread ?? 0.3, y0 = o.y0 || 0;
+    for (let i = 0; i < n; i++) {
+      const zc = zf - tread * (n + i) / 2, d = tread * (n - i), h = top * (i + 1) / n;
+      this.box(x, y0, zc, w, h, d, color);
+      this.pad(x - w / 2, zc - d / 2, x + w / 2, zc + d / 2, y0 + h);
+    }
+    return this;
+  }
   // a run of pickets / posts between two points (x,z) — height h
   pickets(a, b, h, color, o = {}) {
     const gap = o.gap ?? 0.16, L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.round(L / gap)), ry = Math.atan2(-(b[1] - a[1]), b[0] - a[0]);
@@ -229,6 +238,8 @@ export class Kit {
   siding(x0, x1, y0, y1, z, color, o = {}) { this.box((x0 + x1) / 2, y0, z + 0.008, x1 - x0, y1 - y0, 0.016, o.base || color, { pat: o.pat || 'siding', ps: o.step ?? 0.24 }); return this; }
   // register an axis-aligned solid (local corners) for walking collisions + camera occlusion
   solid(x0, z0, x1, z1, h = 4) { this.solids.push([x0, z0, x1, z1, h, this.M.clone()]); return this; }
+  // walkable top of a stoop / tread (y = top height). Not a wall: collide leaves these alone, groundY uses them.
+  pad(x0, z0, x1, z1, y) { this.pads.push([x0, z0, x1, z1, y, this.M.clone()]); return this; }
   // a ready-made mesh (sign, text) placed in the current frame
   put(mesh, x, y, z, ry = 0, rx = 0) { mesh.position.set(x, y, z); mesh.rotation.set(rx, ry, 0, 'YXZ'); mesh.applyMatrix4(this.M); this.extras.push(mesh); return mesh; }
   mark(name, x, z, extra) { const p = new THREE.Vector3(x, 0, z).applyMatrix4(this.M); this.marks[name] = { x: p.x, z: p.z, ...(extra || {}) }; return this; }

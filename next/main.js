@@ -830,7 +830,7 @@ function frame() {
     body.scale.y = wolf.userData.sy;
     mixer.update(dt);
     const hd = wolf.userData.head; if (hd) { hd.yaw = puppet.headYaw || 0; hd.tilt = puppet.headTilt || 0; hd.e.set(hd.tilt * 0.4, hd.yaw, hd.tilt); hd.q.setFromEuler(hd.e); hd.bone.quaternion.multiply(hd.q); }
-    wolfState.pos.copy(wolf.position).setY(0); wolfState.yaw = wolf.rotation.y; wolfState.speed = sp;
+    wolfState.pos.copy(wolf.position); if (TS) wolfState.pos.y = TS.groundY(wolfState.pos.x, wolfState.pos.z, 0.28); else wolfState.pos.y = 0; wolfState.yaw = wolf.rotation.y; wolfState.speed = sp;
   }
   // wolf movement
   if (wolfReady && level.mode === 'walk' && !level.frozen && !puppet.on && !CR?.frozen) {
@@ -847,13 +847,14 @@ function frame() {
       let d = desired - wolfState.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
       wolfState.yaw += d * (1 - Math.exp(-dt * 10));
     }
-    const p = wolfState.pos;
+    const p = wolfState.pos, px = p.x, pz = p.z, py = p.y || 0;
     p.x += Math.sin(wolfState.yaw) * wolfState.speed * dt; p.z += Math.cos(wolfState.yaw) * wolfState.speed * dt;
     for (const c of colliders) { const dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz), r = c.r + 0.45; if (d < r && d > 1e-4) { p.x = c.x + dx / d * r; p.z = c.z + dz / d * r; } }
     { const fc = level.free; if (fc?.root?.visible) for (const o of [-1.1, 1.1]) { const cx = fc.pos.x + Math.sin(fc.yaw) * o, cz = fc.pos.z + Math.cos(fc.yaw) * o, dx = p.x - cx, dz = p.z - cz, d = Math.hypot(dx, dz), r = 1.1 + 0.45; if (d < r && d > 1e-4) { p.x = cx + dx / d * r; p.z = cz + dz / d * r; } } }   // run 12: his parked car is solid
-    if (TS) { TS.collide(p, 0.45); if (TS.clampWalk(p)) { if (!level.edgeWalkSaid) { level.toast('Too far to walk. Catch the ride.', 2.4); level.edgeWalkSaid = true; } } else if (TS.inTown(p.x, p.z, -8)) level.edgeWalkSaid = false; }
+    if (TS) { TS.collide(p, 0.45); if (TS.clampWalk(p)) { if (!level.edgeWalkSaid) { level.toast('Too far to walk. Catch the ride.', 2.4); level.edgeWalkSaid = true; } } else if (TS.inTown(p.x, p.z, -8)) level.edgeWalkSaid = false;
+      const gy = TS.groundY(p.x, p.z, 0.28); if (gy - py > 0.42) { p.x = px; p.z = pz; p.y = py; } else p.y = gy; }
     else { const [cx, cz] = LAYOUT.townCenter, R0 = LAYOUT.walkRadius, dx = p.x - cx, dz = p.z - cz, pr = Math.hypot(dx, dz); // invisible boundary: town on foot, the desert is for driving
-      if (pr > R0) { p.x = cx + dx * R0 / pr; p.z = cz + dz * R0 / pr; if (!level.edgeWalkSaid) { level.toast('Too far to walk. Catch the ride.', 2.4); level.edgeWalkSaid = true; } } else if (pr < R0 - 6) level.edgeWalkSaid = false; }
+      if (pr > R0) { p.x = cx + dx * R0 / pr; p.z = cz + dz * R0 / pr; if (!level.edgeWalkSaid) { level.toast('Too far to walk. Catch the ride.', 2.4); level.edgeWalkSaid = true; } } else if (pr < R0 - 6) level.edgeWalkSaid = false; p.y = 0; }
     wolf.position.copy(p); wolf.rotation.set(0, wolfState.yaw, 0); wolf.scale.setScalar(wolfBaseScale);
     // anim blend
     const sp = wolfState.speed;
@@ -1167,18 +1168,22 @@ function installBackSeat() {
 
 // ---------------------------------------------------------------- horses: riding GRAVY (Bear's horse). RIDE at the horse, DISMOUNT like GET OUT
 const _rq = new THREE.Quaternion(), _re = new THREE.Euler(), _rv = new THREE.Vector3();
+const GRAVY_SIT = { hip: -0.92, out: 0.88, knee: 1.05, arm: 0.55, fore: -0.35, lift: 0.1 };   // B9: sit ON the saddle, thighs around the barrel (not through it)
 function seatRider(t) {
   PET.seatMatrix(_sm); _sm.decompose(_rv, _rq, tmpV);
-  wolf.position.set(_rv.x, _rv.y - rideHip, _rv.z); wolf.rotation.set(0, wolfState.yaw, 0); wolf.scale.setScalar(wolfBaseScale);
+  const saddleY = _rv.y;
+  wolf.position.set(_rv.x, saddleY - rideHip + GRAVY_SIT.lift, _rv.z); wolf.rotation.set(0, wolfState.yaw, 0); wolf.scale.setScalar(wolfBaseScale);
   actWalk.setEffectiveWeight(0); actRun.setEffectiveWeight(0); actIdle.setEffectiveWeight(1); actIdle.timeScale = 1; mixer.update(0);
   const u = wolf.userData, body = u.body, gal = THREE.MathUtils.clamp((wolfState.speed - 6) / 5, 0, 1);
-  body.rotation.set(0.1 + 0.12 * gal, 0, Math.sin(t * 6) * 0.015 * gal); body.position.x = 0;
+  body.rotation.set(0.08 + 0.1 * gal, 0, Math.sin(t * 6) * 0.015 * gal); body.position.x = 0;
   if (!u.rideBones) { const b = (n) => body.getObjectByName(n); u.rideBones = { lu: b('LeftUpLeg'), ru: b('RightUpLeg'), ll: b('LeftLeg'), rl: b('RightLeg'), la: b('LeftArm'), ra: b('RightArm'), lf: b('LeftForeArm'), rf: b('RightForeArm') }; }
-  const R = u.rideBones, P = window.__rideTune || { hip: -1.25, out: 0.42, knee: 1.35, arm: 0.9, fore: -0.5 };
+  const R = u.rideBones, P = window.__rideTune || GRAVY_SIT;
   const rot = (bn, x, y, z) => { if (!bn) return; _re.set(x, y, z); _rq.setFromEuler(_re); bn.quaternion.multiply(_rq); };
   rot(R.lu, P.hip, 0, P.out); rot(R.ru, P.hip, 0, -P.out); rot(R.ll, P.knee, 0, 0); rot(R.rl, P.knee, 0, 0);
   rot(R.la, P.arm, 0, 0); rot(R.ra, P.arm, 0, 0); rot(R.lf, 0, P.fore, 0); rot(R.rf, 0, -P.fore, 0);
   wolf.updateMatrixWorld(true);
+  const hb = body.getObjectByName('Hips');
+  if (hb) { const hy = hb.getWorldPosition(tmpV).y; if (hy < saddleY + 0.03) wolf.position.y += saddleY + 0.03 - hy; wolf.updateMatrixWorld(true); }
 }
 // run 14b: sit the Wolf in any carnival seat (matrix = seat in world, pose = bone offsets), or stand him still at a booth
 function measureHip() { wolf.updateMatrixWorld(true); const hb = wolf.userData.body.getObjectByName('Hips'); rideHip = hb ? hb.getWorldPosition(_rv).y - wolf.position.y : 0.9 * wolfBaseScale; }
@@ -1218,6 +1223,7 @@ body.riding #bDismount{display:block} body.riding.scene #bDismount{display:none}
     for (const [ox, oz] of [[-lx * 1.3, -lz * 1.3], [lx * 1.3, lz * 1.3], [-fx * 1.9, -fz * 1.9], [fx * 1.9, fz * 1.9]]) { const p = new THREE.Vector3(PET.pos.x + ox, 0, PET.pos.z + oz), q = p.clone(); if (TS) TS.collide(q, 0.45);
       let hit = q.distanceTo(p) > 0.05; for (const k of colliders) if (k !== cols[0] && k !== cols[1] && Math.hypot(p.x - k.x, p.z - k.z) < k.r + 0.45) hit = true; if (!hit) { spot = p; break; } }
     if (!spot) { spot = new THREE.Vector3(PET.pos.x - lx * 1.3, 0, PET.pos.z - lz * 1.3); if (TS) { TS.collide(spot, 0.45); TS.clampWalk(spot); } }
+    if (TS) spot.y = TS.groundY(spot.x, spot.z, 0.28);
     wolfState.pos.copy(spot); wolfState.speed = 0; wolf.position.copy(spot); wolf.userData.body.rotation.set(0, 0, 0); syncCols();
     if (!force) audio.ui?.('confirm'); return true; };
   const say1 = [['BEAR (from the window)', 'That\'s Gravy. Take him out. He gets bored.'], ['WOLF', 'Hi, Gravy.'], ['', 'Gravy looks at you with both eyes. Separately.']];
