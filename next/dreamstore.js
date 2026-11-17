@@ -13,7 +13,7 @@ import { quality } from './quality.js';
 
 const O = { x: 90, z: -1086 };                 // interior centre (world); local +z = toward the door/camera, -z = back wall
 const HW = 4.4, HD = 3.2, H = 3.3, FR = HD + 3.4;   // half width, half depth of the shop floor, height; FR = front wall (an entry run so the camera sits inside)
-const DOOR = [0, HD + 0.7], COUNTER = { x: 3.25, z: 1.35 }, CLERK_AT = [3.95, 1.35];
+const DOOR = [0, HD + 0.7], COUNTER = { x: 3.25, z: 1.35 }, CLERK_AT = [4.1, 1.35];
 const PRODUCTS = [   // invented packaging only (same names as the snack run shelf)
   { id: 'puffs', n: 'MOON PUFFS', kind: 'bag', c: '#f3d36b', f: '#4a2a7a', b: '#7a4ad8' },
   { id: 'sour', n: 'SOUR SUNSPOTS', kind: 'bag', c: '#ff8a5c', f: '#fff3dc', b: '#ffd23a' },
@@ -120,15 +120,16 @@ export function createDreamStore(ctx) {
       for (let i = 0; i < per; i++) {
         // half drift off the shelves (back wall + gondolas), half hang up in the air over the aisles
         let x, y, z; const r = Math.random();
-        if (r < 0.35) { x = -HW + 0.6 + Math.random() * (HW * 2 - 1.2); z = -HD + 0.55 + Math.random() * 0.5; y = 0.5 + Math.random() * 2.2; }
-        else if (r < 0.6) { const gx = Math.random() < 0.5 ? -1.75 : 0.75; x = gx + (Math.random() - 0.5) * 1.2; z = 0.05 + (Math.random() - 0.5) * 1.6; y = 1.35 + Math.random() * 1.4; }
-        else { x = -HW + 0.5 + Math.random() * (HW * 2 - 1.0); z = -HD + 0.8 + Math.random() * (HD * 2 - 1.6); y = 1.9 + Math.random() * 1.15; }
+        // clearances (drift +-0.28/0.16/0.22 + half a bag): never through a shelf, a gondola top, a wall or the ceiling
+        if (r < 0.35) { x = -HW + 0.8 + Math.random() * (HW * 2 - 1.6); z = -HD + 1.05 + Math.random() * 0.3; y = 0.55 + Math.random() * 2.1; }
+        else if (r < 0.6) { const gx = Math.random() < 0.5 ? -1.75 : 0.75; x = gx + (Math.random() - 0.5) * 0.8; z = 0.05 + (Math.random() - 0.5) * 1.4; y = 1.75 + Math.random() * 0.95; }
+        else { x = -HW + 0.8 + Math.random() * (HW * 2 - 1.6); z = -HD + 1.1 + Math.random() * (HD * 2 - 0.6); y = 1.9 + Math.random() * 0.85; }
         st.push({ x, y, z, ph: Math.random() * 6.28, a: 0.25 + Math.random() * 0.35, s: (Math.random() < 0.5 ? -1 : 1) * (0.25 + Math.random() * 0.6), tilt: 0.3 + Math.random() * 0.5, sc: 0.85 + Math.random() * 0.4 });
       }
       DS.inst.push({ im, st, p }); }
     // the grabbable ones: bigger, glowing halo, at paw height in the aisles
     const haloM = new THREE.SpriteMaterial({ map: soft('rgba(255,236,190,0.9)'), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
-    const spots = [[-3.3, -1.6], [-0.55, -1.75], [2.0, -1.7], [-3.0, 0.9], [-0.5, 1.15], [1.9, 0.4], [-2.4, 2.1], [0.9, 2.25], [-1.1, -0.95], [3.4, -0.6]];
+    const spots = [[-3.3, -1.6], [-0.55, -1.75], [2.0, -1.7], [-3.0, 0.9], [-0.5, 1.15], [1.9, 0.4], [-2.4, 2.1], [0.9, 2.25], [-1.0, -1.3], [3.4, -0.6]];
     spots.forEach(([x, z], i) => { const p = PRODUCTS[i % PRODUCTS.length]; const g = new THREE.Group(); const m = new THREE.Mesh(p.geo, p.mat); m.scale.setScalar(p.kind === 'bag' ? 1.25 : 1.7); g.add(m);
       const h = new THREE.Sprite(haloM); h.scale.setScalar(0.85); g.add(h); g.position.set(x, 1.05, z); G.add(g);
       DS.heroes.push({ g, m, h, p, x, z, ph: i * 0.9, got: false, fly: 0 }); });
@@ -163,7 +164,8 @@ export function createDreamStore(ctx) {
 #dsOv .pad{position:absolute;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;background:rgba(255,240,220,.18);border:2px solid rgba(255,240,220,.45);display:none;pointer-events:none}
 #dsOv .pad i{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(255,240,220,.7)}
 #dsFade{position:fixed;inset:0;z-index:12;background:#140a18;opacity:0;pointer-events:none;transition:opacity .45s}
-body.dsIn #sceneSub{bottom:calc(env(safe-area-inset-bottom,0px) + 64px)}`;
+body.dsIn #sceneSub{bottom:calc(env(safe-area-inset-bottom,0px) + 64px)}
+body.dsIn #chatBubble,body.scene #chatBubble,body.dsIn #fuzzo{display:none!important}`;
     document.head.appendChild(st);
     ov = document.createElement('div'); ov.id = 'dsOv'; ov.innerHTML = '<div class="haze"></div><div class="vig"></div><div class="pill"></div><div class="tip">DRAG TO WALK · TAP A GLOWING SNACK</div><div class="pad"><i></i></div>';
     document.body.appendChild(ov); const f = document.createElement('div'); f.id = 'dsFade'; document.body.appendChild(f); DS.fadeEl = f;
@@ -181,7 +183,7 @@ body.dsIn #sceneSub{bottom:calc(env(safe-area-inset-bottom,0px) + 64px)}`;
   function tapAt(x, y) {
     ndc.set(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
     let best = null, bd = 1e9; const tmp = new THREE.Vector3();
-    for (const h of DS.heroes) { if (h.got) continue; h.g.getWorldPosition(tmp); const d = ray.ray.distanceSqToPoint(tmp); if (d < 0.36 && d < bd) { bd = d; best = h; } }
+    for (const h of DS.heroes) { if (h.got) continue; h.g.getWorldPosition(tmp); const d = ray.ray.distanceSqToPoint(tmp), r = 0.55 + 0.07 * tmp.distanceTo(camera.position); if (d < r * r && d < bd) { bd = d; best = h; } }   // forgiving: a fingertip on a phone
     if (best) { DS.goal = { x: best.x, z: best.z + 0.0, hero: best }; return; }
     // tap the floor = walk there
     const hit = new THREE.Vector3(); if (ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit)) DS.goal = { x: clamp(hit.x - O.x, -HW + 0.4, HW - 0.4), z: clamp(hit.z - O.z, -HD + 0.75, HD + 1.8) };
