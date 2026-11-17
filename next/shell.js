@@ -3,7 +3,8 @@
 //    NEW GAME (confirm, wipes the save, restarts straight into play), SETTINGS, CREDITS.
 //  * Settings (title + pause): sound mode + volumes, QUALITY (auto by device / high / medium / low, live), TEXT SIZE,
 //    INVERT LOOK. Stored by quality.js ('sunspots.settings').
-//  * Pause (II button, Esc/P, or the app going to the background): RESUME, NIGHTS, SETTINGS, CREDITS, MAIN MENU.
+//  * Pause (II button, Esc/P, or the app going to the background): RESUME, NIGHTS, SETTINGS, CREDITS, MANUAL, MAIN MENU.
+//  * MANUAL (title + pause): the instruction booklet, manualview.js + manual/pages/*.webp, fetched only when opened.
 //    Freezes the town loop (main.js checks window.__paused) and the audio clock.
 //  * Seven Nights: Sunspots open each Night (window.__msnNights from missions/kit.js, same table here as a fallback).
 //    A felt card announces each new Night; the GO sheet fast-travels only to districts that Night has opened (walking
@@ -76,6 +77,11 @@ css.textContent = `
 #titleScr.land .menu.shTall .bPlay{height:60px;font-size:22px}
 #titleScr.land .menu.shTall .bNew,#titleScr.land .menu.shTall .bSet,#titleScr.land .menu.shTall .bCred{height:44px}
 #titleScr.land .menu.shTall .row{gap:8px}
+#titleScr .menu .bMan{width:100%;height:50px;font-size:15px;flex:none}
+#titleScr.land .menu.shTall .bMan{height:44px}
+#shOv .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+#shOv .row3 .felt{font-size:12px;letter-spacing:.1em;padding:0 4px}
+@media (orientation:portrait),(max-width:400px){#shOv .row3 .felt{font-size:11px;letter-spacing:.05em}}
 #titleScr .panel{overflow-y:auto!important;-webkit-overflow-scrolling:touch}
 #titleScr .panel .shRows{display:flex;flex-direction:column;gap:10px}
 #titleScr .panel[data-p=newgame] p{margin:0;font-size:15px;line-height:1.45;text-align:center}
@@ -195,6 +201,9 @@ function wireSettings(root) {
   root.addEventListener('input', (e) => { const i = e.target.closest('input[data-vol]'); if (!i) return; i.style.setProperty('--v', i.value + '%'); i.nextElementSibling.textContent = i.value + '%'; window.__audio?.setVolumes?.({ [i.dataset.vol]: i.value / 100 }); });
 }
 
+// ------------------------------------------------------------------ the manual (manualview.js, loaded on the first tap only)
+function openManual(onClose) { import('./manualview.js').then((m) => m.openManual({ onClose })).catch((e) => console.warn('manual', e)); }
+
 // ------------------------------------------------------------------ title menu: CONTINUE / NEW GAME / SETTINGS / CREDITS
 const T = document.getElementById('titleScr');
 const CREDITS_HTML = creditsHTML();   // credits.js (CREATOR_NAME lives there)
@@ -213,6 +222,7 @@ if (T) {
     nb.addEventListener('click', () => { sfx(); for (const p of T.querySelectorAll('.panel')) p.classList.toggle('open', p === panel); T.classList.add('paneled'); });
     panel.querySelector('.bWipe').addEventListener('click', () => { sfx('sfx_ui_confirm'); wipeSave(); try { sessionStorage.setItem('sunspots.autoplay', '1'); } catch (_) {} const q = new URLSearchParams(location.search); q.delete('fresh'); location.search = q.toString(); });
   } else if (play) play.firstChild.textContent = 'NEW GAME';
+  if (menu && row) { const mb = document.createElement('button'); mb.className = 'felt cream bMan'; mb.textContent = 'MANUAL'; menu.insertBefore(mb, row.nextSibling); mb.addEventListener('click', () => { sfx(); openManual(); }); }
   if (DEMO && menu) { const d = document.createElement('div'); d.className = 'saveInfo'; d.textContent = 'FREE DEMO · NIGHT 1'; menu.appendChild(d); menu.classList.add('shTall'); }
   // extra settings rows in the title's settings panel (its own sound rows stay)
   const sp = T.querySelector('.panel[data-p=settings]');
@@ -231,7 +241,7 @@ function show(v, html) { view = v; card.dataset.v = v; card.innerHTML = html; ov
 function hide() { ov.classList.remove('on'); view = null; const f = onClose; onClose = null; f?.(); }
 card.addEventListener('click', (e) => {
   const b = e.target.closest('button[data-a]'); if (!b) return; const a = b.dataset.a; sfx();
-  if (a === 'resume') resume(); else if (a === 'nights') nightsView(); else if (a === 'settings') settingsView(); else if (a === 'credits') creditsView();
+  if (a === 'resume') resume(); else if (a === 'nights') nightsView(); else if (a === 'settings') settingsView(); else if (a === 'credits') creditsView(); else if (a === 'manual') openManual();
   else if (a === 'back') pauseView(); else if (a === 'menu') { show('quit', `<h2>MAIN MENU</h2><p>Your game saves as you play. Head back to the title?</p><button class="felt coral" data-a="quit">YES, MAIN MENU</button><button class="felt cream" data-a="back">KEEP PLAYING</button>`); }
   else if (a === 'quit') { try { window.__journal && window.__town?.M?.save?.(); } catch (_) {} const q = new URLSearchParams(location.search); for (const k of ['fresh', 'menu', 'intro', 'pause', 'room']) q.delete(k); q.set('intro', '0'); location.search = q.toString(); }
   else if (a === 'close') hide();
@@ -248,7 +258,7 @@ function pauseView() {
   const n = night(), c = count(), tt = total(), N = NIGHTS()[n], nx = N && !(DEMO && N.n > 1) ? `${Math.max(0, N.need - c)} more ☀ opens Night ${N.n}` : (DEMO ? 'Free demo: Night 1' : 'Every Night is open');
   show('pause', `<h2>PAUSED</h2><h3>${esc(nightName(n))}</h3><p>${c}${tt ? ' of ' + tt : ''} ☀ Sunspots · ${esc(nx)}</p>
     <button class="felt mustard" data-a="resume">RESUME</button><div class="row2"><button class="felt cobalt" data-a="nights">NIGHTS</button><button class="felt coral" data-a="settings">SETTINGS</button></div>
-    <div class="row2"><button class="felt cream" data-a="credits">CREDITS</button><button class="felt cream" data-a="menu">MAIN MENU</button></div>
+    <div class="row3"><button class="felt cream" data-a="credits">CREDITS</button><button class="felt cream" data-a="manual">MANUAL</button><button class="felt cream" data-a="menu">MAIN MENU</button></div>
     <small class="build" style="display:block;margin-top:10px;opacity:.55;font-size:11px;letter-spacing:.06em">build ${esc(window.__build || '?')} · ${esc(window.__quality?.t?.label || '')} · ${(window.__sunspots?.renderer?.getPixelRatio?.() || 0).toFixed(2)}x</small>`);
 }
 function nightsView() {
