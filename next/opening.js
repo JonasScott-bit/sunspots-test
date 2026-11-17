@@ -123,18 +123,20 @@ export function installOpening(L, { toast } = {}) {
         { do: 'say', who: 'heron', text: 'Store closes at two.', dur: 1.5 },
         { do: 'say', who: 'bear', text: "Two o'clock? I usually get there around three.", vo: 'vo_bear_10' },
         { do: 'call', fn: () => turnCrew(true) },
+        // hold the Wolf on his mark through Ram's line AND his own, so he's already facing the crew at the cut
+        { do: 'call', fn: () => { pose(); clearInterval(holdT); const t0 = performance.now(); holdT = setInterval(() => { pose(); if (performance.now() - t0 > 8000) clearInterval(holdT); }, 40); } },
         { do: 'say', who: 'ram', text: "It's his fridge.", dur: 1.5 },
-        // 3. the Wolf
-        { do: 'call', fn: () => { pose(); clearInterval(holdT); const t0 = performance.now(); holdT = setInterval(() => { pose(); if (performance.now() - t0 > 4500) clearInterval(holdT); }, 40); } },   // hold him on his mark through the line (something kept turning him to the street mid-shot)
-        // eye-level medium close-up from the side he's actually facing, read off the model at the cut, so it can't turn into the back of his head
-        { do: 'cam', pos: () => { const w = wolf(), y = w.obj.rotation.y, h = w.headWorld(new THREE_V()); return new THREE_V(h.x + Math.sin(y) * 2.5 - Math.cos(y) * 0.55, h.y + 0.05, h.z + Math.cos(y) * 2.5 + Math.sin(y) * 0.55); }, look: () => { const h = wolf().headWorld(new THREE_V()); h.y -= 0.18; return h; }, fov: PORTRAIT ? 46 : 32 },
+        // 3. the Wolf: eye-level MCU in front of the facing-the-crew yaw (live obj.rotation.y at the cut was still mid-turn,
+        // so phone runs often showed his back or a profile). Fixed mark, closer; portrait fov 24 becomes ~49 after portraitFov.
+        { wait: 0.2 },
+        { do: 'cam', pos: () => { const h = wolf().headWorld(new THREE_V()), y = yawTo(WOLF_AT, COUCH), d = PORTRAIT ? 1.25 : 1.45, s = 0.16; return new THREE_V(h.x + Math.sin(y) * d - Math.cos(y) * s, h.y + 0.02, h.z + Math.cos(y) * d + Math.sin(y) * s); }, look: () => { const h = wolf().headWorld(new THREE_V()); h.y -= 0.02; return h; }, fov: PORTRAIT ? 24 : 28 },
         { do: 'say', who: 'wolf', text: 'Two minutes. I can do two minutes.', vo: 'vo_wolf_15' },
-        // 4. headlights: Moth's cab walks up Mesa Rd on its boots and stops outside the house
-        { do: 'cam', pos: [35.0, 0.75, 57.2], look: { who: 'car', y: 0.9 }, fov: 34 },
+        // 4. headlights: closer low shot so the arriving cab fills the portrait letterbox
+        { do: 'cam', pos: [32.6, 0.82, 57.5], look: { who: 'car', y: 0.95 }, fov: 28 },
         { do: 'move', who: 'car', path: [[12, 59.8], [CAB[0], CAB[1]]], dur: 3.6, ease: 'out', endYaw: Math.PI / 2 },
         { do: 'audio', cue: 'sfx_boots_stop' },
-        // 5. Moth leans out of his window at the Wolf (moth.js lean); one line
-        { do: 'cam', pos: [25.1, 1.95, 54.9], look: { who: 'moth', head: true, dy: -0.1 }, fov: 32 },   // over the Wolf's shoulder
+        // 5. Moth leans out: lower lens, look at his face (1.95 m / dy -0.1 was the top of his head, face pointing down)
+        { do: 'cam', pos: [25.15, 1.55, 55.15], look: { who: 'moth', head: true, dy: 0.06 }, fov: 30 },
         { wait: 0.5 },
         { do: 'say', who: 'moth', text: 'I am aware of the time.', vo: 'vo_moth_16' },
         { do: 'audio', cue: 'radio_restore', radio: null },
