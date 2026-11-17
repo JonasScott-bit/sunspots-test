@@ -84,6 +84,7 @@ export function installOpening(L, { toast } = {}) {
       L.left = LEFT0;   // the cold open doesn't cost clock time
     };
     const C = (k, y = 1.45) => { const o = crew[k]; return o ? [o.position.x, y * (o.userData.h || 1.8) / 1.8, o.position.z] : [COUCH[0], y, COUCH[1] + 1.8]; };
+    const PORTRAIT = innerHeight > innerWidth;   // the 2.39 frame is narrow on a phone held upright: wider lenses
     D.SCENES.opening = {
       anchor: 'home', blocking: true,
       beats: [
@@ -96,7 +97,7 @@ export function installOpening(L, { toast } = {}) {
         { do: 'say', who: 'ksun dj', text: "If you're out of something, you're out of time.", dur: 2.0 },
         { do: 'call', fn: () => { place = 'MESA LANE'; } },
         // 2. Mesa Lane: the crew in the Wolf's front yard, by the couch. Slow push in from the street.
-        { do: 'cam', pos: [29.0, 1.6, 58.4], look: [29.3, 1.15, 52.6], fov: 40, to: { pos: [29.1, 1.5, 57.0], look: [29.3, 1.2, 52.8] }, dur: 9.5, ease: 'out' },
+        { do: 'cam', pos: [29.0, 1.6, 58.4], look: [29.3, 1.15, 52.6], fov: PORTRAIT ? 64 : 40, to: { pos: [29.1, 1.5, 57.0], look: [29.3, 1.2, 52.8] }, dur: 9.5, ease: 'out' },
         { wait: 1.0 },
         { do: 'say', who: 'ram', text: "We're out.", dur: 1.4 },
         { do: 'say', who: 'bear', text: 'Of what.', dur: 1.2 },
@@ -106,7 +107,7 @@ export function installOpening(L, { toast } = {}) {
         { do: 'call', fn: () => turnCrew(true) },
         { do: 'say', who: 'ram', text: "It's his fridge.", dur: 1.5 },
         // 3. the Wolf
-        { do: 'cam', pos: () => new THREE_V(27.0, 1.5, 52.2), look: () => { const h = wolf().headWorld(new THREE_V()); h.y -= 0.08; return h; }, fov: 30 },
+        { do: 'cam', pos: () => new THREE_V(27.7, 2.25, 53.6), look: () => { const h = wolf().headWorld(new THREE_V()); h.y -= 0.12; return h; }, fov: PORTRAIT ? 42 : 30 },   // high enough to clear his mailbox
         { do: 'look', who: 'wolf', at: C('ram'), track: 2.5, body: false },
         { do: 'say', who: 'wolf', text: 'Two minutes. I can do two minutes.', vo: 'vo_wolf_15' },
         // 4. headlights: Moth's cab walks up Mesa Rd on its boots and stops outside the house
