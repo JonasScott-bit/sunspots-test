@@ -415,7 +415,8 @@ const D = { scene: 26, title: 6.5, roll: 52 };
 // Film coverage: on a spoken line, a hard cut to a medium close-up of the speaker (waist-up, face 3/4 to camera, a sliver of the
 // neighbour, the dawn sky + porch-lamp glow behind). [from, to, who, side]  side: +1 = camera on the speaker's world -x side.
 // 'wide' = the high establishing wide (portrait). Anything not listed falls back to the SHOT keys.
-const CUTS = { land: [[3.0, 7.0, 'moth', 1.0, 0, -1], [10.6, 14.0, 'wolf', 1, 0, 1]], port: [[3.0, 7.4, 'moth', 1.0], [7.4, 10.6, 'bear', 0.6], [10.6, 14.0, 'wolf', 1], [21.2, 24.8, 'squid', -0.55]] };   // [from, to, who, lens angle off his nose (sign = side), extra headroom, landscape: which side of frame he sits, zoom out (horns)]
+const CUTS = { land: [[3.0, 7.0, 'moth', 0.36, 0, -1], [10.6, 14.0, 'wolf', -0.45, 0, -1, 1, 0.5]],   // landscape MCUs: Moth nearly square-on (~15 deg); the Wolf from Moth's side, lifted 0.5 m over Moth's head. At 40 deg the lens looked across the neighbour (Wolf's shoulder in Moth's shot, Bear's head in the Wolf's)
+ port: [[3.0, 7.4, 'moth', 1.0], [7.4, 10.6, 'bear', 0.6], [10.6, 14.0, 'wolf', 1], [21.2, 24.8, 'squid', -0.55]] };   // [from, to, who, lens angle off his nose (sign = side), extra headroom, landscape: which side of frame he sits, zoom out (horns), lift (m)]
 const cutAt = (t, portrait) => (portrait ? CUTS.port : CUTS.land).find((c) => t >= c[0] && t < c[1]) || null;
 const _h = new THREE.Vector3();
 const _he = new THREE.Vector3();
@@ -431,7 +432,7 @@ function coverCam(cut, t, out, look, portrait) {
   const h = c.g.userData.h || 1.7, push = (t - cut[0]) / Math.max(0.5, cut[1] - cut[0]);
   const fov = portrait ? 40 : 30, viewH = h * (portrait ? 0.82 : 0.6) * (cut[6] || 1) * (1 - 0.05 * push);   // waist-up; a slow push-in over the line
   const d = viewH / (2 * Math.tan(fov * Math.PI / 360)), a = c.g.rotation.y + cut[3] * 0.72;   // ~40 degrees off his nose: 3/4
-  out.set(_h.x + Math.sin(a) * d, _h.y - 0.06 * h, _h.z + Math.cos(a) * d);
+  out.set(_h.x + Math.sin(a) * d, _h.y - 0.06 * h + (cut[7] || 0), _h.z + Math.cos(a) * d);   // cut[7]: lift the lens over a neighbour's head
   const off = portrait ? 0 : viewH * 0.32 * (cut[5] ?? -Math.sign(cut[3]));   // landscape: speaker off-centre, looking into the open side, the neighbour sliver behind
   const lx = Math.cos(a) * off, lz = -Math.sin(a) * off;
   look.set(_h.x + lx, _h.y - viewH * ((portrait ? 0.17 : 0.13) - (cut[4] || 0)), _h.z + lz); cam.fov = fov; c.cover = { x: out.x, z: out.z }; c.side = -cut[3];
