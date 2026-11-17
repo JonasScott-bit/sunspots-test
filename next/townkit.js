@@ -187,11 +187,11 @@ export class Kit {
   }
   // window on a wall facing +z at local (x, y0 sill height, z = wall face). Frame, glass, mullions, sill.
   window(x, y0, z, w, h, o = {}) {
-    const f = o.frame || '#f2ece2', ft = o.ft ?? 0.09, glass = o.glass || '#3c4650';
+    const f = o.frame || '#f2ece2', ft = (o.ft ?? 0.09) * (FELT_TOWN ? 1.6 : 1), glass = o.glass || '#3c4650';   // felt town: chunky toy frames
     this.box(x, y0, z + 0.02, w, h, 0.04, glass, { glow: o.glow });
     this.box(x, y0 - ft, z + 0.05, w + ft * 2, ft, 0.08, f); this.box(x, y0 + h, z + 0.05, w + ft * 2, ft, 0.08, f);
     this.box(x - w / 2 - ft / 2, y0, z + 0.05, ft, h, 0.08, f); this.box(x + w / 2 + ft / 2, y0, z + 0.05, ft, h, 0.08, f);
-    const [nx, ny] = o.mull || [0, 0], mt = o.mt ?? 0.05, mc = o.mullCol || f;
+    const [nx, ny] = o.mull || [0, 0], mt = (o.mt ?? 0.05) * (FELT_TOWN ? 1.6 : 1), mc = o.mullCol || f;
     for (let i = 1; i <= nx; i++) this.box(x - w / 2 + w * i / (nx + 1), y0, z + 0.05, mt, h, 0.05, mc);
     for (let j = 1; j <= ny; j++) this.box(x, y0 + h * j / (ny + 1) - mt / 2, z + 0.05, w, mt, 0.05, mc);
     if (o.sill) this.box(x, y0 - ft - 0.08, z + 0.09, w + ft * 2 + 0.16, 0.1, 0.16, o.sill);
