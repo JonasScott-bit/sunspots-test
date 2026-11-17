@@ -18,7 +18,7 @@ import { folk as feltFolk, FOLK, palSpec, animFolk, feltCow } from '../feltfolk.
 const SCALE = 11;                       // game seconds per real second (1:40 -> 2:00 = ~109 s of real driving)
 const T0 = 6000, CLOSE = 7200, STAR_HOME = 8100;   // 1:40:00, 2:00:00, 2:15:00 (seconds after midnight)
 const CAR0 = [24, 60.6, Math.PI / 2], HOME = [31, 60.4], STORE = [90, -1011.5], STORE_ARRIVE = [90, -1001];
-const COUCH = [29.4, 51.6];
+const COUCH = [17.6, 51.2];   // Nov 16: off the East St sidewalk, in the Wolf's front yard west of the driveway
 const INTRO = 'video/snackrun_intro.mp4';
 const ITEMS = {
   puffs: { n: 'MOON PUFFS', s: 'BIG BAG', c: '#f3d36b', f: '#4a2a7a' },

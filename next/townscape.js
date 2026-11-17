@@ -329,7 +329,7 @@ function buildHouses(TS, place) {
     k.door(-2.1, 0.9, 1.4, 0.9, 2.05, P.door, { frame: P.trim }); k.mark('door_heron', -2.1, 4.6);
     k.aab(-0.6, 0, 0, 5.4, 0.04, MN.yard + 3.5, P.drive); for (const x of [1.3, 3.5]) k.aab(x - 0.45, 0, 0, x + 0.45, 0.05, MN.yard + 3.5, P.steps);
     k.aab(-5.4, 0, 1.4, -0.6, 0.035, MN.yard, P.gravel);
-    k.pickets([-9.8, 7.0], [-9.8, -6], 1.3, P.fence, { gap: 0.13 });
+    k.pickets([-7.4, 7.0], [-7.4, -6], 1.3, P.fence, { gap: 0.13 });   // Nov 16: was at local x=-9.8 (world -93.8) on the Palm St sidewalk; lot/sidewalk meet at local x=-8
   }, { tint: '#ff8a7c', foot: [11, 12] });
 
   // ---- GECKO: tiny salmon clapboard, white gable fascia, porch posts, picket rail, red steps, cinder-block planters, leaning guy-wire poles

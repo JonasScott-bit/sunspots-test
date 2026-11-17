@@ -914,13 +914,14 @@ function frame() {
     if (Q.has('carside')) { const c = level.car, sd = +Q.get('carside') || 7; camera.position.set(c.pos.x + Math.cos(c.yaw) * sd + Math.sin(c.yaw) * 1.5, 1.5, c.pos.z - Math.sin(c.yaw) * sd + Math.cos(c.yaw) * 1.5); camera.lookAt(c.pos.x, 1.0, c.pos.z); } }
   else if (level.solo) {   // run 12: his own car. Chase (default) or the Wolf's eyes from the driver seat; eye button / C toggles
     const fc = level.free;
-    if (!level.soloChase) { fc.root.updateMatrixWorld(true); _sp.set(0.48, 1.6, 0.1).applyMatrix4(fc.body.matrixWorld); camera.position.copy(_sp);
+    if (!level.soloChase) { fc.root.updateMatrixWorld(true); _sp.set(0.48, 1.52, 0.22).applyMatrix4(fc.body.matrixWorld); camera.position.copy(_sp);
       _se.set(-0.07 + (fc.bodyPitch || 0) * 0.4 + (fc.pitch || 0) * 0.5, fc.yaw + Math.PI, (fc.bodyRoll || 0) * -0.33 + (fc.lean || 0) * -0.3); camera.quaternion.setFromEuler(_se);
-      wantFov = portrait ? 76 : 62; wantNear = 0.03; }
-    else level.chaseCam(camera, dt, portrait, snapCam, fc);
+      wantFov = portrait ? 68 : 58; wantNear = 0.05; clipSoloCabin(true); }
+    else { level.chaseCam(camera, dt, portrait, snapCam, fc); clipSoloCabin(false); }
     snapCam = false; fpArms.visible = fpCross.visible = false; fpFx.style.opacity = 0;
     const hideW = !level.soloChase; if (wolfReady && hideW !== !!FP.hidden) { FP.hidden = hideW; setWolfGhost(hideW); } }
   else {
+    clipSoloCabin(false);
     const rk2 = smooth(rideK), dist2 = dist + 2.2 * rk2; tmpV.set(wp.x + Math.sin(camYaw) * dist2, hgt + 1.4 * rk2, wp.z + Math.cos(camYaw) * dist2);
     if (snapCam) { FP.tpPos.copy(tmpV); } else FP.tpPos.lerp(tmpV, 1 - Math.exp(-dt * 5));
     camTarget.set(wp.x, (portrait ? 2.6 : 2.75) + 1.1 * rk2, wp.z);
@@ -962,7 +963,11 @@ function frame() {
   const cc = DEBUG.closeCam; // screenshot/QA hook: close-up orbit relative to the wolf's facing
   if (CR && wolfReady && !QCAM) CR.cam(camera, dt, portrait);
   if (cc && wolfReady) { const a = wolfState.yaw + (cc.yaw || 0); camera.position.set(wp.x + Math.sin(a) * cc.dist, cc.h, wp.z + Math.cos(a) * cc.dist); camTarget.set(wp.x, cc.ty, wp.z); camera.lookAt(camTarget); }
-  if (QCAM) { camera.position.set(QCAM[0], QCAM[1], QCAM[2]); camTarget.set(QCAM[3], QCAM[4], QCAM[5]); camera.lookAt(camTarget); }
+  if (QCAM && QCAM.length >= 6) { camera.position.set(QCAM[0], QCAM[1], QCAM[2]); camTarget.set(QCAM[3], QCAM[4], QCAM[5]); camera.lookAt(camTarget);
+    // Nov 16: if a QA camera sits inside a car shell, fade the panel so the frame isn't a wall of yellow cab
+    for (const c of [level.car, level.free]) { if (!c?.pos || c.root?.visible === false) continue;
+      const d = Math.hypot(camera.position.x - c.pos.x, camera.position.z - c.pos.z), ly = camera.position.y;
+      if (d < 1.7 && ly > 0.55 && ly < 2.1 && level.fadeCarShell) level.fadeCarShell(c, Math.min(0.9, 1.15 - d * 0.4)); } }
   director?.camera(camera, dt);   // scene shots / hand-back blend + speech bubbles
   camera.updateMatrixWorld();
   key.position.copy(wp).add(KEY_OFFSET); key.target.position.copy(wp);
@@ -1106,7 +1111,7 @@ window.__sunspots.fin = { sun, SUN_DIST, SUN_R, discMat, lidMat, halo, iris, EY,
 // Now: idle on top, then seat.js pins his hips on the cushion, thighs along the seat, shins to the floor, and
 // (driving) both hands on the wheel grips, (riding) hands on his thighs. Frames are car-local (x = his left, z = forward).
 const SOLO_SIT = { hip: [0, 1.08, -0.2], knee: 0.08, spread: 0.07, shin: 0.25, lean: 0.12 };          // frame: car body at the driver seat (x,z)
-const RIDE_SIT = { hip: [0, 0.58, -0.2], knee: 0.08, spread: 0.08, shin: 0.25, lean: 0.04 };          // frame: cockpit.wolfRig (seat point y 0.5)
+const RIDE_SIT = { hip: [0, 0.66, -0.22], knee: 0.08, spread: 0.07, shin: 0.22, lean: 0.05 };          // frame: cockpit.wolfRig (seat point y 0.5)
 let wolfSit = null; const _g0 = new THREE.Vector3(), _g1 = new THREE.Vector3(), _grips = [_g0, _g1];
 function sitInCar(frame, P, wheel, fp) {
   if (!wolfSit) wolfSit = createSitter(wolf, wolf.userData.body);
@@ -1116,6 +1121,18 @@ function sitInCar(frame, P, wheel, fp) {
   const hd = wolfSit.B.Head; if (hd) hd.scale.setScalar(fp ? 0.001 : 1);   // his own eyes (FP): no snout in the shot
 }
 // his own car: the wheel sits where his arms reach (it floated 0.83 m in front of him, at the windshield) + a column to the dash
+// Nov 16: solo first-person — cut the windshield / roof out of the solid cab shell (same trick as the moth's cockpit) so the lens isn't inside a yellow wall
+const _soloClip = { a: new THREE.Plane(), b: new THREE.Plane(), on: false, ready: false };
+function clipSoloCabin(on) {
+  const c = level.free; if (!c?.model) return;
+  if (!_soloClip.ready) { _soloClip.ready = true; const planes = [_soloClip.a, _soloClip.b];
+    c.model.traverse(o => { if (o.isMesh) for (const m of [].concat(o.material)) { m.clippingPlanes = planes; m.clipIntersection = true; m.needsUpdate = true; } }); }
+  if (!on) { if (_soloClip.on) { _soloClip.a.set(tmpV.set(0, 1, 0), 1e5); _soloClip.b.set(tmpV, 1e5); _soloClip.on = false; } return; }
+  const body = c.body; body.updateMatrixWorld(true); body.getWorldQuaternion(_rq);
+  tmpV.set(0, 0, -1).applyQuaternion(_rq); _rv.set(0, 0, 0.42); body.localToWorld(_rv); _soloClip.a.setFromNormalAndCoplanarPoint(tmpV, _rv);
+  tmpV.set(0, -1, 0).applyQuaternion(_rq); _rv.set(0, 1.22, 0); body.localToWorld(_rv); _soloClip.b.setFromNormalAndCoplanarPoint(tmpV, _rv);
+  _soloClip.on = true;
+}
 function fitSoloWheel() {
   const fw = level.free?.wheel; if (!fw || fw.userData.fit) return; fw.userData.fit = true;
   fw.position.set(0, 1.3, 0.32); fw.rotation.x = -1.2; fw.scale.setScalar(1.05);
@@ -1130,11 +1147,14 @@ function mothLegs() { if (!moth || moth.state !== 'seat' || !moth.holder) return
 let backSeat = null;
 function installBackSeat() {
   const cast = cockpit.cast || []; const SPEC = [['banana squid', 'models/cast/wanderer_banana_squid_walking.glb', 'squid'], ['farmhand', 'models/cast/wanderer_shovel_farmhand_walking.glb', 'farmhand']];
-  const riders = []; const P = { hip: [0, 0.58, -0.06], knee: 0.1, spread: 0.07, shin: 0.3, lean: 0.03, handUp: 1 };
+  const riders = []; const P = { hip: [0, 0.84, -0.14], knee: 0.08, spread: 0.05, shin: 0.18, lean: 0.05, handUp: 0.45 };   // Nov 16: hips up so heads clear the sill; sat back so tentacles stay in the cabin
   const _f = new THREE.Matrix4();
   backSeat = { riders, update() {
     for (const r of riders) { if (!r.m.root.visible) continue; r.S.reset(); r.m.root.updateWorldMatrix(true, false); _f.copy(r.m.root.matrixWorld); r.S.pose(_f, P);
-      const hd = r.S.B.Head; if (hd) { _re.set(r.m.headG.rotation.x, 0, 0); _rq.setFromEuler(_re); hd.quaternion.multiply(_rq); } } } };
+      const hd = r.S.B.Head; if (hd) { _re.set(r.m.headG.rotation.x, 0, 0); _rq.setFromEuler(_re); hd.quaternion.multiply(_rq); }
+      // farmhand's shovel is skinned to his right hand: lay it along the seat, not up through the roof
+      if (r.m.name === 'farmhand') { const h = r.S.B.RightHand, f = r.S.B.RightForeArm; if (f) { _re.set(0.9, -0.5, 1.15); _rq.setFromEuler(_re); f.quaternion.multiply(_rq); f.updateMatrixWorld(true); } if (h) { _re.set(0.4, 1.1, 0.2); _rq.setFromEuler(_re); h.quaternion.multiply(_rq); } }
+    } } };
   SPEC.forEach(([name, url, look], i) => { const m = cast.find(c => c.name === name); if (!m) return;
     load(url).then(g => { const mdl = normalize(g.scene, 1.42); sunspotsApply(mdl, look, 1.42);
       mdl.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; if (cockpit.rm) for (const mt of bothMats(o)) patchRider(mt, 3.7 + i * 1.7, cockpit.rm); } });

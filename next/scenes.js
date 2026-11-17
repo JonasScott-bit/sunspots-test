@@ -29,7 +29,7 @@
 //            pos/look: [x,y,z] anchor-local | 'actor' (its head) | {who, y} | {who, off:[x,y,z]} (actor-local)
 //   say      subtitle line {who, text, dur}  (dur default ≈ 0.9 s + 55 ms/char, ≥ 1.6 s)        yes     subtitle   bubble
 //   move     {who, path:[[x,z]..] | (S)=>path, speed | dur, ease, endYaw}  walk/drive a path  yes     yes        yes
-//   exitCar  {who}  climb out of the boot car to its door (wolf, moth, squid, farm)           yes     yes        (yes)
+//   exitCar  {who}  cut: already standing at the door, one step out (wolf, moth, squid, farm)           yes     yes        (yes)
 //   place    {who, at:[x,z], yaw, show}  teleport;  hide {who}                                  no      yes        yes
 //   anim     {who, clip}  moth: idle|walk|seated   all: nod                                    no      yes        yes
 //   look     {who, at:'car'|'camera'|actor|[x,z], body, track:sec}  turn body / head           no      yes        yes
@@ -101,24 +101,24 @@ export const SCENES = {
       { wait: 0.35 },
       { do: 'say', who: 'moth', text: 'Destination.', vo: 'vo_moth_01' },
       { do: 'audio', cue: 'amb_radio_outside', radio: 0.45 },
-      { do: 'cam', pos: [3.4, 1.55, 1.4], look: [-1.4, 1.0, 6.2], fov: 46 },
+      { do: 'cam', pos: [4.8, 2.15, 8.6], look: [-1.6, 1.05, 5.2], fov: 46 },   // Nov 16 (B4): elevated 3/4 rear-side; riders appear already at their doors (never walk through the body)
       { par: [
         { do: 'audio', cue: 'sfx_car_door_open' },
         { do: 'exitCar', who: 'wolf' },
-        { do: 'exitCar', who: 'squid', delay: 0.25 },
-        { do: 'exitCar', who: 'farm', delay: 0.45 },
-        { do: 'exitCar', who: 'moth', delay: 0.6 },
+        { do: 'exitCar', who: 'squid', delay: 0.15 },
+        { do: 'exitCar', who: 'farm', delay: 0.2 },
+        { do: 'exitCar', who: 'moth', delay: 0.25 },
       ] },
       { do: 'audio', cue: 'sfx_car_door_close' },
       { do: 'mill', who: 'squid', around: [-4.6, 8.0], r: 2.2 },
       { do: 'mill', who: 'farm', around: [3.4, 7.6], r: 2.0 },
       { do: 'look', who: 'moth', at: [0, 0], body: true },
       { do: 'cam', pos: [4.2, 1.35, 5.6], look: { who: 'wolf', y: 1.05 }, fov: 42 },   // side-on: the car sits left of frame, the door clear
-      { do: 'move', who: 'wolf', path: [[0.1, 3.0], [0, 1.0]], speed: 1.5 },
-      { do: 'prop', id: 'door', act: 'open' }, { do: 'audio', cue: 'sfx_store_door_bell' },
-      { do: 'move', who: 'wolf', path: [[0, -0.2]], speed: 1.2 },
-      { do: 'hide', who: 'wolf' },
-      { do: 'prop', id: 'door', act: 'close', wait: true },
+      { do: 'move', who: 'wolf', path: [[0.1, 3.0], [0, 1.15]], speed: 1.5 },          // walk up to the door, then wait
+      { do: 'look', who: 'wolf', at: [0, 0], body: true, dur: 0.3 },
+      { do: 'prop', id: 'door', act: 'open', wait: true }, { do: 'audio', cue: 'sfx_store_door_bell' },   // Nov 16 (B5): door finishes opening before he moves
+      { do: 'move', who: 'wolf', path: [[0, 0.22]], speed: 1.15 },                     // one step onto the threshold, door already open
+      { do: 'hide', who: 'wolf' },                                                    // cut on the threshold (dreamstore fades in)
       { do: 'interior', wait: true },                                     // inside: PARADISE BLISS, the floating store (dreamstore.js), player-controlled
       { do: 'cam', pos: [6.6, 1.45, 10.8], look: [-1.2, 1.0, 5.2], fov: 46 },
       { wait: 0.6 },
@@ -129,7 +129,7 @@ export const SCENES = {
       { do: 'cam', pos: [1.7, 1.3, 4.9], look: [0, 1.15, 0.6], fov: 40 },
       { do: 'prop', id: 'door', act: 'open', wait: true }, { do: 'audio', cue: 'sfx_store_door_bell' },
       { do: 'prop', snacks: true, id: 'snacks', act: 'show' },             // after the door is open, or the bag pokes through it
-      { do: 'place', who: 'wolf', at: [0, -0.2], yaw: 0, show: true },
+      { do: 'place', who: 'wolf', at: [0, 0.22], yaw: 0, show: true },     // Nov 16 (B5): cut back onto the open threshold, then he walks out
       { do: 'audio', cue: 'sfx_chip_bag' },
       { do: 'say', who: 'clerk', text: 'Enjoy your snacks. Responsibly. Slowly. Elsewhere.', vo: 'vo_clerk_14', wait: false },   // v10: offscreen, from inside the store
       { do: 'move', who: 'wolf', path: [[0.15, 1.2], [0.3, 2.3]], speed: 1.25 },
@@ -161,7 +161,7 @@ export const SCENES = {
       { do: 'audio', cue: 'amb_radio_outside', radio: 0.45 },
       { do: 'cam', pos: [-4.4, 1.6, 10.6], look: [0, 1.25, 1.2], fov: 40 },
       { do: 'audio', cue: 'sfx_car_door_open' },
-      { do: 'exitCar', who: 'wolf' },
+      { do: 'exitCar', who: 'wolf' },   // Nov 16 (B4): cut — he is already standing at the door (see exitTask)
       { do: 'look', who: 'clerk', at: 'wolf', track: 6 },
       { do: 'move', who: 'wolf', path: [[0.05, 3.4], [0, 1.95]], speed: 1.45 },
       { do: 'cam', pos: [2.7, 1.5, 2.7], look: [-0.25, 1.35, 1.0], fov: 40 },
@@ -474,17 +474,20 @@ export function createDirector(ctx) {
     return me;
   }
   function exitTask(a, b) {
+    // Nov 16 (B4): cut, don't slide. The boot car GLB has no doors, so interpolating a rider from the seat to the
+    // pavement walked them through the closed body. They appear already standing at their door and take one step out.
     const c = L.car, off = b.to || ACTOR_CAR_DOOR[a.name] || [1.65, 0]; c.root.updateMatrixWorld(true);
-    const from = V(), to = c.body.localToWorld(new THREE.Vector3(off[0], 0, off[1])); to.y = 0;
-    let s0 = 1, s1 = 1;
-    if (a.name === 'wolf') { const w = getWolf(); from.copy(w.position); s0 = w.scale.x; s1 = puppet.base; puppet.on = true; puppet.speed = 0; }
-    else if (a.name === 'moth') { const M = getMoth(); if (!M) return null; M.toScene(); from.copy(M.holder.position); s0 = s1 = M.holder.scale.x; M.play('walk', 0.25); }
-    else { const bl = CK.cast?.find(m => m.name === (a.name === 'squid' ? 'banana squid' : 'farmhand')); if (bl) { bl.root.getWorldPosition(from); bl.root.visible = false; } else from.copy(to); from.y = Math.max(0, from.y - 0.35); s0 = 0.55; s1 = 1; a.obj.visible = true; }
-    const yawOut = Math.atan2(to.x - c.pos.x, to.z - c.pos.z);
-    a.setYaw(yawOut); const dur = b.dur ?? 0.8; let t = 0;
-    const apply = (k) => { const e = smooth(k); a.setPos(lerp(from.x, to.x, e), lerp(from.z, to.z, e), lerp(from.y, 0, Math.min(1, e * 1.4)));
-      const sc = lerp(s0, s1, e); if (a.name !== 'moth') a.obj.scale.setScalar(sc); if (a.name === 'moth') getMoth()?.setFold(1 - e); };
-    return { update(dt) { t += dt; const k = clamp(t / dur, 0, 1); apply(k); a.setSpeed(k < 1 ? 1.1 : 0); if (k >= 1) { this.finish(); return true; } return false; },
+    const door = c.body.localToWorld(new THREE.Vector3(off[0], 0, off[1])); door.y = 0;
+    const out = door.clone().sub(new THREE.Vector3(c.pos.x, 0, c.pos.z)); out.y = 0;
+    if (out.lengthSq() < 1e-6) out.set(off[0], 0, off[1]); out.setLength(0.55);
+    const to = door.clone().add(out);
+    if (a.name === 'wolf') { puppet.on = true; puppet.speed = 0; a.obj.scale.setScalar(puppet.base); }
+    else if (a.name === 'moth') { const M = getMoth(); if (!M) return null; M.toScene(); M.setFold(0); M.play('idle'); }
+    else { const bl = CK.cast?.find(m => m.name === (a.name === 'squid' ? 'banana squid' : 'farmhand')); if (bl) bl.root.visible = false; a.obj.visible = true; a.obj.scale.setScalar(1); }
+    const yawOut = Math.atan2(out.x, out.z); a.setYaw(yawOut); a.setPos(door.x, door.z, 0);
+    const dur = b.dur ?? 0.45; let t = 0;
+    const apply = (k) => { const e = smooth(k); a.setPos(lerp(door.x, to.x, e), lerp(door.z, to.z, e), 0); };
+    return { update(dt) { t += dt; const k = clamp(t / dur, 0, 1); apply(k); a.setSpeed(k < 1 ? 0.7 : 0); if (k >= 1) { this.finish(); return true; } return false; },
       finish() { apply(1); a.setSpeed(0); if (a.name === 'moth') getMoth()?.play('idle'); } };
   }
   function lookTask(a, b) {

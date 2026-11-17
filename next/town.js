@@ -1485,6 +1485,7 @@ export function createTown(ctx) {
   function countTris(root) { let n = 0; root.traverse(o => { if (o.isMesh && o.visible) { const g = o.geometry; const c = (g.index ? g.index.count : g.attributes.position.count) / 3; n += c * (o.isInstancedMesh ? o.count : 1); } }); return Math.round(n); }
   const wait = (ms) => new Promise(r => setTimeout(r, ms));
   async function enter(key) {
+    // Nov 16 (B5): rooms / homes / diner are a cut on the threshold (the curtain), never a walk through a closed door.
     if (T.busy || T.active) return; T.busy = true; audio.ui?.('confirm');
     curtain.querySelector('b').textContent = ROOMS[key].name; curtain.classList.add('shut');
     const [A] = await Promise.all([build(key), wait(560)]);

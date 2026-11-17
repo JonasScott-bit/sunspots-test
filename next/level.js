@@ -356,7 +356,7 @@ export function createLevel(C) {
     const M = './models/cast/';
     const spec = [
       ['house_fridge_walking', NEWTOWN ? { h: 2.0, x: 18.6, z: 50.6, ry: 0.35, still: true, cr: 0.6 } : { h: 2.0, x: -7.4, z: 25.2, ry: Math.PI + 0.35, still: true, cr: 0.6 }],     // by the Wolf's door
-      ['diner_couch', NEWTOWN ? { h: 0.95, x: 29.4, z: 51.6, ry: 0.12, prop: true, cr: 1.1 } : { h: 0.95, x: -14.6, z: 24.4, ry: Math.PI * 0.92, prop: true, cr: 1.1 }],           // couch in the front yard
+      ['diner_couch', NEWTOWN ? { h: 0.95, x: 17.6, z: 51.2, ry: 0.12, prop: true, cr: 1.1 } : { h: 0.95, x: -14.6, z: 24.4, ry: Math.PI * 0.92, prop: true, cr: 1.1 }],           // couch in the front yard
       ...(NEWTOWN ? [['../town2/mailbox', { h: 1.25, x: 26.4, z: 55.2, ry: Math.PI, still: true, cr: 0.4 }], ['../town2/window_box', { h: 0.55, x: 16.2, z: 48.2, ry: 0, still: true, cr: 0.4 }]] : []),   // run 11 (M4): object characters outside — the Wolf's mailbox at the curb, a window-box by the front window
       ['diner_stove', NEWTOWN ? { h: 1.05, x: 31.4, z: 50.0, ry: -0.25, prop: true, cr: 0.6 } : { h: 1.05, x: -16.7, z: 26.0, ry: Math.PI * 0.85, prop: true, cr: 0.6 }],           // stove beside it
       ['mainst_payphone_blockhead_walking', NEWTOWN ? { h: 2.0, x: 8.6, z: 14.3, ry: Math.PI - 0.25, still: true, cr: 0.5 } : { h: 2.0, x: 7.9, z: -4.6, ry: 0.25, still: true, cr: 0.5 }], // stands by the payphone
@@ -448,6 +448,7 @@ export function createLevel(C) {
   $('retry')?.addEventListener('click', () => L.reset());
 
   // -------------------------------------------------------------- state machine
+  // Nov 16 (B4): GET IN / GET OUT are cuts (camera switches; the Wolf is never walked through the body). Door sfx is in audio.ev.
   L.enterCar = () => { if (L.mode !== 'walk' || L.ended) return; L.mode = 'drive'; L.inCar = true; document.body.classList.add('driving'); hud.getIn.style.display = 'none'; toast(NEWTOWN && L.car.pos.z > 30 ? 'MOTH: Store closes at two. I drive like it closes at two.' : 'The driver nods once. You steer.', 4); audio.ev('enterCar'); C.onEnterCar?.(); };
   L.enterFree = () => { if (L.mode !== 'walk' || L.ended || L.frozen || !L.free.model) return; L.mode = 'solo'; L.solo = true; L.exitPending = false; L.free.v = 0;
     document.body.classList.add('driving', 'solo'); hud.getIn.style.display = 'none'; toast('Your own waddle car. Just you and the radio.', 2.6); audio.ev('enterSolo'); C.onEnterCar?.(); };
@@ -672,12 +673,38 @@ export function createLevel(C) {
     const lk = L.look || { yaw: 0, pitch: 0 }, a = c.yaw + lk.yaw, f = _q.set(Math.sin(a), 0, Math.cos(a));
     const dist = portrait ? 10.5 : 9, h = (portrait ? 4.4 : 3.6) + Math.max(0, -lk.pitch) * 3.5; // drag: orbit round the car / lift to look down on him
     const want = new THREE.Vector3(c.pos.x - f.x * dist, h + c.hop * 0.5, c.pos.z - f.z * dist);
+    if (c.bump > 0) { c.bump = Math.max(0, c.bump - dt * 3.5); want.y += Math.sin(performance.now() * 0.045) * 0.16 * c.bump; want.x += Math.cos(performance.now() * 0.051) * 0.1 * c.bump; }
     if (snap) camera.position.copy(want); else camera.position.lerp(want, 1 - Math.exp(-dt * 4));
-    const look = new THREE.Vector3(c.pos.x + f.x * 8, 2.5, c.pos.z + f.z * 8); if (c === L.free && TS()) TS().camClamp(look, camera.position);
+    const look = new THREE.Vector3(c.pos.x + f.x * 8, 2.5, c.pos.z + f.z * 8);
+    L.keepCamClear(camera, look, c);
     camera.lookAt(look); return look;
   };
+  // Nov 16: never leave the lens inside the cab or a wall. Pull out / up on contact; fade the car shell if a panel would fill the frame.
+  function fadeCarShell(c, k) {
+    const root = c.model || c.body; if (!root) return;
+    if (!c._fadeMats) { c._fadeMats = []; root.traverse(o => { if (o.isMesh) for (const m of [].concat(o.material)) { if (m && !m.userData._fade0) { m.userData._fade0 = { t: !!m.transparent, o: m.opacity ?? 1, d: m.depthWrite !== false }; c._fadeMats.push(m); } } }); }
+    for (const m of c._fadeMats) { const z = m.userData._fade0; m.transparent = k > 0.02 || z.t; m.opacity = z.o * (1 - k); m.depthWrite = k < 0.35 && z.d; }
+  }
+  L.keepCamClear = (camera, look, c) => {
+    const T = TS(); if (T) T.camClamp(look, camera.position);
+    if (c && c.pos) {
+      const dx = camera.position.x - c.pos.x, dz = camera.position.z - c.pos.z, d = Math.hypot(dx, dz);
+      const minR = 2.55, minY = 1.65;
+      if (d < minR && camera.position.y < 2.35) {
+        if (d < 0.05) { const fx = Math.sin(c.yaw || 0), fz = Math.cos(c.yaw || 0); camera.position.x = c.pos.x - fx * minR; camera.position.z = c.pos.z - fz * minR; }
+        else { camera.position.x = c.pos.x + dx / d * minR; camera.position.z = c.pos.z + dz / d * minR; }
+        camera.position.y = Math.max(camera.position.y, minY + (minR - d) * 0.45);
+      }
+      if (camera.position.y < 1.15) camera.position.y = 1.15;
+      // fade only when the lens is actually in or against the shell (a chase cam always rays into the car, so a ray-hit fade made the cab a ghost)
+      let fade = 0;
+      if (d < 2.45 && camera.position.y < 2.05) fade = Math.min(0.88, (2.45 - d) / 1.8);
+      fadeCarShell(c, fade);
+    }
+    return camera;
+  };
+  L.fadeCarShell = fadeCarShell;
   // Nov 16: the cold open + the cab waiting at spawn (opening.js; plays through scenes.js once it is ready)
   import('./opening.js').then(m => m.installOpening(L, { toast })).catch(e => console.warn('opening', e));
   return L;
 }
-    if (c.bump > 0) { c.bump = Math.max(0, c.bump - dt * 3.5); want.y += Math.sin(performance.now() * 0.045) * 0.16 * c.bump; want.x += Math.cos(performance.now() * 0.051) * 0.1 * c.bump; }   // Nov 16: light felt bump on a real hit

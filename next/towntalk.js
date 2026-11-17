@@ -150,7 +150,7 @@ export function installTalk({ T, level, TS, wolfState }) {
   const castBy = (re) => level.cast?.find(c => re.test(c.name));
   const SPEAK = [ // key, regex | fixed pos, height
     ['fridge', /house_fridge/, 2.4], ['mailbox', /mailbox/, 1.6], ['window', /window_box/, 1.0], ['payphone', /payphone/, 2.4], ['hydrant', /hydrant/, 1.5],
-    ['couch', /diner_couch/, 1.3, { x: 29.4, z: 51.6 }], ['stove', /diner_stove/, 1.4, { x: 31.4, z: 50.0 }], ['squid', /banana_squid/, 2.1], ['farmhand', /farmhand/, 2.2], ['wrench', /wrench/, 2.0],
+    ['couch', /diner_couch/, 1.3, { x: 17.6, z: 51.2 }], ['stove', /diner_stove/, 1.4, { x: 31.4, z: 50.0 }], ['squid', /banana_squid/, 2.1], ['farmhand', /farmhand/, 2.2], ['wrench', /wrench/, 2.0],
   ];
   const n = {}; T.talkN = n;
   for (const [key, re, h, fix] of SPEAK) {

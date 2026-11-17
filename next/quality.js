@@ -13,7 +13,7 @@ const Q = new URLSearchParams(location.search);
 export const PHONE = Q.has('phone') ? (Q.get('phone') === 'low' ? 'low' : 'medium') : null;
 if (PHONE) { try { Object.defineProperty(window, 'devicePixelRatio', { get: () => 3, configurable: true }); } catch (_) {} }
 // build stamp (shown in the pause menu with the tier + pixel ratio, so a phone report says exactly what it ran)
-export const BUILD = '2026-11-16 mudfix';
+export const BUILD = '2026-11-16 doors+cam';
 window.__build = BUILD;
 export const TIERS = {
   //            pixel ratio cap, shadow map, soft shadows, characters hidden past (m), character shadows past (m), props hidden past (m), far cacti, simplified mesh past (m)
