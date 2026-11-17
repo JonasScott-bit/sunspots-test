@@ -53,7 +53,7 @@ export function installOpening(L, { toast } = {}) {
   const turnCrew = (atWolf) => { for (const [k, , x, z] of CREW) { const o = crew[k]; if (o) o.rotation.y = atWolf ? Math.atan2(25.4 - x, 54.4 - z) : Math.atan2(x - 25.4, 62 - z) * 0.4 + (k === 'heron' ? 0.5 : k === 'bear' ? -0.6 : 0.3); } };
   if (Q.has('noopening') || Q.has('shot') || Q.get('scene') || Q.has('unlock') || Q.has('finale') || Q.get('room') || Q.get('m') || Q.has('oldtown')) return;
   const seen = () => { try { return !!localStorage.getItem(KEY); } catch (_) { return false; } };
-  const CAB0 = [-6, 59.8], CAB = [27, 59.8], WOLF_AT = [25.9, 55.8], LEFT0 = L.left;
+  const CAB0 = [-6, 59.8], CAB = [27, 59.8], WOLF_AT = [25.2, 56.4], LEFT0 = L.left;
   let sup = null;
   function css() {
     if (document.getElementById('openingCss')) return;
@@ -121,7 +121,7 @@ export function installOpening(L, { toast } = {}) {
         { do: 'say', who: 'ram', text: "It's his fridge.", dur: 1.5 },
         // 3. the Wolf
         { do: 'call', fn: pose },
-        { do: 'cam', pos: () => new THREE_V(27.7, 2.25, 53.6), look: () => { const h = wolf().headWorld(new THREE_V()); h.y -= 0.12; return h; }, fov: PORTRAIT ? 42 : 30 },   // high enough to clear his mailbox
+        { do: 'cam', pos: () => { const y = yawTo(WOLF_AT, COUCH); return new THREE_V(WOLF_AT[0] + Math.sin(y) * 2.8 - Math.cos(y) * 0.6, 2.45, WOLF_AT[1] + Math.cos(y) * 2.8 + Math.sin(y) * 0.6); }, look: () => { const h = wolf().headWorld(new THREE_V()); h.y -= 0.12; return h; }, fov: PORTRAIT ? 42 : 30 },   // in front of him and high: the walking mailbox at his front walk stands in front of him
         { do: 'say', who: 'wolf', text: 'Two minutes. I can do two minutes.', vo: 'vo_wolf_15' },
         // 4. headlights: Moth's cab walks up Mesa Rd on its boots and stops outside the house
         { do: 'cam', pos: [35.0, 0.75, 57.2], look: { who: 'car', y: 0.9 }, fov: 34 },
