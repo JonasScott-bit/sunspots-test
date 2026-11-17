@@ -178,21 +178,29 @@ function create({ T, S, hud: H }) {
     const p = crew[who] || crew.grandma;
     p.updateWorldMatrix(true, true);
     const head = new THREE.Vector3();
-    const hd = p.userData.hd;
-    if (hd) hd.getWorldPosition(head);
-    else { p.getWorldPosition(head); head.y += ((p.userData.h || 1) * 1.55); }
+    // Prefer the GLB Head bone. The wrapper's userData.hd is a standing-height pivot, so a seated
+    // Bear/Wolf CU used to look at chest height (or float above the skull) and fill the frame with torso.
+    let hb = null;
+    const glb = p.userData.glbW;
+    if (glb) {
+      glb.traverse((o) => { if (!hb && o.isBone && /^(Head|head)$/.test(o.name)) hb = o; });
+      hb = hb || glb.userData?.head?.bone;
+    }
+    if (hb) hb.getWorldPosition(head);
+    else if (p.userData.hd) p.userData.hd.getWorldPosition(head);
+    else { p.getWorldPosition(head); head.y += ((p.userData.h || 1) * 1.1); }
     const body = car.userData.body || car;
     body.updateWorldMatrix(true, true);
     // 3/4 from outside the open cab: 0.5 m along the windshield axis (car +Z) and 1.2 m to the side.
     // A deep push along +Z from Grandma in the back seat sat the lens in the front row (Bear/Wolf filled the frame).
     const e = body.matrixWorld.elements;
     const fl = Math.hypot(e[8], e[10]) || 1, fwdX = e[8] / fl, fwdZ = e[10] / fl, sideX = -fwdZ, sideZ = fwdX;
-    const por = cam.aspect < 1, dist = 0.5, sh = por ? 1.2 : 1.35;
-    _fsLook.set(head.x, head.y - 0.08, head.z);
+    const por = cam.aspect < 1, dist = por ? 0.42 : 0.55, sh = por ? 0.92 : 1.15;
+    _fsLook.set(head.x, head.y + 0.04, head.z);
     const blockers = [];
     for (const o of Object.values(crew)) { if (o === p) continue; o.traverse((m) => { if (m.isMesh && m.visible) blockers.push(m); }); }
     const trySide = (sign, extra) => {
-      _fsP.set(head.x + fwdX * dist + sideX * (sh + extra) * sign, head.y + 0.18, head.z + fwdZ * dist + sideZ * (sh + extra) * sign);
+      _fsP.set(head.x + fwdX * dist + sideX * (sh + extra) * sign, head.y + 0.10, head.z + fwdZ * dist + sideZ * (sh + extra) * sign);
       _fsD.subVectors(_fsLook, _fsP);
       const L = _fsD.length() || 1; _fsD.multiplyScalar(1 / L);
       _fsRC.set(_fsP, _fsD); _fsRC.near = 0.02; _fsRC.far = Math.max(0.05, L - 0.08);
@@ -210,7 +218,7 @@ function create({ T, S, hud: H }) {
     }
     cam.position.set(pick.x, pick.y, pick.z);
     cam.lookAt(_fsLook.x, _fsLook.y, _fsLook.z);
-    cam.fov = por ? 40 : 32; cam.near = 0.08; cam.updateProjectionMatrix();
+    cam.fov = por ? 28 : 26; cam.near = 0.08; cam.updateProjectionMatrix();
   }
   // ================================================================== per-frame
   const _w = new THREE.Vector3();
