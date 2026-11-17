@@ -200,9 +200,16 @@ function create({ T, S, hud: H }) {
     else _fsLook.set(head.x, head.y + 0.12, head.z);
     const body = car.userData.body || car;
     body.updateWorldMatrix(true, true);
-    // 3/4 from outside the open cab, orbiting the face (not the neck).
+    // 3/4 in front of the FACE. The crew often look at each other, so the car's
+    // +Z put the lens behind Bear's skull. Prefer the snout axis when we have it.
     const e = body.matrixWorld.elements;
-    const fl = Math.hypot(e[8], e[10]) || 1, fwdX = e[8] / fl, fwdZ = e[10] / fl, sideX = -fwdZ, sideZ = fwdX;
+    let fwdX = e[8], fwdZ = e[10];
+    if (hf) {
+      const sx = snout.x - head.x, sz = snout.z - head.z;
+      if (sx * sx + sz * sz > 1e-6) { fwdX = sx; fwdZ = sz; }
+    }
+    const fl = Math.hypot(fwdX, fwdZ) || 1; fwdX /= fl; fwdZ /= fl;
+    const sideX = -fwdZ, sideZ = fwdX;
     const por = cam.aspect < 1, dist = por ? 0.85 : 0.95, sh = por ? 1.15 : 1.35;
     const blockers = [];
     for (const o of Object.values(crew)) { if (o === p) continue; o.traverse((m) => { if (m.isMesh && m.visible) blockers.push(m); }); }
