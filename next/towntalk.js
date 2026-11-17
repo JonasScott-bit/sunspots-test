@@ -7,8 +7,8 @@ import { PLAZA, SLOGAN } from './horse.js';
 
 export const LORE = {
   founding: ['Sunspots was founded in 1951 by a man who stopped for gas and could not get the car to start again.', 'He called it Sunspots because he saw spots for a week. The doctor said "sun". It stuck.'],
-  horse: ['There was one horse. Everyone agreed that was plenty.', 'A second horse came through in 1958. It kept going. The town took it personally.', 'The statue was cast in felt because bronze melts. Felt also melts. Nobody checked.'],
-  store: ['Last Minute Snacks closes at 2:00 AM. Not 2:01. The owner leaves at 2 to go look at the horse.', 'Nobody knows why 2. The sign has said 2 since the sign.'],
+  horse: ['There was one horse. Everyone agreed that was plenty.', 'A second horse came through in 1958. It kept going. The town took it personally.', 'Nobody remembers the statue going up. The plaque says it was here first. Nobody argues with a plaque.'],
+  store: ['Last Minute Snacks closes at two. At two the clerk locks up and walks to the plaza to look at the horse. Nobody asks.', 'Nobody knows why 2. The sign has said 2 since the sign.'],
   mesa: ['On Mesa Rd, Ram locks up every evening in three steps: chain, deadbolt, NOT HOME. He has never been not home.', 'Moth drives the night cab for SUN-O-CAB. He can\'t leave while a porch light\'s on, so the whole street dims for him.'],
   pink: ['Apartment 6, the pink one, belongs to SOMEONE. Nobody has seen SOMEONE. Everyone has heard SOMEONE.', 'Every letter delivered to the pink apartment is for the wrong name. SOMEONE sorts them anyway.'],
   mansion: ['The glass mansion went up in 2024. The Vulture built it so he could see things coming. Nothing comes.', 'Larry Byrd pays the Vulture rent in pool winnings. Ask anyone who has played him. Once.'],
@@ -21,7 +21,7 @@ export const FLYERS = ['LOST CAT\nANSWERS TO\n"NOTHING"', 'BAND NIGHT\nAT THE BO
 const BILLBOARDS = [   // x, z, ry (board faces +z rotated by ry), bg, fg, big, small
   [64, -14, -Math.PI / 2 + 0.35, '#f2b632', '#3a2414', 'SUN-O-GAS', 'WE HAVE GAS. ALSO GAS.  NEXT GAS: ALSO US'],
   [-202, -12, Math.PI / 2, '#c8302e', '#f6d24a', 'GOLDEN DRAGON', 'LUNCH AT DINNER PRICES · MAIN & NEON'],
-  [56, -44, -0.5, '#2a4a8a', '#f2e6c8', 'KSUN 1490 AM', 'THE SAME SONG SINCE 1974 · BE CALLER FOUR'],
+  [56, -44, -0.5, '#2a4a8a', '#f2e6c8', 'KSUN 1490 AM', 'THE SAME SONG SINCE 1974 · REQUESTS TAKEN, NOT PLAYED'],
   [-60, 76, Math.PI, '#f2e6c8', '#c8463f', 'LAST MINUTE SNACKS', 'OPEN TILL 2:00 · NOT 2:01 · 40 MI. NORTH'],
   [-142, 47, 0, '#3f8a5a', '#f2ece0', 'SUN STATE INSURANCE', 'WE COVER MELTING*  (*WE DO NOT COVER MELTING)'],
   [48, 40, -Math.PI / 2, '#f6d24a', '#2a2a2e', "BIG AL'S AUTO BODY", "WE'VE SEEN WORSE. WE'VE CAUSED WORSE."],
@@ -32,7 +32,7 @@ const BOARDS = [   // sandwich boards in front of the filler shops: x, z, ry, te
   [-160, 13.4, Math.PI, 'PARTS\nOF AUTOS', '#c8302e'], [-18.5, -55.2, Math.PI, 'MOM\nTATTOOS\n2 FOR 1', '#a83a6a'], [28, -55.2, Math.PI, 'STILL\nROUND', '#d86a3a'],
   [-72.5, -55.2, Math.PI, "WE'VE\nSEEN\nWORSE", '#2a2a2e'], [-52.5, -55.2, Math.PI, 'LUNCH\nAT DINNER\nPRICES', '#c8302e'],
   // run 17: three slogan gags (tiny A-frames beside existing ones)
-  [-107.2, 1.0, 0, 'SAME OLD\nONE HORSE\nTOWN\n(NEW SIGN)', '#3a2414'], [15.3, 13.4, Math.PI, 'NOW WITH\nONE\nHORSE!\n(SAME ONE)', '#a83a6a'], [30.3, -55.2, Math.PI, 'VOTED #1\nONE HORSE\nTOWN\n(1 ENTRY)', '#2a4a8a'],
+  [-107.2, 1.0, 0, 'KEYS CUT\nWHILE\nYOU\nWORRY', '#3a2414'], [15.3, 13.4, Math.PI, 'PALMS\nREAD\nNO\nREFUNDS', '#a83a6a'], [30.3, -55.2, Math.PI, 'VOTED #1\nONE HORSE\nTOWN\n(1 ENTRY)', '#2a4a8a'],
 ];
 export function dressTown(TS) {
   BILLBOARDS.forEach(([x, z, ry, bg, fg, big, small], i) => TS.place('billboard_' + i, x, z, ry, (k) => {
@@ -64,13 +64,13 @@ export function dressTown(TS) {
 const R = (a) => a[Math.floor(Math.random() * a.length)];
 export const CHATTER = {   // name: [label, [normal lines], [WILD lines]]
   fridge: ['FRIDGE', ['I keep things cold. It\'s not personal.', 'Someone left one grape in me in 1988. I think about it.', 'Close the door when you leave. Any door. I worry.'], ['EVERYTHING IS ROOM TEMPERATURE NOW.', 'I\'m defrosting. Emotionally.']],
-  mailbox: ['MAILBOX', ['Nothing for you. There\'s never anything for you.', 'I got a postcard once. "Wish you were here." I was.', 'Flag\'s up. Means nothing. I just like it up.'], ['I\'M FULL OF BILLS AND THEY\'RE ALL MELTING.', 'RETURN TO SENDER. RETURN TO THE SUN.']],
+  mailbox: ['MAILBOX', ['Nothing for you. There\'s never anything for you.', 'I got a postcard once. "Wish you were here." I was.', 'Flag\'s up. Means nothing. I just like it up.'], ['THE BILLS ARE SOFT NOW. THE BILLS ARE STILL DUE.', 'RETURN TO SENDER. RETURN TO THE SUN.']],
   window: ['WINDOW BOX', ['We\'re petunias. Probably.', 'Water us or don\'t. We\'ll be dramatic either way.', 'The horse gets more visitors than us.'], ['WE ARE GROWING TOWARD THE WRONG SUN.', 'PHOTOSYNTHESIS IS SCREAMING.']],
-  payphone: ['PAYPHONE', ['Twenty-five cents for a local call. Everything\'s local.', 'KSUN\'s contest line rings through me. Nobody\'s ever been caller four.', 'I have one number memorised. It\'s mine.'], ['RING RING. THAT\'S ME. I\'M RINGING.', 'COLLECT CALL FROM THE HORSE. DO YOU ACCEPT?']],
-  hydrant: ['HYDRANT', ['I\'ve been spinning since the fire of \'62. There was no fire.', 'Dogs don\'t bother me. You\'re a wolf. Different story.', 'Same old corner. Same old me.'], ['I SPIN FASTER WHEN IT\'S HOT. IT\'S ALWAYS HOT.', 'SOMEBODY OPEN ME. I\'M BEGGING.']],
+  payphone: ['PAYPHONE', ['Twenty-five cents for a local call. Everything\'s local.', 'KSUN\'s contest line rings through me. Same three callers every hour. Ram is two of them.', 'I have one number memorised. It\'s mine.'], ['RING RING. THAT\'S ME. I\'M RINGING.', 'COLLECT CALL FROM THE HORSE. DO YOU ACCEPT?']],
+  hydrant: ['HYDRANT', ['I\'ve been spinning since the fire of \'62. There was no fire.', 'Dogs don\'t bother me. You\'re a wolf. Different story.', 'I\'ve stood on this corner since 1951. Nobody asked me where I wanted to stand.'], ['I SPIN FASTER WHEN IT\'S HOT. IT\'S ALWAYS HOT.', 'SOMEBODY OPEN ME. I\'M BEGGING.']],
   couch: ['COUCH', ['Sit on me. Everyone does. Nobody asks.', 'I used to be inside. I made choices.'], ['I\'M A PUDDLE WITH CUSHIONS.', 'THE CUSHIONS ARE SLIDING OFF WITHOUT ME.']],
-  stove: ['STOVE', ['Back burner\'s been on since Tuesday. Which Tuesday, I couldn\'t say.', 'I\'m outdoors now. It\'s a lifestyle.'], ['FOR ONCE IT\'S NOT ME MELTING THINGS.', 'EVERYTHING\'S A BURNER.']],
-  squid: ['BANANA SQUID', ['I walk to the bus stop. I don\'t take the bus. I like stops.', 'Same old town. Same old me. Slightly more yellow.', 'The horse and I have an understanding. I don\'t know what it is.'], ['I\'M RIPENING. DON\'T LOOK.', 'TOO MANY ARMS FOR THIS HEAT.']],
+  stove: ['STOVE', ['Back burner\'s been on since Tuesday. Which Tuesday, I couldn\'t say.', 'I\'m outdoors now. It\'s a lifestyle.'], ['I\'M NOT EVEN ON. WHY AM I ON.', 'EVERYTHING\'S A BURNER.']],
+  squid: ['BANANA SQUID', ['I walk to the bus stop. I don\'t take the bus. I like stops.', 'I\'m a little more yellow than last week. Nobody\'s said anything. I\'ve noticed.', 'The horse and I have an understanding. I don\'t know what it is.'], ['I\'M RIPENING. DON\'T LOOK.', 'TOO MANY ARMS FOR THIS HEAT.']],
   farmhand: ['FARMHAND', ['The horse used to live on our farm. Then it got promoted.', 'One horse. One town. One shovel. It\'s a system.', 'I dig holes. Then I fill them. It\'s called farming.'], ['THE HORSE\'S EYES. YOU SEE IT TOO, RIGHT?', 'DIG. DIG. DIG. WHY AM I DIGGING.']],
   wrench: ['WRENCH', ['I fix things. Nothing\'s broken. That\'s the problem.', 'Store closes at two. I\'ve never made it. Not once.', 'Big Al owes me a socket. Big Al owes everybody a socket.'], ['EVERYTHING\'S LOOSE. I CAN FEEL IT.', 'RIGHTY TIGHTY. LEFTY MELTY.']],
 };
@@ -83,9 +83,9 @@ const MORE = {
   hydrant: [['Moth\'s cab parks by me at shift change. Meter always says zero. Generous man.', 'Ram tried to chain me once. Said I looked like I was leaving.'], ['THE CAB IS GLOWING. THE MOTH IS GLOWING. I\'M SPINNING.']],
   couch: [['The Victorian settee on the hill looks down on me. Literally. It\'s on a hill.', 'Mansion has a magenta pit sofa. I\'m not jealous. I\'m outside.'], ['THE MANSION SOFA IS SINKING. GOOD.']],
   stove: [['Granite State No.8 out at the farm. Older than me. Hotter than me. We don\'t talk.', 'The anteater\'s kettle whistles at seven sharp. I set my burner by it.'], ['THE FARM STOVE IS WINNING.']],
-  squid: [['I have four bus-stop signs at the farm. None of them had a bus. I\'m saving them.', 'This is a stop. Not officially. I decided.', 'Farmhand says that\'s not how buses work. That\'s how these ones work now.'], ['I\'M TAKING THIS SIGN TOO. IT\'S MELTING ANYWAY.']],
+  squid: [['I have four bus-stop signs at the farm. None of them had a bus. I\'m saving them.', 'This is a stop. Not officially. I decided.', 'Farmhand says that\'s not how buses work. That\'s how these ones work now.'], ['THE BUS STOP IS WALKING. I\'M GOING WITH IT.']],
   farmhand: [['Kitchen\'s the same as in 1890-something. Stove, churn, pump. Only the horse moved out.', 'Squid\'s bringing home bus-stop signs again. The kitchen\'s starting to look like a depot.'], ['THE CHURN IS CHURNING ITSELF.']],
-  wrench: [['Ram\'s deadbolt sticks. I offered. He said he was not home.', 'Larry Byrd bet me a socket at pool. Now I owe a socket too.'], ['THE MANSION GLASS IS MELTING FROM THE TOP DOWN.']],
+  wrench: [['Ram\'s deadbolt sticks. I offered. He said he was not home.', 'Larry Byrd bet me a socket at pool. Now I owe a socket too.'], ['THE MANSION GLASS IS RUNNING DOWNHILL. THE VULTURE IS WATCHING IT GO.']],
 };
 for (const [k, [a, w]] of Object.entries(MORE)) { CHATTER[k][1].push(...a); CHATTER[k][2].push(...w); }
 // run 17: overheard NPC-to-NPC exchanges near the wanderers (hint at mission pitches); one every ~90 s when the wolf is close
@@ -94,7 +94,7 @@ const OVERHEARD = [
   [['WRENCH', 'Larry took the wolf\'s car keys off him at pool.'], ['BANANA SQUID', 'Three trick shots and one lie, they say. That\'s how you get them back.']],
   [['BANANA SQUID', 'Moth can\'t go to the carnival while every porch on Mesa is lit.'], ['FARMHAND', 'Somebody should go turn them off. He\'d give them a ride.']],
   [['WRENCH', 'Bowl still needs a band for Friday.'], ['FARMHAND', 'Hydrant has rhythm. Payphone has range. The couch has a low voice.'], ['WRENCH', 'That\'s a band.']],
-  [['BANANA SQUID', 'I called "Nothing" at the bus stop.'], ['FARMHAND', 'And?'], ['BANANA SQUID', 'Nothing came. Might\'ve been her.']],
+  [['BANANA SQUID', 'I called "Nothing" at the bus stop.'], ['FARMHAND', 'And?'], ['BANANA SQUID', 'Nothing came. Might\'ve been him.']],
   [['FARMHAND', 'The gas pump wouldn\'t take my money.'], ['WRENCH', 'Got to say the slogan right. It\'s on the billboard, the mailbox and the fridge.']],
   [['WRENCH', 'Sun State says they\'ll pay one dollar if we prove the statue melted.'], ['BANANA SQUID', 'It was already melted.'], ['WRENCH', 'That\'s the hard part.']],
 ];
@@ -109,10 +109,10 @@ const KNOCK = {
   mansion: [['VULTURE (intercom)', 'Larry\'s practising free throws in the ballroom. Go away.'], ['LARRY BYRD (far off)', 'Pool hall. Tonight. Bring money. Bring a lot of money.']],
   farm: [['FARMHAND (from the barn)', 'The horse isn\'t here.'], ['FARMHAND', 'The horse is never here. That\'s what makes it the horse.']],
 };
-const KNOCK_W = { ram: [['RAM', 'I CAN HEAR THE STATUE BREATHING.']], anteater: [['ANTEATER', 'THE ANTS ARE MELTING. THIS IS A CRISIS.']], moth: [['MOTH', 'THE SUN. THE SUN IS A PORCH LIGHT. I HAVE TO GO TO IT.']],
-  apt_pink: [['SOMEONE', 'ALL THE APARTMENTS ARE THE RIGHT APARTMENT NOW.']], apt_vict: [['A VOICE', 'RENT IS DUE. RENT IS MELTING.']], mansion: [['VULTURE', 'CIRCLE. MUST CIRCLE. EXCUSE ME.']], farm: [['FARMHAND', 'WHERE IS THE HORSE. WHERE IS THE HORSE.']] };
+const KNOCK_W = { ram: [['RAM', 'I CAN HEAR THE STATUE BREATHING.']], anteater: [['ANTEATER', 'THE ANTS ARE SPELLING SOMETHING. IT\'S RUDE.']], moth: [['MOTH', 'THE SUN. THE SUN IS A PORCH LIGHT. I HAVE TO GO TO IT.']],
+  apt_pink: [['SOMEONE', 'ALL THE APARTMENTS ARE THE RIGHT APARTMENT NOW.']], apt_vict: [['A VOICE', 'RENT IS DUE. RENT HAS ALWAYS BEEN DUE.']], mansion: [['VULTURE', 'CIRCLE. MUST CIRCLE. EXCUSE ME.']], farm: [['FARMHAND', 'WHERE IS THE HORSE. WHERE IS THE HORSE.']] };
 const FROM_INSIDE = {   // walk-by bubbles from homes with rooms
-  living90: [['BEAR (from inside)', 'Is that the Wolf? Tell him the TV\'s on. It\'s always on.'], ['BEAR (from inside)', 'Same old show. Love this one.']],
+  living90: [['BEAR (from inside)', 'Is that the Wolf? Tell him the TV\'s on. It\'s always on.'], ['BEAR (from inside)', 'It\'s the one where nothing happens. Best episode.']],
   lynx: [['LYNX (from inside)', 'If that\'s about the noise, it\'s not me. It\'s the house.']],
   crow: [['CROW (from inside)', 'Everything in here is in the collection. Including the door.']],
   heron: [['HERON (from inside)', 'I\'m standing on one leg. Don\'t ask which.']],
@@ -126,8 +126,62 @@ const FROM_INSIDE = {   // walk-by bubbles from homes with rooms
   farm: [['FARMHAND (from the kitchen)', 'The horse isn\'t here. Door\'s open. Wipe your feet.']],
   wolf: [['FRIDGE (from the porch)', 'You live here. Come in. Or don\'t. I\'m a fridge.']],
 };
+// What changed in town. [id, who, when, line, swap]: said once the first time you talk to them after it happens; with a swap
+// index it then replaces that line in their rotation for good. Mission keys: missions/*.js `key`; town errands: town.js T.M.
+const newsTable = (night, done, S) => [
+  // the three threads: Moth's porch light, the second horse, the Eye-Max premiere
+  ['n2_payphone', 'payphone', () => night() >= 2 && !done('porch'), 'Moth called the cab office from me last night. Didn\'t say anything. Just breathed. Somebody on Mesa had a porch light on.'],
+  ['n4_farmhand', 'farmhand', () => night() >= 4 && !done('horse'), 'If you\'re ever out on the farm road at night, look for the other horse. Don\'t do anything. Just tell me it\'s there.'],
+  ['n5_hydrant', 'hydrant', () => night() >= 5 && !done('band'), 'Band Night at the Bowl. I\'m on rhythm. Moth can\'t come. Mesa\'s porch lights are on. Mesa\'s porch lights are always on.'],
+  ['n6_squid', 'squid', () => night() >= 6 && !done('horse'), 'Town meeting voted on the second horse. Cow. Seven to six. I voted horse. I wanted it to be a horse.'],
+  ['n7_window', 'window', () => night() >= 7 && !done('porch'), 'Everybody\'s going to the premiere at dawn. We\'re going too. We face that way anyway.'],
+  ['porch_window', 'window', () => done('porch'), 'Moth\'s mother switched her porch light off this morning. First time since 1979. We saw it from here.'],
+  ['bulb_stove', 'stove', () => (S.bulb || 0) >= 5, 'Moth sat in the Drive-In lot all night watching the sun on the screen. Meter running. Nobody inside the cab.'],
+  ['horse_farmhand', 'farmhand', () => done('horse'), 'Horse stood at my fence an hour, looking down the farm road. Then it went back to town. Every few years it checks.', 0],
+  // after the errands: the people you helped turn up in what the town says
+  ['pick_window', 'window', () => done('pick'), 'The hamster sat on us on his way home. We\'ve grown.', 2],
+  ['rts_mailbox', 'mailbox', () => done('rts'), 'Apartment 6 got a letter in its own name. I carried it. I\'ve been shaking since.'],
+  ['route_mailbox', 'mailbox', () => done('route'), 'New paper boy. Throws it at the porch, not the window. I respect that.'],
+  ['lfur_hydrant', 'hydrant', () => done('lfur'), 'The Lemon Kid parked next to me tonight. Parked. Inside the lines. I don\'t know what to do with that.'],
+  ['nothing_hydrant', 'hydrant', () => done('nothing'), 'A black cat sat on me for an hour. Didn\'t say a word. I think that was Nothing.'],
+  ['wtow_squid', 'squid', () => done('wtow'), 'Gecko waved at me from the top of the water tower before he came down. I waved back. I don\'t wave.'],
+  ['hat_squid', 'squid', () => done('hat'), 'Rabbit walked by holding his hat on with both paws. It isn\'t windy. He isn\'t taking chances.'],
+  ['ants_stove', 'stove', () => done('ants'), 'The Anteater\'s kettle went at seven sharp. The ants are back at work. You can tell by the kettle.'],
+  ['chalk_couch', 'couch', () => done('chalk'), 'Larry Byrd sat on me an hour after the Diner closed. Rehearsing. He says "Dot" very quietly.'],
+  ['band_couch', 'couch', () => done('band'), 'I played the Bowl. People stood up. I\'m still a couch. I\'m a couch who played the Bowl.'],
+  ['goat_payphone', 'payphone', () => done('goat'), 'Goat called. Collect. Said to tell you he made it by one fifty-nine. Nothing happened. Then he hung up. He was in a hurry.'],
+  ['call_payphone', 'payphone', () => done('call'), 'KSUN finally got a caller four. It went through me. I\'ve never been so proud of a quarter.', 1],
+  ['vulture_payphone', 'payphone', () => done('vulture'), 'The Vulture rang the mansion intercom from inside again. Said "I hated it" and hung up. He sounded happy.'],
+  ['wrench_wrench', 'wrench', () => done('wrench'), 'Made it to the store before two. Once. Bought one gum. I\'m still chewing it.', 1],
+  ['reggie_wrench', 'wrench', () => done('reggie'), 'Reggie brought his car in for a look. Drove it here at four miles an hour. Wouldn\'t let me touch the pink slip.'],
+  ['hum_farmhand', 'farmhand', () => done('hum'), 'Hummingbird came by with a carrot for Gravy. Said sorry about the trophy. Hummed it, actually.'],
+  ['gcat_fridge', 'fridge', () => done('gcat'), 'Bear brought over a pie from his grandma. Note taped to the foil: "DUCHESS WAS FINE." Underlined twice.'],
+];
+const insideTable = (night, done, S) => [   // [id, door, when, [who, line]]: walk-by lines from the homes, after the fact
+  ['pick_vict', 'apt_vict', () => done('pick'), ['NAN (from the speaking tube)', 'Landlord says no visitors. Landlord also says Pickles is asleep in the good teacup. Thank you, dear.']],
+  ['wtow_gecko', 'gecko', () => done('wtow'), ['GECKO (from inside)', 'I can see the water tower from my window. That\'s close enough. That\'s plenty.']],
+  ['ants_ant', 'anteater', () => done('ants'), ['ANTEATER (from inside)', 'The ants are back at work. I signed something. It was very small.']],
+  ['hat_lynx', 'lynx', () => done('hat'), ['LYNX (from inside)', 'Rabbit came by to say thank you. He kept his hat on. I didn\'t ask him to take it off.']],
+  ['gcat_bear', 'living90', () => done('gcat'), ['BEAR (from inside)', 'Grandma says thanks for the drive. She says you drive like Grandpa did. She means fast.']],
+  ['vulture_mansion', 'mansion', () => done('vulture'), ['VULTURE (intercom)', 'I kept the party hat. I wear it when nobody\'s coming. Which is always.']],
+  ['rts_pink', 'apt_pink', () => done('rts'), ['SOMEONE (from inside)', 'I got a letter with my name on it. I haven\'t opened it. I don\'t know what\'s in there.']],
+  ['call_ram', 'ram', () => done('call'), ['RAM (from inside)', 'Not home. Didn\'t win the contest either. Wasn\'t home for it.']],
+  ['horse_farm', 'farm', () => done('horse'), ['FARMHAND (from the kitchen)', 'The horse came by. Stood at the fence. Went back. Door\'s open.']],
+  ['porch_moth', 'moth', () => done('porch'), ['MOTH (from inside)', 'Night off. First one since 1979. I don\'t know what you do with one.']],
+  ['n3_moth', 'moth', () => night() >= 3 && !done('porch'), ['MOTH (from inside)', 'Ma left her porch light on again. Over on Juniper. I can feel it from here.']],
+];
 export function installTalk({ T, level, TS, wolfState }) {
   const W = () => (window.__sunspots?.wild || 0) > 0.5;
+  // the town remembers (see newsTable): the Night and every finished errand change what people say
+  const S = T.state || T.M?.S || {}; S.heard = S.heard || {};
+  const night = () => window.__shell?.night?.() || 1;
+  const done = (k) => (S[k] || 0) >= (T.M?.DONE?.[k] || 2);
+  const NEWS = newsTable(night, done, S), INSIDE = insideTable(night, done, S);
+  const live = (a) => { try { return !!a[2](); } catch (_) { return false; } };
+  const mark = (id) => { S.heard[id] = 1; try { T.M?.save?.(); } catch (_) {} };
+  function news(key) { for (const a of NEWS) if (a[1] === key && !S.heard[a[0]] && live(a)) { mark(a[0]); return a[3]; } return null; }
+  function lines(key, A) { const L = A.slice(); for (const a of NEWS) if (a[1] === key && a[4] != null && S.heard[a[0]] && live(a)) L[a[4]] = a[3]; return L; }
+  function inside(k) { for (const a of INSIDE) if (a[1] === k && live(a)) { if (!S.heard[a[0]]) { mark(a[0]); return a[3]; } if (Math.random() < 0.5) return a[3]; } return null; }
   // bubble UI (one felt speech bubble projected over the speaker)
   const el = document.createElement('div'); el.id = 'chatBubble';
   el.innerHTML = '<b></b><span></span>';
@@ -155,24 +209,37 @@ export function installTalk({ T, level, TS, wolfState }) {
   for (const [key, re, h, fix] of SPEAK) {
     const pos = () => { const c = castBy(re); return c ? c.holder.position : fix || null; };
     T.addSpot({ id: 'talk_' + key, get x() { return pos()?.x ?? 1e5; }, get z() { return pos()?.z ?? 1e5; }, r: 2.4, label: 'TALK TO ' + CHATTER[key][0],
-      act: () => { const [who, A, Wl] = CHATTER[key], list = W() ? Wl : A, i = (n[key] = (n[key] || 0) + 1);
+      act: () => { const [who, A, Wl] = CHATTER[key], i = (n[key] = (n[key] || 0) + 1);
         const c = castBy(re); if (c && c.wander) c.wait = Math.max(c.wait || 0, 4);   // wanderers stop to talk
-        bubble(who, list[(i - 1) % list.length], pos, h); return null; } });
+        const fresh = W() ? null : news(key), list = W() ? Wl : lines(key, A);   // news first (once), then their usual lines
+        bubble(who, fresh || list[(i - 1) % list.length], pos, h); return null; } });
   }
   // knock on the homes without rooms
   for (const [k, L] of Object.entries(KNOCK)) { const d = TS.doors?.[k]; if (!d || FROM_INSIDE[k]) continue;   // run 16: roomed homes get ENTER, not KNOCK
     T.addSpot({ id: 'knock_' + k, x: d.x + Math.sin(d.ry || 0) * 0.9, z: d.z + Math.cos(d.ry || 0) * 0.9, r: 2.2, label: 'KNOCK',
       act: () => { say(W() ? KNOCK_W[k] : L, { x: d.x, z: d.z }, 2.6); return null; } }); }
   // the plaza notice board: flyers + the lore
-  const BOARD_LINES = [[['NOTICE BOARD', 'LOST CAT. Answers to "Nothing". If you call "Nothing" and nothing comes, that\'s her.']], [['NOTICE BOARD', 'BAND NIGHT AT THE BOWL. Friday. Band to be determined. Bring a band.']],
-    [['NOTICE BOARD', 'KSUN 1490 CALL-IN CONTEST. Be caller four. Prize: being caller four.']], [['NOTICE BOARD', 'HAVE YOU SEEN THIS HORSE? (It\'s the statue. It\'s right there. Behind you.)']],
+  const BOARD_LINES = [[['NOTICE BOARD', 'LOST CAT. Answers to "Nothing". If you call "Nothing" and nothing comes, that\'s him.']], [['NOTICE BOARD', 'BAND NIGHT AT THE BOWL. Friday. Band to be determined. Bring a band.']],
+    [['NOTICE BOARD', 'KSUN 1490 CALL-IN CONTEST. Prize to be announced. Prize has been to be announced since 1974.']], [['NOTICE BOARD', 'HAVE YOU SEEN THIS HORSE? (It\'s the statue. It\'s right there. Behind you.)']],
     [['TOWN HISTORY', LORE.founding[0]], ['TOWN HISTORY', LORE.founding[1]]], [['TOWN HISTORY', LORE.horse[0]], ['TOWN HISTORY', LORE.horse[1]]], [['TOWN HISTORY', LORE.store[0]], ['TOWN HISTORY', LORE.store[1]]], [['TOWN HISTORY', LORE.ksun[0]], ['TOWN HISTORY', LORE.ksun[1]]]];
   BOARD_LINES.push(   // run 17: new flyers (read-only, pinned behind the others) + lore pairs
-    [['NOTICE BOARD', 'SUN-O-CAB · NIGHT SHIFT. Driver: Moth. Please switch porch lights off on Mesa Rd after dark.']], [['NOTICE BOARD', 'FOUND: four letters. None for you. None for anyone. Ask at apartment 6. (Ask SOMEONE.)']],
+    [['NOTICE BOARD', 'SUN-O-CAB · NIGHT SHIFT. Driver: Moth. Please switch porch lights off on Mesa Rd after dark.']], [['NOTICE BOARD', 'FOUND: four letters. None for you. None for anyone. Ask at apartment 6. Ask SOMEONE.']],
     [['NOTICE BOARD', 'POOL NIGHT AT THE MANSION. Challengers wanted. Signed, L. Byrd. Below it someone wrote: "DON\'T."']], [['NOTICE BOARD', 'MISSING: BUS STOP SIGN. Also: bus stop. If found, the bus would like to know.']],
     [['NOTICE BOARD', 'TOWN MEETING: Is it a second horse, or a cow? Bring evidence. Do not bring the cow.']],
+    [['NOTICE BOARD', 'EYE-MAX DRIVE-IN. PREMIERE COMING SOON.'], ['', 'Someone has written underneath, in pencil: "SINCE THE BULB".']],
     [['TOWN HISTORY', LORE.mesa[0]], ['TOWN HISTORY', LORE.mesa[1]]], [['TOWN HISTORY', LORE.pink[0]], ['TOWN HISTORY', LORE.pink[1]]], [['TOWN HISTORY', LORE.mansion[0]], ['TOWN HISTORY', LORE.mansion[1]]], [['TOWN HISTORY', LORE.farm[0]], ['TOWN HISTORY', LORE.farm[1]]]);
-  let bn = 0; if (TS.spots.board) T.addSpot({ id: 'board', x: TS.spots.board.x, z: TS.spots.board.z, r: 2.4, label: 'READ THE BOARD', act: () => BOARD_LINES[bn++ % BOARD_LINES.length] });
+  const BOARD_AFTER = [   // [index in BOARD_LINES, done when, what's pinned there now]
+    [0, () => done('nothing'), [['NOTICE BOARD', 'FOUND: NOTHING. He was in the laundromat the whole time.'], ['', 'Below it, in the same hand: "Please stop calling his name at night."']]],
+    [1, () => done('band'), [['NOTICE BOARD', 'BAND NIGHT: THANK YOU, SUNSPOTS. Same time next week. The couch needs a lie-down.']]],
+    [2, () => done('call'), [['NOTICE BOARD', 'KSUN 1490 CALL-IN CONTEST: WON.'], ['NOTICE BOARD', 'Prize to be announced.']]],
+    [3, () => done('horse'), [['NOTICE BOARD', 'HAVE YOU SEEN THIS HORSE? Someone has crossed it out and written: "YES. IT CAME BACK."']]],
+    [9, () => done('rts'), [['NOTICE BOARD', 'THANK YOU to whoever sorted the mail. Apartment 6 has received one letter in its own name. It has not opened it.']]],
+    [10, () => done('reggie'), [['NOTICE BOARD', 'POOL NIGHT AT THE MANSION. Challengers wanted. L. Byrd.'], ['', 'Underneath: "NOT REGGIE. REGGIE HAS RETIRED."']]],
+    [12, () => done('horse'), [['NOTICE BOARD', 'TOWN MEETING RESULT: Cow. Seven votes to six.'], ['', 'Someone has added: "Nobody tell the horse."']]],
+    [13, () => (S.bulb || 0) >= 5, [['NOTICE BOARD', 'EYE-MAX DRIVE-IN. PREMIERE: SUNDAY, DAWN. ONE SHOWING.'], ['', 'The pencil note underneath has been rubbed out.']]],
+  ];
+  let bn = 0; if (TS.spots.board) T.addSpot({ id: 'board', x: TS.spots.board.x, z: TS.spots.board.z, r: 2.4, label: 'READ THE BOARD',
+    act: () => { const i = bn++ % BOARD_LINES.length; for (const [k, ok, L] of BOARD_AFTER) if (k === i && ok()) return L; return BOARD_LINES[i]; } });
   T.boardLines = BOARD_LINES;
   // walk-by: homes talk through the door now and then
   // keep the bubble inside the safe area and off the HUD / errand list / perf bar / top buttons (it slides down past them)
@@ -209,7 +276,7 @@ export function installTalk({ T, level, TS, wolfState }) {
     if ((T.overT = (T.overT ?? 30) - 2) <= 0) for (const [, re] of OVER_WHO) { const c = castBy(re); if (!c) continue; const cp = c.holder.position, dd = Math.hypot(p.x - cp.x, p.z - cp.z);
       if (dd < 9 && dd > 2.5) { const L = OVERHEARD[(T.overN = (T.overN || 0) + 1) % OVERHEARD.length]; say(W() ? L.map(([w, t]) => [w, t.toUpperCase()]) : L, () => c.holder.position, 2.3); T.overT = 90; walkT = 12; return; } }
     for (const [k, L] of Object.entries(FROM_INSIDE)) { const d = TS.doors?.[k]; if (!d) continue; const dd = Math.hypot(p.x - d.x, p.z - d.z);
-      if (dd < 7 && dd > 2.6 && (heard[k] || 0) < performance.now() - 60000) { heard[k] = performance.now(); const l = R(L); bubble(l[0], W() ? l[1].toUpperCase() : l[1], { x: d.x, z: d.z }, 2.8); walkT = 20; break; } }
+      if (dd < 7 && dd > 2.6 && (heard[k] || 0) < performance.now() - 60000) { heard[k] = performance.now(); const l = inside(k) || R(L); bubble(l[0], W() ? l[1].toUpperCase() : l[1], { x: d.x, z: d.z }, 2.8); walkT = 20; break; } }
   });
   return { bubble, say };
 }

@@ -63,14 +63,14 @@ function create({ hud: H }) {
       if (near && !near.used && Math.abs(near.s - D.P.s) < 3 && Math.sign(D.P.x) === near.side && Math.abs(D.P.x) > D.HALF - 1.7) { near.used = true; G.dazes++; G.dazeT = near.zap ? 2.2 : 1.3; sfx.tone(420, 0.6, 'sine', 0.18, 1.8); H.pill('daze', `DAZED ${G.dazes}`, G.dazes > 1); const sp = toScreen(cab.getWorldPosition(new THREE.Vector3()).setY(3), camera); H.float(sp.x, sp.y, near.zap ? 'BZZT!' : 'OOH…', near.zap ? '#bfaaff' : '#ffe1a8');
         if (near.zap) { G.zapped = true; sfx.noise(0.4, 0.3, 4200); say(['MOTH', 'BZZT. I am fine. My antennae are curly now.']); } else say(['MOTH', R.pick(['Ooh.', 'Ooh. Pretty.', 'Ooooh. Sorry.', 'That is a nice one.'])]); }
       if (near?.zap && !G.said['z' + near.s]) { G.said['z' + near.s] = 1; say(['WOLF', 'Bug zapper. Hard left. Hard right. Away from it.']); }
-      for (const e of D.events.splice(0)) { if (e === 'bump' || e === 'tbone' || e === 'hit') { sfx.crash(); say(['MOTH', R.pick(['Sorry. Sorry.', 'That is on me. I am the meter.', 'Felt bumpers.'])]); } }
+      for (const e of D.events.splice(0)) { if (e === 'bump' || e === 'tbone' || e === 'hit') { sfx.crash(); say(['MOTH', R.pick(['Sorry. Sorry.', 'That is on me. I am the meter.', 'Bonk.'])]); } }
       if (!G.said.half && D.P.s > D.LEN * 0.5) { G.said.half = 1; say(['MOTH', 'Juniper Street. Green light at the end. Not that one. Not that one either.']); }
       if (D.P.s >= D.LEN - 30) { G.phase = 'home'; D.P.done = true; arrive(); } }
   };
   function l_flick(t) { for (const l of lights) if (l.zap) l.gl.material.opacity = 0.7 + Math.sin(t * 31 + l.s) * 0.25; }
   function autoAx() { const P = D.P; let want = -G.pull * 2.4; for (const n of D.npcs) { const ds = n.s - P.s; if (ds > 0 && ds < 18 && Math.abs(n.x - (P.x + want * 0.3)) < 2.2) want = n.x > P.x ? -1 : 1; } want += clamp((2.6 - P.x) * 0.3, -0.5, 0.5); return clamp(want - G.pull, -1, 1); }
   function arrive() { sfx.good(); const stars = 1 + (G.dazes <= 1 ? 1 : 0) + (D.P.bumps <= 2 ? 1 : 0); const suns = ['mp_done']; if (stars === 3) suns.push('mp_star'); if (!G.zapped) suns.push('mp_zap');
-    H.say([['', 'The end of Juniper. A small green porch light, and somebody waving under it.'], ['MOTH', 'She leaves it on. Every night. Since 1979.'], ['MOTH', '(He switches off the meter.) Destination.'], ['WOLF', 'Go on. I will park it.'], ['MOTH\'S MOM', 'You are late, sweetheart. Is that the Wolf? Bring the Wolf in. There is pie.']], () =>
+    H.say([['', 'The end of Juniper. A small green porch light, and somebody waving under it.'], ['MOTH', 'She leaves it on. Every night. Since 1979.'], ['', 'He switches off the meter.'], ['MOTH', 'Destination.'], ['WOLF', 'Go on. I will park it.'], ['MOTH\'S MOM', 'You are late, sweetheart. Is that the Wolf? Bring the Wolf in. There is pie.']], () =>
       ctl.finish({ win: true, stars, title: 'DESTINATION', lines: [`Dazed ${G.dazes} · ${D.P.bumps} bump${D.P.bumps === 1 ? '' : 's'}${G.zapped ? ' · zapped once (he is fine)' : ''}`, 'MOTH: "Same time tomorrow. Somebody else drives."'], suns })); }
   return inst;
 }

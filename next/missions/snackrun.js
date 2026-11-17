@@ -311,7 +311,7 @@ export function installSnackRun(C) {
     card.innerHTML = `<div class="in"><h1>LATE NIGHT SNACK RUN</h1><h2>1:40 AM · LAST MINUTE SNACKS CLOSES AT 2:00</h2>
       <p>The crew is on the couch. Somebody said “snacks.” Nobody moved. Then everybody looked at the Wolf.</p>
       <ul>${S.list.map(([w, , t]) => `<li><b>${w}</b> · ${t}</li>`).join('')}</ul>
-      <p style="opacity:.8;font-size:11px">Drive to the store (40 mi. north, apparently 1 km). Shortcut at the fork. Watch for cows. Officer Fuzz is timing people.</p>
+      <p style="opacity:.8;font-size:11px">Drive to the store. Forty miles north. It's closer than that. Shortcut at the fork. Watch for cows. Officer Fuzz is timing people.</p>
       <div class="row"><button class="srBig go">GO ▸</button><button class="srBig no quit">NOT NOW</button></div></div>`;
     card.classList.add('on');
     card.querySelector('.go').onclick = () => go(); card.querySelector('.quit').onclick = () => quit();
@@ -371,7 +371,7 @@ export function installSnackRun(C) {
   function showEnd(won) {
     const st = won ? '★'.repeat(S.stars) + `<i>${'★'.repeat(3 - S.stars)}</i>` : '<i>★★★</i>';
     const lines = won ? [`At the store ${fmt(S.arriveAt)} · home ${fmt(S.homeAt)}`, `List: ${S.right}/${S.list.length} right${S.wrong ? `, ${S.wrong} extra` : ''}`] : ['The neon says CLOSED. The Wolf looks at it for a while.', 'The clerk waves through the glass. It is not a friendly wave. It is not an unfriendly wave.'];
-    const tips = won ? [S.listOK ? '★ whole list right' : '☆ get the whole list right (the BIG bag, not the mini)', S.homeAt <= STAR_HOME ? '★ home by 2:15' : '☆ be home by 2:15 AM'] : ['Tip: the shortcut is shorter but bumpy. Draft Moth on the long road. Officer Fuzz stops anyone over 15.'];
+    const tips = won ? [S.listOK ? '★ whole list right' : '☆ THE BIG BAG', S.homeAt <= STAR_HOME ? '★ home by 2:15' : '☆ be home by 2:15 AM'] : ['Tip: the shortcut is shorter but bumpy. Draft Moth on the long road. Officer Fuzz stops anyone over 15.'];
     card.innerHTML = `<div class="in"><h1>${won ? 'SNACKS ACQUIRED' : 'CLOSED.'}</h1><h2>LATE NIGHT SNACK RUN${won && S.best ? ` · BEST ${'★'.repeat(S.best)}` : ''}</h2>
       <div class="stars">${st}</div>${lines.map((l) => `<p>${l}</p>`).join('')}<p style="font-size:11px;opacity:.8">${tips.join('<br>')}</p>
       <div class="badges">${(won ? S.gotSuns || [] : []).map((n) => `<span>☀ ${n}</span>`).join('')}${[...S.badges].map((b) => `<span>${b}</span>`).join('')}</div>
@@ -458,7 +458,7 @@ export function installSnackRun(C) {
       animPal(squidPal, dt, t, { wave: d < 30 ? 1 : 0 }); face(squidPal, cp.x, cp.z);
       if (d < 16) askShow('squid', '🍌 BANANA SQUID waves you down.<br><small>“Going north? I need PICKLE CRISPS. I will pay you in squid facts.”</small>', 'GIVE A RIDE (+1 min)', 'KEEP DRIVING',
         () => { S.squid = true; squidPal.visible = false; c.v = 0; addTime(60, 'Squid climbs in the back.'); S.list.push(['SQUID', 'pickle', 'PICKLE CRISPS']); S.badges.add("SQUID'S RIDE"); renderList(); bubble('SQUID', 'Fact: I am not a banana.', () => cp, 2); },
-        () => { bubble('SQUID', 'Fine. The bus will come. (It will not.)', () => squidPal.position); });
+        () => { bubble('SQUID', 'Fine. The bus will come. It has never come. It will come.', () => squidPal.position); });
       else if (d > 24) askHide('squid'); }
     // --- Officer Fuzz's speed check (both legs; a stop costs 1.5 min)
     { const d = Math.hypot(cp.x - fuzzPal.position.x, cp.z - fuzzPal.position.z); animPal(fuzzPal, dt, t, { wave: S.fuzzStop > 0 ? 1 : 0 }); face(fuzzPal, cp.x, cp.z);
@@ -470,7 +470,7 @@ export function installSnackRun(C) {
     // --- cows (wander across; bonk)
     for (const cw of cows) { cw.ph += dt * 0.32; const lat = Math.sin(cw.ph) * 7 + cw.lane, fx = Math.cos(cw.yaw), fz = -Math.sin(cw.yaw);
       const x = cw.cx + fx * lat, z = cw.cz + fz * lat; cw.g.position.set(x, Math.abs(Math.sin(cw.ph * 9)) * 0.05, z); cw.g.rotation.y = cw.yaw + (Math.cos(cw.ph) > 0 ? Math.PI / 2 : -Math.PI / 2);
-      if (Math.hypot(cp.x - x, cp.z - z) < 2.5 && Math.abs(c.v) > 2) bonk(['A cow. It does not move. It is a cow.', 'Moo. (deadpan)', 'Felt cow. No harm. Some judgement.'][Math.floor(R() * 3)]); }
+      if (Math.hypot(cp.x - x, cp.z - z) < 2.5 && Math.abs(c.v) > 2) bonk(['Moo.', 'The cow has right of way. The cow has always had right of way.', 'The cow looks at you like it knows your mother.'][Math.floor(R() * 3)]); }
     for (const tw of tumbles) { tw.ph += dt * 0.5; const lat = Math.sin(tw.ph) * 9, fx = Math.cos(tw.r.yaw), fz = -Math.sin(tw.r.yaw); const x = tw.r.x + fx * lat, z = tw.r.z + fz * lat;
       tw.g.position.set(x, Math.abs(Math.sin(tw.ph * 6)) * 0.4, z); tw.g.rotation.z += dt * 3 * Math.sign(Math.cos(tw.ph));
       if (Math.hypot(cp.x - x, cp.z - z) < 2.1 && Math.abs(c.v) > 2 && c.bonkT <= 0) { c.v *= 0.6; c.bonkT = 0.6; A(() => audio.ev('tumble')); toast('Tumbleweed. Taking its time.', 1.6); } }
@@ -493,7 +493,7 @@ export function installSnackRun(C) {
       else S.boost = lerp(S.boost, 0, 1 - Math.exp(-dt * 3));
       if (S.boost > 0.02 && !L.frozen && L.solo) { c.pos.x += Math.sin(c.yaw) * S.boost * 6.5 * dt; c.pos.z += Math.cos(c.yaw) * S.boost * 6.5 * dt; }
       placeCab(); cabBody.position.y = Math.abs(Math.sin(t * (mothR.state === 'drive' ? 14 : 3))) * 0.04;
-      if (Math.hypot(cp.x - cab.position.x, cp.z - cab.position.z) < 2.8 && Math.abs(c.v) > 3) bonk("Bonk. MOTH: 'Felt bumpers. We're fine. Back off a little.'"); }
+      if (Math.hypot(cp.x - cab.position.x, cp.z - cab.position.z) < 2.8 && Math.abs(c.v) > 3) bonk("Bonk. MOTH: 'That was my rear bumper. Back off a little.'"); }
     // --- home
     if (S.phase === 'home' && Math.hypot(cp.x - HOME[0], cp.z - HOME[1]) < 9 && Math.abs(c.v) < 9) { c.v = 0; L.frozen = true; win(); }
   };

@@ -1148,7 +1148,7 @@ body.riding #bDismount{display:block} body.riding.scene #bDismount{display:none}
     wolfState.pos.copy(spot); wolfState.speed = 0; wolf.position.copy(spot); wolf.userData.body.rotation.set(0, 0, 0); syncCols();
     if (!force) audio.ui?.('confirm'); return true; };
   const say1 = [['BEAR (from the window)', 'That\'s Gravy. Take him out. He gets bored.'], ['WOLF', 'Hi, Gravy.'], ['', 'Gravy looks at you with both eyes. Separately.']];
-  const sayN = [[['', 'Gravy is ready. Gravy was born ready.']], [['WOLF', 'Same old horse.'], ['', 'Gravy blinks one googly eye.']], [['', 'Gravy has been waiting. Gravy does a lot of waiting.']], [['BEAR (from the window)', 'Bring him back by supper.']]];
+  const sayN = [[['', 'Gravy is ready. Gravy was born ready.']], [['WOLF', 'Gravy chews your sleeve a little. Hello.'], ['', 'Gravy blinks one googly eye.']], [['', 'Gravy has been waiting. Gravy does a lot of waiting.']], [['BEAR (from the window)', 'Bring him back by supper.']]];
   const spot = town?.addSpot?.({ id: 'gravy', x: PET.pos.x, z: PET.pos.z, r: 2.5, on: () => !PET.mounted, label: 'RIDE ' + PET_NAME, act: () => { const first = PET.rides === 0; PET.mount(); return first ? say1 : sayN[PET.rides % sayN.length]; } });
   if (town) town.riding = () => PET.mounted;
   const _upd = PET.update; PET.update = (dt, t, w, ws) => { _upd(dt, t, w, ws); if (spot) { spot.x = PET.pos.x; spot.z = PET.pos.z; } if (!PET.mounted && PET.speed < 0.05) syncCols(); };

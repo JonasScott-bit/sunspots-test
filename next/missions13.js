@@ -26,9 +26,10 @@ export function installMissions({ T, TS, level, wolfState, horse, scene, feltMat
     route: ['', 'Paper for the Ram (Mesa Rd, east end)', 'Paper for the Lynx', 'Paper for the Heron', 'Paper for the Mansion (Vulture & Larry)', ''],
   });
   const BASE = { call: OBJ.call.slice() };
-  Object.assign(TITLE, { horse: 'THE ONE HORSE', call: 'KSUN CALL-IN', route: 'PAPER ROUTE' });
+  Object.assign(TITLE, { horse: 'TWO HORSES', call: 'KSUN CALL-IN', route: 'PAPER ROUTE' });
+  (window.__jnX ||= { start: {}, plain: {}, suns: [], night: {} }).night.horse = 6;   // the second-horse payoff opens on Night 6 (journal shows the gate)
   Object.assign(DONE, { horse: 5, call: 5, route: 5 });
-  Object.assign(DONE_MSG, { horse: '. It was here first.', call: '. Caller four. Prize: being caller four.', route: '. Tip: never play pool with Larry.' });
+  Object.assign(DONE_MSG, { horse: '. The horse came back. The cow is still a cow.', call: '. Caller four. Prize: being caller four.', route: '. Tip: never play pool with Larry.' });
   Object.assign(TGT, { horse: [0, 'm_bowl_hoof', 'm_drivein', 'm_farmhorse', 'm_plaza'], call: [0, 'm_pin', 'm_board', 'm_cone', 'm_phone'], route: [0, 'm_route0', 'm_route1', 'm_route2', 'm_route3'] });
   M.MLIST.push('horse', 'call', 'route');
   for (const m of ['horse', 'call', 'route']) S[m] = S[m] || 0;
@@ -68,20 +69,21 @@ export function installMissions({ T, TS, level, wolfState, horse, scene, feltMat
 
   // ---- THE ONE HORSE
   let wildRead = false;   // the first WILD read is the plaque; after that the eyes invite you in
-  T.statueLabel = () => (S.horse === 0 && W() && wildRead ? 'LOOK IT IN THE EYE' : S.horse === 4 ? 'CHECK THE PLINTH' : S.horse >= 1 && S.horse < 4 ? 'LOOK AT THE EMPTY PLINTH' : null);
+  const N6 = () => (window.__shell?.night?.() || 1) >= 6 || new URLSearchParams(location.search).has('unlock');   // Night 6 · TWO HORSES
+  T.statueLabel = () => (S.horse === 0 && W() && wildRead && N6() ? 'LOOK IT IN THE EYE' : S.horse === 4 ? 'CHECK THE PLINTH' : S.horse >= 1 && S.horse < 4 ? 'LOOK AT THE EMPTY PLINTH' : null);
   T.statueAct = () => {
     if (S.horse === 0 && W() && !wildRead) { wildRead = true; return null; }
-    if (S.horse === 0 && W()) { step('horse', 1); sync(); return [['', 'The red eyes blink. Once.'], ['', 'You blink too. The plinth is empty.'], ['WOLF', 'The one horse.'], ['WOLF', 'It\'s gone. There are hoofprints.']]; }
-    if (S.horse >= 1 && S.horse < 4) return [['', 'An empty plinth. A felt dent in the shape of a horse.'], ['PLAQUE', 'SAME OLD ONE HORSE TOWN.'], ['WOLF', 'Zero horse town, currently.']];
-    if (S.horse === 4) { step('horse', 5); horse?.setAt('plinth'); sync(); return [['', 'The horse is back on the plinth. It is not out of breath.'], ['WOLF', 'You beat me here.'], ['PLAQUE', '"IT WAS HERE FIRST."'], ['', 'Somewhere, the Farmhand sets down a shovel.']]; }
+    if (S.horse === 0 && W() && N6()) { step('horse', 1); sync(); return [['', 'The red eyes blink. Once.'], ['', 'You blink too. The plinth is empty.'], ['WOLF', 'Where does a horse go.'], ['', 'Hoofprints, heading for the Bowl. Like it heard something.']]; }
+    if (S.horse >= 1 && S.horse < 4) return [['', 'An empty plinth. A dent in the shape of a horse.'], ['PLAQUE', 'SAME OLD ONE HORSE TOWN.'], ['WOLF', 'Zero horse town, currently.']];
+    if (S.horse === 4) { step('horse', 5); horse?.setAt('plinth'); sync(); return [['', 'The horse is back on the plinth. It is not out of breath.'], ['WOLF', 'You beat me here.'], ['PLAQUE', '"IT WAS HERE FIRST."'], ['', 'Out on the farm road, the cow goes back to being a cow.'], ['', 'At one fifty-nine, Goat comes and stands in front of the horse. He nods to it. It was the other one he was waiting for.']]; }
     return null;
   };
   T.addSpot({ id: 'm_hoof', x: TS.spots.m_bowl_hoof.x, z: TS.spots.m_bowl_hoof.z, r: 2.6, on: () => S.horse === 1, label: 'PICK UP THE HORSESHOE',
-    act: () => { step('horse', 2); sync(); return [['', 'A felt horseshoe in the gutter outside the Bowl.'], ['BOWLING PIN (from inside)', 'It bowled a 300. With its face.'], ['', 'Popcorn. A trail of popcorn, heading east.']]; } });
+    act: () => { step('horse', 2); sync(); return [['', 'A horseshoe in the gutter outside the Bowl.'], ['BOWLING PIN (from inside)', 'It bowled a 300. With its face.'], ['', 'Popcorn. A trail of popcorn, heading east.']]; } });
   T.addSpot({ id: 'm_drivein', x: TS.spots.m_drivein.x, z: TS.spots.m_drivein.z, r: 2.8, on: () => S.horse === 2, label: 'ASK ABOUT THE POPCORN',
-    act: () => { step('horse', 3); sync(); return [['', 'The popcorn ends at the Drive-In. A note on the snack window:'], ['NOTE', '"1 LARGE POPCORN. PAID IN HAY. WENT HOME."'], ['WOLF', 'Home. The farm.']]; } });
+    act: () => { step('horse', 3); sync(); return [['', 'The popcorn ends at the Drive-In. A note on the snack window:'], ['NOTE', '"2 LARGE POPCORN. PAID IN HAY. ONE IS FOR A FRIEND."'], ['WOLF', 'A friend. Out past the farm.']]; } });
   T.addSpot({ id: 'm_farm', x: TS.spots.m_farmhorse.x, z: TS.spots.m_farmhorse.z, r: 3.2, on: () => S.horse === 3, label: 'TALK TO THE HORSE',
-    act: () => { step('horse', 4); setTimeout(() => sync(), 4200); return [['', 'The horse stands in the field like it never left.'], ['FARMHAND', 'It does this. Comes home, eats, goes back to work.'], ['WOLF', 'It\'s a statue.'], ['FARMHAND', 'It\'s the only horse. It can stand wherever it wants.'], ['', 'You look away for one second. The field is empty.']]; } });
+    act: () => { step('horse', 4); setTimeout(() => sync(), 4200); return [['', 'The horse stands at the far fence, looking down the farm road. Two empty popcorn boxes at its feet.'], ['FARMHAND', 'Every few years it comes out here. Looks down the road. Where the other one went, in \'58.'], ['', 'Across the road, in the dark, something moos.'], ['WOLF', 'That\'s a cow.'], ['FARMHAND', 'Town voted. It\'s a cow.'], ['FARMHAND', 'He doesn\'t know that. Let him have tonight.'], ['', 'You look away for one second. The fence is empty.']]; } });
 
   // ---- KSUN CALL-IN (timed: the song is 3:00)
   T.addSpot({ id: 'm_phone', x: 8.6, z: 13.0, r: 2.0, on: () => (S.call === 0 && (T.talkN?.payphone || 0) >= 1) || S.call === 4, label: () => S.call === 4 ? 'CALL KSUN' : 'DIAL KSUN (CONTEST LINE)',
@@ -90,7 +92,7 @@ export function installMissions({ T, TS, level, wolfState, horse, scene, feltMat
       step('call', 5); S.callT = 0; sync(); return [['KSUN DJ', 'Pin? Flyer? Cone? On a payphone? I can hear the cone.'], ['KSUN DJ', 'Folks... we have a CALLER FOUR.'], ['KSUN DJ', 'We\'ve never had a caller four. We don\'t have a prize.'], ['KSUN DJ', 'Here\'s the song again.'], ['WOLF', 'Same old song.']];
     } });
   T.addSpot({ id: 'm_pin', x: TS.spots.m_pin.x, z: TS.spots.m_pin.z, r: 2.6, on: () => S.call === 1, label: 'BORROW A SPARE PIN', act: () => { step('call', 2); sync(); return [['BOWLING PIN', 'Take me. Nobody\'s knocked me down in years.']]; } });
-  T.addSpot({ id: 'm_board', x: TS.spots.m_board.x, z: TS.spots.m_board.z, r: 2.6, on: () => S.call === 2, label: 'TAKE A FLYER', act: () => { step('call', 3); sync(); return [['', 'You take the KSUN flyer. "BE CALLER 4!" Ironic.']]; } });
+  T.addSpot({ id: 'm_board', x: TS.spots.m_board.x, z: TS.spots.m_board.z, r: 2.6, on: () => S.call === 2, label: 'TAKE A FLYER', act: () => { step('call', 3); sync(); return [['', 'You take the KSUN flyer. Somebody has drawn a small, hopeful phone on it.']]; } });
   T.addSpot({ id: 'm_cone', x: TS.spots.m_cone.x, z: TS.spots.m_cone.z, r: 2.6, on: () => S.call === 3, label: 'TAKE A CONE', act: () => { step('call', 4); sync(); return [['BIG AL (from under a car)', 'Bring it back. That cone has seen worse.']]; } });
   T.tick.push((dt) => { if (S.call > 0 && S.call < 5) { S.callT -= dt; if (S.callT <= 0) { S.call = 0; S.callT = 0; M.save(); M.hud(); M.toast('KSUN CALL-IN — failed. The song ended.', 4);
     say([['KSUN DJ (on every radio)', 'Song ended. Caller four won.'], ['KSUN DJ', 'There\'s never a caller four.']]); } else if ((S.callT | 0) !== (S._ct | 0)) { S._ct = S.callT; sync(); M.hud(); } } });

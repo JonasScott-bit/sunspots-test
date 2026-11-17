@@ -72,7 +72,7 @@ export function homes16(K) {
       if (A.polish > 0) { A.polish -= dt; for (const tr of trophies) tr.rotation.y += dt * 6; } if (A.flip > 0) { A.flip = Math.max(0, A.flip - dt * 3); nh.rotation.y = Math.PI * (1 - A.flip); } };
     const STA = [['KSUN 1490', [['RADIO (KSUN 1490)', 'Weather: sunny. Tomorrow: sunny. The weekend: also sunny. Nothing happened.']]],
       ['KSUN 1490 (other end of the dial)', [['RADIO (KSUN 1490)', 'You\'re listening to KSUN. You were also listening to KSUN on the other end of the dial.']]],
-      ['KSUN 1490 (the middle)', [['RADIO (KSUN 1490)', 'Contest line\'s open. Be caller four. Ram, we know you\'re listening. Pick up.'], ['RAM', 'I\'m not home.']]]];
+      ['KSUN 1490 (the middle)', [['RADIO (KSUN 1490)', 'Contest line\'s open. Ram, we know you\'re listening. Pick up.'], ['RAM', 'I\'m not home.']]]];
     A.who = [
       { id: 'ram_door', label: () => 'THE DOOR', o: door, talk: () => { if (A.lock === 0) { A.lock = 1; chain.visible = true; return [['', 'Chain on. (LOCK UP 1/3)'], ['RAM', 'Good. Now the deadbolt.']]; }
         if (A.lock === 1) { A.lock = 2; bolt.position.x = 0.44; return [['', 'Ka-chunk. Deadbolt. (LOCK UP 2/3)'], ['RAM', 'Now flip the sign.']]; }
@@ -145,7 +145,7 @@ export function homes16(K) {
       { id: 'ant_kettle', label: 'KETTLE', o: kettle, talk: () => { A.whistle = 2.2; if (A.din === 1) { A.din = 2; return [['KETTLE', 'Wheeeeeeee.'], ['KETTLE', 'That\'s my whole job. I love my job.'], ['', 'Hot water for the ANT-O\'s. BREAKFAST 2/3']]; } return [['KETTLE', 'Wheeee. (I\'m not even on. I just like it.)']]; } },
       { id: 'ant_bowl', label: 'BOWL', o: bowl, talk: () => { if (A.din === 2) { A.din = 3; milk.visible = true; return [['', 'ANT-O\'s, hot water, one long straw.'], ['ANTEATER', '(slurp) Mostly no ants.'], ['ANTEATER', 'Mostly.'], ['', 'BREAKFAST: done. (3/3)']]; } return A.din >= 3 ? [['', 'An empty bowl. A very long straw.']] : [['', 'An empty bowl. Something goes in it. Ask the cupboard.']]; } },
       { id: 'ant_farm', label: 'ANT FARM', o: farm, talk: () => { A.antV = 0.22; return Math.random() < 0.5 ? [['THE ANTS (all of them)', 'WE ARE MARCHING.'], ['WOLF', 'Where to?'], ['THE ANTS', 'AROUND.']] : [['THE ANTS', 'WE PAY RENT. IN TUNNELS.'], ['ANTEATER', 'They do. Look at those tunnels.']]; } },
-      { id: 'ant_phone', label: 'PHONE NICHE', o: phone, talk: () => [['', 'You lift the candlestick phone.'], ['OPERATOR (made of felt)', 'Number, please.'], ['WOLF', 'Who\'s calling?'], ['OPERATOR', 'You are. Number, please.'], ['', 'You hang up. The niche is very proud of the phone.']] },
+      { id: 'ant_phone', label: 'PHONE NICHE', o: phone, talk: () => [['', 'You lift the candlestick phone.'], ['OPERATOR', 'Number, please.'], ['WOLF', 'Who\'s calling?'], ['OPERATOR', 'You are. Number, please.'], ['', 'You hang up. The niche is very proud of the phone.']] },
       { id: 'anteater', label: 'ANTEATER', o: ant, talk: () => A.din >= 3 ? [['ANTEATER', 'Full. Thank you. Now the ants and I watch the window.'], ['ANTEATER', 'Nothing happens out there. It\'s very relaxing.']] : [['ANTEATER', 'House is from 1931. Arches everywhere. I don\'t trust a square doorway.'], ['ANTEATER', 'Breakfast first. Then trust.']] },
     ];
     playhouse(A);
@@ -269,8 +269,8 @@ export function homes16(K) {
       if (lit.step >= 3) goal.set(3.2, 0, -0.9); else if (lit.porch) goal.set(3.1 + Math.sin(t * 0.8) * 0.15, 0, -0.4); else if (lit.lava) goal.set(-1.9 + Math.sin(t * 0.9) * 0.15, 0, -1.7); else goal.set(0.6, 0, -1.6);
       moth.position.lerp(goal, Math.min(1, dt * 0.6)); moth.rotation.y += (Math.atan2(goal.x - moth.position.x, goal.z - moth.position.z + 0.6) * 0.5 - moth.rotation.y) * Math.min(1, dt * 2);
       scr.material.emissiveIntensity = 0.12 + 0.05 * Math.sin(t * 11) * Math.sin(t * 3); };
-    const CB = [[['CB RADIO', 'Breaker one-nine, this is Felt Trucker. Anybody seen the horse?'], ['CB RADIO', 'Ten-four, it\'s in the square. It\'s always in the square.']],
-      [['CB RADIO', 'This is Big Al. Store closes at two. Repeat, two. Over.'], ['CB RADIO', 'It\'s two-fifteen, Al.'], ['CB RADIO', '...Over.']], [['CB RADIO', 'SUN-O-CAB, come in. Fare at the diner, wants to go to the diner.'], ['MOTH', 'That\'s my favourite kind of fare.']]];
+    const CB = [[['CB RADIO', 'Breaker one-nine, this is Night Trucker. Anybody seen the horse?'], ['CB RADIO', 'Ten-four, it\'s in the square. It\'s always in the square.']],
+      [['CB RADIO', 'This is Big Al. Anybody got a socket? I owe a guy a socket. Over.'], ['CB RADIO', 'It\'s two-fifteen, Al.'], ['CB RADIO', '...Over.']], [['CB RADIO', 'SUN-O-CAB, come in. Fare at the diner, wants to go to the diner.'], ['MOTH', 'That\'s my favourite kind of fare.']]];
     let cbi = 0;
     A.who = [
       { id: 'moth_switch', label: 'PORCH SWITCH', o: sw, talk: () => { if (lit.porch) { lit.porch = false; lit.step = Math.max(lit.step, 1); tog.position.y = 0.05; porch.material.emissiveIntensity = 0; return [['', 'Click. The porch light goes out. (CLOCK IN 1/3)'], ['MOTH', 'Oh. Oh, I can think again.'], ['MOTH', 'Except... the lava lamp.']]; } return [['', 'The porch light stays off. He has to work.']]; } },

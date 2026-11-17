@@ -275,17 +275,49 @@ const DJ_BUMPERS = [   // run 17: KSUN DJ text bumpers between songs (no VO)
   'KSUN 1490. Same song, fresh air. The air is not fresh.', 'That was the song. Coming up: the song.', 'Lines are open for caller four. Callers one through three, please stop.',
   'Weather: hot. Tomorrow: also. Sun State Insurance reminds you that is not covered.', 'This hour brought to you by SUN-O-GAS. We have gas. Also gas.',
   'Shout-out to Moth, on shift tonight. Turn your porch lights off, folks. Let the man work.', 'A listener on Mesa Rd says she is SOMEONE. We believe her.',
-  'Ram called in to say he is not home. Thanks, Ram.', 'Still no word on the second horse. If it is a cow, keep it to yourself.',
-  'Last Minute Snacks closes at two. If you are hearing this at two-oh-one, we are sorry.', 'Banana Squid is still at the bus stop. The bus is still not.',
+  'Ram called in to say he is not home. Thanks, Ram.', 'Still no word on the second horse. If it is a cow, keep it to yourself.', 'The Eye-Max premiere is coming soon. It has been coming soon since the bulb went.',
+  'Last Minute Snacks closes at two. The clerk has asked us to remind you that the clerk has a clock.', 'Banana Squid is still at the bus stop. The bus is still not.',
   'From the mansion: Larry Byrd is taking challengers at pool. KSUN legal says: do not.', 'Band Night at the Bowl is Friday. The band is still to be determined. Call in if you are the band.',
 ];
+// run 18: KSUN reads the town's news. Finished errands and the threads (Moth's porch light, the second horse, the premiere)
+// come up between songs; half the time, and only news that's true for this save. Keys: missions/*.js `key`, town.js T.M.
+const DJ_NEWS = [
+  ['pick', 'Nan says Pickles is home and would like everybody to stop asking him questions.'],
+  ['rts', 'The post office reports one letter delivered to the right name. They are looking into it.'],
+  ['lfur', 'Officer Fuzz reports the Lemon Kid has been cited. The citation says "a lot". The Kid has had it framed.'],
+  ['wtow', 'Gecko is down off the water tower. The tower is still half tie-dye. The other half would like an appointment.'],
+  ['ants', 'The ants at the Anteater\'s are back at work. Management would like it known that management is the Anteater.'],
+  ['chalk', 'Dot at the Diner asks us to say: she knows it\'s you, Larry.'],
+  ['goat', 'Goat thanks whoever drove him at one fifty-nine. Nothing happened. He had a lovely time.'],
+  ['wrench', 'Wrench made it to Last Minute Snacks before two. First time ever. He bought one gum. He is not sharing it.'],
+  ['gcat', 'Bear\'s grandma would like it known that Duchess was fine. Duchess is always fine.'],
+  ['nothing', 'The laundromat says Nothing is home. Nothing was always home. Please take down your flyers.'],
+  ['reggie', 'If you see a car going four miles an hour down Main, that is Reggie, and he is happy.'],
+  ['band', 'Hydrant, Payphone and Couch thank everyone who came out Friday. Couch would like some time alone.'],
+  ['hum', 'The league trophy is back at the Gutter Bowl. The Hummingbird visits it on Tuesdays.'],
+  ['hat', 'Rabbit has his hat back. He has asked the wind for an apology. The wind has not responded.'],
+  ['vulture', 'The Vulture would like everyone to know he hated his party. He is still wearing the hat.'],
+  ['horse', 'The horse is back on its plinth. It is not out of breath. The cow has been informed.'],
+  ['call', 'KSUN congratulates our first ever caller four. We still do not have a prize. We are looking.'],
+  ['bulb', 'The Eye-Max has a bulb. Coming soon: the sun. Premiere Sunday at dawn. One showing.', (S) => (S.bulb || 0) >= 5],
+];
+const DJ_NIGHT = { 2: 'Moth missed half his shift last night. Somebody on Mesa left a porch light on. You know who you are.',
+  3: 'Goat was at the plaza at one fifty-nine again. Nothing happened. Again.', 4: 'The Farmhand asks: if you see a second horse on the farm road, tell him. That\'s all. Just tell him.',
+  5: 'Band Night at the Bowl. Moth can\'t make it. Mesa\'s porch lights are on. Mesa, please.', 6: 'Town meeting result on the second horse: cow. Seven to six. Nobody has told the horse.',
+  7: 'Sunday. The Eye-Max premiere is at dawn. Admission: being awake. Moth\'s last fare is tonight.' };
+function djPick() {
+  const S = window.__town?.state, M = window.__town?.M; if (!S || rnd() < 0.5) return pick(DJ_BUMPERS);
+  const done = (k) => (S[k] || 0) >= (M?.DONE?.[k] || 2), n = window.__shell?.night?.() || 1;
+  const fresh = DJ_NEWS.filter(([k, , ok]) => (ok ? ok(S) : done(k))).map(([, l]) => l); if (DJ_NIGHT[n]) fresh.push(DJ_NIGHT[n], DJ_NIGHT[n]);
+  return fresh.length ? pick(fresh) : pick(DJ_BUMPERS);
+}
 function radioSched(i, t0, off = 0) {
   const name = RADIO[i], b = A.buf[name]; if (!b) return;
   const s = ctx.createBufferSource(); s.buffer = b; s.connect(N.rIn);
   const when = Math.max(ctx.currentTime + 0.01, t0 + off); s.start(when, off);
   A.radio = { i, t0, end: t0 + SOUNDS[name].dur, src: s, next: false };
   A.counts[name] = (A.counts[name] || 0) + 1; note('radio', { name, off: +off.toFixed(2) });
-  if (off === 0 && G?.L?.toast && G.L.inCar) setTimeout(() => { if (G?.L?.inCar && !(G.L.toastT > 0)) G.L.toast('KSUN 1490: \u201c' + pick(DJ_BUMPERS) + '\u201d', 4); }, Math.max(0, (when - ctx.currentTime) * 1000) + 400);   // run 17: DJ bumper between songs (text only)
+  if (off === 0 && G?.L?.toast && G.L.inCar) setTimeout(() => { if (G?.L?.inCar && !(G.L.toastT > 0)) G.L.toast('KSUN 1490: \u201c' + djPick() + '\u201d', 4); }, Math.max(0, (when - ctx.currentTime) * 1000) + 400);   // run 17: DJ bumper between songs (text only)
   const K = RADIO.length; load(RADIO[(i + 1) % K]).catch(() => {});
   const prev = RADIO[(i + K - 1) % K]; if (prev !== name) setTimeout(() => { if (A.radio && RADIO[A.radio.i] !== prev && RADIO[(A.radio.i + 1) % K] !== prev) drop(prev); }, 3000);
 }
@@ -535,7 +567,7 @@ A.update = (dt) => {
 const WHO = { moth: 'MOTH', wolf: 'WOLF', squid: 'BANANA SQUID', farmhand: 'FARMHAND', clerk: 'CLERK', crow: 'CROW', ram: 'RAM' };
 const voText = (n) => SOUNDS[n]?.text || '';
 A.voDur = (n) => SOUNDS[n]?.dur || 0;
-const CHAT = ['vo_moth_09', 'vo_moth_10', 'vo_moth_11', 'vo_moth_12', 'vo_moth_15', 'vo_squid_02', 'vo_squid_03', 'vo_squid_04', 'vo_squid_05', 'vo_squid_09', 'vo_squid_10', 'vo_squid_16',
+const CHAT = ['vo_moth_09', 'vo_moth_10', 'vo_moth_11', 'vo_moth_12', 'vo_squid_02', 'vo_squid_03', 'vo_squid_04', 'vo_squid_05', 'vo_squid_09', 'vo_squid_10', 'vo_squid_16',
   'vo_farmhand_02', 'vo_farmhand_03', 'vo_farmhand_04', 'vo_farmhand_05', 'vo_farmhand_08', 'vo_farmhand_09', 'vo_wolf_06', 'vo_wolf_10'];
 let said = new Set(), pend = null, lastWho = null;
 function pickFresh(arr) { const f = arr.filter(n => !said.has(n) && SOUNDS[n]); return f.length ? f[Math.floor(rnd() * f.length)] : null; }

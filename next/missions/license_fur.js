@@ -76,12 +76,12 @@ function create({ hud: H }) {
       H.place(ktag, _kv.copy(kart.position).setY(3.2), camera); ktag.textContent = G.window ? 'HONK!' : K.panic > 0 ? 'LEMON KID · ZOOM' : 'LEMON KID';
       const left = Math.max(0, 90 - (G.phase === 'chase' ? G.t : G.cT)); H.pill('time', `${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}`, left < 15);
       if (gap > 110) { G.lost += dt; if (G.lost > 0.1 && !G.said.far) { G.said.far = 1; say(['OFFICER FUZZ (radio)', 'You are losing him, deputy.']); } } else G.lost = 0;
-      for (const e of D.events.splice(0)) { if (e === 'red') say(['MOTH', R.pick(['That was red.', 'I am a professional.', 'Fuzz did not see that. Fuzz is in the diner.'])]); if (e === 'bump' || e === 'tbone') { sfx.crash(); say(['MOTH', R.pick(['Felt bumpers.', 'Sorry. Sorry. Sorry.', 'Add it to the meter.'])]); } if (e === 'near') { const sp = toScreen(cab.position.clone().setY(2), camera); H.float(sp.x, sp.y, 'CLOSE ONE · BOOST +', '#7af2c2'); } }
+      for (const e of D.events.splice(0)) { if (e === 'red') say(['MOTH', R.pick(['That was red.', 'I am a professional.', 'Fuzz did not see that. Fuzz is in the diner.'])]); if (e === 'bump' || e === 'tbone') { sfx.crash(); say(['MOTH', R.pick(['Bonk.', 'Sorry. Sorry. Sorry.', 'Add it to the meter.'])]); } if (e === 'near') { const sp = toScreen(cab.position.clone().setY(2), camera); H.float(sp.x, sp.y, 'CLOSE ONE · BOOST +', '#7af2c2'); } }
       if (G.phase !== 'chase') {} else if (left <= 0) lose('Time. Officer Fuzz is out of hat.'); else if (G.lost > 6) lose('Gone. Just a smell of lemons.'); else if (K.s >= D.LEN - 6) lose('He made it to the county line.');
     }
     if (G.phase === 'caught') { H.place(ktag, _kv.copy(kart.position).setY(3.2), camera); kb.rotation.z = Math.sin(t * 3) * 0.05; if (G.t > 4) G.phase = 'done';
       if (G.phase === 'done') { const time = G.cT; const stars = 1 + (D.P.bumps <= 2 ? 1 : 0) + (time < 60 ? 1 : 0); const suns = ['lf_done']; if (stars === 3) suns.push('lf_star'); if (!D.P.ranRed) suns.push('lf_law');
-        ctl.finish({ win: true, stars, title: 'GOT THE LEMON KID', lines: [`Caught in ${Math.round(time)} s · ${D.P.bumps} bump${D.P.bumps === 1 ? '' : 's'} · ${D.P.ranRed} red light${D.P.ranRed === 1 ? '' : 's'}`, 'OFFICER FUZZ: "Keep the badge. It is felt. I have more."'], suns }); } }
+        ctl.finish({ win: true, stars, title: 'GOT THE LEMON KID', lines: [`Caught in ${Math.round(time)} s · ${D.P.bumps} bump${D.P.bumps === 1 ? '' : 's'} · ${D.P.ranRed} red light${D.P.ranRed === 1 ? '' : 's'}`, 'OFFICER FUZZ: "Keep the badge. I have a drawer of them."'], suns }); } }
     if (G.phase === 'chase') G.cT = G.t;
     animPal(moth, dt, t, {}); animPal(wolf, dt, t, { wave: G.window ? 1 : 0 });
   };

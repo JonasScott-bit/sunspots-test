@@ -25,7 +25,7 @@ registerMission({
   video: 'grandma_cat_intro',
   suns: [{ id: 'gc_done', name: "GRANDMA'S CAT", how: "Get Grandma home before her cat wrecks the house" },
     { id: 'gc_star', name: 'NOT A SCRATCH', how: "Three stars at Grandma's" },
-    { id: 'gc_mouse', name: 'THE FELT MOUSE', how: "Duchess keeps something under Grandma's bed" }],
+    { id: 'gc_mouse', name: 'MOUSIE', how: "Duchess keeps something under Grandma's bed" }],
   tip: 'DRAG TO STEER · FLOOR IT TO BOOST · HONK TO PASS',
   create,
 });
@@ -157,7 +157,7 @@ function create({ T, S, hud: H }) {
     const live = items.filter((i) => i.st === 'fall' || i.st === 'wobble').map((i) => i.o); const hit = pickNear(live, x, y, camera, 90);
     if (hit) { const it = hit.userData.it; if (it.st === 'wobble') { catchItem(it, 'early'); cat.st = 'run'; cat.target = null; } else catchItem(it); return; }
     if (pickNear([duchess], x, y, camera, 80)) { if (cat.st === 'sit' || cat.st === 'eat') { grab(); } else { sfx.meow(); const sp = toScreen(duchess.position.clone().add(house.position), camera); H.float(sp.x, sp.y, 'TOO QUICK', '#ffb0a0'); } return; }
-    if (!G.mouse && pickNear([bedHit], x, y, camera, 70)) { G.mouse = true; mouse.visible = true; sfx.good(); H.toast('UNDER THE BED: A FELT MOUSE', 2.5); say(['GRANDMA', "Her mousie! She hides it from me."]); }
+    if (!G.mouse && pickNear([bedHit], x, y, camera, 70)) { G.mouse = true; mouse.visible = true; sfx.good(); H.toast('UNDER THE BED: A TOY MOUSE', 2.5); say(['GRANDMA', "Her mousie! She hides it from me."]); }
   }
   function grab() { G.caught = true; G.phase = 'caught'; G.t = 0; cat.st = 'held'; sfx.good(); H.hint('GOT HER!', 2); treatObj.visible = false; say(['DUCHESS', 'Mrrp.'], ['GRANDMA', 'There she is. My good girl.'], ['BEAR', 'She broke a gnome.'], ['GRANDMA', 'She meant to.']); }
   function result(timeout) {
@@ -185,7 +185,7 @@ function create({ T, S, hud: H }) {
         for (const e of D.events.splice(0)) { if (e === 'boost') { sfx.whoosh(); if (!G.said.boost) { G.said.boost = 1; say(['GRANDMA', 'Floor it, sweetie. I have a heart condition and I want to use it.']); } }
           if (e === 'red') say(['GRANDMA', R.pick(['That was red, dear.', 'Red means hurry, right?', 'Gerald did not see that.'])]);
           if (e === 'near') { const sp = toScreen(car.getWorldPosition(_w).setY(2), camera); H.float(sp.x, sp.y, 'CLOSE ONE · BOOST +', '#7af2c2'); if (!G.said.near) { G.said.near = 1; say(['GRANDMA', 'Again! Do that again.']); } }
-          if (e === 'bump' || e === 'tbone') { sfx.crash(); say([e === 'tbone' ? 'BEAR' : 'GRANDMA', R.pick(e === 'tbone' ? ['WE HAD A RED.', 'They had the green!'] : ['My hip.', 'Sorry! SORRY.', 'Felt bumpers, dear. We are fine.'])]); }
+          if (e === 'bump' || e === 'tbone') { sfx.crash(); say([e === 'tbone' ? 'BEAR' : 'GRANDMA', R.pick(e === 'tbone' ? ['WE HAD A RED.', 'They had the green!'] : ['My hip.', 'Sorry! SORRY.', 'We\'re fine, dear. I\'ve hit worse.'])]); }
           if (e === 'ped') { sfx.bonk(); say(['', R.pick(['"Hey! Walking here!"', '"It is SUNDAY!"', '"My good shoes!"'])]); } }
         const lines = [[0.22, ['GRANDMA', "She'll be on the dresser by now."]], [0.4, ['GRANDMA', "She's on the curtains. I can feel it."]], [0.62, ['BEAR', 'How do you know?'], ['GRANDMA', 'I just know.']], [0.85, ['GRANDMA', 'Not the good china. Not the GOOD china.']]];
         for (const [k, ...l] of lines) if (G.meter > k && !G.said['m' + k]) { G.said['m' + k] = 1; say(...l); }

@@ -23,13 +23,13 @@ const BUILD = window.SUNSPOTS_BUILD || {};
 const DEMO = Q.has('demo') ? Q.get('demo') !== '0' : !!BUILD.demo;
 const PRICE = BUILD.price || { phone: '$7.99 CAD', desktop: '$13.99 CAD' };
 const FALLBACK_NIGHTS = [
-  { n: 1, need: 0, name: 'NIGHT 1 · LAST MINUTE SNACKS', opens: 'Main St' },
-  { n: 2, need: 2, name: "NIGHT 2 · TACO TUESDAY'S", opens: 'the Neon Strip' },
-  { n: 3, need: 5, name: 'NIGHT 3 · THE SWIM LESSON', opens: 'the Mansion' },
-  { n: 4, need: 8, name: "NIGHT 4 · GRANDMA'S CAT", opens: "Grandma's side of town" },
-  { n: 5, need: 12, name: 'NIGHT 5 · ONE HORSE FAIR', opens: 'the Fair after dark' },
-  { n: 6, need: 17, name: 'NIGHT 6 · TWO HORSES', opens: 'the farm road' },
-  { n: 7, need: 21, name: 'NIGHT 7 · SAME OLD ONE HORSE TOWN', opens: 'the Eye-Max premiere' },
+  { n: 1, need: 0, name: 'NIGHT 1 · LAST MINUTE SNACKS', opens: 'Main St', line: 'KSUN: "Last Minute Snacks closes at two. Moth is on shift. Porch lights off, folks. Let the man work."' },
+  { n: 2, need: 2, name: "NIGHT 2 · TACO TUESDAY'S", opens: 'the Neon Strip', line: 'KSUN: "Moth missed half his shift last night. Somebody on Mesa left a porch light on. You know who you are."' },
+  { n: 3, need: 5, name: 'NIGHT 3 · THE SWIM LESSON', opens: 'the Mansion', line: 'KSUN: "Goat was seen at the plaza at one fifty-nine again. Nothing happened. Again. Goat seemed fine with it."' },
+  { n: 4, need: 8, name: "NIGHT 4 · GRANDMA'S CAT", opens: "Grandma's side of town", line: 'KSUN: "The Farmhand says if you see a second horse on the farm road, tell him. He won\'t do anything. He just wants to know."' },
+  { n: 5, need: 12, name: 'NIGHT 5 · ONE HORSE FAIR', opens: 'the Fair after dark', line: 'KSUN: "Band Night at the Bowl. Moth can\'t make it. Mesa\'s porch lights are on. Mesa. Please."' },
+  { n: 6, need: 17, name: 'NIGHT 6 · TWO HORSES', opens: 'the farm road', line: 'KSUN: "The town meeting has voted on the second horse. Cow. Seven to six. Nobody has told the horse."' },
+  { n: 7, need: 21, name: 'NIGHT 7 · THE PREMIERE', opens: 'the last fare', line: 'KSUN: "The Eye-Max premiere is Sunday at dawn. One showing. Admission: being awake. Moth drives his last fare tonight."' },
 ];
 const NIGHTS = () => window.__msnNights || FALLBACK_NIGHTS;
 const PKEY = 'sunspots.progress';
@@ -265,7 +265,7 @@ function nightCard(n) {
   try { window.__audio?.ui?.('confirm'); } catch (_) {}
   pause('card');
   show('night', `<div class="night"><h3>A NEW NIGHT</h3><div class="big">${esc(num)}</div><p style="margin-top:6px"><b>${esc(rest.join(' · '))}</b></p></div>
-    <div class="sunrow">${'<i></i>'.repeat(Math.min(12, Math.max(1, N.need)))}</div><p>Now open: ${esc(N.opens)}. Check the journal for what&#8217;s new tonight.</p>
+    <div class="sunrow">${'<i></i>'.repeat(Math.min(12, Math.max(1, N.need)))}</div>${N.line ? `<p class="nline"><i>${esc(N.line)}</i></p>` : ''}<p>Now open: ${esc(N.opens)}.</p>
     <button class="felt mustard" data-a="resume">LET&#8217;S GO</button>`);
 }
 function demoCard() {

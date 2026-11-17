@@ -12,7 +12,7 @@ const RIDE_CFG = {   // seat: an empty seat in carnival.js; ry: turn the Wolf in
   rhumba: { seat: 1, ry: 0, dur: 24, pose: 'sit' }, carousel: { seat: 0, ry: 0, dur: 28, pose: 'straddle', rad: 13 }, cups: { seat: 0, ry: 0, dur: 24, pose: 'sit', rad: 12.5 }, bump: { seat: 0, ry: 0, dur: 45, pose: 'sit', up: 0.32 },
 };
 const POSES = { sit: { hip: -1.45, out: 0.14, knee: 1.55, arm: 0.6, fore: -0.4, drop: 1.0 }, straddle: { hip: -1.25, out: 0.42, knee: 1.35, arm: 0.9, fore: -0.5, drop: 1.0 } };
-const PLUSH = ['a felt cactus', 'a tiny felt Gravy', 'a felt crow', 'a felt moon', 'a felt corn dog', 'a felt cassette', 'a felt flamingo', 'a felt eyeball'];
+const PLUSH = ['a plush cactus', 'a tiny plush Gravy', 'a plush crow', 'a plush moon', 'a plush corn dog', 'a plush cassette', 'a plush flamingo', 'a plush eyeball'];
 const COST = { ride: 2, game: 2, shack: 10 };
 
 export function installCarnRides({ CARN, T, TS, level, wolfState, scene, camera, feltMat, audio, fpOff, onSeat, isBusyElse }) {
@@ -101,7 +101,7 @@ body.ingame #cgame{display:block}
     if (key === 'bump') { const car = R.cars[0]; car.player = true; R.root.updateMatrixWorld(true); car.g.getWorldPosition(_v); wolfState.pos.set(_v.x, 0, _v.z); wolfState.yaw = 0; wolfState.speed = 0; CR.bump = true; document.body.classList.add('bumping'); }
     orbitA = Math.atan2(R.board.x - R.x, R.board.z - R.z) + 0.5; CR.pose = POSES[cfg.pose]; CR.seatM = new THREE.Matrix4(); seatMatrix(); onSeat?.();
     document.body.classList.add('onride'); sfx('tick'); audio?.ui?.('confirm');
-    const line = { bustler: 'Keep your paws inside the felt.', wheel: 'It goes round. That\'s the whole ride. Enjoy.', twirl: 'Hold on to your lunch. Or don\'t, it\'s yours.', rhumba: 'Spins one way, then the other way. Like a dance. Like a bad dance.',
+    const line = { bustler: 'Keep your paws inside the ride.', wheel: 'It goes round. That\'s the whole ride. Enjoy.', twirl: 'Hold on to your lunch. Or don\'t, it\'s yours.', rhumba: 'Spins one way, then the other way. Like a dance. Like a bad dance.',
       carousel: 'Twelve horses. It\'s the same horse. Pick one.', cups: 'Spin the wheel in the middle if you want to regret it.', bump: 'Steer with the stick. Bump everybody. It\'s legal in here.' }[key];
     CR.onBoard?.(key); return [['RIDE OPERATOR', line]];
   };
@@ -177,7 +177,7 @@ body.ingame #cgame{display:block}
     if (key === 'moles') { games.moles.h.fill(0); games.moles.want.fill(0); games.moles.t.fill(0); g.next = 0.6; }
     document.body.classList.add('ingame'); ovAct.style.display = GAME_INFO[key].act ? 'block' : 'none'; ovAct.textContent = GAME_INFO[key].act || ''; ovMeter.style.display = GAME_INFO[key].act ? 'block' : 'none';
     ovRet.style.display = key === 'gallery' || key === 'darts' ? 'block' : 'none'; if (key === 'rings') { ovZone.style.left = '38%'; ovZone.style.width = '24%'; } else { ovZone.style.left = '88%'; ovZone.style.width = '12%'; }
-    hudGame(); sfx('tick'); audio?.ui?.('confirm'); CR.onGame?.(key, 'start'); return [['BOOTH', { darts: 'Three darts. Pop three, win a prize. Pop none, win my respect.', gallery: 'Balloon Blaster. It\'s a balloon. It shoots balloons. Eight pops gets you the big felt fish.', rings: 'Ring a bottle. The bottles are wider than they look. That\'s the trick. There\'s no trick.', striker: 'Ring the bell. The bell has been rung twice. Once by a bear.', moles: 'They\'re gophers. Don\'t call them moles. They hate that.' }[key]]];
+    hudGame(); sfx('tick'); audio?.ui?.('confirm'); CR.onGame?.(key, 'start'); return [['BOOTH', { darts: 'Three darts. Pop three, win a prize. Pop none, win my respect.', gallery: 'Balloon Blaster. It\'s a balloon. It shoots balloons. Eight pops gets you the big plush fish.', rings: 'Ring a bottle. The bottles are wider than they look. That\'s the trick. There\'s no trick.', striker: 'Ring the bell. The bell has been rung twice. Once by a bear.', moles: 'They\'re gophers. Don\'t call them moles. They hate that.' }[key]]];
   };
   function hudGame() { const g = CR.game; if (!g) return; const info = GAME_INFO[g.key]; let s = info.title + '  ·  ';
     if (g.key === 'gallery' || g.key === 'moles') s += 'POPS ' + g.score + '  ·  ' + Math.max(0, Math.ceil(g.dur - g.t)) + 's'; else if (g.key === 'striker') s += 'BEST ' + Math.round(g.best * 100) + '  ·  SWINGS ' + g.shots; else s += 'HITS ' + g.score + '  ·  LEFT ' + g.shots;
@@ -187,7 +187,7 @@ body.ingame #cgame{display:block}
     if (quit) { CR.onGame?.(g.key, 'quit', g); return; }
     let won = 0, prize = null, lines;
     if (g.key === 'darts') { won = g.score; if (g.score >= 3) prize = PLUSH[(CR.prizes.length + 2) % PLUSH.length]; lines = g.score >= 3 ? 'Three for three. Pick a plush. Not that one. That one.' : g.score ? 'Some pops. Some tickets.' : 'The balloons thank you for your service.'; }
-    if (g.key === 'gallery') { won = Math.floor(g.score / 2); if (g.score >= 8) prize = 'the big felt fish'; lines = g.score >= 8 ? 'Eight! The big felt fish is yours. It\'s not a real fish. Don\'t tell it.' : 'Not eight. ' + g.score + '. That\'s fewer than eight.'; }
+    if (g.key === 'gallery') { won = Math.floor(g.score / 2); if (g.score >= 8) prize = 'the big plush fish'; lines = g.score >= 8 ? 'Eight! The big plush fish is yours. It\'s not a real fish. Don\'t tell it.' : 'Not eight. ' + g.score + '. That\'s fewer than eight.'; }
     if (g.key === 'rings') { won = g.score * 3; if (g.score >= 2) prize = PLUSH[(CR.prizes.length + 5) % PLUSH.length]; lines = g.score ? 'Ringer! The bottle\'s embarrassed.' : 'Bounced. They all bounce. That\'s physics.'; }
     if (g.key === 'striker') { won = Math.round(g.best * 5); if (g.best >= 0.93) prize = PLUSH[(CR.prizes.length + 1) % PLUSH.length]; lines = g.best >= 0.93 ? 'DING. Third time ever. The bear will hear about this.' : 'Strong. Medium strong. ' + Math.round(g.best * 100) + ' out of a hundred.'; }
     if (g.key === 'moles') { won = Math.ceil(g.score / 2); if (g.score >= 10) prize = PLUSH[(CR.prizes.length + 3) % PLUSH.length]; lines = g.score >= 10 ? 'The gophers have unionised. Here\'s a prize.' : g.score + ' bonks. The gophers will remember.'; }
@@ -261,7 +261,7 @@ body.ingame #cgame{display:block}
   { const p = bw('prizes', 0, 0, 3.0, new THREE.Vector3()); TS.spots.c_shack = { x: p.x, z: p.z };
     T.addSpot({ id: 'c_shack', x: p.x, z: p.z, r: 2.0, label: () => 'TRADE 10 🎟 FOR A PRIZE',
       act: () => { if (CR.tix < COST.shack) return [['PRIZE SHACK', 'Ten tickets. You have ' + CR.tix + '. I can count. It\'s my whole job.']]; addTix(-COST.shack); const pz = PLUSH[CR.prizes.length % PLUSH.length]; givePrize(pz); sfx('ding');
-        return [['PRIZE SHACK', 'Ten tickets for ' + pz + '. Fair trade. Felt trade.'], ['', 'Prizes: ' + CR.prizes.join(', ') + '.']]; } }); }
+        return [['PRIZE SHACK', 'Ten tickets for ' + pz + '. Fair trade.'], ['', 'Prizes: ' + CR.prizes.join(', ') + '.']]; } }); }
 
   // ================================================================= per frame
   const FAIR = { x0: 72, x1: 154, z0: -8, z1: 100 };

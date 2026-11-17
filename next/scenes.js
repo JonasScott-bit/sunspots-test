@@ -214,9 +214,7 @@ export const SCENES = {
     beats: [
       { do: 'cam', pos: { who: 'car', off: [5, 2.2, 4] }, look: { who: 'car', y: 1.1 }, fov: 42, blend: 0.8,
         to: { pos: { who: 'car', off: [-5, 2.2, 4] } }, dur: 3.2, ease: 'inout' },
-      { wait: 0.6 },
-      { do: 'say', who: 'moth', text: 'This is a test of the scene system.' },
-      { do: 'say', who: 'moth', text: 'It went fine.' },
+      { wait: 1.2 },
     ],
   },
 };

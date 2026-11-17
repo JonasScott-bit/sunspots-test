@@ -57,7 +57,7 @@ export function maybeFinale() { if (playing || !finaleReady()) return false; pla
 // 100%: one card, once, in free roam
 export function checkPerfect() {
   const P = loadP(); if (!P.finaleSeen || P.perfect) return false; const [f, t] = totals(); if (!t || f < t) return false;
-  P.perfect = 1; saveP(P); card(`<p class="fk">SAME OLD ONE HORSE TOWN</p><h2>EVERY SUNSPOT</h2><p class="fbig">☀ ${f} / ${t}</p><p>100%. Every errand, every game, every secret. The town is yours.</p>`, [['KEEP PLAYING', () => end('roam', true)]], true); return true;
+  P.perfect = 1; saveP(P); card(`<p class="fk">SUNSPOTS</p><h2>EVERY SUNSPOT</h2><p class="fbig">☀ ${f} / ${t}</p><p>You know this town now. It knows you back.</p>`, [['KEEP PLAYING', () => end('roam', true)]], true); return true;
 }
 
 // ------------------------------------------------------------------ DOM
@@ -310,12 +310,12 @@ function build(MODELS) {
 
 // ------------------------------------------------------------------ the script
 const LINES = [   // [t, who, line]
-  [3.0, 'MOTH', "Porch light's fixed. Nobody has to sit in the dark anymore."],
-  [7.4, 'BEAR', 'Seven nights. Same old town.'],
+  [3.0, 'MOTH', "Ma switched her porch light off this morning. First time since '79."],
+  [7.4, 'BEAR', 'Eye-Max premiere. Front row.'],
   [10.6, 'WOLF', 'Same old town. Best one there is.'],
   [14.6, 'HERON', 'Is the sun... looking at us?'],
   [17.8, 'RAM', 'It does that. Be polite. Wave.'],
-  [21.4, 'SQUID', 'Somebody else is driving tomorrow.'],
+  [21.4, 'SQUID', 'So where do you go now, Moth?'],
 ];
 const D = { scene: 26, title: 6.5, roll: 52 };
 // Film coverage: on a spoken line, a hard cut to a medium close-up of the speaker (waist-up, face 3/4 to camera, a sliver of the
@@ -477,7 +477,7 @@ function toTally() {
   for (const k of ['cap', 'ttl', 'roll', 'skip', 'kick']) s.el[k].style.display = 'none'; s.el.dim.classList.add('on');
   window.__journal?.render?.(); const [f, t] = totals(), left = Math.max(0, t - f), pct = t ? Math.round(100 * f / t) : 0;
   card(`<p class="fk">THE END · A GAME BY ${esc(STUDIO.toUpperCase())}</p><h2>SUNSPOTS FOUND</h2><p class="fbig"><b data-count="${f}">0</b> / ${t}</p><div class="bar"><u style="width:${pct}%"></u></div>
-    <p>${left ? `${pct}% complete. ${left} Sunspot${left > 1 ? 's are' : ' is'} still out there. The town keeps going: the JOURNAL has rumours.` : '100%. Every errand, every game, every secret.'}</p>`,
+    <p>${left ? `${pct}% complete. ${left} Sunspot${left > 1 ? 's are' : ' is'} still out there. The town keeps going: the JOURNAL has rumours.` : 'You know this town now. It knows you back.'}</p>`,
     [['KEEP PLAYING', () => end('roam')], ['MAIN MENU', () => end('menu')]]);
 }
 function end(how, standalone = false) {

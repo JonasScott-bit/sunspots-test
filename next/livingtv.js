@@ -57,7 +57,7 @@ function drawWeather(g, w, h, t) {
     days.forEach((d, i) => { const x = 14 + i * 60; g.fillStyle = 'rgba(10,25,70,.7)'; g.fillRect(x, 44, 54, 150); g.strokeStyle = '#7fa6e8'; g.lineWidth = 2; g.strokeRect(x, 44, 54, 150);
       txt(g, d, x + 27, 58, 13, '#fff'); sun(g, x + 27, 100, 15, t + i, { face: i !== 4, shades: i === 4 }); txt(g, i === 4 ? 'MORE' : 'SUN', x + 27, 140, 13, MUST); txt(g, '71°', x + 27, 165, 16, '#fff'); txt(g, i === 2 ? 'BREEZY*' : '', x + 27, 184, 9, '#bcd'); });
   }
-  ticker(g, w, h, 'TODAY: SUN.   TONIGHT: SUN, BUT LATER.   TOMORROW: SEE TODAY.   UV INDEX: YES.   POLLEN: FELT.   *BREEZY MEANS THE CEILING FAN.   ', t);
+  ticker(g, w, h, 'TODAY: SUN.   TONIGHT: SUN, BUT LATER.   TOMORROW: SEE TODAY.   UV INDEX: YES.   POLLEN: OPINIONATED.   *BREEZY MEANS THE CEILING FAN.   ', t);
 }
 
 // CH 4 · THE AD CHANNEL — four deadpan '90s commercials on a loop (all invented; no real brands, no real people)
@@ -109,7 +109,7 @@ const ITEMS = [
   { n: 'ONE (1) SOCK', s: 'mustard · left foot only', p: '19.99', host: '"Look at it. Just look at it."', d(g, t) { g.fillStyle = MUST; g.beginPath(); g.moveTo(-14, -40); g.lineTo(14, -40); g.lineTo(14, 14); g.quadraticCurveTo(14, 34, 40, 32); g.quadraticCurveTo(52, 34, 50, 46); g.lineTo(-6, 48); g.quadraticCurveTo(-16, 46, -14, 30); g.fill(); g.fillStyle = '#c98f16'; g.fillRect(-14, -40, 28, 9); } },
   { n: 'RABBIT EARS', s: 'receives nothing · stylish', p: '39.95', host: '"I have had these for six years. Nothing."', d(g, t) { g.strokeStyle = '#ccc'; g.lineWidth = 3; g.beginPath(); g.moveTo(0, 20); g.lineTo(-30, -50); g.moveTo(0, 20); g.lineTo(32, -46); g.stroke(); g.fillStyle = '#333'; g.beginPath(); g.ellipse(0, 28, 30, 12, 0, 0, 7); g.fill(); g.fillStyle = '#ddd'; g.beginPath(); g.arc(-30, -50, 3, 0, 7); g.arc(32, -46, 3, 0, 7); g.fill(); } },
   { n: 'A JAR OF FOG', s: 'from the drive-in · do not open', p: '24.99', host: '"Do not open it. I opened one. It was fine."', d(g, t) { g.fillStyle = 'rgba(210,225,235,.55)'; g.fillRect(-26, -36, 52, 76); g.fillStyle = 'rgba(255,255,255,.5)'; for (let i = 0; i < 5; i++) { g.beginPath(); g.arc(-12 + i * 6 + Math.sin(t + i) * 4, 10 - i * 9, 12, 0, 7); g.fill(); } g.fillStyle = '#9a8a6a'; g.fillRect(-28, -44, 56, 10); g.strokeStyle = '#fff'; g.lineWidth = 2; g.strokeRect(-26, -36, 52, 76); } },
-  { n: 'SOFT HUBCAP', s: 'felt · for a car you love', p: '49.00', host: '"It will not stay on. That is the point."', d(g, t) { g.fillStyle = '#b8bcc4'; g.beginPath(); g.arc(0, 0, 44, 0, 7); g.fill(); g.fillStyle = '#9aa0aa'; for (let i = 0; i < 8; i++) { g.save(); g.rotate(i * 0.785); g.fillRect(-4, 10, 8, 30); g.restore(); } g.fillStyle = '#d7dae0'; g.beginPath(); g.arc(0, 0, 13, 0, 7); g.fill(); } },
+  { n: 'SOFT HUBCAP', s: 'soft · for a car you love', p: '49.00', host: '"It will not stay on. That is the point."', d(g, t) { g.fillStyle = '#b8bcc4'; g.beginPath(); g.arc(0, 0, 44, 0, 7); g.fill(); g.fillStyle = '#9aa0aa'; for (let i = 0; i < 8; i++) { g.save(); g.rotate(i * 0.785); g.fillRect(-4, 10, 8, 30); g.restore(); } g.fillStyle = '#d7dae0'; g.beginPath(); g.arc(0, 0, 13, 0, 7); g.fill(); } },
 ];
 function drawShop(g, w, h, t) {
   const it = ITEMS[Math.floor(t / 9) % ITEMS.length], k = t % 9, gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, '#0f6a6a'); gr.addColorStop(1, '#2a2a6a'); g.fillStyle = gr; g.fillRect(0, 0, w, h);

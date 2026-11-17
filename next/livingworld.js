@@ -177,8 +177,8 @@ export function installLivingWorld({ T, TS, level, wolfState, scene, camera, fel
       lines: [['BEAR', 'That hoop was there when I got here. So it is mine.'], ['GECKO', 'Bear thinks the hoop is Bear\'s. The hoop belongs to the sky.'], ['', 'Grudge match at the court. First to one point. It has been going for three days.'], ['BEAR', 'Gecko and I are friends now. We share the hoop. Gecko gets the bottom half.']] },
     romance: { title: 'DOT + LARRY', flyers: ['SECRET ADMIRER\nSEEKS DOT\n(THE DINER)', 'DOT: WHO\nKEEPS LEAVING\nCHALK ON MY TIP', 'LARRY BYRD\nIS A VULTURE\n- SAL', 'DOT + LARRY\nDINNER FOR TWO\n(THE DINER)'],
       lines: [['DOT', 'Somebody leaves me pool chalk for a tip. Every day. Blue.'], ['SAL', 'It\'s Larry Byrd. I know it\'s Larry Byrd. Larry is a vulture, Dot.'], ['LARRY BYRD', 'Dot. The waitress. I\'ve never lost a bet. I\'m scared to make this one.'], ['DOT', 'Larry asked me to dinner. At the diner. Where I work. Sal is cooking. Sal is furious.']] },
-    pet: { title: 'LOST: PICKLES', flyers: ['LOST\nPICKLES\n(A FELT HAMSTER)', 'STILL LOST\nPICKLES\nLIKES SEEDS + CABS', 'PICKLES WAS\nSEEN IN A CAB\nHAVE YOU SEEN', 'PICKLES IS\nHOME. THANK\nYOU, WOLF'],
-      lines: [['NAN', 'Have you seen Pickles? Small. Round. Felt. Answers to nothing, like the cat.'], ['MOTH', 'Had a hamster in the back today. Paid in seeds. I gave change.'], ['NAN', 'Moth says Pickles rode to the horse. The statue. Pickles loves that horse.'], ['NAN', 'Pickles is home. Pickles is asleep in a teacup. Thank you, Wolf.']] },
+    pet: { title: 'LOST: PICKLES', flyers: ['LOST:\nPICKLES\nROUND.\nJUDGEMENTAL.', 'STILL LOST\nPICKLES\nLIKES SEEDS + CABS', 'PICKLES WAS\nSEEN IN A CAB\nHAVE YOU SEEN', 'PICKLES IS\nHOME. THANK\nYOU, WOLF'],
+      lines: [['NAN', 'Have you seen Pickles? Round. Judgemental. Answers to nothing. That\'s the cat\'s name, not his.'], ['MOTH', 'Had a hamster in the back today. Paid in seeds. I gave change.'], ['NAN', 'Moth says Pickles rode to the horse. The statue. Pickles loves that horse.'], ['NAN', 'Pickles is home. Pickles is asleep in a teacup. Thank you, Wolf.']] },
   };
   const FLY_AT = [[-58.4, ZA0 + 8.4], [-33.2, ZA0 + 8.4], [-106, ZA0 - 8.4]];
   const flyers = {};
@@ -194,7 +194,7 @@ export function installLivingWorld({ T, TS, level, wolfState, scene, camera, fel
   for (const s of [-1, 1]) mesh(new THREE.SphereGeometry(0.05, 4, 3), '#e8b070', [s * 0.09, 0.27, 0.05], pickles); mesh(new THREE.SphereGeometry(0.02, 3, 2), '#1d1416', [0, 0.18, 0.18], pickles);
   const PK = { x: -71, z: 13.6 };   // under the bench on the Main St sidewalk
   pickles.position.set(PK.x, 0, PK.z); pickles.visible = false; G.add(pickles); let carry = false;
-  T.addSpot({ id: 'lw_pickles', x: PK.x, z: PK.z, r: 2.2, on: () => LW.arcs.pet === 2 && !carry, label: 'PICK UP PICKLES', act: () => { carry = true; pickles.visible = false; logEv('pickles picked'); return [['', 'A small, round, felt hamster. It is looking at the horse.'], ['', 'You pick up Pickles. Pickles allows this.']]; } });
+  T.addSpot({ id: 'lw_pickles', x: PK.x, z: PK.z, r: 2.2, on: () => LW.arcs.pet === 2 && !carry, label: 'PICK UP PICKLES', act: () => { carry = true; pickles.visible = false; logEv('pickles picked'); return [['', 'A small, round hamster. He is looking at the horse.'], ['', 'You pick up Pickles. Pickles allows this.']]; } });
   const nan = PEDS.find(p => p.owner);
   const nanSpot = T.addSpot({ id: 'lw_nan', x: 0, z: 0, r: 2.4, on: () => carry, label: 'GIVE PICKLES TO NAN', act: () => { carry = false; setArc('pet', 3); T.M?.toast?.('LOST: PICKLES — found.'); return [['NAN', 'PICKLES.'], ['NAN', 'Where were you? The horse? Of course the horse.'], ['', 'Pickles goes in the pocket. Pickles was always going in the pocket.']]; } });
 
@@ -217,7 +217,7 @@ export function installLivingWorld({ T, TS, level, wolfState, scene, camera, fel
     caught: [['OFFICER FUZZ', 'Alright, alright. License and fur.'], ['OFFICER FUZZ', 'This is a citation. It says "a lot". Have a good day.'], ['', 'The Fuzz-o-meter resets. Officer Fuzz waddles back to the doughnut.']],
     escape: [['OFFICER FUZZ', 'Lost the fuzzy one. Lunch.']],
     ped: { normal: [['', 'Evening. Morning. Whatever this is.'], ['', 'Have you seen the horse? The statue one?'], ['', 'Warm one tonight. Every night is a warm one.'], ['', 'The store closes at two. It always has.'], ['', 'I\'m walking. That\'s it. That\'s the errand.']], bump: [['', 'HEY.'], ['', 'Watch the tail!'], ['', 'Rude. Fuzzy, but rude.'], ['', 'I\'m telling Officer Fuzz.']] },
-    wild: [['', 'THE STREET IS MELTING. NOBODY PANIC. EVERYBODY DANCE.'], ['', 'WADDLE WADDLE WADDLE.'], ['', 'HONK IF YOU\'RE MELTING.'], ['', 'MY HAT IS A SOUP.']],
+    wild: [['', 'THE STREET IS MELTING. NOBODY PANIC. EVERYBODY DANCE.'], ['', 'WADDLE WADDLE WADDLE.'], ['', 'HONK IF YOU CAN STILL FIND YOUR HORN.'], ['', 'MY HAT IS A SOUP.']],
   };
 
   // ------------------------------------------------------------------ HUD: the Fuzz-o-meter
@@ -334,7 +334,7 @@ export function installLivingWorld({ T, TS, level, wolfState, scene, camera, fel
       if (R() < dt * 0.4) honk(cop.p);
       if (d < 3.2) { // caught
         if (cop.target === 'wolf') { LW.fuzz = 0; cop.mode = 'return'; logEv('caught'); T.outSay?.(LINES.caught); }
-        else { const c = CARBY[cop.target]; c.chased = false; c.stopT = 6; cop.mode = 'return'; runLines('chase', () => cop.p, [['OFFICER FUZZ', 'Pull over. Over. More over.'], ['THE LEMON KID', 'I was waddling within the waddle limit!'], ['OFFICER FUZZ', 'Warning. A felt one.']]); }
+        else { const c = CARBY[cop.target]; c.chased = false; c.stopT = 6; cop.mode = 'return'; runLines('chase', () => cop.p, [['OFFICER FUZZ', 'Pull over. Over. More over.'], ['THE LEMON KID', 'I was waddling within the waddle limit!'], ['OFFICER FUZZ', 'Warning. A stern one.']]); }
         renderHud();
       } else if (cop.lost > 8 || (cop.target !== 'wolf' && cop.t > 40)) { if (cop.target === 'wolf') { LW.fuzz = 1; say('OFFICER FUZZ', LINES.escape[0][1], () => cop.p); toast('You lost Officer Fuzz.'); logEv('escaped'); } else if (CARBY[cop.target]) CARBY[cop.target].chased = false; cop.mode = 'return'; renderHud(); }
     } else if (cop.mode === 'return') {

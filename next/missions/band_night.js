@@ -69,7 +69,7 @@ function create({ hud: H }) {
     ctl = c; G.auto = c.auto; Object.assign(G, { phase: 'talk', t: 0, crowd: 0.55, hits: 0, perf: 0, miss: 0, combo: 0, encore: false, said: {} }); for (const n of G.notes) n.hit = 0;
     pads = H.pads(LANES, hit); H.setMeter(0.55, 'CROWD'); H.pill('combo', 'COMBO 0'); c.I.padOn = false; H.root.appendChild(cv); layout(); addEventListener('resize', layout);
     onkeydown = (e) => { const i = { '1': 0, '2': 1, '3': 2, a: 0, s: 1, d: 2, arrowleft: 0, arrowdown: 1, arrowright: 2 }[e.key.toLowerCase()]; if (i !== undefined) { H.flash(pads[i], 90); hit(i); } };
-    H.say([['', 'One spotlight. An empty stage. Then the band walks on. (The couch is carried on.)'], ['HYDRANT', 'One, two, one two three four.'], ['PAYPHONE', '(ring, in key)'], ['', 'Tap each lane as the notes cross the line.']], () => start2(false));
+    H.say([['', 'One spotlight. An empty stage. The band walks on. Two of them carry the third.'], ['HYDRANT', 'One, two, one two three four.'], ['', 'The payphone rings. In key.'], ['', 'Tap each lane as the notes cross the line.']], () => start2(false));
     if (G.auto) G.autoT = setInterval(() => { if (H.talking()) H.skipSub(); }, 500);
   };
   inst.stop = () => { G.phase = 'off'; clearInterval(G.autoT); onkeydown = null; cv.remove(); removeEventListener('resize', layout); };
@@ -87,7 +87,7 @@ function create({ hud: H }) {
     const por = camera.aspect < 1; camera.position.set(0, por ? 7 : 4.2, por ? 21 : 10); camera.lookAt(0, por ? 2.2 : 1.8, -2);
   };
   function finish() { const pct = G.hits / G.total, pp = G.hits ? G.perf / G.total : 0, stars = 1 + (pct >= 0.8 ? 1 : 0) + (pp >= 0.5 ? 1 : 0); const suns = ['bn_done']; if (stars === 3) suns.push('bn_star'); const enc = pct >= 0.95; if (enc) suns.push('bn_encore');
-    H.say([['', 'The last chord. The couch holds it.'], ['', 'The crowd stands up. Even the Hummingbird.'], ...(enc ? [['', 'They will not stop clapping. The band comes back out. ENCORE.']] : []), ['PAYPHONE', 'Thank you. Please hang up.']], () =>
+    H.say([['', 'The last chord. The couch holds it.'], ['', 'The crowd stands up. Even the Hummingbird.'], ...(enc ? [['', 'They will not stop clapping. The band comes back out. ENCORE.']] : []), ['PAYPHONE', 'This last one goes out to Moth, out in the lot. Mesa, porch lights off. Let the man come in.'], ['PAYPHONE', 'Thank you. Please hang up.']], () =>
       ctl.finish({ win: true, stars, title: enc ? 'ENCORE!' : 'FIRST SHOW', lines: [`${G.hits}/${G.total} notes · ${G.perf} perfect · crowd ${Math.round(G.crowd * 100)}%`, 'HYDRANT: "Same time next week. I am not going anywhere. I am bolted down."'], suns })); }
   return inst;
 }

@@ -14,10 +14,10 @@ export function installJournal({ T, QT, level, audio }) {
   const START = {
     adv: ['diner', 'The Diner menu has a back. Nobody has ever ordered the back.'],
     sock: ['laundromat', 'Something at the Laundromat came in a pair. It is leaving as a single.'],
-    num: ['dmv', 'Moth is at the DMV. He has been renewing since 1979.'],
+    num: ['dmv', 'Moth is at the DMV. He has been in line since spring.'],
     air: ['ksun', 'KSUN keeps going to static. Mid-sentence.'],
-    bulb: ['drivein', 'The Drive-In has not shown anything since the bulb.'],
-    horse: ['statue', 'Read the Horse Statue plaque in WILD. Blink and see.'],
+    bulb: ['drivein', 'The Eye-Max has had a premiere coming soon since the bulb went. Nobody remembers the bulb going.'],
+    horse: ['statue', 'The horse statue keeps looking down the farm road. Look it in the eye in WILD.'],
     call: ['m_phone', 'The Main St payphone talks if you talk to it first. KSUN runs a contest line.'],
     route: ['m_post', 'The Post Office needs a paper boy. The last one was also a wolf.'],
     heron: ['c_wheel', 'Somebody is at the top of the Sky Wheel. Has been for a while.'],
@@ -42,7 +42,7 @@ export function installJournal({ T, QT, level, audio }) {
     { id: 'swim', name: 'LATE NIGHT SWIM LESSON', how: "Finish Ram's swim lesson (Night 3)", got: () => (S.swimBest?.stars || 0) > 0 },
     { id: 'swim3', name: 'GOLD STAR SWIMMER', how: 'Three stars at the swim lesson', got: () => (S.swimBest?.stars || 0) >= 3 },
     // the ending (finale.js): Night 7 done, the sun comes up
-    { id: 'finale', name: 'SAME OLD SUNRISE', how: "Finish Night 7 (fix Moth's porch light) and watch the sun come up", got: () => { try { return !!JSON.parse(localStorage.getItem('sunspots.progress') || '{}').finaleSeen; } catch (_) { return false; } } },
+    { id: 'finale', name: 'THE PREMIERE', how: 'See it through.', got: () => { try { return !!JSON.parse(localStorage.getItem('sunspots.progress') || '{}').finaleSeen; } catch (_) { return false; } } },
   ];
   const HOMES = ['wolf', 'living90', 'lynx', 'crow', 'heron', 'gecko', 'ram', 'anteater', 'apt_vict', 'moth', 'apt_pink', 'mansion', 'farm'].filter((k) => !Object.keys(ROOMS).length || ROOMS[k]);
   const roomKeys = () => Object.keys(ROOMS);

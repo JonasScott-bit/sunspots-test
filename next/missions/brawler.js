@@ -101,7 +101,7 @@ function buildLane(G, K, o = {}) {
   for (let s = 0; s < 4; s++) G.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(wire.slice(s * 12, s * 12 + 12)), new THREE.LineBasicMaterial({ color: '#2a2030' })));
   // dumpster ("FELT BIN"), crates, a mop bucket, the rules board
   const bin = new THREE.Group(); bin.add(K.box(1.7, 1.1, 0.95, '#2f6a4a')); const lid = K.box(1.78, 0.08, 1.0, '#244f38'); lid.position.y = 1.1; lid.rotation.x = -0.12; bin.add(lid);
-  const bl = K.sign('FELT BIN · NO FIGHTERS', 1.1, 0.22, '#244f38', '#fff3dc'); bl.position.set(0, 0.7, 0.48); bin.add(bl); K.at(bin, -2.0, 0, z0 - 9.2, Math.PI / 2); G.add(bin);
+  const bl = K.sign('BIN · NO FIGHTERS', 1.1, 0.22, '#244f38', '#fff3dc'); bl.position.set(0, 0.7, 0.48); bin.add(bl); K.at(bin, -2.0, 0, z0 - 9.2, Math.PI / 2); G.add(bin);
   const crate = (x, z, y = 0, c2 = '#b88a5a', lab = 'LIMES') => { const g = new THREE.Group(); g.add(K.box(0.62, 0.48, 0.48, c2)); const l = K.sign(lab, 0.5, 0.16, '#efe2c4', '#2f7a4a'); l.position.set(0, 0.26, 0.245); g.add(l); K.at(g, x, y, z, rnd(-0.3, 0.3)); G.add(g); return g; };
   crate(-2.35, z0 - 4.4); crate(-2.3, z0 - 4.5, 0.48, '#c99a6a', 'TORTILLAS'); crate(2.35, dz + 1.4, 0, '#b88a5a', 'ONIONS'); crate(-2.4, z0 - 11.5, 0, '#a87a4a', 'LIMES'); crate(2.3, z0 - 11.2, 0, '#c99a6a', 'SALSA (MILD)');
   const bucket = new THREE.Group(); bucket.add(K.cyl(0.2, 0.17, 0.36, '#f2c230', 12)); const mop = K.cyl(0.02, 0.02, 1.3, '#c9a06a', 5); mop.rotation.z = 0.25; mop.position.y = 0.1; bucket.add(mop); K.at(bucket, 2.4, 0, dz - 1.0); G.add(bucket);

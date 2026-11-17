@@ -341,7 +341,7 @@ export function createLevel(C) {
       k.obj.rotation.y = k.yaw + (dir > 0 ? Math.PI / 2 : -Math.PI / 2); k.hitT -= dt;
       const cc = L.mode === 'drive' ? L.car : L.mode === 'solo' ? L.free : null;
       if (cc && k.hitT <= 0 && Math.hypot(cc.pos.x - k.obj.position.x, cc.pos.z - k.obj.position.z) < 2.3) { k.hitT = 2.5; const fast = Math.abs(cc.v) > 6; cc.v *= fast ? -0.2 : 0.3; cc.hopV = fast ? 2.0 : 0.8;
-        audio.ev('bonk', { solo: cc === L.free }); toast(fast ? ['Moo. (felt)', 'The cow does not move. The cow was here first.', 'A cow. At 2 AM. Of course.'][Math.floor(rnd() * 3)] : 'Cows crossing. You wait. They take their time.', 2.2); } }
+        audio.ev('bonk', { solo: cc === L.free }); toast(fast ? ['Moo.', 'The cow does not move. The cow was here first.', 'That cow has seen things.'][Math.floor(rnd() * 3)] : 'Cows crossing. You wait. They take their time.', 2.2); } }
   }
 
   // -------------------------------------------------------------- townsfolk spots (invisible markers) + rigged cast
@@ -516,7 +516,7 @@ export function createLevel(C) {
   function trafficList() { const W = L.trafficSrc?.(); if (!W) return null; const a = L._tr || (L._tr = []); a.length = 0;
     for (const t of W.cars || []) if (t?.p && t.root?.visible) a.push({ x: t.p.x, z: t.p.z, yaw: t.p.yaw || 0 });
     const cp = W.cop; if (cp?.p && cp.root?.visible) a.push({ x: cp.p.x, z: cp.p.z, yaw: cp.p.yaw || 0 }); return a; }
-  const BONK_SOLO = ['Bonk.', 'Felt bumper. No harm.', '(the boots apologise)'], BONK_RIDE = ['Bonk.', 'The driver blinks.', 'Moth says nothing. Loudly.'];
+  const BONK_SOLO = ['Bonk.', 'Thud.', 'Bonk.'], BONK_RIDE = ['Bonk.', 'The driver blinks.', 'Moth says nothing. Loudly.'];
   function carResponse(c, dt, hx, hz, nHit, solo, pedal, px, pz) {
     const hl = Math.hypot(hx, hz);
     if (hl > 1e-4) {
