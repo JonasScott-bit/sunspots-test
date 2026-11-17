@@ -115,7 +115,7 @@ const FOLKV = new Map();
 export function folk(r = Math.random, h = 0.9 + Math.random() * 0.25) { const KS = ['pig', 'duck', 'cat', 'dog', 'sheep', 'pig'],   // Nov 16: every townsfolk face is a real species (no blank 'someone' ball)
     SH = ['#3a6a8a', '#f2c230', '#2fae8a', '#c9302a', '#8a7ab8', '#ff6fae', '#f6efe0', '#e0705a'], PA = ['#3a3a4a', '#5a4a3a', '#2f4a6a', '#e8dcc8'];
   const k = KS[Math.floor(r() * KS.length) % KS.length], a = Math.floor(r() * SH.length) % SH.length, b = Math.floor(r() * PA.length) % PA.length, hh = Math.round(h * 10) / 10, key = k + a + b + hh;
-  if (!FOLKV.has(key)) FOLKV.set(key, { ...FOLK[k], name: 'town_' + k, q: 0.5, top: SH[a], sleeve: SH[a], pants: PA[b], h: hh * (FOLK[k].h || 1) });
+  if (!FOLKV.has(key)) FOLKV.set(key, { ...FOLK[k], name: 'town_' + k, q: 0.62, qLo: 0.28, top: SH[a], sleeve: SH[a], pants: PA[b], h: hh * (FOLK[k].h || 1) });
   return feltFolk(FOLKV.get(key)); }
 
 // ------------------------------------------------------------------ the waddle car (felt capsule, bubble cabin, bumpers, headlights)

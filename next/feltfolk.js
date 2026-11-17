@@ -670,7 +670,7 @@ const swirl = (x, y, z) => { const a = Math.sin(x * 23 + Math.sin(y * 17) * 2.2 
 export const FOLK = {
   wolf: { kind: 'canine', fur: '#4a4a54', face: '#4e4e58', muzzle: '#5a5a64', nose: '#141214', iris: '#e0482a', ears: 'pointy', earK: 1.25, earW: 1.3, earIn: '#3a3a42', top: '#e2a83a', collar: 'turtle', sweater: 1, pants: '#e0705a', legStyle: 'straight', feet: 'paw', feetCol: '#2e2e34', hands: '#3a3a42', tail: { kind: 'bushy', col: '#40404a' }, fat: 1.05 },
   bear: { kind: 'bear', fur: '#6a4430', muzzle: '#8a6040', nose: '#1e1410', top: '#6e1f2a', collar: 'turtle', sweater: 1, pants: '#1f7a7a', shoes: '#3a2418', hands: '#5a3a28', fat: 1.22, wide: 1.06, h: 1.12, headR: 0.25, neck: 0.04 },
-  grandma: { kind: 'bear', fur: '#8a5a3a', muzzle: '#b08560', nose: '#2a1a14', glasses: { col: '#3a2a22' }, hair: { col: '#efece6', bun: 1 }, top: '#efe2c6', sleeve: '#7a2232', coat: { col: '#efe2c6', len: -0.12, gap: 0.6, buttons: '#7a2232' }, dress: '#6a6e34', skirt: '#6a6e34', skirtLen: -0.44, shoes: '#5a3a24', hands: '#7a4e32', fat: 1.16, h: 0.98, headR: 0.245, open: 0.1 },
+  grandma: { kind: 'bear', q: 0.66, fur: '#8a5a3a', muzzle: '#b08560', nose: '#2a1a14', glasses: { col: '#3a2a22' }, hair: { col: '#efece6', bun: 1 }, top: '#efe2c6', sleeve: '#7a2232', coat: { col: '#efe2c6', len: -0.12, gap: 0.6, buttons: '#7a2232' }, dress: '#6a6e34', skirt: '#6a6e34', skirtLen: -0.44, shoes: '#5a3a24', hands: '#7a4e32', fat: 1.16, h: 0.98, headR: 0.245, open: 0.1 },
   gecko: { kind: 'lizard', fur: swirl, face: '#7a3a9a', headFn: swirl, lid: '#7a3a9a', top: swirl, onepiece: 0, pants: '#efe2c8', legStyle: 'flare', feet: 'paw', feetCol: '#7a3a9a', hands: '#5ab04a', tail: { kind: 'curl', col: swirl }, h: 0.92, iris: '#e8c03a' },
   lynx: { kind: 'lynx', fur: '#d8b98a', muzzle: '#f2e6cc', nose: '#3a2226', iris: '#8ac8e8', ears: 'tufted', top: '#2f8a86', collar: 'turtle', pants: '#efe2c8', legStyle: 'flare', shoes: '#5a3a28', hands: '#d0b080', tail: { kind: 'puff', col: '#d8b98a' } },
   heron: { kind: 'bird', fur: '#cfd6dc', face: '#eef0f2', crest: '#1e1e24', beak: { col: '#e8a82a', len: 3.3, w: 0.28, drop: 0.1, flat: 0.7 }, top: '#5a2a7a', collar: 'hood', pants: '#efe2c6', legStyle: 'shorts', feet: 'bird', legCol: '#e8822a', hand: 'wing', hands: '#cfd6dc', h: 1.08, legs: 1.12, headR: 0.2, iris: '#e8c03a' },
@@ -719,7 +719,7 @@ function lodSwitch(meshes, u) { return function (renderer, scene, camera) {
   if (want !== u.lodLvl) { u.lodLvl = want; for (const m of meshes) { const g = m.userData.lod[want]; if (g) m.geometry = g; } } }; }
 export function folk(spec, opts = {}) {
   const sp = typeof spec === 'string' ? FOLK[spec] : spec; if (!sp) return folk('someone');
-  let B = BUILT.get(sp); if (!B) { B = { hi: buildFolk(sp, sp.q || 0.8), lo: buildFolk(sp, 0.4) }; BUILT.set(sp, B); }   // sp.q: background townsfolk build a lighter near LOD
+  let B = BUILT.get(sp); if (!B) { B = { hi: buildFolk(sp, sp.q || 0.8), lo: buildFolk(sp, sp.qLo || 0.4) }; BUILT.set(sp, B); }   // sp.q / sp.qLo: background townsfolk build lighter LODs
   const { hi, lo } = B, pv = hi.pv, s = pv.s, mat = folkMat(), g = new THREE.Group(), meshes = [];
   EMPTY ||= new THREE.BufferGeometry();
   const mk = (k, parent) => { if (!hi.geos[k]) return null; const m = new THREE.Mesh(hi.geos[k], mat); m.userData.lod = [hi.geos[k], lo.geos[k]]; m.castShadow = false; m.receiveShadow = false; parent.add(m); meshes.push(m); return m; };
