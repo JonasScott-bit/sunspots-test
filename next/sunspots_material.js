@@ -291,8 +291,31 @@ export function contactShadow(radius = 0.55, opacity = 0.55) {
 let ENABLED = null;
 export function sunspotsEnabled() { if (ENABLED === null) ENABLED = !sunspotsLowEnd(); return ENABLED; }
 export function sunspotsApply(root, char, h = 1.75, extra = {}) {
-  if (!sunspotsEnabled()) return [];
-  return applySunspotsLook(root, { mode: 'cheap', lite: true, char, height: h, ...extra });
+  const mats = sunspotsEnabled() ? applySunspotsLook(root, { mode: 'cheap', lite: true, char, height: h, ...extra }) : [];
+  matteGLB(root);   // always: originals keep metalness 1 + a glossy roughness map; the phone watchdog may swap back to them
+  return mats;
 }
 // every material of a mesh incl. the fallback partner (so per-material patches like patchRider hit both looks)
 export function bothMats(o) { return [...new Set([...[].concat(o.material || []), ...(o.userData.ssPair || [])])]; }
+
+// Meshy / town2 GLBs ship without metallicFactor (glTF default 1) and often a metallicRoughnessTexture
+// whose green channel is near 0. On the phone the felt shader can fall back to those originals after a
+// hitch (main.js watchdog) and the crew read as glassy shards. Force a matte felt shell on every material
+// the mesh might swap to, including the pre-sunspots original.
+export function matteGLB(root) {
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    for (const m of bothMats(o)) {
+      if (!m || m.isShaderMaterial) continue;
+      // Felt shader: only FrontSide. Stripping its maps and forcing a recompile breaks the
+      // custom fragment program on SwiftShader (VALIDATE_STATUS false) and the crew go shiny again.
+      if (m.userData?.ss) { m.side = THREE.FrontSide; continue; }
+      m.metalness = 0; if ('metalnessMap' in m) m.metalnessMap = null;
+      m.roughness = 0.9; if ('roughnessMap' in m) m.roughnessMap = null;
+      if ('transmission' in m) m.transmission = 0;
+      if ('envMapIntensity' in m) m.envMapIntensity = 0;
+      m.side = THREE.FrontSide;
+      m.needsUpdate = true;
+    }
+  });
+}

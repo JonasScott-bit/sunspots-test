@@ -118,7 +118,7 @@ function create({ T, S, hud: H }) {
     const b = H.button('boost', 'FLOOR<br>IT'); const hk = H.button('honk', 'HONK', { alt: true }); hk.onDown = honk;
     c.I.onTap = null; c.I.padOn = true;
     if (c.opts.phase === 'house') { G.drive = 40; toHouse(); return; }
-    G.phase = 'talk'; camera.fov = 55; D.update(0.016, 0, { x: 0 }); D.resetCam(); D.cam(camera, 1, CAMO);
+    G.phase = 'talk'; camera.fov = 55; D.update(0.016, 0, { x: 0 }); D.resetCam(); D.cam(camera, 1, CAMO); frameSpeaker(camera);
     H.say([['GRANDMA', "Duchess. I left Duchess in the bedroom."], ['BEAR', 'With the door shut?'], ['GRANDMA', 'With my good china, dear.'], ...(DRIVER === 'bear' ? [['BEAR', 'Keys. Everybody in. I\'m driving.']] : [['WOLF', 'Get in. I\'m driving.'], ['BEAR', 'Shotgun.']]), ['GRANDMA', 'I\'ll take the back. I like to see everything.']], () => { if (G.phase === 'talk') go(); });
     if (G.auto) setTimeout(() => { if (G.phase === 'talk') { H.subQ = []; H.skipSub(); } }, 600);
   };
@@ -169,6 +169,28 @@ function create({ T, S, hud: H }) {
   }
   const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
+
+  // Opening lines used to play over the chase cam: a view of the empty street and the house walls, not Grandma.
+  // Cut to the speaker's face (3/4, outside the open cab) for the talk, then the chase cam takes over on the countdown.
+  function frameSpeaker(cam) {
+    const who = (H.subEl?.querySelector('i')?.textContent || 'GRANDMA').trim().toLowerCase();
+    const p = crew[who] || crew.grandma;
+    p.updateWorldMatrix(true, true);
+    const head = new THREE.Vector3();
+    const hd = p.userData.hd;
+    if (hd) hd.getWorldPosition(head);
+    else { p.getWorldPosition(head); head.y += ((p.userData.h || 1) * 1.55); }
+    const body = car.userData.body || car;
+    body.updateWorldMatrix(true, true);
+    // The wrappers face the body's +Z, but that axis points out the back of the cab — a +Z offset
+    // sat the lens behind Bear and Grandma (we saw the back of his head). In front of the face is -Z.
+    const e = (hd || p).matrixWorld.elements;
+    const fl = Math.hypot(e[8], e[10]) || 1, fwdX = -e[8] / fl, fwdZ = -e[10] / fl, sideX = -fwdZ, sideZ = fwdX;
+    const por = cam.aspect < 1, dist = por ? 1.45 : 1.65, sh = por ? 0.7 : 0.85;
+    cam.position.set(head.x + fwdX * dist + sideX * sh, head.y + 0.18, head.z + fwdZ * dist + sideZ * sh);
+    cam.lookAt(head.x, head.y - 0.08, head.z);
+    cam.fov = por ? 40 : 32; cam.near = 0.08; cam.updateProjectionMatrix();
+  }
   // ================================================================== per-frame
   const _w = new THREE.Vector3();
   inst.update = (dt, t, I) => {
@@ -179,6 +201,7 @@ function create({ T, S, hud: H }) {
       if (G.phase === 'count') { const n = 3 - Math.floor(G.t); H.hint(n > 0 ? String(n) : 'GO!', 0); if (G.t > 3) { G.phase = 'drive'; G.t = 0; H.hint('GO!', 0.8); sfx.ok(); } }
       if (G.phase !== 'drive' && G.phase !== 'arrive') { D.P.cruise = 0; } else D.P.cruise = 19;
       D.update(dt, t, G.phase === 'drive' ? ax : { x: 0 }, wantB); D.cam(camera, dt, CAMO);
+      if (G.phase === 'talk') frameSpeaker(camera);
       sky.follow(camera);
       if (G.phase === 'drive') { G.drive += dt; G.meter = clamp(G.drive / (PAR * 2), 0, 1); H.setMeter(G.meter, G.meter < 0.5 ? 'DUCHESS vs THE HOUSE' : G.meter < 0.8 ? 'SHE IS ON THE CURTAINS' : 'THE GOOD CHINA'); const mins = 52 + Math.floor(G.drive / 20); H.pill('clock', `SUN ${mins >= 60 ? '9:' + String(mins - 60).padStart(2, '0') : '8:' + mins} PM`, G.meter > 0.7);
         H.pill('treat', `🐟 ${G.treats}`); const bb = H.btn.boost; if (bb) bb.style.opacity = D.P.boostCharge >= 1 || D.P.boost > 0 ? 1 : 0.45;
