@@ -17,7 +17,7 @@ const pick = (a) => a[Math.floor(Math.random() * a.length)];
 const ease = (t) => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
 
 // ------------------------------------------------------------------ town hooks (used by town.js)
-export const TACO_DOOR = { x: 48, z: -39.85, ry: 0 };   // back door of the shack, facing the back lane (+z)
+export const TACO_DOOR = { x: 44, z: -39.85, ry: 0 };   // back door of the shack, facing the back lane (+z). x 44 (was 48): the old footprint X1=51 overlapped Main St (~53.3, half-width 3.6, west edge ~49.7) and snagged the Late Night highway.
 export const TACO_ROOM = { name: 'TACO TUESDAY\'S BACK LANE', wall: '#7a3a34', trim: '#2fae8a', floor: '#3e3a40', floor2: '#36323a', light: '#c8ccff', real: true, W: 9, D: 6.5 };
 export const VIDEO = 'video/brawler_intro.mp4';
 
@@ -321,7 +321,7 @@ export function brawlerRoom(kitIn) {
 // ------------------------------------------------------------------ the outside: a felt taco shack on the Neon Strip, back door on the lane
 export function placeTacoShack(TS, scene, feltMat, colliders) {
   if (!TS || !scene || TS.doors.taco) return null; const K = kit(feltMat), T = tex(), g = new THREE.Group();
-  const X0 = 45, X1 = 51, Z0 = -48, Z1 = -40, H = 3.4, cx = (X0 + X1) / 2, cz = (Z0 + Z1) / 2;
+  const X0 = 41, X1 = 47, Z0 = -48, Z1 = -40, H = 3.4, cx = (X0 + X1) / 2, cz = (Z0 + Z1) / 2;   // shifted 4 m west so the shack clears the desert highway
   const body = K.box(X1 - X0, H, Z1 - Z0, '#d98a5a'); body.position.set(cx, 0, cz); g.add(body);
   const roof = K.box(X1 - X0 + 0.5, 0.22, Z1 - Z0 + 0.5, '#7a3a2a'); roof.position.set(cx, H, cz); g.add(roof);
   const band = K.box(X1 - X0 + 0.04, 0.35, Z1 - Z0 + 0.04, '#2fae8a'); band.position.set(cx, H - 0.5, cz); g.add(band);
