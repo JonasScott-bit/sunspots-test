@@ -136,7 +136,8 @@ export function installTalk({ T, level, TS, wolfState }) {
     #chatBubble.on{opacity:1}#chatBubble b{display:block;font-size:.7em;letter-spacing:.2em;color:#c8463f;margin-bottom:2px}
     #chatBubble:after{content:"";position:absolute;left:50%;bottom:-11px;margin-left:-8px;border:9px solid transparent;border-top-color:#3a2418;border-bottom:0}
     body.wild #chatBubble,#chatBubble.wild{background:#ffd9e8;color:#5a1030;border-color:#5a1030}
-    body.driving #chatBubble,body.solo #chatBubble{max-width:min(52vw,220px)}`;
+    body.driving #chatBubble,body.solo #chatBubble{max-width:min(52vw,220px)}
+    body.scene #chatBubble,body.room #chatBubble,body.msn #chatBubble,body.dsIn #chatBubble{display:none!important}`;
   document.head.appendChild(st); document.body.appendChild(el);
   const B = { t: 0, x: 0, y: 0, z: 0, q: [] };
   T.hushBubble = () => { el.classList.remove('on'); B.t = 0; B.q = []; };   // QA M1: rooms + missions (T.tick doesn't run indoors, so it stuck on and came back on exit)

@@ -75,6 +75,7 @@ css.textContent = `
 #titleScr.land .menu.shTall{gap:8px;transform:translateY(-50%)}
 #titleScr.land.melting .menu.shTall{transform:translateY(-40%)}
 #titleScr.land .menu.shTall .saveInfo{white-space:nowrap;letter-spacing:.06em;padding:7px 10px}
+#titleScr .bPlay{letter-spacing:.2em;padding-left:.2em;white-space:nowrap}   /* release pass: NEW GAME / CONTINUE fit the button at 390 px (PLAY's .32em overflowed) */
 #titleScr.land .menu.shTall .bPlay{height:60px;font-size:22px}
 #titleScr.land .menu.shTall .bNew,#titleScr.land .menu.shTall .bSet,#titleScr.land .menu.shTall .bCred{height:44px}
 #titleScr.land .menu.shTall .row{gap:8px}
