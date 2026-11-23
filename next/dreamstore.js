@@ -158,6 +158,7 @@ export function createDreamStore(ctx) {
 #dsOv .haze{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 35%,rgba(255,226,190,.12),rgba(255,190,210,.05) 50%,rgba(0,0,0,0) 100%);mix-blend-mode:screen}
 #dsOv .vig{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 90px rgba(40,10,40,.35)}
 #dsOv .pill{position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 14px);transform:translateX(-50%);padding:8px 16px;border-radius:22px;background:rgba(58,30,80,.72);color:#fff3dc;font:700 13px/1.25 Futura,Avenir,sans-serif;letter-spacing:.08em;text-align:center;white-space:nowrap;pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+@media (max-width:560px){#dsOv .pill{white-space:normal;width:max-content;max-width:calc(100vw - 170px)}}
 #dsOv .pill b{color:#ffd89a;font-size:15px;letter-spacing:.14em;display:block}
 #dsOv .pill i{font-style:normal;color:#ffb0c8}
 #dsOv .tip{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 26px);transform:translateX(-50%);color:rgba(255,243,220,.85);font:600 12px Futura,Avenir,sans-serif;letter-spacing:.12em;pointer-events:none;text-align:center;width:90vw;transition:opacity .5s}

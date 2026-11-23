@@ -17,7 +17,10 @@ import './audio.js';   // evaluate the audio graph first so window.__audio (mode
 
 const Q = new URLSearchParams(location.search);
 const ON = (!Q.has('shot') || Q.has('title')) && Q.get('menu') !== '0';
-const INTRO = ON && Q.get('intro') !== '0';
+// Release pass (Nov 23): the EES intro plays on the first launch on a device only (NEW GAME / RESET SAVE keep the flag);
+// later launches go straight to the menu. ?intro=1 forces it, ?intro=0 skips it.
+const INTRO_SEEN = (() => { try { return !!localStorage.getItem('sunspots.introSeen'); } catch (_) { return false; } })();
+const INTRO = ON && Q.get('intro') !== '0' && (Q.get('intro') === '1' || !INTRO_SEEN);
 const root = document.getElementById('titleScr');
 window.__titleUp = ON;
 window.__introUp = INTRO;
@@ -54,6 +57,7 @@ function intro() {
   const au = () => window.__audio;
   const finish = (why) => {
     if (done) return; done = true; clearTimeout(watchdog); state.introEnd = why;
+    try { localStorage.setItem('sunspots.introSeen', '1'); } catch (_) {}
     window.__introUp = false; showMenu(false);
     if (why !== 'ended') au()?.stopIntro?.(0.45);
     au()?.kick?.();   // Mind Meld can start now

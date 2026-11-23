@@ -53,7 +53,7 @@ const nightName = (n) => (NIGHTS()[n - 1]?.name || `NIGHT ${n}`);
 const KEY_NIGHT = (k) => /^(bowl|motel|pool|drivein|poolhall|court|taco)$/.test(k) ? 2 : k === 'mansion' ? 3 : k === 'farm' ? 6 : /^(carnival|c_)/.test(k) ? 5 : 1;
 function wipeSave() {
   window.__wiping = true; try { if (window.__town?.M) window.__town.M.save = () => {}; } catch (_) {}   // nothing may write the old game back on the way out
-  const keep = /^sunspots\.(audio|settings)$/;
+  const keep = /^sunspots\.(audio|settings|introSeen)$/;   // introSeen: NEW GAME doesn't replay the EES intro
   for (const st of [localStorage, sessionStorage]) { try { for (const k of Object.keys(st)) if ((/^ss_/.test(k) || /^sunspots\./.test(k)) && !keep.test(k)) st.removeItem(k); } catch (_) {} }
   try { localStorage.setItem('sunspots.wiped', String(Date.now())); } catch (_) {}   // saveguard.js: never restore a mirror older than this
   window.__saveguard?.clearMirror?.();
@@ -128,6 +128,7 @@ html body #title{left:calc(env(safe-area-inset-left) + 172px)!important}
 #shOv .scroll{position:relative;height:min(50vh,320px);overflow:hidden;-webkit-mask-image:linear-gradient(#0000,#000 15%,#000 85%,#0000);mask-image:linear-gradient(#0000,#000 15%,#000 85%,#0000)}
 #shOv .roll{position:absolute;left:0;right:0;top:0;text-align:center;animation:shRoll 26s linear infinite}
 #shOv .roll p{margin:0 0 22px;font-size:15px;letter-spacing:.12em;line-height:1.5} #shOv .roll small{display:block;font-size:12px;letter-spacing:.28em;opacity:.7}
+#shOv .shLegal{margin:10px 0 0;text-align:center;font:800 12px Futura,"Avenir Next",Avenir,system-ui,sans-serif;letter-spacing:.14em;color:#20307a} #shOv .shLegal a{color:#20307a;display:inline-block;padding:10px 6px;text-decoration:underline;text-underline-offset:3px}
 #shOv .roll .big{font-size:28px;letter-spacing:.3em;color:#e9a62c;text-shadow:0 2px 0 #9b5c16;font-weight:700}
 @keyframes shRoll{from{transform:translateY(min(50vh,320px))}to{transform:translateY(-100%)}}
 #shOv .night{text-align:center} #shOv .night .big{font-size:30px;letter-spacing:.18em;color:#2c53c4;font-weight:800;line-height:1.15}
@@ -203,6 +204,7 @@ function settingsHTML(withAudio) {
   h += seg('INVERT', 'invert', [['off', 'OFF'], ['x', 'X'], ['y', 'Y'], ['both', 'BOTH']], S.invert === true ? 'y' : (S.invert || 'off'));
   h += seg('PERF', 'fps', [['off', 'OFF'], ['on', 'ON']], S.fps || 'off');
   h += `<div class="shSeg shSave" style="--n:1" data-set="save"><span>SAVE</span><button data-v="reset">RESET SAVE…</button></div>`;
+  h += `<div class="shSeg" style="--n:2" data-set="legal"><span>LEGAL</span><button data-v="privacy">PRIVACY</button><button data-v="terms">TERMS</button></div>`;   // release pass: draft legal pages (next/legal/)
   return h + '</div>';
 }
 function wireSettings(root) {
@@ -212,6 +214,7 @@ function wireSettings(root) {
       if (v === 'reset') { row.style.setProperty('--n', 2); row.innerHTML = '<span>ERASE?</span><button data-v="yes" class="shDanger">YES, ERASE</button><button data-v="no">KEEP</button>'; row.insertAdjacentHTML('afterend', '<div class="shNote shSaveNote">Erases every Sunspot, Night and mission. Settings stay. This cannot be undone.</div>'); sfx(); return; }
       if (v === 'yes') { sfx('sfx_ui_confirm'); resetSave(); return; }
       row.style.setProperty('--n', 1); row.innerHTML = '<span>SAVE</span><button data-v="reset">RESET SAVE…</button>'; row.nextElementSibling?.classList.contains('shSaveNote') && row.nextElementSibling.remove(); return; }
+    if (k === 'legal') { sfx(); openLegal(v); return; }
     if (k === 'snd') window.__audio?.setMode?.(v); else setSetting(k, v);
     for (const o of row.querySelectorAll('button')) { o.classList.toggle('on', o === b); o.setAttribute('aria-pressed', o === b); }
     const qn = root.querySelector('[data-qn]'); if (qn) qn.textContent = qualityNote();
@@ -297,8 +300,10 @@ function nightsView() {
   const L = card.querySelector('.nts'), more = () => L.isConnected && L.classList.toggle('more', L.scrollTop + L.clientHeight < L.scrollHeight - 2);   // fade the last row when the list scrolls
   L.addEventListener('scroll', more, { passive: true }); requestAnimationFrame(more); if (!nightsView.rs) { nightsView.rs = 1; addEventListener('resize', () => { if (view === 'nights') { const l = card.querySelector('.nts'); l?.dispatchEvent(new Event('scroll')); } }); }
 }
+// release pass: the privacy policy + terms (DRAFTS for Scott's review) open in their own tab / in-app browser; the game keeps its place
+function openLegal(which) { const u = new URL(`./legal/${which === 'terms' ? 'terms' : 'privacy'}.html`, location.href).href; const w = window.open(u, '_blank'); if (w) { try { w.opener = null; } catch (_) {} } else location.href = u; }
 function settingsView() { show('settings', `<h2>SETTINGS</h2>${settingsHTML(true)}<button class="felt cream" data-a="back">BACK</button>`); }
-function creditsView() { show('credits', `<h2>CREDITS</h2><div class="scroll"><div class="roll">${CREDITS_HTML}</div></div><button class="felt cream" data-a="back">BACK</button>`); }
+function creditsView() { show('credits', `<h2>CREDITS</h2><div class="scroll"><div class="roll">${CREDITS_HTML}</div></div><p class="shLegal"><a href="./legal/privacy.html" target="_blank" rel="noopener">PRIVACY POLICY</a> · <a href="./legal/terms.html" target="_blank" rel="noopener">TERMS</a></p><button class="felt cream" data-a="back">BACK</button>`); }
 function nightCard(n) {
   const N = NIGHTS()[n - 1]; const [num, ...rest] = N.name.split(' · ');
   try { window.__audio?.ui?.('confirm'); } catch (_) {}

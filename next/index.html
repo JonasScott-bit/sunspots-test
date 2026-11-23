@@ -8,7 +8,12 @@
 <meta name="theme-color" content="#1c4fb8">
 <title>Sunspots</title>
 <link rel="manifest" href="./manifest.webmanifest"><link rel="apple-touch-icon" href="./icons/apple-touch-icon.png"><meta name="apple-mobile-web-app-title" content="Sunspots">
-<script>window.SUNSPOTS_BUILD = { demo: false, price: { phone: "$7.99 CAD", desktop: "$13.99 CAD" } };   /* ship pass: flip demo to true for the free-demo build */</script>
+<script>window.SUNSPOTS_BUILD = { demo: false, release: false, price: { phone: "$7.99 CAD", desktop: "$13.99 CAD" } };   /* ship pass: flip demo to true for the free-demo build */
+/* release pass (Nov 23): flip release to true in the build you sell. It strips the QA URL flags (?unlock, ?finale, ?m=, ?mauto, ?room=, ?scene=, ?phone, ...)
+   before any game module reads them, so a player can't open every Night from the address bar. localStorage 'sunspots.dev' = '1' keeps them for testing. */
+(function () { try { if (!window.SUNSPOTS_BUILD.release || localStorage.getItem('sunspots.dev')) return; var q = new URLSearchParams(location.search), keep = new URLSearchParams(), n = 0;
+  q.forEach(function (v, k) { if (k === 'src' || /^utm_/.test(k)) keep.set(k, v); else n++; });
+  if (n) history.replaceState(null, '', location.pathname + (keep.toString() ? '?' + keep : '') + location.hash); } catch (e) {} })();</script>
 <style>
   html,body{margin:0;height:100%;overflow:hidden;background:#1c4fb8;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;font-family:"Futura","Avenir Next",Avenir,"Trebuchet MS",sans-serif}
   #c{position:fixed;inset:0;width:100%;height:100%;display:block}
@@ -185,6 +190,7 @@
   body.ended #bubbles{display:none}
 </style>
 <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/addons/"}}</script>
+<link rel="modulepreload" href="./vendor/three/three.module.js"><link rel="modulepreload" href="./title.js"><link rel="modulepreload" href="./main.js">
 <link rel="preload" href="./intro/ees_poster.jpg" as="image">
 <link rel="stylesheet" href="./mobile.css">
 </head>
@@ -226,6 +232,7 @@
     <button class="felt cream bBack">BACK</button></div>
 </div>
 <div id="intro"><div class="iframe"><video muted autoplay playsinline webkit-playsinline preload="auto" disablepictureinpicture disableremoteplayback poster="./intro/ees_poster.jpg"><source src="./intro/ees_intro.mp4" type='video/mp4; codecs="avc1.640028"'><source src="./intro/ees_intro.webm" type='video/webm; codecs="vp9"'></video></div><div class="itap">TAP TO PLAY</div><div class="ihint">TAP TO SKIP</div></div>
+<script>/* release pass: no intro download on later launches (title.js skips the intro once it has been seen) */try{if(localStorage.getItem('sunspots.introSeen')&&!/[?&]intro=1/.test(location.search)){var iv=document.querySelector('#intro video');if(iv){iv.removeAttribute('autoplay');iv.preload='none';iv.removeAttribute('poster');while(iv.firstChild)iv.firstChild.remove();}}}catch(e){}</script>
 <div id="err"></div>
 <script>window.addEventListener('error',e=>{const d=document.getElementById('err');d.style.display='block';d.textContent+=String(e.message)+'\n'});</script>
 <script type="module" src="./shell.js"></script>

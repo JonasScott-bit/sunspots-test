@@ -159,8 +159,9 @@ export function installJournal({ T, QT, level, audio }) {
   const hadSave = !!M.loadedFromSave && !Q.has('fresh') && !Q.has('room') && !Q.has('scene') && !Q.has('nowb');
   let wbShown = false;
   function showWb() {
-    wbShown = true; const a = active(), f = found();
-    const m = a[0]; const line = m ? `${M.TITLE[m]}: ${M.OBJ[m][S[m]]}` : !S.snacks ? 'The store still closes at 2:00 AM.' : 'Nothing on the list. The town keeps going without you.';
+    wbShown = true; syncX();   // release pass: the cast missions' Sunspots first, so the count matches the HUD (was "1 of 24" beside 1/74)
+    const a = active(), f = found();
+    const m = a[0]; const line = m ? `${M.TITLE[m]}: ${M.OBJ[m][S[m]]}` : !S.snacks ? 'The store still closes at 2:00 AM.' : 'Nothing started yet. The JOURNAL has RUMOURS: the town always wants something.';
     wb.innerHTML = `<b>WELCOME BACK</b><h3>☀ ${f.length} of ${SUNS.length} Sunspots</h3><p>${esc(line)}</p><div><button class="alt" data-j="1">JOURNAL</button><button data-c="1">CARRY ON</button></div>`;
     wb.classList.add('on');
   }
