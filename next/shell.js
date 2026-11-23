@@ -129,7 +129,7 @@ html body #title{left:calc(env(safe-area-inset-left) + 172px)!important}
 #shOv .scroll{position:relative;height:min(50vh,320px);overflow:hidden;-webkit-mask-image:linear-gradient(#0000,#000 15%,#000 85%,#0000);mask-image:linear-gradient(#0000,#000 15%,#000 85%,#0000)}
 #shOv .roll{position:absolute;left:0;right:0;top:0;text-align:center;animation:shRoll 26s linear infinite}
 #shOv .roll p{margin:0 0 22px;font-size:15px;letter-spacing:.12em;line-height:1.5} #shOv .roll small{display:block;font-size:12px;letter-spacing:.28em;opacity:.7}
-#shOv .shLegal{margin:10px 0 0;text-align:center;font:800 12px Futura,"Avenir Next",Avenir,system-ui,sans-serif;letter-spacing:.14em;color:#20307a} #shOv .shLegal a{color:#20307a;display:inline-block;padding:10px 6px;text-decoration:underline;text-underline-offset:3px}
+#shOv .shLegal,#titleScr .shLegal{margin:10px 0 0;text-align:center;font:800 12px Futura,"Avenir Next",Avenir,system-ui,sans-serif;letter-spacing:.14em;color:#20307a} #shOv .shLegal a,#titleScr .shLegal a{color:#20307a;display:inline-block;padding:10px 6px;text-decoration:underline;text-underline-offset:3px}
 #shOv .roll .big{font-size:28px;letter-spacing:.3em;color:#e9a62c;text-shadow:0 2px 0 #9b5c16;font-weight:700}
 @keyframes shRoll{from{transform:translateY(min(50vh,320px))}to{transform:translateY(-100%)}}
 #shOv .night{text-align:center} #shOv .night .big{font-size:30px;letter-spacing:.18em;color:#2c53c4;font-weight:800;line-height:1.15}
@@ -239,6 +239,8 @@ const T = document.getElementById('titleScr');
 const CREDITS_HTML = creditsHTML();   // credits.js (CREATOR_NAME lives there)
 if (T) {
   const roll = T.querySelector('.roll'); if (roll) roll.innerHTML = CREDITS_HTML;
+  // release pass: the title-screen credits carry the same draft legal links as the pause credits
+  { const cp = T.querySelector('.panel[data-p="credits"]'), bk = cp?.querySelector('.bBack'); if (cp && bk && !cp.querySelector('.shLegal')) { const lg = document.createElement('p'); lg.className = 'shLegal'; lg.innerHTML = '<a href="./legal/privacy.html" target="_blank" rel="noopener">PRIVACY POLICY</a> · <a href="./legal/terms.html" target="_blank" rel="noopener">TERMS</a>'; cp.insertBefore(lg, bk); } }
   const menu = T.querySelector('.menu'), play = T.querySelector('.bPlay'), row = T.querySelector('.menu .row');
   const save = savedTown();
   if (save && play && menu) {
