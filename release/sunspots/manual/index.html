@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Sunspots · Instruction Manual</title>
+<meta name="theme-color" content="#1c3c99">
+<link rel="icon" href="../icons/icon-192.png">
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#1c3c99;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-text-size-adjust:100%}
+  .felt{position:relative;border:0;margin:0;padding:0;font:700 17px Futura,"Avenir Next",Avenir,"Trebuchet MS",sans-serif;letter-spacing:.2em;color:#fbf0d9;border-radius:22px;
+    background-color:var(--c);background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='3'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23f)'/></svg>"),radial-gradient(ellipse at 50% 20%,rgba(255,255,255,.22),rgba(0,0,0,0) 65%);
+    background-blend-mode:soft-light,normal;box-shadow:0 5px 0 var(--d),0 9px 16px rgba(30,10,40,.35),inset 0 0 0 1px rgba(255,255,255,.12),inset 0 -6px 12px rgba(0,0,0,.14);
+    text-shadow:0 2px 0 rgba(60,20,10,.28);-webkit-tap-highlight-color:transparent;touch-action:manipulation;cursor:pointer;transition:transform .12s,box-shadow .12s,filter .3s}
+  .felt:before{content:"";position:absolute;inset:6px;border-radius:16px;border:2px dashed rgba(255,246,225,.55);pointer-events:none}
+  .felt:active{transform:translateY(4px) scale(.98);box-shadow:0 1px 0 var(--d),0 3px 8px rgba(30,10,40,.3)}
+  .felt.mustard{--c:#e9a62c;--d:#9b5c16;color:#20307a;text-shadow:0 1px 0 rgba(255,240,200,.45)} .felt.mustard:before{border-color:rgba(32,48,122,.4)}
+  .felt.coral{--c:#ec6f55;--d:#93352a} .felt.cobalt{--c:#2c53c4;--d:#162a73} .felt.cream{--c:#f6e7c8;--d:#b69a6a;color:#20307a;text-shadow:none} .felt.cream:before{border-color:rgba(32,48,122,.35)}
+  noscript{display:block;padding:40px 20px;color:#fbf0d9;font:16px Futura,Avenir,sans-serif;text-align:center} noscript a{color:#ffd36a}
+</style></head>
+<body>
+<noscript>The manual needs JavaScript. <a href="./Sunspots_Manual.pdf">Here is the PDF instead.</a></noscript>
+<script type="module">
+import { openManual } from '../manualview.js';
+const p = +new URLSearchParams(location.search).get('p') || 1;
+openManual({ standalone: true, page: p });
+</script>
+</body></html>

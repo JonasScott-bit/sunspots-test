@@ -1,0 +1,131 @@
+/* Sunspots ship pass, part 1 (Nov 16 2026): phone readability + thumb-sized targets.
+   Loaded after every module's injected <style>, but uses `html body` + !important so it wins either way.
+   Rules: no game text under 13px at 390px wide; every button at least 44x44 (Apple HIG / Material 48dp).
+   --ts is the TEXT SIZE setting (shell.js): 1 normal, 1.15 large, 1.3 huge. Only the always-on HUD scales with it. */
+html{--ts:1}
+html.ts-l{--ts:1.15} html.ts-xl{--ts:1.3}
+
+/* ---- top-left: sound, title, clock HUD */
+html body #sndBtn{width:44px!important;height:44px!important;top:calc(env(safe-area-inset-top) + 8px)!important}
+html body #sndBtn svg{left:11px!important;top:11px!important;width:22px!important;height:22px!important}
+html body #sndToast{font-size:13px!important;left:calc(env(safe-area-inset-left) + 66px)!important;top:calc(env(safe-area-inset-top) + 16px)!important}
+html body #title{left:calc(env(safe-area-inset-left) + 66px)!important;top:calc(env(safe-area-inset-top) + 22px)!important;font-size:13px!important}
+html body #hud{top:calc(env(safe-area-inset-top) + 58px)!important;max-width:min(58vw,330px)!important}
+html body #clk{font-size:calc(22px * var(--ts))!important}
+html body #clkSub{font-size:calc(13px * var(--ts))!important;letter-spacing:.12em!important;line-height:1.3}
+html body #obj{font-size:calc(14px * var(--ts))!important;line-height:1.35!important;text-shadow:0 1px 3px rgba(20,8,30,.85),0 0 2px rgba(20,8,30,.8)!important}
+html body #dist{font-size:calc(13px * var(--ts))!important;letter-spacing:.14em!important}
+html body #hint{font-size:calc(14px * var(--ts))!important;letter-spacing:.1em!important;padding:0 14px;opacity:.85}
+html body #toast{font-size:calc(16px * var(--ts))!important}
+html body #townObj{font-size:calc(14px * var(--ts))!important}   /* portrait: town.js places it under the HUD (it measures the HUD) */
+html body.room #townObj{top:calc(env(safe-area-inset-top) + 62px)!important}
+@media (orientation:landscape){html body #hud{max-width:42vw!important} html body #townObj{top:calc(env(safe-area-inset-top) + 58px)!important;left:calc(env(safe-area-inset-left) + 44vw)!important;max-width:30vw!important}}
+
+/* ---- top-right column: WILD, GO + JOURNAL, minimap */
+html body #wildBtn{min-height:48px!important;min-width:84px;font-size:16px!important}
+html body #qtBtn,html body #jnBtn{min-height:46px!important;font-size:15px!important;top:calc(env(safe-area-inset-top) + 74px)!important;padding-top:0!important;padding-bottom:0!important}
+html body #qtBtn{min-width:64px}
+html body #jnBtn{right:calc(env(safe-area-inset-right) + 92px)!important}
+html body #jnBtn i{width:18px!important;height:18px!important}
+html body #mmap{top:calc(env(safe-area-inset-top) + 132px)!important}
+html body #mmap .n{font-size:13px!important;top:-10px!important}
+@media (orientation:portrait) and (max-height:720px){html body #mmap{top:calc(env(safe-area-inset-top) + 128px)!important}}
+@media (orientation:landscape){html body #mmap{top:calc(env(safe-area-inset-top) + 128px)!important}}
+html body.driving #mmap{top:calc(env(safe-area-inset-top) + 140px)!important}
+@media (orientation:landscape){html body.driving #mmap{top:calc(env(safe-area-inset-top) + 70px)!important}}
+html body.driving #eyeBtn{top:calc(env(safe-area-inset-top) + 70px)!important}
+@media (orientation:landscape){html body.driving #eyeBtn{top:calc(env(safe-area-inset-top) + 8px)!important;right:calc(env(safe-area-inset-right) + 112px)!important}}
+
+/* ---- sheets: journal + GO */
+html body #jnSheet{font-size:15px!important}
+html body #jnSheet header b{font-size:16px!important} html body #jnSheet header span{font-size:14px!important}
+html body #jnSheet header button{min-width:48px!important;min-height:48px!important;font-size:16px!important}
+html body #jnTabs button{min-height:46px!important;font-size:14px!important;padding:0 16px!important}
+html body #jnBody .it h4{font-size:15px!important} html body #jnBody .it p{font-size:15px!important} html body #jnBody .it small{font-size:13px!important}
+html body #jnBody .it button{min-height:48px!important;font-size:14px!important}
+html body #jnWb{font-size:15px!important} html body #jnWb b{font-size:14px!important} html body #jnWb h3{font-size:20px!important} html body #jnWb button{min-height:50px!important;font-size:14px!important}
+html body #qtSheet{font-size:15px!important}
+html body #qtSheet h3{font-size:14px!important}
+html body #qtSheet button{min-height:56px!important;font-size:15px!important}
+html body #qtSheet button small{font-size:13px!important;opacity:.8!important}
+
+/* ---- driving controls */
+html body #bTilt{width:68px!important;height:46px!important;font-size:13px!important;bottom:calc(env(safe-area-inset-bottom) + 150px)!important}
+html body #bVol,html body #bHorn,html body #bScan{width:116px!important;height:46px!important;font-size:13px!important;letter-spacing:.1em!important}
+html body #bVol,html body #bScan{bottom:calc(env(safe-area-inset-bottom) + 116px)!important}
+html body #bHorn{bottom:calc(env(safe-area-inset-bottom) + 172px)!important}
+html body #bExit{width:116px!important;height:48px!important;font-size:14px!important;bottom:calc(env(safe-area-inset-bottom) + 228px)!important}
+html body #bDismount,html body #bGetOff{height:48px!important;font-size:14px!important;bottom:calc(env(safe-area-inset-bottom) + 210px)!important}
+html body #soloRadio{font-size:13px!important} html body #soloRadio b{font-size:12px!important}
+html body #getIn{font-size:19px!important;min-height:56px}
+
+/* ---- rooms */
+html body #roomExit{min-height:46px!important;font-size:14px!important}
+html body #roomChips button{min-height:46px!important;font-size:14px!important;padding:0 16px!important}
+html body #roomName{font-size:16px!important}
+html body #roomBtn{min-height:54px}
+
+/* ---- scenes, end screen, subtitles */
+html body #endSub{font-size:16px!important}
+html body #retry{min-height:52px;font-size:17px!important}
+html body #sceneSub{font-size:clamp(16px,4.4vw,20px)!important}
+html body #sceneSubName{font-size:.7em!important}
+html body .sbub{font-size:15px!important} html body .sbub b{font-size:12px!important}
+html body #skipBtn{font-size:12px!important}
+@media (orientation:landscape){html body #skipBtn{width:56px!important;height:56px!important;line-height:56px!important;font-size:11px!important}}
+
+/* ---- intro + title menu */
+html body #intro .ihint{font-size:13px!important}
+html body #titleScr .snd{font-size:13px!important}
+html body #titleScr .panel label,html body #titleScr .panel output,html body #titleScr .modes{font-size:13px!important}
+html body #titleScr .modes button{height:46px!important;font-size:13px!important}
+html body #titleScr .note{font-size:13px!important}
+html body #titleScr .roll small{font-size:12px!important} html body #titleScr .roll p{font-size:15px!important}
+
+/* ---- minigames, TV, bowling, carnival, diner menu (older modules) */
+html body #mgExit,html body #bwExit,html body #tvExit{min-height:46px!important;font-size:14px!important}
+html body #mgHint,html body #bwHint,html body #bwInfo,html body #tvName,html body #tvHint{font-size:14px!important}
+html body #mgPanel p,html body #bwPanel p{font-size:14px!important}
+html body #bwBalls button{min-height:44px!important;font-size:13px!important}
+html body #tvCard small,html body #tvFade small{font-size:13px!important}
+html body #cgame .top small{font-size:13px!important} html body #ctix{font-size:14px!important}
+html body #dnMenu .hd span,html body #dnMenu .it .n i{font-size:13px!important} html body #dnMenu .ft button{font-size:14px!important}
+html body #cine .t{font-size:14px!important}
+
+/* ---- mission modules (Next Level): only lift the floor to 13px, layouts untouched */
+html body #srBtn{font-size:13px!important;min-height:40px!important;max-height:48px!important;width:auto!important;height:auto!important}
+html body #srList h4,html body #srCard .badges span,html body #srShop .need span,html body #srShop .say,html body #srShop .bot .n,html body #srCard h2,html body #srCard ul{font-size:13px!important}
+html body #swimUI .pill small,html body #swimUI .card small,html body #swimUI .hint{font-size:13px!important}
+html body #brMid,html body #brHint,html body #brCrowd,html body #brPanel h4,html body #brPanel p{font-size:13px!important}
+html body #brExit{min-height:44px!important;font-size:13px!important} html body #brSpec{font-size:12px!important}
+html body #msn .ttl,html body #msn .meter b,html body #msn .sub i,html body #msn .card b,html body #msn .card .sun,html body #msn .tag{font-size:13px!important}
+/* portrait: journal tabs wrap onto a 3 x 2 grid instead of running off the edge mid-word */
+@media (orientation:portrait){
+  html body #jnTabs{display:grid!important;grid-template-columns:repeat(3,1fr)!important;gap:6px!important;overflow:visible!important;flex-wrap:wrap!important}
+  html body #jnTabs button{padding:0 6px!important;min-width:0!important;width:100%!important;font-size:13px!important;letter-spacing:.06em!important}
+}
+/* a mission's Night-gate card has its own OKAY; its corner quit button sat on top of the room's EXIT */
+html body.msnlock #msn .quit{display:none!important}
+/* short landscape (phone on its side): HORN sits beside SCAN/RADIO VOL so GET OUT clears the objective line under the clock */
+@media (orientation:landscape) and (max-height:500px){
+  html body #bHorn{bottom:calc(env(safe-area-inset-bottom) + 116px)!important;left:calc(env(safe-area-inset-left) + 140px)!important}
+  html body #bExit{bottom:calc(env(safe-area-inset-bottom) + 46px)!important;left:calc(env(safe-area-inset-left) + 190px)!important}
+  html body #soloRadio{max-width:220px!important}   /* bottom row, beside the arrows: clear of the HUD lines */
+}
+/* journal: with a long list (SUNSPOTS) the flex column squeezed the header + tab row and clipped the tab labels */
+html body #jnSheet header,html body #jnTabs{flex:none!important}
+html body #jnBody{flex:1 1 auto!important;min-height:0!important}
+/* errand list: a soft felt-dark backing so it reads over bright signs; out of the PERF overlay's way when that is on */
+html body #townObj{background:rgba(27,19,36,.55);padding:6px 10px;border-radius:12px;box-sizing:border-box}
+html body #townObj:empty{display:none!important}
+@media (orientation:landscape){html body.pf-on #townObj{top:calc(env(safe-area-inset-top) + 92px)!important}}
+/* portrait drive: the snack run's LIST moves under the minimap (it sat on the wrapped objective line), and the radio
+   pill shifts right so it clears the SCAN / HORN column */
+@media (orientation:portrait){
+  html body #srList{left:auto!important;right:calc(env(safe-area-inset-right) + 12px)!important;top:calc(env(safe-area-inset-top) + 258px)!important;max-width:46vw}
+  html body #soloRadio{left:calc(50% + 45px)!important;bottom:calc(env(safe-area-inset-bottom) + 178px)!important;max-width:130px!important;min-width:0!important}
+}
+/* portrait: keep the LATE NIGHT chip under the clock as a compact pill. Never set both top and bottom — that stretched it to ~498 px. */
+@media (orientation:portrait){html body #srBtn{top:calc(env(safe-area-inset-top) + 118px)!important;bottom:auto!important;max-height:44px!important}}
+/* portrait rooms: the room name sits between the pause button and EXIT instead of under the pause button */
+@media (orientation:portrait){html body #roomName{left:calc(env(safe-area-inset-left) + 114px)!important;right:calc(env(safe-area-inset-right) + 94px)!important;font-size:13px!important;letter-spacing:.16em!important;line-height:1.3!important;top:calc(env(safe-area-inset-top) + 14px)!important}}

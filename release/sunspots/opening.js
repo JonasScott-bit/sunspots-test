@@ -1,0 +1,161 @@
+// opening.js — Nov 16 2026: the cold open of a new game + Moth's cab waiting at spawn.
+// Scott: "it doesn't lead in at all, just jumps right in", and the Wolf's own car parked at spawn with a big IN THE CAR
+// button pulled him off the mission. Now, once per new game, before control:
+//   1. Sunspots at 1:57 AM: a slow crane down Main St            } ~25 s, 2.39 letterbox, muted night, slow weighty moves,
+//   2. the crew in the Wolf's front yard by the couch: out of snacks } a location / time super in the bottom bar,
+//      (RAM "We're out." BEAR "Of what." RAM "All of it." ...)      } skippable (hold SKIP, or Esc / Enter)
+//   3. the Wolf: "Two minutes. I can do two minutes."
+//   4. Moth's cab walks up Mesa Rd on its boots, lights on, stops at the curb
+//   5. Moth leans out of his window: "I am aware of the time."
+// ONE opening (Nov 16 merge): the crew from the snack-run rework now waits in the yard for the Night 1 run (real cast
+// models, not the toy figures), the ride is Moth's cab, the store is Paradise Bliss (dreamstore.js). The LATE NIGHT
+// SNACK RUN replay and his own car only appear after Night 1. The clock starts when the cab pulls away (level.js).
+// Control comes back on the Wolf's front walk, facing the waiting cab; the pulsing ring by the cab + GET IN do the rest.
+// The Wolf's own car is not in the world until the snacks are delivered (level.js freeUnlocked).
+// Runs on the scene director (scenes.js) through its public API only: anchors + SCENES + play. Clock frozen while it runs.
+// ?noopening skips it; ?opening forces it again (QA).
+import { Vector3 as THREE_V } from 'three';
+import { crewGLB, breathe } from './missions/kit.js';
+import { Mesh } from 'three';
+// the town2 *_lo crew GLBs render as giant sheets when skinned outside their rooms (the clone's skin scale goes wrong);
+// they only need to stand and breathe here, so swap each SkinnedMesh for a plain Mesh in its bind (rest) pose
+function unskin(o) { const sk = []; o.traverse(m => { if (m.isSkinnedMesh) sk.push(m); }); if (!sk.length) return; if (o.userData) o.userData.rig = null;
+  for (const m of sk) { const p = new Mesh(m.geometry, m.material); p.name = m.name; p.position.copy(m.position); p.quaternion.copy(m.quaternion); p.scale.copy(m.scale); m.parent.add(p); m.parent.remove(m); } }
+
+// the crew waits in the Wolf's front yard by the couch until the snacks are home (real cast GLBs, breathing; no rigs)
+const COUCH = [17.6, 51.2];   // level.js diner_couch (moved west of the driveway, Nov 16)
+const WOLF_SPOT = [25.2, 56.4];   // where he ends the cold open: his front walk, in reach of the cab
+const CREW = [['bear', 1.9, COUCH[0] - 1.9, COUCH[1] + 1.6], ['heron', 2.0, COUCH[0] + 0.1, COUCH[1] + 2.0], ['ram', 1.75, COUCH[0] + 1.9, COUCH[1] + 1.6]];
+export function installOpening(L, { toast } = {}) {
+  const Q = new URLSearchParams(location.search), KEY = 'sunspots.opening';
+  // ---- the DRAG TO WALK line: once per save, gone for good after the first walk
+  { const h = document.getElementById('hint'); let done = false; try { done = !!localStorage.getItem('sunspots.hint'); } catch (_) {}
+    if (h && done) h.style.display = 'none';
+    else if (h) { let hintT = 0; const iv = setInterval(() => { const lv = window.__sunspots?.level, play = lv && lv.mode === 'walk' && !document.body.classList.contains('scene') && !window.__titleUp; if (play) hintT += 0.5;
+      if (getComputedStyle(h).opacity === '0' || (window.__sunspots?.wolfState?.speed || 0) > 0.5 || hintT > 9) {   // first walk, or 9 s on screen
+        h.style.transition = 'opacity 1s'; h.style.opacity = '0'; clearInterval(iv); try { localStorage.setItem('sunspots.hint', '1'); } catch (_) {} setTimeout(() => { h.style.display = 'none'; }, 1200); } }, 500); } }
+  // ---- Night 1 on foot: one thing to do (get in the cab). Hide the HUD a first-timer doesn't need yet: the journal / sunspot
+  // counter, GO (quick travel), WILD, the first-person eye and the minimap + compass. They all come back once he's in the cab
+  // (the minimap helps on the drive) and for good after the snacks are home.
+  if (!Q.has('oldtown')) {
+    const st = document.createElement('style'); st.id = 'n1Css';
+    st.textContent = 'body.n1 #jnBtn,body.n1 #qtBtn,body.n1 #wildBtn,body.n1 #eyeBtn,body.n1 #mmap{display:none!important}';
+    document.head.appendChild(st);
+    setInterval(() => { const on = L.mode === 'walk' && !L.ended && !!L.snacksDone && !L.snacksDone() && !window.__town?.active; if (on !== document.body.classList.contains('n1')) document.body.classList.toggle('n1', on); }, 250);
+  }
+  // ---- the crew in the yard (Night 1 only)
+  const crew = {}; let crewOn = false;
+  const S0w = () => window.__sunspots;
+  (async () => { if (Q.has('oldtown')) return; for (const [k, h, x, z] of CREW) { try { const o = await crewGLB(k, h); unskin(o); o.position.set(x, 0, z); o.rotation.y = Math.atan2(WOLF_SPOT[0] - x, WOLF_SPOT[1] - z); o.visible = false; o.userData.noAudit = false; crew[k] = o;
+      const sc = (await new Promise(r => { const f = () => S0w()?.scene ? r(S0w().scene) : setTimeout(f, 200); f(); })); sc.add(o); L.colliders?.push({ x, z, r: 0.45, crew: k }); } catch (e) { console.warn('opening crew', k, e); } }
+    let last = performance.now(); const tick2 = () => { const n = performance.now(), t = n / 1000; last = n;
+      const on = !L.snacksDone?.() && !window.__snackrun?.S?.on && !window.__town?.active; if (on !== crewOn) { crewOn = on; for (const o of Object.values(crew)) o.visible = on; }
+      if (on) for (const o of Object.values(crew)) breathe(o, t, {}); requestAnimationFrame(tick2); }; tick2(); })();
+  L.openingCrew = crew;
+  // the cold open: nobody looks at anybody, then ("It's his fridge.") all three look at the Wolf
+  const turnCrew = (atWolf) => { for (const [k, , x, z] of CREW) { const o = crew[k]; if (o) o.rotation.y = atWolf ? Math.atan2(WOLF_SPOT[0] - x, WOLF_SPOT[1] - z) : Math.atan2(x - WOLF_SPOT[0], 62 - z) * 0.4 + (k === 'heron' ? 0.5 : k === 'bear' ? -0.6 : 0.3); } };
+  if (Q.has('noopening') || Q.has('shot') || Q.get('scene') || Q.has('unlock') || Q.has('finale') || Q.get('room') || Q.get('m') || Q.has('oldtown')) return;
+  const seen = () => { try { return !!localStorage.getItem(KEY); } catch (_) { return false; } };
+  const CAB0 = [-6, 59.8], CAB = [27, 59.8], WOLF_AT = WOLF_SPOT, LEFT0 = L.left;
+  let sup = null;
+  function css() {
+    if (document.getElementById('openingCss')) return;
+    const st = document.createElement('style'); st.id = 'openingCss';
+    st.textContent = `body.cine239 .lb{height:max(0px,calc((100vh - 100vw / 2.39) / 2))!important;transition:height .6s ease!important}
+      @media (orientation:portrait){body.cine239 .lb{height:25vh!important}}
+      #openSuper{position:fixed;left:50%;bottom:0;transform:translateX(-50%);z-index:9;pointer-events:none;color:#efe3cc;opacity:0;transition:opacity .9s;
+        font:600 11px/1 Futura,Avenir,"Helvetica Neue",Arial,sans-serif;letter-spacing:.42em;text-transform:uppercase;white-space:nowrap;padding-bottom:max(10px,calc((100vh - 100vw / 2.39) / 4 - 5px))}
+      @media (orientation:portrait){#openSuper{padding-bottom:calc(4vh + env(safe-area-inset-bottom))}}
+      #openSuper b{font-weight:700;color:#fff6e2}#openSuper.on{opacity:.92}`;
+    document.head.appendChild(st);
+    sup = document.createElement('div'); sup.id = 'openSuper'; document.body.appendChild(sup);
+  }
+  let clockT = 0, clockRaf = 0;
+  let place = 'SUNSPOTS';
+  function superOn(on) { if (!sup) return; sup.classList.toggle('on', on); cancelAnimationFrame(clockRaf);
+    if (on) { const t0 = performance.now(); const f = () => { const s = 18 + Math.floor((performance.now() - t0) / 1000); sup.innerHTML = `${place} &nbsp;·&nbsp; <b>1:57:${String(Math.min(29, s)).padStart(2, '0')} AM</b>`; clockRaf = requestAnimationFrame(f); }; f(); } }
+  void clockT;
+
+  function define(S0) {
+    const D = S0.director, puppet = S0.puppet;
+    D.anchors.home = () => ({ x: 0, z: 0, yaw: 0 });   // world frame: scene coordinates below are world metres
+    const wolf = () => D.D.actors.wolf, cab = L.car;
+    const yawTo = (a, b) => Math.atan2(b[0] - a[0], b[1] - a[1]);
+    const setup = () => {
+      try { localStorage.setItem(KEY, '1'); } catch (_) {}
+      document.body.classList.add('cine239'); css(); place = 'SUNSPOTS'; superOn(true); turnCrew(false);
+      cab.pos.set(CAB0[0], 0, CAB0[1]); cab.yaw = Math.PI / 2; cab.v = 0; cab.root.position.copy(cab.pos); cab.root.rotation.y = cab.yaw; cab.root.visible = true;
+      const w = wolf(); puppet.on = true; puppet.speed = 0; w.setPos(WOLF_AT[0], WOLF_AT[1], 0); pose(); w.obj.scale.setScalar(puppet.base || w.obj.scale.x);
+    };
+    // (re)place the Wolf facing the crew. A late NEW GAME reset can still land him on wolfStart; we pose once
+    // at the hold and again inside the MCU shot. The actual mid-line slip was the idle clip turning his head
+    // (and a 40 ms setInterval(pose) could not stop bone-level rotation). puppet.holdFace freezes the idle.
+    const faceYaw = () => yawTo(WOLF_AT, COUCH);
+    const pose = () => { const w = wolf(), ws = S0.wolfState, y = faceYaw(); puppet.on = true; puppet.speed = 0; puppet.holdFace = true; puppet.headYaw = 0; puppet.headTilt = 0;
+      w.setPos(WOLF_AT[0], WOLF_AT[1], 0); w.setYaw(y); ws.pos.set(WOLF_AT[0], 0, WOLF_AT[1]); ws.yaw = y; ws.speed = 0; };
+    const finish = () => {
+      puppet.holdFace = false;
+      superOn(false); document.body.classList.remove('cine239');
+      cab.pos.set(CAB[0], 0, CAB[1]); cab.yaw = Math.PI / 2; cab.v = 0;
+      const ws = S0.wolfState, w = wolf(); const y = yawTo(WOLF_AT, CAB);
+      w.setPos(WOLF_AT[0], WOLF_AT[1], 0); w.setYaw(y); ws.pos.set(WOLF_AT[0], 0, WOLF_AT[1]); ws.yaw = y; ws.speed = 0;
+      puppet.on = false; puppet.speed = 0; puppet.headYaw = 0; puppet.headTilt = 0;
+      L.left = LEFT0;   // the cold open doesn't cost clock time
+    };
+    const C = (k, y = 1.45) => { const o = crew[k]; return o ? [o.position.x, y * (o.userData.h || 1.8) / 1.8, o.position.z] : [COUCH[0], y, COUCH[1] + 1.8]; };
+    const PORTRAIT = innerHeight > innerWidth;   // the 2.39 frame is narrow on a phone held upright: wider lenses
+    D.SCENES.opening = {
+      anchor: 'home', blocking: true,
+      beats: [
+        { do: 'call', fn: setup },
+        { do: 'audio', cue: 'amb_radio_outside', radio: 0 },
+        // 1. Sunspots, 1:57 AM: a slow descending crane straight down Main St, lamps and neon, nobody about
+        { do: 'cam', pos: [30, 15, 7.5], look: [-70, 1, 7], fov: 36, to: { pos: [20, 8.5, 7.2], look: [-70, 2, 7] }, dur: 4.6, ease: 'inout' },
+        { wait: 0.4 },
+        { do: 'say', who: 'ksun dj', text: 'KSUN 1490. One fifty-seven. Last Minute Snacks closes at two.', dur: 2.6 },
+        { do: 'say', who: 'ksun dj', text: "If you're out of something, you're out of time.", dur: 2.0 },
+        { do: 'call', fn: () => { place = 'MESA LANE'; } },
+        // 2. Mesa Lane: the crew in the Wolf's front yard, by the couch. Slow push in from the street.
+        { do: 'cam', pos: [COUCH[0] - 0.4, 1.6, COUCH[1] + 6.8], look: [COUCH[0] - 0.1, 1.15, COUCH[1] + 1.0], fov: PORTRAIT ? 64 : 40, to: { pos: [COUCH[0] - 0.3, 1.5, COUCH[1] + 5.4], look: [COUCH[0] - 0.1, 1.2, COUCH[1] + 1.2] }, dur: 9.5, ease: 'out' },
+        { wait: 1.0 },
+        { do: 'say', who: 'ram', text: "We're out.", dur: 1.4 },
+        { do: 'say', who: 'bear', text: 'Of what.', dur: 1.2 },
+        { do: 'say', who: 'ram', text: 'All of it.', dur: 1.5 },
+        { do: 'say', who: 'heron', text: 'Store closes at two.', dur: 1.5 },
+        { do: 'say', who: 'bear', text: "Two o'clock? I usually get there around three.", vo: 'vo_bear_10' },
+        { do: 'call', fn: () => turnCrew(true) },
+        // hold the Wolf on his mark through Ram's line AND his own, so he's already facing the crew at the cut
+        { do: 'call', fn: pose },
+        { do: 'say', who: 'ram', text: "It's his fridge.", dur: 1.5 },
+        // 3. the Wolf: eye-level MCU in front of the facing-the-crew yaw. Camera uses that yaw (not a turning head
+        // bone) so the lens stays on his face. holdFace keeps the idle clip from rotating the head mid-line.
+        // vo_wolf_15 is 3.77 s; an explicit dur keeps the headlights cut from arriving while the line is still up.
+        { wait: 0.2 },
+        { do: 'cam', pos: () => { pose(); const h = wolf().headWorld(new THREE_V()), y = faceYaw(), d = PORTRAIT ? 1.25 : 1.45, s = 0.16; return new THREE_V(h.x + Math.sin(y) * d - Math.cos(y) * s, h.y + 0.02, h.z + Math.cos(y) * d + Math.sin(y) * s); }, look: () => { const h = wolf().headWorld(new THREE_V()); h.y -= 0.02; return h; }, fov: PORTRAIT ? 24 : 28 },
+        { do: 'say', who: 'wolf', text: 'Two minutes. I can do two minutes.', vo: 'vo_wolf_15', dur: 4.3 },
+        // 4. headlights: closer low shot so the arriving cab fills the portrait letterbox
+        { do: 'cam', pos: [32.6, 0.82, 57.5], look: { who: 'car', y: 0.95 }, fov: 28 },
+        { do: 'move', who: 'car', path: [[12, 59.8], [CAB[0], CAB[1]]], dur: 3.6, ease: 'out', endYaw: Math.PI / 2 },
+        { do: 'audio', cue: 'sfx_boots_stop' },
+        // 5. Moth leans out: lower lens, look at his face (1.95 m / dy -0.1 was the top of his head, face pointing down)
+        { do: 'cam', pos: [25.15, 1.55, 55.15], look: { who: 'moth', head: true, dy: 0.06 }, fov: 30 },
+        { wait: 0.5 },
+        { do: 'say', who: 'moth', text: 'I am aware of the time.', vo: 'vo_moth_16' },
+        { do: 'audio', cue: 'radio_restore', radio: null },
+        { do: 'call', fn: finish },
+      ],
+    };
+  }
+
+  let crewWait = 0;
+  const tick = () => {
+    const S0 = window.__sunspots, D = S0?.director;
+    if (!S0 || !D || !D.D?.ready || !D.D.actors?.wolf?.obj || window.__titleUp || window.__paused || window.__town?.active) { setTimeout(tick, 200); return; }
+    if ((seen() && !Q.has('opening')) || L.snacksDone?.() || L.mode !== 'walk' || L.ended || D.D.run) return;
+    if (Object.keys(crew).length < CREW.length && crewWait++ < 60) { setTimeout(tick, 250); return; }   // the crew GLBs (up to ~15 s on a slow phone)
+    if (!D.SCENES.opening) define(S0);
+    if (!D.play('opening')) setTimeout(tick, 400);
+  };
+  setTimeout(tick, 0);
+  void toast;
+}
